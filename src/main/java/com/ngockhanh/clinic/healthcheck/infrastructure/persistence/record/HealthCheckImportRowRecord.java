@@ -7,7 +7,7 @@ public record HealthCheckImportRowRecord(
         UUID healthCheckImportJobId,
         Integer rowNumber,
         String employeeCodeSnapshot,
-        String cccdSnapshot,
+        String identificationNumberSnapshot,
         String serviceCodeSnapshot,
         String validationStatus,
         String errorCodesJson,

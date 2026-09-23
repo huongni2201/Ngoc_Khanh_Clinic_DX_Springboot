@@ -17,6 +17,8 @@ public record DiagnosticReportRecord(
         UUID authorStaffId,
         UUID verifiedByStaffId,
         LocalDateTime finalizedAt,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime releasedToPatientAt,
+        UUID releasedToPatientByUserId
 ) {
 }

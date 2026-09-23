@@ -9,7 +9,7 @@ A corporate customer that owns its roster and may run multiple health-check batc
 _Avoid_: client, account
 
 **Company Employee**:
-A company roster member identified within one company by employee code and cccd. It is not a Patient until an authorized preparation workflow links it by exact cccd.
+A company roster member identified within one company by employee code and identification number (CCCD). It is not a Patient until an authorized preparation workflow links it by exact CCCD.
 _Avoid_: patient, staff member
 
 **Health Check Batch**:

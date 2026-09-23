@@ -12,12 +12,13 @@ Before making any non-trivial change, read in this order:
 2. `PROJECT_SKILLS.md`
 3. Relevant ADRs in `docs/adr/`
 4. Backend architecture docs in `docs/architecture/`
-5. The current business source-of-truth documents:
-   - `requirement-v2.5`
-   - `use-case-v2.7`
-   - `table-design-v2.11`
+5. The generated Markdown mirrors in `docs/baseline/` for the affected business contracts:
+   - `requirement-v2.5.md`
+   - `use-case-v2.7.md`
+   - `table-design-v2.11.md`
+6. Read the corresponding `*_FINAL.docx` when a Markdown mirror is missing or a task depends on formatting or visual reference.
 
-If the source-of-truth documents are not available in the repository/workspace, do not invent business rules. State the missing contract and stop at a safe boundary.
+The Markdown mirrors are generated from the FINAL DOCX files by `scripts/docs/sync_baseline_markdown.py`; edit the DOCX source and regenerate rather than editing a mirror by hand. If a required source document is unavailable, do not invent business rules. State the missing contract and stop at a safe boundary.
 
 Accepted ADRs and project rules override generic skill examples.
 
@@ -202,8 +203,8 @@ Do not silently change these rules:
 
 ### Patient
 
-- cccd is mandatory in the current baseline.
-- cccd is unique.
+- CCCD is mandatory in the current baseline.
+- CCCD is unique; its technical field name is `identification_number`.
 - No fuzzy duplicate/merge workflow by name or phone in MVP.
 - Do not create separate identity-type/passport abstractions unless requirements change.
 
@@ -221,7 +222,7 @@ Company
 
 - `CompanyEmployee` is not automatically a `Patient`.
 - Importing an employee roster must not create Patient records.
-- Patient linking/creation occurs during authorized visit preparation by exact cccd lookup, before check-in when the record is prepared in advance.
+- Patient linking/creation occurs during authorized visit preparation by exact CCCD lookup, before check-in when the record is prepared in advance.
 - Only Doctor may select the per-employee subset of examination services.
 - Selected employee services must be a subset of `HealthCheckBatchService`.
 - Front Desk must not add/select examination items for an employee.
@@ -234,7 +235,7 @@ Company
 
 - Encounter and ServiceRequest retain their own lifecycles.
 - Diagnostic progress is derived from Encounter, OrderRound, ServiceRequest, PaymentAuthorization, location and Result.
-- Do not create a separate Journey state machine or queue-ticket models.
+- Derive operational progress from Encounter and its related records; do not persist a parallel queue-stage model.
 - Doctor worklists are driven by Encounter and required ServiceRequest/Result state.
 - Multiple `OrderRound`s may exist in one Encounter.
 
@@ -325,7 +326,7 @@ Healthcare data is sensitive.
 Never:
 
 - log full patient/clinical payloads;
-- log passwords, access tokens, refresh tokens, cccd in full when unnecessary, or secrets;
+- log passwords, access tokens, refresh tokens, CCCD in full when unnecessary, or secrets;
 - commit credentials;
 - store secrets in `application.yml`;
 - trust frontend authorization;
@@ -446,7 +447,7 @@ Rules:
 Critical business rules include:
 
 ```text
-cccd uniqueness
+CCCD / `identification_number` uniqueness
 under-18 rejection for adult health checks
 employee import validation
 doctor-only employee service selection
@@ -477,7 +478,7 @@ V003__create_catalog_tables.sql
 
 Migrations must include constraints and indexes required by the documented model.
 
-Do not rely only on application validation for database invariants such as unique cccd.
+Do not rely only on application validation for database invariants such as a unique `patients.identification_number`.
 
 ---
 

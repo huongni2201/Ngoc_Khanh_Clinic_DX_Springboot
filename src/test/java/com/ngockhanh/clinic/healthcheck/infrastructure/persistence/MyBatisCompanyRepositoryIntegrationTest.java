@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.Company;
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.CompanyEmployee;
 import com.ngockhanh.clinic.healthcheck.domain.repository.CompanyEmployeeRepository;
-import com.ngockhanh.clinic.healthcheck.domain.valueobject.Cccd;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthcheck.domain.repository.CompanyRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,17 +61,17 @@ class MyBatisCompanyRepositoryIntegrationTest {
         java.util.UUID employeeId = id(3);
         companies.save(Company.create(companyId, "MYBATIS-EMP-CO", "Company", "Contact", "0900000000"));
         CompanyEmployee employee = CompanyEmployee.create(employeeId, companyId, "E01",
-                Cccd.of("987654321098"), "Nguyen A", java.time.LocalDate.of(1990, 1, 1), "MALE",
+                IdentificationNumber.of("987654321098"), "Nguyen A", java.time.LocalDate.of(1990, 1, 1), "MALE",
                 "Department", "Technician", "Technician");
         employees.save(employee);
 
         CompanyEmployee restored = employees.findById(employeeId).orElseThrow();
         assertThat(restored.departmentName()).isEqualTo("Department");
         assertThat(employees.findByCompanyAndCode(companyId, "E01")).get().extracting(CompanyEmployee::id).isEqualTo(employeeId);
-        assertThat(employees.findByCompanyAndCccd(companyId, employee.cccd()))
+        assertThat(employees.findByCompanyAndIdentificationNumber(companyId, employee.identificationNumber()))
                 .get().extracting(CompanyEmployee::id).isEqualTo(employeeId);
 
-        employees.save(restored.reimport("E01", employee.cccd(), "Updated Name", employee.dateOfBirth(),
+        employees.save(restored.reimport("E01", employee.identificationNumber(), "Updated Name", employee.dateOfBirth(),
                 employee.sex(), "New Department", employee.jobTitle(), employee.occupation()));
 
         assertThat(employees.findById(employeeId).orElseThrow().fullName()).isEqualTo("Updated Name");

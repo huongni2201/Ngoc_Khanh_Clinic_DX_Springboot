@@ -7,7 +7,7 @@ import java.util.UUID;
 public record PatientRecord(
         UUID id,
         String patientCode,
-        String cccd,
+        String identificationNumber,
         String fullName,
         String fullNameNormalized,
         LocalDate dateOfBirth,

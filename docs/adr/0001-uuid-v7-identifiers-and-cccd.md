@@ -14,4 +14,4 @@ Every persisted primary key and typed relationship key uses application-generate
 
 ## Consequences
 
-UUIDs must be generated before persistence and indexes are wider than `bigint` indexes. An applied V001 migration is preserved; V002 renames the CCCD columns and removes empty legacy Journey tables.
+UUIDs must be generated before persistence and indexes are wider than `bigint` indexes. An applied V001 migration is preserved; V002 renames the CCCD columns and removes empty legacy workflow tables.

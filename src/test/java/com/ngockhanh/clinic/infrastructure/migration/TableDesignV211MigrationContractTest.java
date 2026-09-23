@@ -44,13 +44,66 @@ class TableDesignV211MigrationContractTest {
     void migrationSequenceDeclaresExactlyTheLatestSchemaTables() throws IOException {
         String baseline = readMigration("V001__create_table_design_v2_10.sql");
         String cutover = readMigration("V002__align_table_design_v2_11.sql");
+        String resultRelease = readMigration("V003__complete_result_release_v2_11.sql");
+        String lifecycleChecks = readMigration("V004__add_core_lifecycle_checks.sql");
+        String identifierNames = readMigration("V005__restore_identification_number_column_names.sql");
         Set<String> actualTables = new TreeSet<>();
-        var created = CREATE_TABLE.matcher(baseline + "\n" + cutover);
+        var created = CREATE_TABLE.matcher(baseline + "\n" + cutover + "\n" + resultRelease + "\n"
+                + lifecycleChecks + "\n" + identifierNames);
         while (created.find()) actualTables.add(created.group(1).toLowerCase());
         var dropped = DROP_TABLE.matcher(cutover);
         while (dropped.find()) actualTables.remove(dropped.group(1).toLowerCase());
 
         assertThat(actualTables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
+    }
+
+    @Test
+    void resultReleaseMigrationAddsVersionScopedFieldsAndUserForeignKeys() throws IOException {
+        String resultRelease = readMigration("V003__complete_result_release_v2_11.sql").toLowerCase();
+
+        assertThat(resultRelease)
+                .contains("released_to_patient_at datetime2(3) null")
+                .contains("released_to_patient_by_user_id uniqueidentifier null")
+                .contains("fk_lab_results_released_to_patient_by_user_id")
+                .contains("fk_diagnostic_reports_released_to_patient_by_user_id")
+                .contains("references dbo.users(id)");
+    }
+
+    @Test
+    void lifecycleMigrationConstrainsOnlyDocumentedStatuses() throws IOException {
+        String lifecycleChecks = readMigration("V004__add_core_lifecycle_checks.sql").toLowerCase();
+
+        assertThat(lifecycleChecks)
+                .contains("ck_encounters_status")
+                .contains("'prepared', 'in_progress', 'completed', 'canceled'")
+                .contains("ck_service_requests_status")
+                .contains("'ordered', 'in_progress', 'completed', 'canceled'")
+                .contains("ck_payment_authorizations_status")
+                .contains("'not_required', 'pending', 'authorized', 'waived', 'revoked'")
+                .contains("ck_payments_status")
+                .contains("'pending', 'confirmed', 'failed', 'partially_refunded', 'refunded'")
+                .contains("ck_health_check_batches_status")
+                .contains("'draft', 'ready', 'in_progress', 'result_processing', 'finalized', 'closed', 'canceled'")
+                .contains("ck_health_check_records_status")
+                .contains("'active', 'completed', 'canceled', 'replaced'");
+    }
+
+    @Test
+    void coreBusinessUniquenessInvariantsRemainDatabaseEnforced() throws IOException {
+        String baselineAndCutover = (readMigration("V001__create_table_design_v2_10.sql") + "\n"
+                + readMigration("V002__align_table_design_v2_11.sql") + "\n"
+                + readMigration("V005__restore_identification_number_column_names.sql")).toLowerCase();
+
+        assertThat(baselineAndCutover)
+                .contains("ux_patients_identification_number")
+                .contains("uq_encounters_encounter_code")
+                .contains("ux_encounter_assignments_active")
+                .contains("uq_payment_authorizations_service_request_id")
+                .contains("ux_health_check_records_shs_code")
+                .contains("ux_health_check_records_encounter")
+                .contains("ux_health_check_records_batch_employee")
+                .contains("ux_hcbes_service_request")
+                .contains("ck_users_principal_type");
     }
 
     @Test
@@ -66,6 +119,22 @@ class TableDesignV211MigrationContractTest {
                 .contains("drop table dbo.journey_events")
                 .contains("drop table dbo.journeys")
                 .doesNotContain("public_id", "bigint identity", "newid()", "newsequentialid()");
+    }
+
+    @Test
+    void finalIdentifierMigrationRestoresTechnicalNamesWithoutDroppingData() throws IOException {
+        String identifierNames = readMigration("V005__restore_identification_number_column_names.sql").toLowerCase();
+
+        assertThat(identifierNames)
+                .contains("'dbo.patients.cccd', 'identification_number', 'column'")
+                .contains("'dbo.company_employees.cccd', 'identification_number', 'column'")
+                .contains("'dbo.health_check_import_rows.cccd_snapshot', 'identification_number_snapshot', 'column'")
+                .contains("'dbo.health_check_records.cccd_snapshot', 'identification_number_snapshot', 'column'")
+                .contains("'dbo.health_check_records.cccd_issue_date_snapshot', 'identification_number_issue_date_snapshot', 'column'")
+                .contains("'dbo.health_check_records.cccd_issue_place_snapshot', 'identification_number_issue_place_snapshot', 'column'")
+                .contains("ux_patients_identification_number")
+                .contains("uq_company_employees_company_id_identification_number")
+                .doesNotContain("drop table", "drop column", "delete from");
     }
 
     private static String readMigration(String fileName) throws IOException {

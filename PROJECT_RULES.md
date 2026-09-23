@@ -327,7 +327,7 @@ Use database constraints for true invariants.
 Examples:
 
 ```text
-UNIQUE cccd
+UNIQUE identification_number
 NOT NULL required identity fields
 foreign keys
 check constraints where appropriate
@@ -372,13 +372,13 @@ Rules:
 Current MVP:
 
 ```text
-cccd = mandatory patient business identity
+identification_number = mandatory patient identifier; CCCD is the current business/document label
 ```
 
 Rules:
 
-- Exact cccd lookup before Patient creation.
-- `patients.cccd` must be unique.
+- Exact CCCD lookup before Patient creation.
+- `patients.identification_number` must be unique.
 - No passport/identity-type abstraction in baseline.
 - No fuzzy duplicate merge by name/phone in baseline.
 - Do not create `patient_contacts`, `patient_addresses`, or `patient_merge_history` unless requirements explicitly reintroduce them.
@@ -402,7 +402,7 @@ Company
 Rules:
 
 - Imported `CompanyEmployee`/batch employee is not automatically a Patient.
-- Excel import must preserve cccd as text.
+- Excel import must preserve CCCD as text.
 - Blocking validation includes required fields and current adult health-check rules.
 - Do not fabricate missing optional data.
 - Patient link/create occurs at check-in or the documented workflow point.
@@ -654,7 +654,7 @@ Never log full:
 patient object
 clinical note
 lab result payload
-cccd
+CCCD
 credentials
 tokens
 payment secret

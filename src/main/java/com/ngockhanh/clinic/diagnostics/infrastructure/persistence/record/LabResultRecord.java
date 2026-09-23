@@ -15,6 +15,8 @@ public record LabResultRecord(
         LocalDateTime verifiedAt,
         LocalDateTime finalizedAt,
         LocalDateTime createdAt,
-        String rawMessageReference
+        String rawMessageReference,
+        LocalDateTime releasedToPatientAt,
+        UUID releasedToPatientByUserId
 ) {
 }
