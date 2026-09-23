@@ -1,3 +1,7 @@
 spring:
   application:
     name: ngoc_khanh_clinic_backend
+mybatis:
+  mapper-locations: classpath*:com/ngockhanh/clinic/**/infrastructure/persistence/mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true

@@ -1,6 +1,8 @@
 package com.ngockhanh.clinic.healthcheck.domain.exception;
 
-public abstract class DomainException extends RuntimeException {
+import com.ngockhanh.clinic.shared.BusinessRuleException;
+
+public abstract class DomainException extends BusinessRuleException {
     protected DomainException(String message) {
         super(message);
     }

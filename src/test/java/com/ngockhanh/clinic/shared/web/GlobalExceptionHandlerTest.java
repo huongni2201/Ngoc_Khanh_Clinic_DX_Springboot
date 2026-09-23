@@ -13,6 +13,8 @@ class GlobalExceptionHandlerTest {
     @Test
     void mapsKnownFailuresAndHidesUnexpectedDetails() {
         assertThat(handler.businessRule(new BatchConfigurationLocked()).getStatusCode().value()).isEqualTo(409);
+        assertThat(handler.invalidInput(new IllegalArgumentException("internal validation detail")).getBody().message()).isEqualTo("Invalid request");
+        assertThat(handler.duplicate(new org.springframework.dao.DuplicateKeyException("unique index")).getStatusCode().value()).isEqualTo(409);
         assertThat(handler.notFound(new ResourceNotFoundException("patient")).getStatusCode().value()).isEqualTo(404);
         assertThat(handler.concurrency(new ConcurrentUpdateException()).getBody().code()).isEqualTo("CONCURRENCY_CONFLICT");
         ApiError unexpected = handler.unexpected(new RuntimeException("secret database detail")).getBody();

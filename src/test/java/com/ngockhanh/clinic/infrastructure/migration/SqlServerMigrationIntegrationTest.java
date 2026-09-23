@@ -37,7 +37,7 @@ class SqlServerMigrationIntegrationTest {
                         + "and name <> 'flyway_schema_history'",
                 Integer.class)).isEqualTo(67);
 
-        assertColumnType(jdbcTemplate, "patients", "identificationNumber", "varchar");
+        assertColumnType(jdbcTemplate, "patients", "identification_number", "varchar");
         assertColumnType(jdbcTemplate, "patients", "row_version", "timestamp");
         assertColumnType(jdbcTemplate, "health_check_records", "shs_code", "varchar");
         assertColumnType(jdbcTemplate, "service_requests", "unit_price_snapshot", "decimal");

@@ -16,6 +16,6 @@ public record HealthCheckImportRowRecord(
         UUID resolvedCompanyEmployeeId,
         UUID resolvedBatchEmployeeId,
         UUID resolvedBatchServiceId,
-        Long resolvedServiceRequestId
+        UUID resolvedServiceRequestId
 ) {
 }

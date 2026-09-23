@@ -1,8 +1,9 @@
 package com.ngockhanh.clinic.shared.web;
 
-import com.ngockhanh.clinic.healthcheck.domain.exception.DomainException;
+import com.ngockhanh.clinic.shared.BusinessRuleException;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -16,6 +17,16 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Invalid request");
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity<ApiError> invalidInput(IllegalArgumentException exception) {
+        return error(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Invalid request");
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    ResponseEntity<ApiError> duplicate(DuplicateKeyException exception) {
+        return error(HttpStatus.CONFLICT, "CONFLICT", "A record with the same identity already exists");
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     ResponseEntity<ApiError> notFound(ResourceNotFoundException exception) {
         return error(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.getMessage());
@@ -26,9 +37,9 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.CONFLICT, "CONCURRENCY_CONFLICT", exception.getMessage());
     }
 
-    @ExceptionHandler(DomainException.class)
-    ResponseEntity<ApiError> businessRule(DomainException exception) {
-        return error(HttpStatus.CONFLICT, "BUSINESS_RULE_VIOLATION", exception.getMessage());
+    @ExceptionHandler(BusinessRuleException.class)
+    ResponseEntity<ApiError> businessRule(BusinessRuleException exception) {
+        return error(HttpStatus.CONFLICT, "BUSINESS_RULE_VIOLATION", "Business rule could not be completed");
     }
 
     @ExceptionHandler(Exception.class)

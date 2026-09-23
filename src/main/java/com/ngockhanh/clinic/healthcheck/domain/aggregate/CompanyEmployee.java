@@ -1,12 +1,12 @@
 package com.ngockhanh.clinic.healthcheck.domain.aggregate;
 
+import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
-
 import com.ngockhanh.clinic.healthcheck.domain.exception.PatientRelinkForbidden;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
-import java.time.LocalDate;
 
 public final class CompanyEmployee {
     private final UUID id;
@@ -16,15 +16,18 @@ public final class CompanyEmployee {
     private final String fullName;
     private final LocalDate dateOfBirth;
     private final String sex;
+    private final String departmentName;
+    private final String jobTitle;
+    private final String occupation;
+    private final String status;
     private UUID patientId;
 
-    public CompanyEmployee(UUID companyId, String employeeCode, IdentificationNumber identificationNumber, String fullName, LocalDate dateOfBirth, String sex) {
-        this(null, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex);
-    }
-
-    public CompanyEmployee(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber, String fullName, LocalDate dateOfBirth, String sex) {
+    private CompanyEmployee(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+                            String fullName, LocalDate dateOfBirth, String sex, String departmentName,
+                            String jobTitle, String occupation, String status) {
         if (id == null || companyId == null || employeeCode == null || employeeCode.isBlank() || identificationNumber == null
-                || fullName == null || fullName.isBlank() || dateOfBirth == null || sex == null || sex.isBlank()) {
+                || fullName == null || fullName.isBlank() || dateOfBirth == null || sex == null || sex.isBlank()
+                || status == null || status.isBlank()) {
             throw new IllegalArgumentException("Missing roster identity");
         }
         this.id = id;
@@ -34,42 +37,73 @@ public final class CompanyEmployee {
         this.fullName = fullName;
         this.dateOfBirth = dateOfBirth;
         this.sex = sex;
+        this.departmentName = departmentName;
+        this.jobTitle = jobTitle;
+        this.occupation = occupation;
+        this.status = status;
+    }
+
+    public static CompanyEmployee create(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+                                         String fullName, LocalDate dateOfBirth, String sex) {
+        return create(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex, null, null, null);
+    }
+
+    public static CompanyEmployee create(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+                                         String fullName, LocalDate dateOfBirth, String sex, String departmentName,
+                                         String jobTitle, String occupation) {
+        return new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex,
+                departmentName, jobTitle, occupation, "ACTIVE");
+    }
+
+    public static CompanyEmployee restore(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+                                          String fullName, LocalDate dateOfBirth, String sex, String departmentName,
+                                          String jobTitle, String occupation, String status, UUID patientId) {
+        CompanyEmployee employee = new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName,
+                dateOfBirth, sex, departmentName, jobTitle, occupation, status);
+        employee.patientId = patientId;
+        return employee;
     }
 
     public static CompanyEmployee restore(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
                                           String fullName, LocalDate dateOfBirth, String sex, UUID patientId) {
-        if (id == null) throw new IllegalArgumentException("Persisted employee requires ID");
-        CompanyEmployee employee = new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex);
-        if (patientId != null) employee.linkPatient(patientId);
-        return employee;
+        return restore(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex,
+                null, null, null, "ACTIVE", patientId);
     }
-
-    public UUID patientId() {
-        return patientId;
-    }
-
-    public UUID id() { return id; }
 
     public void linkPatient(UUID patientId) {
         if (patientId == null) throw new IllegalArgumentException("Invalid Patient ID");
-        if (this.patientId != null && this.patientId != patientId) throw new PatientRelinkForbidden();
+        if (this.patientId != null && !Objects.equals(this.patientId, patientId)) throw new PatientRelinkForbidden();
         this.patientId = patientId;
     }
 
-    public CompanyEmployee reimport(String employeeCode, IdentificationNumber identificationNumber, String fullName, LocalDate dateOfBirth, String sex) {
+    public CompanyEmployee reimport(String employeeCode, IdentificationNumber identificationNumber, String fullName,
+                                    LocalDate dateOfBirth, String sex) {
+        return reimport(employeeCode, identificationNumber, fullName, dateOfBirth, sex,
+                departmentName, jobTitle, occupation);
+    }
+
+    public CompanyEmployee reimport(String employeeCode, IdentificationNumber identificationNumber, String fullName,
+                                    LocalDate dateOfBirth, String sex, String departmentName,
+                                    String jobTitle, String occupation) {
         if (patientId != null && (!this.employeeCode.equals(employeeCode) || !this.identificationNumber.equals(identificationNumber))) {
             throw new DomainRuleViolation("Linked roster identity requires review");
         }
-        CompanyEmployee updated = new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex);
+        CompanyEmployee updated = new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName,
+                dateOfBirth, sex, departmentName, jobTitle, occupation, status);
         updated.patientId = patientId;
         return updated;
     }
 
+    public UUID id() { return id; }
     public UUID companyId() { return companyId; }
     public String employeeCode() { return employeeCode; }
     public IdentificationNumber identificationNumber() { return identificationNumber; }
     public String fullName() { return fullName; }
     public LocalDate dateOfBirth() { return dateOfBirth; }
     public String sex() { return sex; }
+    public String departmentName() { return departmentName; }
+    public String jobTitle() { return jobTitle; }
+    public String occupation() { return occupation; }
+    public String status() { return status; }
+    public UUID patientId() { return patientId; }
 }
-

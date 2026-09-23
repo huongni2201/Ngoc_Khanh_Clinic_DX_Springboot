@@ -1,14 +1,13 @@
 package com.ngockhanh.clinic.healthcheck.domain.aggregate;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
-import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
-
-import com.ngockhanh.clinic.healthcheck.domain.exception.AdultEligibilityViolation;
 import com.ngockhanh.clinic.healthcheck.domain.enums.HealthCheckRecordStatus;
+import com.ngockhanh.clinic.healthcheck.domain.exception.AdultEligibilityViolation;
+import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.AdministrativeSnapshot;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.ShsCode;
-import java.time.LocalDate;
 
 public final class HealthCheckRecord {
     private final UUID id;
@@ -19,49 +18,92 @@ public final class HealthCheckRecord {
     private final AdministrativeSnapshot snapshot;
     private final LocalDate plannedExaminationDate;
     private final UUID masterTemplateVersionId;
+    private final UUID replacesHealthCheckRecordId;
     private LocalDate actualExaminationDate;
-    private HealthCheckRecordStatus status = HealthCheckRecordStatus.ACTIVE;
+    private HealthCheckRecordStatus status;
 
-    private HealthCheckRecord(UUID id, ShsCode shs, UUID patientId, UUID encounterId, UUID batchEmployeeId, AdministrativeSnapshot snapshot,
-                              LocalDate plannedExaminationDate, UUID masterTemplateVersionId) {
+    private HealthCheckRecord(UUID id, ShsCode shs, UUID patientId, UUID encounterId, UUID batchEmployeeId,
+                              AdministrativeSnapshot snapshot, LocalDate plannedExaminationDate,
+                              UUID masterTemplateVersionId, UUID replacesHealthCheckRecordId,
+                              LocalDate actualExaminationDate, HealthCheckRecordStatus status) {
         this.id = id;
-        this.batchEmployeeId = batchEmployeeId;
         this.shs = shs;
         this.patientId = patientId;
         this.encounterId = encounterId;
+        this.batchEmployeeId = batchEmployeeId;
         this.snapshot = snapshot;
         this.plannedExaminationDate = plannedExaminationDate;
         this.masterTemplateVersionId = masterTemplateVersionId;
+        this.replacesHealthCheckRecordId = replacesHealthCheckRecordId;
+        this.actualExaminationDate = actualExaminationDate;
+        this.status = status;
     }
 
-    public static HealthCheckRecord prepare(ShsCode shs, UUID patientId, UUID encounterId, AdministrativeSnapshot snapshot,
+    public static HealthCheckRecord prepare(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
+                                            AdministrativeSnapshot snapshot, LocalDate plannedExaminationDate,
+                                            UUID masterTemplateVersionId) {
+        return prepare(id, shs, patientId, encounterId, null, snapshot, plannedExaminationDate, masterTemplateVersionId);
+    }
+
+    public static HealthCheckRecord prepare(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
+                                            UUID batchEmployeeId, AdministrativeSnapshot snapshot,
                                             LocalDate plannedExaminationDate, UUID masterTemplateVersionId) {
-        return prepare(null, shs, patientId, encounterId, null, snapshot, plannedExaminationDate, masterTemplateVersionId);
+        return prepareInternal(id, shs, patientId, encounterId, batchEmployeeId, snapshot,
+                plannedExaminationDate, masterTemplateVersionId, null);
     }
 
-    public static HealthCheckRecord prepare(UUID id, ShsCode shs, UUID patientId, UUID encounterId, UUID batchEmployeeId,
-                                            AdministrativeSnapshot snapshot, LocalDate plannedExaminationDate, UUID masterTemplateVersionId) {
-        if (id == null || shs == null || patientId == null || encounterId == null || (batchEmployeeId != null && batchEmployeeId == null)
-                || snapshot == null || plannedExaminationDate == null || masterTemplateVersionId == null) {
-            throw new IllegalArgumentException("Incomplete health-check record");
-        }
+    public static HealthCheckRecord prepareReplacement(UUID id, UUID replacesHealthCheckRecordId, ShsCode shs,
+                                                       UUID patientId, UUID encounterId, UUID batchEmployeeId,
+                                                       AdministrativeSnapshot snapshot, LocalDate plannedExaminationDate,
+                                                       UUID masterTemplateVersionId) {
+        if (replacesHealthCheckRecordId == null) throw new IllegalArgumentException("Missing record being replaced");
+        return prepareInternal(id, shs, patientId, encounterId, batchEmployeeId, snapshot,
+                plannedExaminationDate, masterTemplateVersionId, replacesHealthCheckRecordId);
+    }
+
+    private static HealthCheckRecord prepareInternal(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
+                                                     UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                                     LocalDate plannedExaminationDate, UUID masterTemplateVersionId,
+                                                     UUID replacesHealthCheckRecordId) {
+        validateRequiredFields(id, shs, patientId, encounterId, snapshot, plannedExaminationDate, masterTemplateVersionId);
+        if (id.equals(replacesHealthCheckRecordId)) throw new IllegalArgumentException("A record cannot replace itself");
         requireAdult(snapshot.dateOfBirth(), plannedExaminationDate);
-        return new HealthCheckRecord(id, shs, patientId, encounterId, batchEmployeeId, snapshot, plannedExaminationDate, masterTemplateVersionId);
+        return new HealthCheckRecord(id, shs, patientId, encounterId, batchEmployeeId, snapshot,
+                plannedExaminationDate, masterTemplateVersionId, replacesHealthCheckRecordId,
+                null, HealthCheckRecordStatus.ACTIVE);
     }
 
-    public static HealthCheckRecord restore(UUID id, ShsCode shs, UUID patientId, UUID encounterId, UUID batchEmployeeId,
-                                            AdministrativeSnapshot snapshot, LocalDate plannedDate, LocalDate actualDate,
+    public static HealthCheckRecord restore(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
+                                            UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                            LocalDate plannedDate, LocalDate actualDate,
                                             UUID masterTemplateVersionId, HealthCheckRecordStatus status) {
-        if (id == null || status == null || (status == HealthCheckRecordStatus.COMPLETED && actualDate == null)) {
+        return restore(id, shs, patientId, encounterId, batchEmployeeId, snapshot, plannedDate,
+                actualDate, masterTemplateVersionId, null, status);
+    }
+
+    public static HealthCheckRecord restore(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
+                                            UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                            LocalDate plannedDate, LocalDate actualDate,
+                                            UUID masterTemplateVersionId, UUID replacesHealthCheckRecordId,
+                                            HealthCheckRecordStatus status) {
+        validateRequiredFields(id, shs, patientId, encounterId, snapshot, plannedDate, masterTemplateVersionId);
+        if (status == null || (status == HealthCheckRecordStatus.COMPLETED && actualDate == null)
+                || id.equals(replacesHealthCheckRecordId)) {
             throw new IllegalArgumentException("Invalid persisted health-check record");
         }
-        HealthCheckRecord record = prepare(id, shs, patientId, encounterId, batchEmployeeId, snapshot, plannedDate, masterTemplateVersionId);
-        if (actualDate != null) {
-            requireAdult(snapshot.dateOfBirth(), actualDate);
-            record.actualExaminationDate = actualDate;
+        requireAdult(snapshot.dateOfBirth(), plannedDate);
+        if (actualDate != null) requireAdult(snapshot.dateOfBirth(), actualDate);
+        return new HealthCheckRecord(id, shs, patientId, encounterId, batchEmployeeId, snapshot, plannedDate,
+                masterTemplateVersionId, replacesHealthCheckRecordId, actualDate, status);
+    }
+
+    private static void validateRequiredFields(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
+                                               AdministrativeSnapshot snapshot, LocalDate plannedDate,
+                                               UUID masterTemplateVersionId) {
+        if (id == null || shs == null || patientId == null || encounterId == null || snapshot == null
+                || plannedDate == null || masterTemplateVersionId == null) {
+            throw new IllegalArgumentException("Incomplete health-check record");
         }
-        record.status = status;
-        return record;
     }
 
     public void checkIn(LocalDate actualDate) {
@@ -82,12 +124,11 @@ public final class HealthCheckRecord {
         if (eighteenthBirthday.isAfter(date)) throw new AdultEligibilityViolation();
     }
 
-    public ShsCode shs() { return shs; }
-    public HealthCheckRecordStatus status() { return status; }
     public void complete() {
         if (actualExaminationDate == null) throw new DomainRuleViolation("Record has not been checked in");
         transitionFromActive(HealthCheckRecordStatus.COMPLETED);
     }
+
     public void cancel() { transitionFromActive(HealthCheckRecordStatus.CANCELED); }
     public void markReplaced() { transitionFromActive(HealthCheckRecordStatus.REPLACED); }
 
@@ -95,9 +136,16 @@ public final class HealthCheckRecord {
         if (status != HealthCheckRecordStatus.ACTIVE) throw new DomainRuleViolation("Invalid health-check record transition");
         status = next;
     }
+
     public UUID id() { return id; }
     public UUID batchEmployeeId() { return batchEmployeeId; }
+    public ShsCode shs() { return shs; }
+    public UUID patientId() { return patientId; }
+    public UUID encounterId() { return encounterId; }
     public AdministrativeSnapshot snapshot() { return snapshot; }
+    public LocalDate plannedExaminationDate() { return plannedExaminationDate; }
     public LocalDate actualExaminationDate() { return actualExaminationDate; }
+    public UUID masterTemplateVersionId() { return masterTemplateVersionId; }
+    public UUID replacesHealthCheckRecordId() { return replacesHealthCheckRecordId; }
+    public HealthCheckRecordStatus status() { return status; }
 }
-

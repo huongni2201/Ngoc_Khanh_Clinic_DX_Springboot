@@ -7,12 +7,36 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PersistenceRecordContractTest {
 
+    @org.junit.jupiter.api.Test
+    void resolvedServiceRequestIdentifierUsesUuidLikeItsSqlServerColumn() throws Exception {
+        RecordComponent component = Arrays.stream(Class.forName(
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthCheckImportRowRecord")
+                .getRecordComponents())
+                .filter(candidate -> candidate.getName().equals("resolvedServiceRequestId"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(component.getType()).isEqualTo(UUID.class);
+    }
+
+    @org.junit.jupiter.api.Test
+    void assignmentBillableRecordComponentIsPrimitiveLikeNotNullSqlColumn() throws Exception {
+        RecordComponent component = Arrays.stream(Class.forName(
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthCheckBatchEmployeeServiceRecord")
+                .getRecordComponents())
+                .filter(candidate -> candidate.getName().equals("billable"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(component.getType()).isEqualTo(boolean.class);
+    }
     @ParameterizedTest
     @MethodSource("latestSchemaRecords")
     void recordComponentsFollowLatestSchemaColumnOrder(String className, List<String> componentNames)

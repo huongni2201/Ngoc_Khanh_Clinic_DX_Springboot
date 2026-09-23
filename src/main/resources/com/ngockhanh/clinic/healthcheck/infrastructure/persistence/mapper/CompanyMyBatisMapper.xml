@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.CompanyMyBatisMapper">
+    <select id="findById" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyRecord">
+        SELECT id, company_code, company_name, tax_code, address, contact_name, contact_phone,
+               contact_job_title, note, status, created_at, updated_at, row_version
+        FROM dbo.companies
+        WHERE id = #{id}
+    </select>
+    <select id="findByCode" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyRecord">
+        SELECT id, company_code, company_name, tax_code, address, contact_name, contact_phone,
+               contact_job_title, note, status, created_at, updated_at, row_version
+        FROM dbo.companies
+        WHERE company_code = #{code}
+    </select>
+    <select id="findByTaxCode" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyRecord">
+        SELECT id, company_code, company_name, tax_code, address, contact_name, contact_phone,
+               contact_job_title, note, status, created_at, updated_at, row_version
+        FROM dbo.companies
+        WHERE tax_code = #{taxCode}
+    </select>
+    <insert id="insert">
+        INSERT INTO dbo.companies (
+            id, company_code, company_name, tax_code, address, contact_name, contact_phone,
+            contact_job_title, note, status, created_at, updated_at
+        ) VALUES (
+            #{id}, #{companyCode}, #{companyName}, #{taxCode}, #{address}, #{contactName}, #{contactPhone},
+            #{contactJobTitle}, #{note}, #{status}, SYSUTCDATETIME(), SYSUTCDATETIME()
+        )
+    </insert>
+</mapper>

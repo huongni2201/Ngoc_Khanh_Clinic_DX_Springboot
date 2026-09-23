@@ -1,13 +1,18 @@
 package com.ngockhanh.clinic.shared.id;
 
+import com.ngockhanh.clinic.shared.IdGenerator;
+import org.springframework.stereotype.Component;
+
 import java.security.SecureRandom;
 import java.util.UUID;
 
-public final class UuidV7Generator {
+@Component
+public final class UuidV7Generator implements IdGenerator {
     private static final SecureRandom RANDOM = new SecureRandom();
     private long lastTimestamp = -1;
     private int sequence;
 
+    @Override
     public synchronized UUID next() {
         long timestamp = System.currentTimeMillis();
         if (timestamp <= lastTimestamp) {

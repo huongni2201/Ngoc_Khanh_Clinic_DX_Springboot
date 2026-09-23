@@ -10,7 +10,7 @@ public record HealthCheckBatchEmployeeServiceRecord(
         UUID healthCheckBatchEmployeeId,
         UUID healthCheckBatchServiceId,
         UUID serviceRequestId,
-        Boolean billable,
+        boolean billable,
         BigDecimal unitPriceSnapshot,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
