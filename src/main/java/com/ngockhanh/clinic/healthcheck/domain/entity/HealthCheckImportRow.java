@@ -36,7 +36,7 @@ public final class HealthCheckImportRow {
             throw new IllegalArgumentException("Roster row requires employee identity and snapshot");
         }
         return new HealthCheckImportRow(id, rowNumber, true, null, employeeCode, snapshot,
-                snapshot.cccd(), null, null);
+                snapshot.identificationNumber(), null, null);
     }
 
     public static HealthCheckImportRow result(UUID id, int rowNumber, String employeeCode, Cccd cccd,
