@@ -11,10 +11,11 @@ import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class TableDesignV210MigrationContractTest {
-
+class TableDesignV211MigrationContractTest {
     private static final Pattern CREATE_TABLE = Pattern.compile(
             "(?im)\\bcreate\\s+table\\s+dbo\\.([a-z_][a-z0-9_]*)\\b");
+    private static final Pattern DROP_TABLE = Pattern.compile(
+            "(?im)\\bdrop\\s+table\\s+dbo\\.([a-z_][a-z0-9_]*)\\b");
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "patients", "patient_allergies", "patient_conditions",
@@ -22,7 +23,7 @@ class TableDesignV210MigrationContractTest {
             "diagnosis_catalog", "services", "service_prices", "medications",
             "document_templates", "document_template_versions", "document_template_fields",
             "service_template_mappings", "generated_documents", "generated_document_service_requests",
-            "appointments", "encounters", "encounter_assignments", "journeys", "journey_events",
+            "appointments", "encounters", "encounter_assignments",
             "vital_signs", "clinical_notes", "encounter_diagnoses",
             "order_rounds", "service_requests",
             "payment_authorizations", "invoices", "invoice_items", "invoice_adjustments", "payments",
@@ -34,43 +35,43 @@ class TableDesignV210MigrationContractTest {
             "diagnostic_reports", "file_attachments",
             "prescriptions", "prescription_items",
             "users", "roles", "permissions", "user_roles", "role_permissions",
-            "notifications", "notification_attempts",
-            "audit_logs",
+            "notifications", "notification_attempts", "audit_logs",
             "integration_endpoints", "external_code_mappings", "integration_messages",
             "idempotency_keys", "outbox_events"
     );
 
     @Test
-    void migrationDeclaresExactlyTheLatestSchemaTables() throws IOException {
-        String migration = readMigration();
+    void migrationSequenceDeclaresExactlyTheLatestSchemaTables() throws IOException {
+        String baseline = readMigration("V001__create_table_design_v2_10.sql");
+        String cutover = readMigration("V002__align_table_design_v2_11.sql");
         Set<String> actualTables = new TreeSet<>();
-        var matcher = CREATE_TABLE.matcher(migration);
-        while (matcher.find()) {
-            actualTables.add(matcher.group(1).toLowerCase());
-        }
+        var created = CREATE_TABLE.matcher(baseline + "\n" + cutover);
+        while (created.find()) actualTables.add(created.group(1).toLowerCase());
+        var dropped = DROP_TABLE.matcher(cutover);
+        while (dropped.find()) actualTables.remove(dropped.group(1).toLowerCase());
 
         assertThat(actualTables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
     }
 
     @Test
-    void migrationDoesNotContainLegacyMvpIdentifiers() throws IOException {
-        String migration = readMigration().toLowerCase();
+    void cutoverRenamesCccdWithoutDroppingPatientData() throws IOException {
+        String cutover = readMigration("V002__align_table_design_v2_11.sql").toLowerCase();
 
-        assertThat(migration)
-                .doesNotContain("enterprises")
-                .doesNotContain("cccd")
-                .doesNotContain("user_accounts")
-                .doesNotContain("nkc")
-                .doesNotContain("public_id")
-                .doesNotContain("bigint identity");
+        assertThat(cutover)
+                .contains("'dbo.patients.identification_number', 'cccd', 'column'")
+                .contains("'dbo.company_employees.identification_number', 'cccd', 'column'")
+                .contains("'dbo.health_check_records.identification_number_snapshot', 'cccd_snapshot', 'column'")
+                .contains("ux_patients_cccd")
+                .contains("uq_company_employees_company_id_cccd")
+                .contains("drop table dbo.journey_events")
+                .contains("drop table dbo.journeys")
+                .doesNotContain("public_id", "bigint identity", "newid()", "newsequentialid()");
     }
 
-    private static String readMigration() throws IOException {
-        try (InputStream stream = TableDesignV210MigrationContractTest.class.getClassLoader()
-                .getResourceAsStream("db/migration/V001__create_table_design_v2_10.sql")) {
-            assertThat(stream)
-                    .as("latest schema migration must be available on the test classpath")
-                    .isNotNull();
+    private static String readMigration(String fileName) throws IOException {
+        try (InputStream stream = TableDesignV211MigrationContractTest.class.getClassLoader()
+                .getResourceAsStream("db/migration/" + fileName)) {
+            assertThat(stream).as("migration must be available on the test classpath").isNotNull();
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

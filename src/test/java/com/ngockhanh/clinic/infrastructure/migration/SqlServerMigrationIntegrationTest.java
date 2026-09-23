@@ -25,7 +25,7 @@ class SqlServerMigrationIntegrationTest {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 SQL_SERVER.getJdbcUrl(), SQL_SERVER.getUsername(), SQL_SERVER.getPassword());
@@ -35,10 +35,20 @@ class SqlServerMigrationIntegrationTest {
                 "select count(*) from sys.tables "
                         + "where schema_id = schema_id('dbo') "
                         + "and name <> 'flyway_schema_history'",
-                Integer.class)).isEqualTo(67);
+                Integer.class)).isEqualTo(65);
 
-        assertColumnType(jdbcTemplate, "patients", "identification_number", "varchar");
+        assertColumnType(jdbcTemplate, "patients", "cccd", "varchar");
         assertColumnType(jdbcTemplate, "patients", "row_version", "timestamp");
+        assertColumnType(jdbcTemplate, "company_employees", "cccd", "varchar");
+        assertColumnType(jdbcTemplate, "health_check_records", "cccd_snapshot", "varchar");
+        assertColumnType(jdbcTemplate, "health_check_import_rows", "cccd_snapshot", "varchar");
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from sys.tables where schema_id = schema_id('dbo') and name like 'journey%'",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from information_schema.columns where table_schema = 'dbo' "
+                        + "and column_name like 'identification_number%'",
+                Integer.class)).isZero();
         assertColumnType(jdbcTemplate, "health_check_records", "shs_code", "varchar");
         assertColumnType(jdbcTemplate, "service_requests", "unit_price_snapshot", "decimal");
         assertColumnType(jdbcTemplate, "outbox_events", "payload_json", "nvarchar");

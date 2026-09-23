@@ -9,9 +9,9 @@ The backend supports a real outpatient clinic and adult/corporate health-check w
 Current source-of-truth documents:
 
 ```text
-requirement-v2.4
-use-case-v2.5
-table-design-v2.10
+requirement-v2.5
+use-case-v2.7
+table-design-v2.11
 ```
 
 Do not infer domain behavior from UI mockups when these documents define the rule.
@@ -308,7 +308,7 @@ Rules:
 
 ## 11. SQL Server Rules
 
-Baseline conventions from `table-design-v2.10`:
+Baseline conventions from `table-design-v2.11`:
 
 ```text
 table names       plural snake_case
@@ -327,7 +327,7 @@ Use database constraints for true invariants.
 Examples:
 
 ```text
-UNIQUE identificationNumber
+UNIQUE cccd
 NOT NULL required identity fields
 foreign keys
 check constraints where appropriate
@@ -372,13 +372,13 @@ Rules:
 Current MVP:
 
 ```text
-identificationNumber = mandatory patient business identity
+cccd = mandatory patient business identity
 ```
 
 Rules:
 
-- Exact identificationNumber lookup before Patient creation.
-- `patients.identificationNumber` must be unique.
+- Exact cccd lookup before Patient creation.
+- `patients.cccd` must be unique.
 - No passport/identity-type abstraction in baseline.
 - No fuzzy duplicate merge by name/phone in baseline.
 - Do not create `patient_contacts`, `patient_addresses`, or `patient_merge_history` unless requirements explicitly reintroduce them.
@@ -402,7 +402,7 @@ Company
 Rules:
 
 - Imported `CompanyEmployee`/batch employee is not automatically a Patient.
-- Excel import must preserve identificationNumber as text.
+- Excel import must preserve cccd as text.
 - Blocking validation includes required fields and current adult health-check rules.
 - Do not fabricate missing optional data.
 - Patient link/create occurs at check-in or the documented workflow point.
@@ -424,29 +424,14 @@ Front Desk must not choose per-employee examination items.
 
 ---
 
-## 15. Encounter and Journey Rules
+## 15. Encounter and Diagnostic Progress Rules
 
-Keep separate:
+Encounter, ServiceRequest and Result have their own lifecycles. Diagnostic progress and worklists
+are derived from Encounter, OrderRound, ServiceRequest, PaymentAuthorization, performing location
+and Result. Do not create Journey/JourneyStage or a separate CLS state machine.
 
-```text
-Encounter.status
-Journey.currentStage
-```
-
-Current flow does not use:
-
-```text
-ReceptionQueue
-ExamQueue
-QueueTicket
-return queue ticket
-```
-
-Patient movement/worklists are derived from Journey/Encounter assignments.
-
-Maintain transition history with actor/system, old/new stage, time, location, and reason where documented.
-
-Do not collapse history into only the current stage.
+Do not introduce reception/exam queue tickets or a return queue ticket.
+Doctor review readiness follows completion of required requests and results.
 
 ---
 
@@ -669,7 +654,7 @@ Never log full:
 patient object
 clinical note
 lab result payload
-identificationNumber
+cccd
 credentials
 tokens
 payment secret
@@ -890,7 +875,7 @@ For a new backend, prefer:
 3. global errors/security/audit primitives
 4. Patient reference module
 5. Catalog
-6. Encounter/Journey
+6. Encounter
 7. Clinical
 8. Billing/Order Round
 9. Diagnostics

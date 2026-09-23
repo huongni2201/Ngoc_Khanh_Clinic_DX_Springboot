@@ -11,8 +11,8 @@ import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.Compan
 public interface CompanyEmployeeMyBatisMapper {
     CompanyEmployeeRecord findById(@Param("id") UUID id);
     CompanyEmployeeRecord findByCompanyAndCode(@Param("companyId") UUID companyId, @Param("employeeCode") String employeeCode);
-    CompanyEmployeeRecord findByCompanyAndIdentificationNumber(@Param("companyId") UUID companyId,
-                                                                @Param("identificationNumber") String identificationNumber);
+    CompanyEmployeeRecord findByCompanyAndCccd(@Param("companyId") UUID companyId,
+                                                                @Param("cccd") String cccd);
     int insert(CompanyEmployeeRecord employee);
     int update(CompanyEmployeeRecord employee);
 }

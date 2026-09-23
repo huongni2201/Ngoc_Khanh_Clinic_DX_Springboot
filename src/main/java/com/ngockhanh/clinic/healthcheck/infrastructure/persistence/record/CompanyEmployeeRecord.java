@@ -9,7 +9,7 @@ public record CompanyEmployeeRecord(
         UUID companyId,
         UUID patientId,
         String employeeCode,
-        String identificationNumber,
+        String cccd,
         String fullName,
         LocalDate dateOfBirth,
         String sex,

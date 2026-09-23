@@ -19,6 +19,6 @@ public record EncounterRecord(
         byte[] rowVersion,
         LocalDateTime preparedAt,
         LocalDateTime checkedInAt,
-        Long checkedInByUserId
+        UUID checkedInByUserId
 ) {
 }

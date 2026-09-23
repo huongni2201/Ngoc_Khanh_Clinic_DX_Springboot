@@ -13,9 +13,9 @@ Before making any non-trivial change, read in this order:
 3. Relevant ADRs in `docs/adr/`
 4. Backend architecture docs in `docs/architecture/`
 5. The current business source-of-truth documents:
-   - `requirement-v2.4`
-   - `use-case-v2.5`
-   - `table-design-v2.10`
+   - `requirement-v2.5`
+   - `use-case-v2.7`
+   - `table-design-v2.11`
 
 If the source-of-truth documents are not available in the repository/workspace, do not invent business rules. State the missing contract and stop at a safe boundary.
 
@@ -178,7 +178,7 @@ All SQL must be SQL Server compatible.
 
 ## 6. Database Source of Truth
 
-`table-design-v2.10` is the MVP database baseline unless superseded by a later accepted document/ADR.
+`table-design-v2.11` is the MVP database baseline unless superseded by a later accepted document/ADR.
 
 Important baseline rules:
 
@@ -186,7 +186,7 @@ Important baseline rules:
 - Plural table names.
 - Primary key: `id`.
 - Foreign key: `<entity>_id`.
-- SQL Server types such as `bigint IDENTITY`, `uniqueidentifier`, `datetime2(3)`, `decimal(18,2)`, `nvarchar`, `varchar`, and `rowversion`.
+- SQL Server types such as `uniqueidentifier`, `datetime2(3)`, `decimal(18,2)`, `nvarchar`, `varchar`, and `rowversion`.
 - Clinical and financial history is never hard-deleted.
 - Final clinical results and issued prescriptions are versioned, not overwritten.
 - Database schema changes must use Flyway migrations.
@@ -202,8 +202,8 @@ Do not silently change these rules:
 
 ### Patient
 
-- identificationNumber is mandatory in the current baseline.
-- identificationNumber is unique.
+- cccd is mandatory in the current baseline.
+- cccd is unique.
 - No fuzzy duplicate/merge workflow by name or phone in MVP.
 - Do not create separate identity-type/passport abstractions unless requirements change.
 
@@ -221,7 +221,7 @@ Company
 
 - `CompanyEmployee` is not automatically a `Patient`.
 - Importing an employee roster must not create Patient records.
-- Patient linking/creation occurs during authorized visit preparation by exact identificationNumber lookup, before check-in when the record is prepared in advance.
+- Patient linking/creation occurs during authorized visit preparation by exact cccd lookup, before check-in when the record is prepared in advance.
 - Only Doctor may select the per-employee subset of examination services.
 - Selected employee services must be a subset of `HealthCheckBatchService`.
 - Front Desk must not add/select examination items for an employee.
@@ -230,11 +230,12 @@ Company
 - Mẫu số 03 is the master health-check form and carries the SHS barcode.
 - Administrative print data comes from the `HealthCheckRecord` snapshot, not the mutable current Patient record.
 
-### Encounter / Journey
+### Encounter and diagnostic progress
 
-- `Encounter.status` and `Journey.currentStage` are separate concepts.
-- Do not create reception/exam queue-ticket models.
-- Doctor worklists are driven by encounter/journey state.
+- Encounter and ServiceRequest retain their own lifecycles.
+- Diagnostic progress is derived from Encounter, OrderRound, ServiceRequest, PaymentAuthorization, location and Result.
+- Do not create a separate Journey state machine or queue-ticket models.
+- Doctor worklists are driven by Encounter and required ServiceRequest/Result state.
 - Multiple `OrderRound`s may exist in one Encounter.
 
 ### Payment Gate
@@ -324,7 +325,7 @@ Healthcare data is sensitive.
 Never:
 
 - log full patient/clinical payloads;
-- log passwords, access tokens, refresh tokens, identificationNumber in full when unnecessary, or secrets;
+- log passwords, access tokens, refresh tokens, cccd in full when unnecessary, or secrets;
 - commit credentials;
 - store secrets in `application.yml`;
 - trust frontend authorization;
@@ -445,7 +446,7 @@ Rules:
 Critical business rules include:
 
 ```text
-identificationNumber uniqueness
+cccd uniqueness
 under-18 rejection for adult health checks
 employee import validation
 doctor-only employee service selection
@@ -476,7 +477,7 @@ V003__create_catalog_tables.sql
 
 Migrations must include constraints and indexes required by the documented model.
 
-Do not rely only on application validation for database invariants such as unique identificationNumber.
+Do not rely only on application validation for database invariants such as unique cccd.
 
 ---
 

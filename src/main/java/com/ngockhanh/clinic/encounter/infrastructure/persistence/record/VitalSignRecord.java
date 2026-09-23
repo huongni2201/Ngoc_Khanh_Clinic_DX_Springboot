@@ -16,6 +16,6 @@ public record VitalSignRecord(
         Integer diastolicBp,
         String physicalClassification,
         LocalDateTime measuredAt,
-        Long recordedByStaffId
+        UUID recordedByStaffId
 ) {
 }

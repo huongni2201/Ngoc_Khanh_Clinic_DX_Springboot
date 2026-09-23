@@ -7,7 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.CompanyEmployee;
 import com.ngockhanh.clinic.healthcheck.domain.repository.CompanyEmployeeRepository;
-import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.Cccd;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.converter.CompanyEmployeePersistenceConverter;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.CompanyEmployeeMyBatisMapper;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyEmployeeRecord;
@@ -32,8 +32,8 @@ public final class MyBatisCompanyEmployeeRepository implements CompanyEmployeeRe
     }
 
     @Override
-    public Optional<CompanyEmployee> findByCompanyAndIdentificationNumber(UUID companyId, IdentificationNumber identificationNumber) {
-        return Optional.ofNullable(converter.toDomain(mapper.findByCompanyAndIdentificationNumber(companyId, identificationNumber.value())));
+    public Optional<CompanyEmployee> findByCompanyAndCccd(UUID companyId, Cccd cccd) {
+        return Optional.ofNullable(converter.toDomain(mapper.findByCompanyAndCccd(companyId, cccd.value())));
     }
 
     @Override

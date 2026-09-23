@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.CompanyEmployeeMyBatisMapper">
     <sql id="columns">
-        id, company_id, patient_id, employee_code, identification_number, full_name, date_of_birth, sex,
+        id, company_id, patient_id, employee_code, cccd, full_name, date_of_birth, sex,
         department_name, job_title, occupation, status, created_at, updated_at
     </sql>
     <select id="findById" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyEmployeeRecord">
@@ -12,22 +12,22 @@
         SELECT <include refid="columns"/> FROM dbo.company_employees
         WHERE company_id = #{companyId} AND employee_code = #{employeeCode}
     </select>
-    <select id="findByCompanyAndIdentificationNumber" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyEmployeeRecord">
+    <select id="findByCompanyAndCccd" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyEmployeeRecord">
         SELECT <include refid="columns"/> FROM dbo.company_employees
-        WHERE company_id = #{companyId} AND identification_number = #{identificationNumber}
+        WHERE company_id = #{companyId} AND cccd = #{cccd}
     </select>
     <insert id="insert">
         INSERT INTO dbo.company_employees (
-            id, company_id, patient_id, employee_code, identification_number, full_name, date_of_birth, sex,
+            id, company_id, patient_id, employee_code, cccd, full_name, date_of_birth, sex,
             department_name, job_title, occupation, status, created_at, updated_at
         ) VALUES (
-            #{id}, #{companyId}, #{patientId}, #{employeeCode}, #{identificationNumber}, #{fullName}, #{dateOfBirth}, #{sex},
+            #{id}, #{companyId}, #{patientId}, #{employeeCode}, #{cccd}, #{fullName}, #{dateOfBirth}, #{sex},
             #{departmentName}, #{jobTitle}, #{occupation}, #{status}, SYSUTCDATETIME(), SYSUTCDATETIME()
         )
     </insert>
     <update id="update">
         UPDATE dbo.company_employees
-        SET patient_id = #{patientId}, employee_code = #{employeeCode}, identification_number = #{identificationNumber},
+        SET patient_id = #{patientId}, employee_code = #{employeeCode}, cccd = #{cccd},
             full_name = #{fullName}, date_of_birth = #{dateOfBirth}, sex = #{sex}, department_name = #{departmentName},
             job_title = #{jobTitle}, occupation = #{occupation}, status = #{status}, updated_at = SYSUTCDATETIME()
         WHERE id = #{id} AND company_id = #{companyId}

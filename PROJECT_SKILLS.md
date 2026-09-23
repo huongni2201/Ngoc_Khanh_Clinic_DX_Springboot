@@ -231,13 +231,13 @@ external integrations
 Use for business rules with clear deterministic behavior, especially:
 
 ```text
-identificationNumber uniqueness
+cccd uniqueness
 adult health-check eligibility
 employee import validation
 doctor-only service selection
 batch-service subset rule
 payment gate
-journey transitions
+ServiceRequest lifecycle
 result finalization
 idempotency
 ```

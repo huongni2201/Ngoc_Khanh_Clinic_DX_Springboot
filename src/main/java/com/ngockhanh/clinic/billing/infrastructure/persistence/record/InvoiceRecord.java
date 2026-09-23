@@ -16,6 +16,6 @@ public record InvoiceRecord(
         BigDecimal totalAmount,
         BigDecimal paidAmount,
         LocalDateTime issuedAt,
-        Long createdByUserId
+        UUID createdByUserId
 ) {
 }

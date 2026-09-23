@@ -6,13 +6,13 @@ import java.util.UUID;
 
 import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthcheck.domain.exception.PatientRelinkForbidden;
-import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.Cccd;
 
 public final class CompanyEmployee {
     private final UUID id;
     private final UUID companyId;
     private final String employeeCode;
-    private final IdentificationNumber identificationNumber;
+    private final Cccd cccd;
     private final String fullName;
     private final LocalDate dateOfBirth;
     private final String sex;
@@ -22,10 +22,10 @@ public final class CompanyEmployee {
     private final String status;
     private UUID patientId;
 
-    private CompanyEmployee(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+    private CompanyEmployee(UUID id, UUID companyId, String employeeCode, Cccd cccd,
                             String fullName, LocalDate dateOfBirth, String sex, String departmentName,
                             String jobTitle, String occupation, String status) {
-        if (id == null || companyId == null || employeeCode == null || employeeCode.isBlank() || identificationNumber == null
+        if (id == null || companyId == null || employeeCode == null || employeeCode.isBlank() || cccd == null
                 || fullName == null || fullName.isBlank() || dateOfBirth == null || sex == null || sex.isBlank()
                 || status == null || status.isBlank()) {
             throw new IllegalArgumentException("Missing roster identity");
@@ -33,7 +33,7 @@ public final class CompanyEmployee {
         this.id = id;
         this.companyId = companyId;
         this.employeeCode = employeeCode;
-        this.identificationNumber = identificationNumber;
+        this.cccd = cccd;
         this.fullName = fullName;
         this.dateOfBirth = dateOfBirth;
         this.sex = sex;
@@ -43,30 +43,30 @@ public final class CompanyEmployee {
         this.status = status;
     }
 
-    public static CompanyEmployee create(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+    public static CompanyEmployee create(UUID id, UUID companyId, String employeeCode, Cccd cccd,
                                          String fullName, LocalDate dateOfBirth, String sex) {
-        return create(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex, null, null, null);
+        return create(id, companyId, employeeCode, cccd, fullName, dateOfBirth, sex, null, null, null);
     }
 
-    public static CompanyEmployee create(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+    public static CompanyEmployee create(UUID id, UUID companyId, String employeeCode, Cccd cccd,
                                          String fullName, LocalDate dateOfBirth, String sex, String departmentName,
                                          String jobTitle, String occupation) {
-        return new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex,
+        return new CompanyEmployee(id, companyId, employeeCode, cccd, fullName, dateOfBirth, sex,
                 departmentName, jobTitle, occupation, "ACTIVE");
     }
 
-    public static CompanyEmployee restore(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+    public static CompanyEmployee restore(UUID id, UUID companyId, String employeeCode, Cccd cccd,
                                           String fullName, LocalDate dateOfBirth, String sex, String departmentName,
                                           String jobTitle, String occupation, String status, UUID patientId) {
-        CompanyEmployee employee = new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName,
+        CompanyEmployee employee = new CompanyEmployee(id, companyId, employeeCode, cccd, fullName,
                 dateOfBirth, sex, departmentName, jobTitle, occupation, status);
         employee.patientId = patientId;
         return employee;
     }
 
-    public static CompanyEmployee restore(UUID id, UUID companyId, String employeeCode, IdentificationNumber identificationNumber,
+    public static CompanyEmployee restore(UUID id, UUID companyId, String employeeCode, Cccd cccd,
                                           String fullName, LocalDate dateOfBirth, String sex, UUID patientId) {
-        return restore(id, companyId, employeeCode, identificationNumber, fullName, dateOfBirth, sex,
+        return restore(id, companyId, employeeCode, cccd, fullName, dateOfBirth, sex,
                 null, null, null, "ACTIVE", patientId);
     }
 
@@ -76,19 +76,19 @@ public final class CompanyEmployee {
         this.patientId = patientId;
     }
 
-    public CompanyEmployee reimport(String employeeCode, IdentificationNumber identificationNumber, String fullName,
+    public CompanyEmployee reimport(String employeeCode, Cccd cccd, String fullName,
                                     LocalDate dateOfBirth, String sex) {
-        return reimport(employeeCode, identificationNumber, fullName, dateOfBirth, sex,
+        return reimport(employeeCode, cccd, fullName, dateOfBirth, sex,
                 departmentName, jobTitle, occupation);
     }
 
-    public CompanyEmployee reimport(String employeeCode, IdentificationNumber identificationNumber, String fullName,
+    public CompanyEmployee reimport(String employeeCode, Cccd cccd, String fullName,
                                     LocalDate dateOfBirth, String sex, String departmentName,
                                     String jobTitle, String occupation) {
-        if (patientId != null && (!this.employeeCode.equals(employeeCode) || !this.identificationNumber.equals(identificationNumber))) {
+        if (patientId != null && (!this.employeeCode.equals(employeeCode) || !this.cccd.equals(cccd))) {
             throw new DomainRuleViolation("Linked roster identity requires review");
         }
-        CompanyEmployee updated = new CompanyEmployee(id, companyId, employeeCode, identificationNumber, fullName,
+        CompanyEmployee updated = new CompanyEmployee(id, companyId, employeeCode, cccd, fullName,
                 dateOfBirth, sex, departmentName, jobTitle, occupation, status);
         updated.patientId = patientId;
         return updated;
@@ -97,7 +97,7 @@ public final class CompanyEmployee {
     public UUID id() { return id; }
     public UUID companyId() { return companyId; }
     public String employeeCode() { return employeeCode; }
-    public IdentificationNumber identificationNumber() { return identificationNumber; }
+    public Cccd cccd() { return cccd; }
     public String fullName() { return fullName; }
     public LocalDate dateOfBirth() { return dateOfBirth; }
     public String sex() { return sex; }

@@ -16,26 +16,31 @@ import com.ngockhanh.clinic.healthcheck.domain.valueobject.Money;
 public final class HealthCheckBatchEmployee {
     private final UUID id;
     private final UUID batchId;
+    private final UUID companyEmployeeId;
     private final AdministrativeSnapshot rosterSnapshot;
     private final Map<UUID, HealthCheckBatchEmployeeService> assignments = new HashMap<>();
 
-    private HealthCheckBatchEmployee(UUID id, UUID batchId, AdministrativeSnapshot rosterSnapshot) {
-        if (id == null || batchId == null || rosterSnapshot == null) {
+    private HealthCheckBatchEmployee(UUID id, UUID batchId, UUID companyEmployeeId,
+                                     AdministrativeSnapshot rosterSnapshot) {
+        if (id == null || batchId == null || companyEmployeeId == null || rosterSnapshot == null) {
             throw new IllegalArgumentException("Invalid batch employee");
         }
         this.id = id;
         this.batchId = batchId;
+        this.companyEmployeeId = companyEmployeeId;
         this.rosterSnapshot = rosterSnapshot;
     }
 
-    public static HealthCheckBatchEmployee create(UUID id, UUID batchId, AdministrativeSnapshot rosterSnapshot) {
-        return new HealthCheckBatchEmployee(id, batchId, rosterSnapshot);
+    public static HealthCheckBatchEmployee create(UUID id, UUID batchId, UUID companyEmployeeId,
+                                                  AdministrativeSnapshot rosterSnapshot) {
+        return new HealthCheckBatchEmployee(id, batchId, companyEmployeeId, rosterSnapshot);
     }
 
-    public static HealthCheckBatchEmployee restore(UUID id, UUID batchId, AdministrativeSnapshot snapshot,
+    public static HealthCheckBatchEmployee restore(UUID id, UUID batchId, UUID companyEmployeeId,
+                                                   AdministrativeSnapshot snapshot,
                                                    List<HealthCheckBatchEmployeeService> assignments) {
         if (assignments == null) throw new IllegalArgumentException("Invalid persisted batch employee");
-        HealthCheckBatchEmployee employee = new HealthCheckBatchEmployee(id, batchId, snapshot);
+        HealthCheckBatchEmployee employee = new HealthCheckBatchEmployee(id, batchId, companyEmployeeId, snapshot);
         for (HealthCheckBatchEmployeeService assignment : assignments) {
             if (assignment == null || employee.assignments.putIfAbsent(assignment.batchServiceId(), assignment) != null) {
                 throw new IllegalArgumentException("Invalid persisted assignment list");
@@ -82,6 +87,7 @@ public final class HealthCheckBatchEmployee {
 
     public UUID id() { return id; }
     public UUID batchId() { return batchId; }
+    public UUID companyEmployeeId() { return companyEmployeeId; }
     public AdministrativeSnapshot rosterSnapshot() { return rosterSnapshot; }
     public List<HealthCheckBatchEmployeeService> assignments() { return List.copyOf(assignments.values()); }
 }
