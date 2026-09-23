@@ -9,9 +9,9 @@ The backend supports a real outpatient clinic and adult/corporate health-check w
 Current source-of-truth documents:
 
 ```text
-requirement-v2.3
-use-case-v2.4
-table-design-v2.9
+requirement-v2.4
+use-case-v2.5
+table-design-v2.10
 ```
 
 Do not infer domain behavior from UI mockups when these documents define the rule.
@@ -57,14 +57,7 @@ Any core stack change requires an ADR.
 Canonical package:
 
 ```text
-com.nkc.clinic
-```
-
-Do not use:
-
-```text
-com.nkc.ngoc_khanh_clinic_backend
-feature.*
+com.ngockhanh.clinic
 ```
 
 Java package names must be lowercase and must not contain underscores.
@@ -315,7 +308,7 @@ Rules:
 
 ## 11. SQL Server Rules
 
-Baseline conventions from `table-design-v2.9`:
+Baseline conventions from `table-design-v2.10`:
 
 ```text
 table names       plural snake_case
@@ -334,7 +327,7 @@ Use database constraints for true invariants.
 Examples:
 
 ```text
-UNIQUE CCCD
+UNIQUE identificationNumber
 NOT NULL required identity fields
 foreign keys
 check constraints where appropriate
@@ -379,13 +372,13 @@ Rules:
 Current MVP:
 
 ```text
-CCCD = mandatory patient business identity
+identificationNumber = mandatory patient business identity
 ```
 
 Rules:
 
-- Exact CCCD lookup before Patient creation.
-- `patients.cccd` must be unique.
+- Exact identificationNumber lookup before Patient creation.
+- `patients.identificationNumber` must be unique.
 - No passport/identity-type abstraction in baseline.
 - No fuzzy duplicate merge by name/phone in baseline.
 - Do not create `patient_contacts`, `patient_addresses`, or `patient_merge_history` unless requirements explicitly reintroduce them.
@@ -409,7 +402,7 @@ Company
 Rules:
 
 - Imported `CompanyEmployee`/batch employee is not automatically a Patient.
-- Excel import must preserve CCCD as text.
+- Excel import must preserve identificationNumber as text.
 - Blocking validation includes required fields and current adult health-check rules.
 - Do not fabricate missing optional data.
 - Patient link/create occurs at check-in or the documented workflow point.
@@ -676,7 +669,7 @@ Never log full:
 patient object
 clinical note
 lab result payload
-CCCD
+identificationNumber
 credentials
 tokens
 payment secret

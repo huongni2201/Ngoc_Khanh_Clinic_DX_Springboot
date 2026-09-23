@@ -1,0 +1,23 @@
+package com.ngockhanh.clinic.shared.infrastructure.persistence.record;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public record AuditLogRecord(
+        UUID id,
+        LocalDateTime occurredAt,
+        UUID actorUserId,
+        String action,
+        String entityType,
+        String entityId,
+        UUID patientId,
+        UUID encounterId,
+        UUID healthCheckRecordId,
+        UUID correlationId,
+        String reason,
+        String beforeJson,
+        String afterJson,
+        String ipAddress,
+        String userAgent
+) {
+}

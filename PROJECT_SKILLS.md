@@ -231,7 +231,7 @@ external integrations
 Use for business rules with clear deterministic behavior, especially:
 
 ```text
-CCCD uniqueness
+identificationNumber uniqueness
 adult health-check eligibility
 employee import validation
 doctor-only service selection

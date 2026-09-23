@@ -13,9 +13,9 @@ Before making any non-trivial change, read in this order:
 3. Relevant ADRs in `docs/adr/`
 4. Backend architecture docs in `docs/architecture/`
 5. The current business source-of-truth documents:
-   - `requirement-v2.3`
-   - `use-case-v2.4`
-   - `table-design-v2.9`
+   - `requirement-v2.4`
+   - `use-case-v2.5`
+   - `table-design-v2.10`
 
 If the source-of-truth documents are not available in the repository/workspace, do not invent business rules. State the missing contract and stop at a safe boundary.
 
@@ -65,7 +65,7 @@ Ports/Adapters inside each module
 Canonical root package:
 
 ```text
-com.nkc.clinic
+com.ngockhanh.clinic
 ```
 
 Do not use package names with underscores.
@@ -178,7 +178,7 @@ All SQL must be SQL Server compatible.
 
 ## 6. Database Source of Truth
 
-`table-design-v2.9` is the MVP database baseline unless superseded by a later accepted document/ADR.
+`table-design-v2.10` is the MVP database baseline unless superseded by a later accepted document/ADR.
 
 Important baseline rules:
 
@@ -202,8 +202,8 @@ Do not silently change these rules:
 
 ### Patient
 
-- CCCD is mandatory in the current baseline.
-- CCCD is unique.
+- identificationNumber is mandatory in the current baseline.
+- identificationNumber is unique.
 - No fuzzy duplicate/merge workflow by name or phone in MVP.
 - Do not create separate identity-type/passport abstractions unless requirements change.
 
@@ -211,16 +211,17 @@ Do not silently change these rules:
 
 ```text
 Company
+  -> CompanyEmployee
   -> HealthCheckBatch
       -> HealthCheckBatchService
       -> HealthCheckBatchEmployee
-          -> HealthCheckRecord
+          -> prepared Patient + Encounter + HealthCheckRecord/SHS
           -> HealthCheckBatchEmployeeService
 ```
 
 - `CompanyEmployee` is not automatically a `Patient`.
 - Importing an employee roster must not create Patient records.
-- Patient linking/creation occurs when the employee is actually checked in.
+- Patient linking/creation occurs during authorized visit preparation by exact identificationNumber lookup, before check-in when the record is prepared in advance.
 - Only Doctor may select the per-employee subset of examination services.
 - Selected employee services must be a subset of `HealthCheckBatchService`.
 - Front Desk must not add/select examination items for an employee.
@@ -323,7 +324,7 @@ Healthcare data is sensitive.
 Never:
 
 - log full patient/clinical payloads;
-- log passwords, access tokens, refresh tokens, CCCD in full when unnecessary, or secrets;
+- log passwords, access tokens, refresh tokens, identificationNumber in full when unnecessary, or secrets;
 - commit credentials;
 - store secrets in `application.yml`;
 - trust frontend authorization;
@@ -444,7 +445,7 @@ Rules:
 Critical business rules include:
 
 ```text
-CCCD uniqueness
+identificationNumber uniqueness
 under-18 rejection for adult health checks
 employee import validation
 doctor-only employee service selection
@@ -475,7 +476,7 @@ V003__create_catalog_tables.sql
 
 Migrations must include constraints and indexes required by the documented model.
 
-Do not rely only on application validation for database invariants such as unique CCCD.
+Do not rely only on application validation for database invariants such as unique identificationNumber.
 
 ---
 
