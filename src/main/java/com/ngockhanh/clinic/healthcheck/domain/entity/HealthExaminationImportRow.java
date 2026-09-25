@@ -3,7 +3,7 @@ import com.ngockhanh.clinic.healthcheck.domain.valueobject.AdministrativeSnapsho
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
 import java.util.UUID;
 
-public final class HealthCheckImportRow {
+public final class HealthExaminationImportRow {
     private final UUID id;
     private final int rowNumber;
     private final boolean valid;
@@ -14,7 +14,7 @@ public final class HealthCheckImportRow {
     private final String serviceCode;
     private final UUID serviceRequestId;
 
-    private HealthCheckImportRow(UUID id, int rowNumber, boolean valid, String errorCode, String employeeCode,
+    private HealthExaminationImportRow(UUID id, int rowNumber, boolean valid, String errorCode, String employeeCode,
                                  AdministrativeSnapshot administrativeSnapshot, IdentificationNumber identificationNumber,
                                  String serviceCode, UUID serviceRequestId) {
         if (id == null || rowNumber < 1 || (!valid && (errorCode == null || errorCode.isBlank()))) {
@@ -31,15 +31,15 @@ public final class HealthCheckImportRow {
         this.serviceRequestId = serviceRequestId;
     }
 
-    public static HealthCheckImportRow roster(UUID id, int rowNumber, String employeeCode, AdministrativeSnapshot snapshot) {
+    public static HealthExaminationImportRow roster(UUID id, int rowNumber, String employeeCode, AdministrativeSnapshot snapshot) {
         if (employeeCode == null || employeeCode.isBlank() || snapshot == null) {
             throw new IllegalArgumentException("Roster row requires employee identity and snapshot");
         }
-        return new HealthCheckImportRow(id, rowNumber, true, null, employeeCode, snapshot,
+        return new HealthExaminationImportRow(id, rowNumber, true, null, employeeCode, snapshot,
                 snapshot.identificationNumber(), null, null);
     }
 
-    public static HealthCheckImportRow result(UUID id, int rowNumber, String employeeCode, IdentificationNumber identificationNumber,
+    public static HealthExaminationImportRow result(UUID id, int rowNumber, String employeeCode, IdentificationNumber identificationNumber,
                                               String serviceCode, UUID serviceRequestId) {
         if ((employeeCode == null || employeeCode.isBlank()) && identificationNumber == null) {
             throw new IllegalArgumentException("Result row needs exact employee reference");
@@ -47,12 +47,12 @@ public final class HealthCheckImportRow {
         if (serviceCode == null || serviceCode.isBlank() || serviceRequestId == null) {
             throw new IllegalArgumentException("Result row needs resolved Service Request");
         }
-        return new HealthCheckImportRow(id, rowNumber, true, null, employeeCode, null,
+        return new HealthExaminationImportRow(id, rowNumber, true, null, employeeCode, null,
                 identificationNumber, serviceCode, serviceRequestId);
     }
 
-    public static HealthCheckImportRow invalid(UUID id, int rowNumber, String errorCode) {
-        return new HealthCheckImportRow(id, rowNumber, false, errorCode, null, null, null, null, null);
+    public static HealthExaminationImportRow invalid(UUID id, int rowNumber, String errorCode) {
+        return new HealthExaminationImportRow(id, rowNumber, false, errorCode, null, null, null, null, null);
     }
 
     public UUID id() { return id; }

@@ -12,7 +12,7 @@ public record AuditLogRecord(
         String entityId,
         UUID patientId,
         UUID encounterId,
-        UUID healthCheckRecordId,
+        UUID healthExaminationRecordId,
         UUID correlationId,
         String reason,
         String beforeJson,

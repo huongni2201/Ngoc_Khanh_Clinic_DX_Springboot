@@ -125,7 +125,7 @@ Do not persist derived workflow state only for UI convenience.
 Examples that should be derived:
 
 ```text
-doctor worklist position
+physician worklist position
 waiting-for-conclusion state
 diagnostic progress
 duplicate operational stage state
@@ -150,15 +150,15 @@ Patient
               -> result/report
 ```
 
-Health-check corporate workflow adds:
+Health-examination corporate workflow adds:
 
 ```text
 Company
-  -> HealthCheckBatch
-      -> HealthCheckBatchService
-      -> HealthCheckBatchEmployee
-          -> HealthCheckBatchEmployeeService
-          -> HealthCheckRecord
+  -> HealthExaminationBatch
+      -> HealthExaminationBatchService
+      -> HealthExaminationBatchEmployee
+          -> HealthExaminationBatchEmployeeService
+          -> HealthExaminationRecord
           -> Encounter
 ```
 

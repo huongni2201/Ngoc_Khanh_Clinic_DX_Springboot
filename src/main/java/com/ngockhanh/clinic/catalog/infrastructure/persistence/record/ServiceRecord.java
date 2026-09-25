@@ -13,7 +13,7 @@ public record ServiceRecord(
         UUID defaultRoomId,
         Boolean requiresPayment,
         Boolean requiresSpecimen,
-        Boolean healthCheckEligible,
+        Boolean healthExaminationEligible,
         String resultType,
         UUID labPanelId,
         String preparationInstructions,

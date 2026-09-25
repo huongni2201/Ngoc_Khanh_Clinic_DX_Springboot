@@ -13,16 +13,16 @@ import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.CompanyEmployee;
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.Company;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSite;
-import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthCheckBatch;
+import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthcheck.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.BatchPriceRevision;
-import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthCheckBatchEmployee;
-import com.ngockhanh.clinic.healthcheck.domain.entity.HealthCheckBatchEmployeeService;
-import com.ngockhanh.clinic.healthcheck.domain.entity.HealthCheckBatchService;
-import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthCheckRecord;
-import com.ngockhanh.clinic.healthcheck.domain.enums.HealthCheckRecordStatus;
-import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthCheckImportJob;
-import com.ngockhanh.clinic.healthcheck.domain.entity.HealthCheckImportRow;
+import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthExaminationBatchEmployee;
+import com.ngockhanh.clinic.healthcheck.domain.entity.HealthExaminationBatchEmployeeService;
+import com.ngockhanh.clinic.healthcheck.domain.entity.HealthExaminationBatchService;
+import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthExaminationRecord;
+import com.ngockhanh.clinic.healthcheck.domain.enums.HealthExaminationRecordStatus;
+import com.ngockhanh.clinic.healthcheck.domain.aggregate.HealthExaminationImportJob;
+import com.ngockhanh.clinic.healthcheck.domain.entity.HealthExaminationImportRow;
 import com.ngockhanh.clinic.healthcheck.domain.enums.ImportType;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.Money;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.ShsCode;
@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
-class HealthCheckDomainTest {
+class HealthExaminationDomainTest {
     @Test
     void identificationNumberRemainsTextAndRejectsMalformedValues() {
         assertThat(IdentificationNumber.of("012345678901").value()).isEqualTo("012345678901");
@@ -70,8 +70,8 @@ class HealthCheckDomainTest {
 
     @Test
     void batchFollowsDocumentedLifecycleAndReopenRequiresReason() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        batch.addService(HealthCheckBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
+        batch.addService(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
         assertThatThrownBy(batch::start).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
         batch.markReady();
         batch.start();
@@ -92,21 +92,21 @@ class HealthCheckDomainTest {
     @Test
     void restoredBatchRequiresLifecycleTimestampsToMatchStatus() {
         ExaminationSite site = new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null);
-        List<HealthCheckBatchService> services = List.of(
-                HealthCheckBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
+        List<HealthExaminationBatchService> services = List.of(
+                HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
 
-        assertThatThrownBy(() -> HealthCheckBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
+        assertThatThrownBy(() -> HealthExaminationBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
                 BatchStatus.FINALIZED, services, null, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> HealthCheckBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
+        assertThatThrownBy(() -> HealthExaminationBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
                 BatchStatus.CLOSED, services, java.time.LocalDateTime.of(2026, 9, 23, 10, 0), null))
                 .isInstanceOf(IllegalArgumentException.class);
 
         java.time.LocalDateTime finalizedAt = java.time.LocalDateTime.of(2026, 9, 23, 10, 0);
         java.time.LocalDateTime closedAt = java.time.LocalDateTime.of(2026, 9, 23, 11, 0);
-        HealthCheckBatch restoredFinalized = HealthCheckBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
+        HealthExaminationBatch restoredFinalized = HealthExaminationBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
                 BatchStatus.FINALIZED, services, finalizedAt, null);
-        HealthCheckBatch restoredClosed = HealthCheckBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
+        HealthExaminationBatch restoredClosed = HealthExaminationBatch.restore(id(7), id(1), "B01", site, id(91), null, null,
                 BatchStatus.CLOSED, services, finalizedAt, closedAt);
         assertThat(restoredFinalized.finalizedAt()).isEqualTo(finalizedAt);
         assertThat(restoredFinalized.closedAt()).isNull();
@@ -116,19 +116,19 @@ class HealthCheckDomainTest {
 
     @Test
     void batchCanBeCanceledOnlyBeforeFinalizationAndRequiresReason() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(
                 com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
         assertThatThrownBy(() -> batch.cancel(" ")).isInstanceOf(IllegalArgumentException.class);
         batch.cancel("Customer canceled the visit");
         assertThat(batch.status()).isEqualTo(BatchStatus.CANCELED);
-        HealthCheckBatch restoredCanceled = HealthCheckBatch.restore(id(7), id(1), "B01", new ExaminationSite(
+        HealthExaminationBatch restoredCanceled = HealthExaminationBatch.restore(id(7), id(1), "B01", new ExaminationSite(
                 com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
                 null, null, BatchStatus.CANCELED, List.of());
         assertThat(restoredCanceled.status()).isEqualTo(BatchStatus.CANCELED);
 
-        HealthCheckBatch finalized = HealthCheckBatch.create(id(8), id(1), "B02", new ExaminationSite(
+        HealthExaminationBatch finalized = HealthExaminationBatch.create(id(8), id(1), "B02", new ExaminationSite(
                 com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        finalized.addService(HealthCheckBatchService.create(id(12), id(102), id(8), "S02",
+        finalized.addService(HealthExaminationBatchService.create(id(12), id(102), id(8), "S02",
                 Money.vnd("100000"), Money.vnd("90000"), id(1)));
         finalized.markReady();
         finalized.start();
@@ -139,14 +139,14 @@ class HealthCheckDomainTest {
     }
 
     @Test
-    void healthCheckRecordFollowsDocumentedLifecycle() {
+    void healthExaminationRecordFollowsDocumentedLifecycle() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckRecord visit = HealthCheckRecord.prepare(id(30), ShsCode.of("SHS-5"), id(10), id(20), snapshot, LocalDate.of(2026, 9, 22), id(91));
-        assertThat(visit.status()).isEqualTo(HealthCheckRecordStatus.ACTIVE);
+        HealthExaminationRecord visit = HealthExaminationRecord.prepare(id(30), ShsCode.of("SHS-5"), id(10), id(20), snapshot, LocalDate.of(2026, 9, 22), id(91));
+        assertThat(visit.status()).isEqualTo(HealthExaminationRecordStatus.ACTIVE);
         assertThatThrownBy(visit::complete).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
         visit.checkIn(LocalDate.of(2026, 9, 22));
         visit.complete();
-        assertThat(visit.status()).isEqualTo(HealthCheckRecordStatus.COMPLETED);
+        assertThat(visit.status()).isEqualTo(HealthExaminationRecordStatus.COMPLETED);
         assertThatThrownBy(visit::cancel).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
     }
 
@@ -155,42 +155,42 @@ class HealthCheckDomainTest {
         CompanyEmployee employee = CompanyEmployee.restore(id(2), id(1), "E01", IdentificationNumber.of("012345678901"), "Nguyen A", LocalDate.of(1990, 1, 1), "MALE", id(10));
         assertThatThrownBy(() -> employee.linkPatient(id(11))).isInstanceOf(PatientRelinkForbidden.class);
 
-        HealthCheckBatch batch = HealthCheckBatch.restore(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
-                null, null, BatchStatus.READY, List.of(HealthCheckBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1))));
-        assertThatThrownBy(() -> batch.addService(HealthCheckBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("100000"), Money.vnd("90000"), id(1))))
+        HealthExaminationBatch batch = HealthExaminationBatch.restore(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
+                null, null, BatchStatus.READY, List.of(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1))));
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("100000"), Money.vnd("90000"), id(1))))
                 .isInstanceOf(BatchConfigurationLocked.class);
 
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckRecord record = HealthCheckRecord.restore(id(4), ShsCode.of("SHS-4"), id(10), id(20), id(3), snapshot,
-                LocalDate.of(2026, 9, 22), LocalDate.of(2026, 9, 22), id(91), HealthCheckRecordStatus.COMPLETED);
+        HealthExaminationRecord record = HealthExaminationRecord.restore(id(4), ShsCode.of("SHS-4"), id(10), id(20), id(3), snapshot,
+                LocalDate.of(2026, 9, 22), LocalDate.of(2026, 9, 22), id(91), HealthExaminationRecordStatus.COMPLETED);
         assertThatThrownBy(() -> record.checkIn(LocalDate.of(2026, 9, 22))).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
 
-        HealthCheckImportJob job = HealthCheckImportJob.restore(id(8), id(7), ImportType.EMPLOYEE_LIST,
+        HealthExaminationImportJob job = HealthExaminationImportJob.restore(id(8), id(7), ImportType.EMPLOYEE_LIST,
                 com.ngockhanh.clinic.healthcheck.domain.enums.ImportStatus.PARTIAL,
-                List.of(HealthCheckImportRow.roster(id(102), 2, "E01", snapshot), HealthCheckImportRow.invalid(id(103), 3, "MISSING_IDENTIFICATION_NUMBER")));
+                List.of(HealthExaminationImportRow.roster(id(102), 2, "E01", snapshot), HealthExaminationImportRow.invalid(id(103), 3, "MISSING_IDENTIFICATION_NUMBER")));
         assertThat(job.confirmableRosterRows()).hasSize(1);
         assertThat(job.confirmableRosterRows().getFirst().id()).isEqualTo(id(102));
 
-        HealthCheckBatchEmployeeService restoredAssignment = HealthCheckBatchEmployeeService.restore(id(20), id(11), id(101), Money.vnd("90000"), true);
-        HealthCheckBatchEmployee participant = HealthCheckBatchEmployee.restore(id(3), id(7), id(8), snapshot, List.of(restoredAssignment));
+        HealthExaminationBatchEmployeeService restoredAssignment = HealthExaminationBatchEmployeeService.restore(id(20), id(11), id(101), Money.vnd("90000"), true);
+        HealthExaminationBatchEmployee participant = HealthExaminationBatchEmployee.restore(id(3), id(7), id(8), snapshot, List.of(restoredAssignment));
         assertThat(participant.assignmentFor(id(11)).billable()).isTrue();
         assertThatThrownBy(() -> participant.assignService(id(21), id(11), id(102), Money.vnd("90000")))
                 .isInstanceOf(DuplicateEmployeeServiceAssignment.class);
     }
     @Test
     void batchScopeLocksAtReadyAndRejectsDuplicateService() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.COMPANY, "Site", "Address"), id(91));
-        HealthCheckBatchService service = HealthCheckBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1));
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.COMPANY, "Site", "Address"), id(91));
+        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1));
         batch.addService(service);
         assertThatThrownBy(() -> batch.addService(service)).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
         batch.markReady();
-        assertThatThrownBy(() -> batch.addService(HealthCheckBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("100000"), Money.vnd("90000"), id(2)))).isInstanceOf(BatchConfigurationLocked.class);
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("100000"), Money.vnd("90000"), id(2)))).isInstanceOf(BatchConfigurationLocked.class);
     }
 
     @Test
     void preparedRecordChecksAgeAgainAtActualVisitAndPreservesShs() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(2008, 3, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckRecord record = HealthCheckRecord.prepare(id(30), ShsCode.of("SHS-1"), id(10), id(20), snapshot, LocalDate.of(2026, 3, 1), id(91));
+        HealthExaminationRecord record = HealthExaminationRecord.prepare(id(30), ShsCode.of("SHS-1"), id(10), id(20), snapshot, LocalDate.of(2026, 3, 1), id(91));
         assertThatThrownBy(() -> record.checkIn(LocalDate.of(2026, 2, 28))).isInstanceOf(AdultEligibilityViolation.class);
         record.checkIn(LocalDate.of(2026, 3, 1));
         record.checkIn(LocalDate.of(2026, 3, 1));
@@ -202,16 +202,16 @@ class HealthCheckDomainTest {
     @Test
     void leapDayBirthDoesNotPassOnFebruaryTwentyEightInNonLeapYear() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(2008, 2, 29), "MALE", IdentificationNumber.of("012345678901"));
-        assertThatThrownBy(() -> HealthCheckRecord.prepare(id(30), ShsCode.of("SHS-LEAP"), id(10), id(20), snapshot,
+        assertThatThrownBy(() -> HealthExaminationRecord.prepare(id(30), ShsCode.of("SHS-LEAP"), id(10), id(20), snapshot,
                 LocalDate.of(2026, 2, 28), id(91))).isInstanceOf(AdultEligibilityViolation.class);
-        assertThat(HealthCheckRecord.prepare(id(30), ShsCode.of("SHS-LEAP"), id(10), id(20), snapshot,
+        assertThat(HealthExaminationRecord.prepare(id(30), ShsCode.of("SHS-LEAP"), id(10), id(20), snapshot,
                 LocalDate.of(2026, 3, 1), id(91))).isNotNull();
     }
 
     @Test
     void employeeAssignmentOwnsOnlyLocalAssignmentInvariants() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckBatchEmployee employee = HealthCheckBatchEmployee.create(id(1), id(7), id(8), snapshot);
+        HealthExaminationBatchEmployee employee = HealthExaminationBatchEmployee.create(id(1), id(7), id(8), snapshot);
 
         employee.assignService(id(20), id(11), id(101), Money.vnd("90000"));
         assertThat(employee.assignmentFor(id(11)).id()).isEqualTo(id(20));
@@ -226,11 +226,11 @@ class HealthCheckDomainTest {
     }
     @Test
     void importJobConfirmsValidRowsPartiallyAndRejectsDuplicateLineNumbers() {
-        HealthCheckImportJob job = HealthCheckImportJob.create(id(8), id(7), ImportType.EMPLOYEE_LIST);
-        job.addRow(HealthCheckImportRow.invalid(id(102), 2, "MISSING_IDENTIFICATION_NUMBER"));
-        assertThatThrownBy(() -> job.addRow(HealthCheckImportRow.invalid(id(102), 2, "DUPLICATE_ROW"))).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
+        HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.EMPLOYEE_LIST);
+        job.addRow(HealthExaminationImportRow.invalid(id(102), 2, "MISSING_IDENTIFICATION_NUMBER"));
+        assertThatThrownBy(() -> job.addRow(HealthExaminationImportRow.invalid(id(102), 2, "DUPLICATE_ROW"))).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        job.addRow(HealthCheckImportRow.roster(id(103), 3, "E01", snapshot));
+        job.addRow(HealthExaminationImportRow.roster(id(103), 3, "E01", snapshot));
         job.validate();
         job.confirm();
         assertThat(job.status().name()).isEqualTo("PARTIAL");
@@ -240,9 +240,9 @@ class HealthCheckDomainTest {
 
     @Test
     void validRosterImportCanBeConfirmedWithoutPatientOrEncounter() {
-        HealthCheckImportJob job = HealthCheckImportJob.create(id(8), id(7), ImportType.EMPLOYEE_LIST);
+        HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.EMPLOYEE_LIST);
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckImportRow rosterRow = HealthCheckImportRow.roster(id(102), 2, "E01", snapshot);
+        HealthExaminationImportRow rosterRow = HealthExaminationImportRow.roster(id(102), 2, "E01", snapshot);
         assertThat(rosterRow.identificationNumber()).isEqualTo(snapshot.identificationNumber());
         job.addRow(rosterRow);
         job.validate();
@@ -252,18 +252,18 @@ class HealthCheckDomainTest {
 
     @Test
     void rosterImportCannotConfirmAValidFlagWithoutRosterData() {
-        HealthCheckImportJob job = HealthCheckImportJob.create(id(8), id(7), ImportType.EMPLOYEE_LIST);
-        job.addRow(HealthCheckImportRow.invalid(id(102), 2, "DUPLICATE_ROW"));
+        HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.EMPLOYEE_LIST);
+        job.addRow(HealthExaminationImportRow.invalid(id(102), 2, "DUPLICATE_ROW"));
         job.validate();
         assertThatThrownBy(job::confirm).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
     }
 
     @Test
     void resultImportNeedsExactResolvedServiceRequest() {
-        assertThatThrownBy(() -> HealthCheckImportRow.result(id(102), 2, "E01", null, "LAB01", null))
+        assertThatThrownBy(() -> HealthExaminationImportRow.result(id(102), 2, "E01", null, "LAB01", null))
                 .isInstanceOf(IllegalArgumentException.class);
-        HealthCheckImportJob job = HealthCheckImportJob.create(id(8), id(7), ImportType.RESULTS);
-        job.addRow(HealthCheckImportRow.result(id(102), 2, "E01", null, "LAB01", id(301)));
+        HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.RESULTS);
+        job.addRow(HealthExaminationImportRow.result(id(102), 2, "E01", null, "LAB01", id(301)));
         job.validate();
         job.confirm();
         assertThat(job.confirmableResultRows()).hasSize(1);
@@ -272,12 +272,12 @@ class HealthCheckDomainTest {
 
     @Test
     void batchPriceChangeIsCommonAndRequiresReason() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        HealthCheckBatchService service = HealthCheckBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1));
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
+        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1));
         batch.addService(service);
         batch.markReady();
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckBatchEmployee employee = HealthCheckBatchEmployee.create(id(1), id(7), id(8), snapshot);
+        HealthExaminationBatchEmployee employee = HealthExaminationBatchEmployee.create(id(1), id(7), id(8), snapshot);
         employee.assignService(id(20), id(11), id(101), service.negotiatedPrice());
         assertThat(employee.assignmentFor(id(11)).unitPrice().amount()).isEqualByComparingTo("90000");
         assertThatThrownBy(() -> batch.repriceService(id(11), Money.vnd("120000"), " ")).isInstanceOf(IllegalArgumentException.class);
@@ -289,18 +289,18 @@ class HealthCheckDomainTest {
     }
     @Test
     void readyBatchRequiresAConfiguredServiceAndValidPlannedWindow() {
-        assertThatThrownBy(() -> HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
+        assertThatThrownBy(() -> HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
                 LocalDate.of(2026, 10, 2), LocalDate.of(2026, 10, 1))).isInstanceOf(IllegalArgumentException.class);
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91),
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 2));
         assertThatThrownBy(batch::markReady).isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
     }
 
     @Test
     void batchRejectsDuplicateCatalogServiceEvenWithDifferentBatchServiceIds() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        batch.addService(HealthCheckBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
-        assertThatThrownBy(() -> batch.addService(HealthCheckBatchService.create(id(12), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1))))
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01", new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
+        batch.addService(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1))))
                 .isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
         assertThat(batch.service(id(11)).serviceId()).isEqualTo(id(101));
     }
@@ -309,7 +309,7 @@ class HealthCheckDomainTest {
     void snapshotRetainsOptionalPrintFields() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"),
                 null, null, null, null, null, null, null, "Ha Noi", "Ward 1", "Street 1", "Nurse", "Company", "Annual check");
-        HealthCheckRecord record = HealthCheckRecord.prepare(id(30), ShsCode.of("SHS-2"), id(10), id(20), snapshot, LocalDate.of(2026, 9, 22), id(91));
+        HealthExaminationRecord record = HealthExaminationRecord.prepare(id(30), ShsCode.of("SHS-2"), id(10), id(20), snapshot, LocalDate.of(2026, 9, 22), id(91));
         assertThat(record.snapshot().workplaceOrSchool()).isEqualTo("Company");
         assertThat(record.snapshot().addressDetail()).isEqualTo("Street 1");
     }
@@ -319,8 +319,8 @@ class HealthCheckDomainTest {
         Company company = Company.create(id(1), "C01", "Company", "Contact", "0900000000");
         CompanyEmployee employee = CompanyEmployee.create(id(2), id(1), "E01", IdentificationNumber.of("012345678901"), "Nguyen A", LocalDate.of(1990, 1, 1), "MALE");
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
-        HealthCheckBatchEmployee participant = HealthCheckBatchEmployee.create(id(3), id(7), id(2), snapshot);
-        HealthCheckRecord visit = HealthCheckRecord.prepare(id(4), ShsCode.of("SHS-4"), id(10), id(20), id(3), snapshot, LocalDate.of(2026, 9, 22), id(91));
+        HealthExaminationBatchEmployee participant = HealthExaminationBatchEmployee.create(id(3), id(7), id(2), snapshot);
+        HealthExaminationRecord visit = HealthExaminationRecord.prepare(id(4), ShsCode.of("SHS-4"), id(10), id(20), id(3), snapshot, LocalDate.of(2026, 9, 22), id(91));
         assertThat(company.id()).isEqualTo(id(1));
         assertThat(employee.id()).isEqualTo(id(2));
         assertThat(participant.id()).isEqualTo(id(3));
@@ -343,9 +343,9 @@ class HealthCheckDomainTest {
 
     @Test
     void batchScopeComparesBatchUuidByValue() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01",
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01",
                 new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        HealthCheckBatchService service = HealthCheckBatchService.create(id(11), id(101), sameId(batch.id()), "S01",
+        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), sameId(batch.id()), "S01",
                 Money.vnd("100000"), Money.vnd("90000"), id(1));
 
         batch.addService(service);
@@ -355,12 +355,12 @@ class HealthCheckDomainTest {
 
     @Test
     void batchRejectsCatalogServiceDuplicateByUuidValue() {
-        HealthCheckBatch batch = HealthCheckBatch.create(id(7), id(1), "B01",
+        HealthExaminationBatch batch = HealthExaminationBatch.create(id(7), id(1), "B01",
                 new ExaminationSite(com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        batch.addService(HealthCheckBatchService.create(id(11), id(101), batch.id(), "S01",
+        batch.addService(HealthExaminationBatchService.create(id(11), id(101), batch.id(), "S01",
                 Money.vnd("100000"), Money.vnd("90000"), id(1)));
 
-        assertThatThrownBy(() -> batch.addService(HealthCheckBatchService.create(id(12), sameId(id(101)), batch.id(), "S01",
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), sameId(id(101)), batch.id(), "S01",
                 Money.vnd("100000"), Money.vnd("90000"), id(1))))
                 .isInstanceOf(com.ngockhanh.clinic.healthcheck.domain.exception.DomainException.class);
     }
@@ -369,7 +369,7 @@ class HealthCheckDomainTest {
     void employeeAssignmentUsesBatchServiceUuidValueAsChildIdentity() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE",
                 IdentificationNumber.of("012345678901"));
-        HealthCheckBatchEmployee participant = HealthCheckBatchEmployee.create(id(21), id(7), id(8), snapshot);
+        HealthExaminationBatchEmployee participant = HealthExaminationBatchEmployee.create(id(21), id(7), id(8), snapshot);
         UUID batchServiceId = id(11);
 
         participant.assignService(id(20), batchServiceId, id(301), Money.vnd("90000"));
@@ -380,7 +380,7 @@ class HealthCheckDomainTest {
     void billableLookupComparesServiceRequestUuidByValue() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE",
                 IdentificationNumber.of("012345678901"));
-        HealthCheckBatchEmployee participant = HealthCheckBatchEmployee.create(id(21), id(7), id(8), snapshot);
+        HealthExaminationBatchEmployee participant = HealthExaminationBatchEmployee.create(id(21), id(7), id(8), snapshot);
         UUID serviceRequestId = id(301);
         participant.assignService(id(20), id(11), serviceRequestId, Money.vnd("90000"));
 
@@ -392,7 +392,7 @@ class HealthCheckDomainTest {
     void priceRevisionComparesBatchUuidByValue() {
         AdministrativeSnapshot snapshot = new AdministrativeSnapshot("Nguyen A", LocalDate.of(1990, 1, 1), "MALE",
                 IdentificationNumber.of("012345678901"));
-        HealthCheckBatchEmployee participant = HealthCheckBatchEmployee.create(id(21), id(7), id(8), snapshot);
+        HealthExaminationBatchEmployee participant = HealthExaminationBatchEmployee.create(id(21), id(7), id(8), snapshot);
         BatchPriceRevision revision = new BatchPriceRevision(sameId(id(7)), id(11), Money.vnd("90000"),
                 Money.vnd("100000"), "Contract amendment");
 

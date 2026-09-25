@@ -24,9 +24,9 @@ An Entity:
 Examples:
 
 ```text
-HealthCheckBatchService
-HealthCheckBatchEmployeeService
-HealthCheckImportRow
+HealthExaminationBatchService
+HealthExaminationBatchEmployeeService
+HealthExaminationImportRow
 PrescriptionItem
 ```
 
@@ -99,10 +99,10 @@ Examples:
 
 ```text
 CCCD format -> IdentificationNumber
-batch lifecycle -> HealthCheckBatch
-employee assignment price -> HealthCheckBatchEmployee
+batch lifecycle -> HealthExaminationBatch
+employee assignment price -> HealthExaminationBatchEmployee
 prescription issued immutability -> Prescription
-adult health-check eligibility -> HealthCheckRecord
+adult health-examination eligibility -> HealthExaminationRecord
 ```
 
 Cross-aggregate rules belong in application orchestration/domain service if they require multiple repositories.
@@ -128,7 +128,7 @@ Persistence converter handles translation.
 Example:
 
 ```text
-HealthCheckBatch CLOSED
+HealthExaminationBatch CLOSED
 => finalizedAt != null
 => closedAt != null
 ```

@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.Money;
 
-public final class HealthCheckBatchService {
+public final class HealthExaminationBatchService {
     private final UUID id;
     private final UUID serviceId;
     private final UUID batchId;
@@ -13,7 +13,7 @@ public final class HealthCheckBatchService {
     private final Money negotiatedPrice;
     private final UUID templateVersionId;
 
-    private HealthCheckBatchService(UUID id, UUID serviceId, UUID batchId, String serviceCode,
+    private HealthExaminationBatchService(UUID id, UUID serviceId, UUID batchId, String serviceCode,
                                     Money basePrice, Money negotiatedPrice, UUID templateVersionId) {
         if (id == null || serviceId == null || batchId == null || serviceCode == null || serviceCode.isBlank()
                 || basePrice == null || negotiatedPrice == null) {
@@ -28,19 +28,19 @@ public final class HealthCheckBatchService {
         this.templateVersionId = templateVersionId;
     }
 
-    public static HealthCheckBatchService create(UUID id, UUID serviceId, UUID batchId, String serviceCode,
+    public static HealthExaminationBatchService create(UUID id, UUID serviceId, UUID batchId, String serviceCode,
                                                  Money basePrice, Money negotiatedPrice, UUID templateVersionId) {
-        return new HealthCheckBatchService(id, serviceId, batchId, serviceCode, basePrice, negotiatedPrice, templateVersionId);
+        return new HealthExaminationBatchService(id, serviceId, batchId, serviceCode, basePrice, negotiatedPrice, templateVersionId);
     }
 
-    public static HealthCheckBatchService restore(UUID id, UUID serviceId, UUID batchId, String serviceCode,
+    public static HealthExaminationBatchService restore(UUID id, UUID serviceId, UUID batchId, String serviceCode,
                                                   Money basePrice, Money negotiatedPrice, UUID templateVersionId) {
-        return new HealthCheckBatchService(id, serviceId, batchId, serviceCode, basePrice, negotiatedPrice, templateVersionId);
+        return new HealthExaminationBatchService(id, serviceId, batchId, serviceCode, basePrice, negotiatedPrice, templateVersionId);
     }
 
-    public HealthCheckBatchService withNegotiatedPrice(Money price) {
+    public HealthExaminationBatchService withNegotiatedPrice(Money price) {
         if (price == null) throw new IllegalArgumentException("Missing price");
-        return new HealthCheckBatchService(id, serviceId, batchId, serviceCode, basePrice, price, templateVersionId);
+        return new HealthExaminationBatchService(id, serviceId, batchId, serviceCode, basePrice, price, templateVersionId);
     }
 
     public UUID id() { return id; }

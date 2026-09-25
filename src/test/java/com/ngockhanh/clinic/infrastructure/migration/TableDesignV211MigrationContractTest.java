@@ -27,9 +27,9 @@ class TableDesignV211MigrationContractTest {
             "vital_signs", "clinical_notes", "encounter_diagnoses",
             "order_rounds", "service_requests",
             "payment_authorizations", "invoices", "invoice_items", "invoice_adjustments", "payments",
-            "companies", "company_employees", "health_check_batches",
-            "health_check_batch_services", "health_check_batch_employees", "health_check_records",
-            "health_check_batch_employee_services", "health_check_import_jobs", "health_check_import_rows",
+            "companies", "company_employees", "health_examination_batches",
+            "health_examination_batch_services", "health_examination_batch_employees", "health_examination_records",
+            "health_examination_batch_employee_services", "health_examination_import_jobs", "health_examination_import_rows",
             "specimens", "specimen_service_requests", "lab_panels", "analytes", "lab_panel_items",
             "analyte_reference_ranges", "lab_results", "lab_result_values", "imaging_studies",
             "diagnostic_reports", "file_attachments",
@@ -47,14 +47,21 @@ class TableDesignV211MigrationContractTest {
         String resultRelease = readMigration("V003__complete_result_release_v2_11.sql");
         String lifecycleChecks = readMigration("V004__add_core_lifecycle_checks.sql");
         String identifierNames = readMigration("V005__restore_identification_number_column_names.sql");
+        String terminologyCutover = readMigration("V006__rename_health_check_to_health_examination.sql");
         Set<String> actualTables = new TreeSet<>();
         var created = CREATE_TABLE.matcher(baseline + "\n" + cutover + "\n" + resultRelease + "\n"
                 + lifecycleChecks + "\n" + identifierNames);
         while (created.find()) actualTables.add(created.group(1).toLowerCase());
         var dropped = DROP_TABLE.matcher(cutover);
         while (dropped.find()) actualTables.remove(dropped.group(1).toLowerCase());
+        actualTables = actualTables.stream()
+                .map(TableDesignV211MigrationContractTest::renameHealthCheckTable)
+                .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
 
         assertThat(actualTables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
+        assertThat(terminologyCutover)
+                .contains("health_check_batches", "health_examination_batches")
+                .contains("health_check_records", "health_examination_records");
     }
 
     @Test
@@ -135,6 +142,22 @@ class TableDesignV211MigrationContractTest {
                 .contains("ux_patients_identification_number")
                 .contains("uq_company_employees_company_id_identification_number")
                 .doesNotContain("drop table", "drop column", "delete from");
+    }
+
+    @Test
+    void terminologyMigrationRenamesSchemaWithoutDroppingData() throws IOException {
+        String terminologyCutover = readMigration("V006__rename_health_check_to_health_examination.sql").toLowerCase();
+
+        assertThat(terminologyCutover)
+                .contains("sp_rename", "health_check_batches", "health_examination_batches")
+                .contains("health_check_records", "health_examination_records")
+                .contains("health_check_eligible", "health_examination_eligible")
+                .contains("doctor_staff_id", "physician_staff_id")
+                .doesNotContain("drop table", "drop column", "delete from");
+    }
+
+    private static String renameHealthCheckTable(String tableName) {
+        return tableName.replace("health_check_", "health_examination_");
     }
 
     private static String readMigration(String fileName) throws IOException {

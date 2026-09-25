@@ -6,21 +6,21 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import com.ngockhanh.clinic.healthcheck.domain.entity.HealthCheckBatchEmployeeService;
+import com.ngockhanh.clinic.healthcheck.domain.entity.HealthExaminationBatchEmployeeService;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DuplicateEmployeeServiceAssignment;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.AdministrativeSnapshot;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.BatchPriceRevision;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.Money;
 
-public final class HealthCheckBatchEmployee {
+public final class HealthExaminationBatchEmployee {
     private final UUID id;
     private final UUID batchId;
     private final UUID companyEmployeeId;
     private final AdministrativeSnapshot rosterSnapshot;
-    private final Map<UUID, HealthCheckBatchEmployeeService> assignments = new HashMap<>();
+    private final Map<UUID, HealthExaminationBatchEmployeeService> assignments = new HashMap<>();
 
-    private HealthCheckBatchEmployee(UUID id, UUID batchId, UUID companyEmployeeId,
+    private HealthExaminationBatchEmployee(UUID id, UUID batchId, UUID companyEmployeeId,
                                      AdministrativeSnapshot rosterSnapshot) {
         if (id == null || batchId == null || companyEmployeeId == null || rosterSnapshot == null) {
             throw new IllegalArgumentException("Invalid batch employee");
@@ -31,17 +31,17 @@ public final class HealthCheckBatchEmployee {
         this.rosterSnapshot = rosterSnapshot;
     }
 
-    public static HealthCheckBatchEmployee create(UUID id, UUID batchId, UUID companyEmployeeId,
+    public static HealthExaminationBatchEmployee create(UUID id, UUID batchId, UUID companyEmployeeId,
                                                   AdministrativeSnapshot rosterSnapshot) {
-        return new HealthCheckBatchEmployee(id, batchId, companyEmployeeId, rosterSnapshot);
+        return new HealthExaminationBatchEmployee(id, batchId, companyEmployeeId, rosterSnapshot);
     }
 
-    public static HealthCheckBatchEmployee restore(UUID id, UUID batchId, UUID companyEmployeeId,
+    public static HealthExaminationBatchEmployee restore(UUID id, UUID batchId, UUID companyEmployeeId,
                                                    AdministrativeSnapshot snapshot,
-                                                   List<HealthCheckBatchEmployeeService> assignments) {
+                                                   List<HealthExaminationBatchEmployeeService> assignments) {
         if (assignments == null) throw new IllegalArgumentException("Invalid persisted batch employee");
-        HealthCheckBatchEmployee employee = new HealthCheckBatchEmployee(id, batchId, companyEmployeeId, snapshot);
-        for (HealthCheckBatchEmployeeService assignment : assignments) {
+        HealthExaminationBatchEmployee employee = new HealthExaminationBatchEmployee(id, batchId, companyEmployeeId, snapshot);
+        for (HealthExaminationBatchEmployeeService assignment : assignments) {
             if (assignment == null || employee.assignments.putIfAbsent(assignment.batchServiceId(), assignment) != null) {
                 throw new IllegalArgumentException("Invalid persisted assignment list");
             }
@@ -54,14 +54,14 @@ public final class HealthCheckBatchEmployee {
             throw new IllegalArgumentException("Incomplete employee service assignment");
         }
         if (assignments.putIfAbsent(batchServiceId,
-                HealthCheckBatchEmployeeService.create(assignmentId, batchServiceId, serviceRequestId, negotiatedPrice)) != null) {
+                HealthExaminationBatchEmployeeService.create(assignmentId, batchServiceId, serviceRequestId, negotiatedPrice)) != null) {
             throw new DuplicateEmployeeServiceAssignment();
         }
     }
 
     public void markServiceBillable(UUID serviceRequestId) {
         if (serviceRequestId == null) throw new IllegalArgumentException("Missing Service Request");
-        Map.Entry<UUID, HealthCheckBatchEmployeeService> entry = assignments.entrySet().stream()
+        Map.Entry<UUID, HealthExaminationBatchEmployeeService> entry = assignments.entrySet().stream()
                 .filter(item -> Objects.equals(item.getValue().serviceRequestId(), serviceRequestId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Unknown Service Request"));
@@ -72,7 +72,7 @@ public final class HealthCheckBatchEmployee {
         if (revision == null || !Objects.equals(revision.batchId(), batchId)) {
             throw new IllegalArgumentException("Price revision for another batch");
         }
-        HealthCheckBatchEmployeeService assignment = assignments.get(revision.batchServiceId());
+        HealthExaminationBatchEmployeeService assignment = assignments.get(revision.batchServiceId());
         if (assignment != null) {
             if (assignment.unitPrice().amount().compareTo(revision.oldPrice().amount()) != 0) {
                 throw new DomainRuleViolation("Stale batch price revision");
@@ -81,7 +81,7 @@ public final class HealthCheckBatchEmployee {
         }
     }
 
-    public HealthCheckBatchEmployeeService assignmentFor(UUID batchServiceId) {
+    public HealthExaminationBatchEmployeeService assignmentFor(UUID batchServiceId) {
         return assignments.get(batchServiceId);
     }
 
@@ -89,5 +89,5 @@ public final class HealthCheckBatchEmployee {
     public UUID batchId() { return batchId; }
     public UUID companyEmployeeId() { return companyEmployeeId; }
     public AdministrativeSnapshot rosterSnapshot() { return rosterSnapshot; }
-    public List<HealthCheckBatchEmployeeService> assignments() { return List.copyOf(assignments.values()); }
+    public List<HealthExaminationBatchEmployeeService> assignments() { return List.copyOf(assignments.values()); }
 }

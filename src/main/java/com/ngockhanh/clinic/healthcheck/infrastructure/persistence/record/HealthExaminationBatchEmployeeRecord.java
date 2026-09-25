@@ -3,9 +3,9 @@ package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record HealthCheckBatchEmployeeRecord(
+public record HealthExaminationBatchEmployeeRecord(
         UUID id,
-        UUID healthCheckBatchId,
+        UUID healthExaminationBatchId,
         UUID companyEmployeeId,
         String employeeCodeSnapshot,
         String departmentSnapshot,

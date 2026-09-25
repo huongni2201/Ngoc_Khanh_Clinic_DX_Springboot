@@ -25,7 +25,7 @@ class SqlServerMigrationIntegrationTest {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 SQL_SERVER.getJdbcUrl(), SQL_SERVER.getUsername(), SQL_SERVER.getPassword());
@@ -43,10 +43,14 @@ class SqlServerMigrationIntegrationTest {
         assertColumnType(jdbcTemplate, "patients", "identification_number", "varchar");
         assertColumnType(jdbcTemplate, "patients", "row_version", "timestamp");
         assertColumnType(jdbcTemplate, "company_employees", "identification_number", "varchar");
-        assertColumnType(jdbcTemplate, "health_check_records", "identification_number_snapshot", "varchar");
-        assertColumnType(jdbcTemplate, "health_check_records", "identification_number_issue_date_snapshot", "date");
-        assertColumnType(jdbcTemplate, "health_check_records", "identification_number_issue_place_snapshot", "nvarchar");
-        assertColumnType(jdbcTemplate, "health_check_import_rows", "identification_number_snapshot", "varchar");
+        assertColumnType(jdbcTemplate, "services", "health_examination_eligible", "bit");
+        assertColumnType(jdbcTemplate, "document_templates", "is_master_health_examination_form", "bit");
+        assertColumnType(jdbcTemplate, "appointments", "physician_staff_id", "uniqueidentifier");
+        assertColumnType(jdbcTemplate, "encounter_assignments", "physician_staff_id", "uniqueidentifier");
+        assertColumnType(jdbcTemplate, "health_examination_records", "identification_number_snapshot", "varchar");
+        assertColumnType(jdbcTemplate, "health_examination_records", "identification_number_issue_date_snapshot", "date");
+        assertColumnType(jdbcTemplate, "health_examination_records", "identification_number_issue_place_snapshot", "nvarchar");
+        assertColumnType(jdbcTemplate, "health_examination_import_rows", "identification_number_snapshot", "varchar");
         assertColumnType(jdbcTemplate, "lab_results", "released_to_patient_at", "datetime2");
         assertColumnType(jdbcTemplate, "lab_results", "released_to_patient_by_user_id", "uniqueidentifier");
         assertColumnType(jdbcTemplate, "diagnostic_reports", "released_to_patient_at", "datetime2");
@@ -55,6 +59,9 @@ class SqlServerMigrationIntegrationTest {
         assertForeignKey(jdbcTemplate, "diagnostic_reports", "FK_diagnostic_reports_released_to_patient_by_user_id");
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from sys.tables where schema_id = schema_id('dbo') and name like 'journey%'",
+                Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from sys.tables where schema_id = schema_id('dbo') and name like 'health_check%'",
                 Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from information_schema.columns where table_schema = 'dbo' "
@@ -84,18 +91,21 @@ class SqlServerMigrationIntegrationTest {
         assertUniqueIndex(jdbcTemplate, "encounters", "UQ_encounters_encounter_code");
         assertUniqueIndex(jdbcTemplate, "encounter_assignments", "UX_encounter_assignments_active");
         assertUniqueIndex(jdbcTemplate, "payment_authorizations", "UQ_payment_authorizations_service_request_id");
-        assertUniqueIndex(jdbcTemplate, "health_check_records", "UX_health_check_records_shs_code");
-        assertUniqueIndex(jdbcTemplate, "health_check_records", "UX_health_check_records_encounter");
-        assertUniqueIndex(jdbcTemplate, "health_check_records", "UX_health_check_records_batch_employee");
-        assertUniqueIndex(jdbcTemplate, "health_check_batch_employee_services", "UX_hcbes_service_request");
+        assertUniqueIndex(jdbcTemplate, "health_examination_records", "UX_health_examination_records_shs_code");
+        assertUniqueIndex(jdbcTemplate, "health_examination_records", "UX_health_examination_records_encounter");
+        assertUniqueIndex(jdbcTemplate, "health_examination_records", "UX_health_examination_records_batch_employee");
+        assertUniqueIndex(
+                jdbcTemplate,
+                "health_examination_batch_employee_services",
+                "UX_health_examination_batch_employee_services_service_request");
         assertCheckConstraint(jdbcTemplate, "users", "CK_users_principal_type");
         assertCheckConstraint(jdbcTemplate, "encounters", "CK_encounters_status");
         assertCheckConstraint(jdbcTemplate, "service_requests", "CK_service_requests_status");
         assertCheckConstraint(jdbcTemplate, "payment_authorizations", "CK_payment_authorizations_status");
         assertCheckConstraint(jdbcTemplate, "payments", "CK_payments_status");
-        assertCheckConstraint(jdbcTemplate, "health_check_batches", "CK_health_check_batches_status");
-        assertCheckConstraint(jdbcTemplate, "health_check_records", "CK_health_check_records_status");
-        assertColumnType(jdbcTemplate, "health_check_records", "shs_code", "varchar");
+        assertCheckConstraint(jdbcTemplate, "health_examination_batches", "CK_health_examination_batches_status");
+        assertCheckConstraint(jdbcTemplate, "health_examination_records", "CK_health_examination_records_status");
+        assertColumnType(jdbcTemplate, "health_examination_records", "shs_code", "varchar");
         assertColumnType(jdbcTemplate, "service_requests", "unit_price_snapshot", "decimal");
         assertColumnType(jdbcTemplate, "outbox_events", "payload_json", "nvarchar");
     }

@@ -15,12 +15,13 @@ Repository rules and accepted ADRs override generic skill examples.
 
 Before using a skill, read its `SKILL.md`.
 
-## Installed skills and compatibility (2026-09-22)
+## Installed skills and compatibility (2026-09-24)
 
 Project-local copies are installed under `.agents/skills/`: `architecture-decision-records`,
 `architecture-patterns`, `codebase-design`, `domain-modeling`, `api-design-principles`,
-`diagnosing-bugs`, and `tdd`. They were copied from the existing local Codex installation,
-including supporting files; no upstream version or latest-release claim is made.
+`diagnosing-bugs`, `tdd`, and `karpathy-guidelines`. They were copied from the existing local
+Codex installation, including supporting files; no upstream version or latest-release claim is
+made.
 `error-handling-patterns` already exists in the parent workspace's `.agents/skills/`.
 That inherited skill must be installed separately when using this backend outside that workspace.
 
@@ -58,6 +59,7 @@ architecture-patterns
 code-review
 codebase-design
 diagnosing-bugs
+karpathy-guidelines
 domain-modeling
 error-handling-patterns
 security-best-practices
@@ -268,6 +270,12 @@ workflow behavior differs from requirements
 ```
 
 Find root cause before patching symptoms.
+
+### `karpathy-guidelines`
+
+Use when writing, reviewing, or refactoring code to keep changes focused, avoid speculative
+abstractions, surface assumptions, and define verifiable completion criteria. Project rules
+and accepted ADRs remain authoritative.
 
 ### `code-review`
 

@@ -102,7 +102,7 @@ Owns:
 vital signs
 clinical notes
 encounter diagnoses
-doctor clinical workflow contracts
+physician clinical workflow contracts
 ```
 
 ### billing
@@ -138,13 +138,13 @@ Owns:
 ```text
 Company
 CompanyEmployee
-HealthCheckBatch
-HealthCheckBatchService
-HealthCheckBatchEmployee
-HealthCheckBatchEmployeeService
-HealthCheckRecord
-HealthCheckImportJob
-HealthCheckImportRow
+HealthExaminationBatch
+HealthExaminationBatchService
+HealthExaminationBatchEmployee
+HealthExaminationBatchEmployeeService
+HealthExaminationRecord
+HealthExaminationImportJob
+HealthExaminationImportRow
 corporate pricing rules
 ```
 

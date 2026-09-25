@@ -19,8 +19,8 @@ Authorization should exist at application boundary.
 Examples:
 
 ```text
-Front Desk
-Doctor
+Receptionist
+Physician
 Diagnostic Staff
 Clinic Manager
 Administrator
@@ -57,7 +57,7 @@ result correction
 prescription correction
 role changes
 encounter reassignment
-health-check batch reopen
+health-examination batch reopen
 ```
 
 Audit record should capture when practical:

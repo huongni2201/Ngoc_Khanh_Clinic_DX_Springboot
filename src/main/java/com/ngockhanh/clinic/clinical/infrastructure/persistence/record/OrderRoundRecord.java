@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 public record OrderRoundRecord(
         UUID id,
         UUID encounterId,
-        UUID healthCheckRecordId,
+        UUID healthExaminationRecordId,
         Integer roundNumber,
         String sourceType,
         String status,

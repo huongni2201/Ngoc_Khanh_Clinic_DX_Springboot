@@ -1,5 +1,5 @@
 package com.ngockhanh.clinic.healthcheck.domain.aggregate;
-import com.ngockhanh.clinic.healthcheck.domain.entity.HealthCheckBatchService;
+import com.ngockhanh.clinic.healthcheck.domain.entity.HealthExaminationBatchService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -15,7 +15,7 @@ import com.ngockhanh.clinic.healthcheck.domain.valueobject.BatchPriceRevision;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.ExaminationSite;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.Money;
 
-public final class HealthCheckBatch {
+public final class HealthExaminationBatch {
     private final UUID id;
     private final UUID companyId;
     private final String code;
@@ -23,16 +23,16 @@ public final class HealthCheckBatch {
     private final UUID masterTemplateVersionId;
     private final LocalDate startDate;
     private final LocalDate endDate;
-    private final Map<UUID, HealthCheckBatchService> services = new HashMap<>();
+    private final Map<UUID, HealthExaminationBatchService> services = new HashMap<>();
     private BatchStatus status = BatchStatus.DRAFT;
     private LocalDateTime finalizedAt;
     private LocalDateTime closedAt;
 
-    private HealthCheckBatch(UUID id, UUID companyId, String code, ExaminationSite site, UUID masterTemplateVersionId,
+    private HealthExaminationBatch(UUID id, UUID companyId, String code, ExaminationSite site, UUID masterTemplateVersionId,
                              LocalDate startDate, LocalDate endDate) {
         if (id == null || companyId == null || code == null || code.isBlank() || site == null || masterTemplateVersionId == null
                 || (startDate != null && endDate != null && startDate.isAfter(endDate))) {
-            throw new IllegalArgumentException("Invalid health-check batch");
+            throw new IllegalArgumentException("Invalid health-examination batch");
         }
         this.id = id;
         this.companyId = companyId;
@@ -43,33 +43,33 @@ public final class HealthCheckBatch {
         this.endDate = endDate;
     }
 
-    public static HealthCheckBatch create(UUID id, UUID companyId, String code, ExaminationSite site,
+    public static HealthExaminationBatch create(UUID id, UUID companyId, String code, ExaminationSite site,
                                           UUID masterTemplateVersionId) {
         return create(id, companyId, code, site, masterTemplateVersionId, null, null);
     }
-    public static HealthCheckBatch create(UUID id, UUID companyId, String code, ExaminationSite site,
+    public static HealthExaminationBatch create(UUID id, UUID companyId, String code, ExaminationSite site,
                                           UUID masterTemplateVersionId, LocalDate startDate, LocalDate endDate) {
-        return new HealthCheckBatch(id, companyId, code, site, masterTemplateVersionId, startDate, endDate);
+        return new HealthExaminationBatch(id, companyId, code, site, masterTemplateVersionId, startDate, endDate);
     }
 
-    public static HealthCheckBatch restore(UUID id, UUID companyId, String code, ExaminationSite site,
+    public static HealthExaminationBatch restore(UUID id, UUID companyId, String code, ExaminationSite site,
                                            UUID masterTemplateVersionId, LocalDate startDate, LocalDate endDate,
-                                           BatchStatus status, List<HealthCheckBatchService> services) {
+                                           BatchStatus status, List<HealthExaminationBatchService> services) {
         return restore(id, companyId, code, site, masterTemplateVersionId, startDate, endDate,
                 status, services, null, null);
     }
 
-    public static HealthCheckBatch restore(UUID id, UUID companyId, String code, ExaminationSite site,
+    public static HealthExaminationBatch restore(UUID id, UUID companyId, String code, ExaminationSite site,
                                            UUID masterTemplateVersionId, LocalDate startDate, LocalDate endDate,
-                                           BatchStatus status, List<HealthCheckBatchService> services,
+                                           BatchStatus status, List<HealthExaminationBatchService> services,
                                            LocalDateTime finalizedAt, LocalDateTime closedAt) {
         if (status == null || services == null) throw new IllegalArgumentException("Incomplete persisted batch");
         if ((status == BatchStatus.FINALIZED || status == BatchStatus.CLOSED) != (finalizedAt != null)
                 || (status == BatchStatus.CLOSED) != (closedAt != null)) {
             throw new IllegalArgumentException("Persisted batch lifecycle timestamps do not match status");
         }
-        HealthCheckBatch batch = new HealthCheckBatch(id, companyId, code, site, masterTemplateVersionId, startDate, endDate);
-        for (HealthCheckBatchService service : services) batch.attachService(service);
+        HealthExaminationBatch batch = new HealthExaminationBatch(id, companyId, code, site, masterTemplateVersionId, startDate, endDate);
+        for (HealthExaminationBatchService service : services) batch.attachService(service);
         if (status != BatchStatus.DRAFT && status != BatchStatus.CANCELED && services.isEmpty()) {
             throw new IllegalArgumentException("Persisted batch has no service scope");
         }
@@ -79,12 +79,12 @@ public final class HealthCheckBatch {
         return batch;
     }
 
-    public void addService(HealthCheckBatchService service) {
+    public void addService(HealthExaminationBatchService service) {
         if (status != BatchStatus.DRAFT) throw new BatchConfigurationLocked();
         attachService(service);
     }
 
-    private void attachService(HealthCheckBatchService service) {
+    private void attachService(HealthExaminationBatchService service) {
         if (service == null || !Objects.equals(service.batchId(), id)) {
             throw new IllegalArgumentException("Service outside batch");
         }
@@ -106,7 +106,7 @@ public final class HealthCheckBatch {
         if (status == BatchStatus.FINALIZED || status == BatchStatus.CLOSED || status == BatchStatus.CANCELED) {
             throw new DomainRuleViolation("Batch must be reopened before repricing");
         }
-        HealthCheckBatchService service = services.get(batchServiceId);
+        HealthExaminationBatchService service = services.get(batchServiceId);
         if (service == null) throw new IllegalArgumentException("Unknown batch service");
         BatchPriceRevision revision = new BatchPriceRevision(id, batchServiceId, service.negotiatedPrice(), price, reason);
         services.put(batchServiceId, service.withNegotiatedPrice(price));
@@ -167,6 +167,6 @@ public final class HealthCheckBatch {
     public BatchStatus status() { return status; }
     public LocalDateTime finalizedAt() { return finalizedAt; }
     public LocalDateTime closedAt() { return closedAt; }
-    public List<HealthCheckBatchService> services() { return List.copyOf(services.values()); }
-    public HealthCheckBatchService service(UUID batchServiceId) { return services.get(batchServiceId); }
+    public List<HealthExaminationBatchService> services() { return List.copyOf(services.values()); }
+    public HealthExaminationBatchService service(UUID batchServiceId) { return services.get(batchServiceId); }
 }

@@ -4,12 +4,12 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record HealthCheckRecord(
+public record HealthExaminationRecord(
         UUID id,
         String shsCode,
         String sourceType,
         UUID patientId,
-        UUID healthCheckBatchEmployeeId,
+        UUID healthExaminationBatchEmployeeId,
         UUID encounterId,
         UUID masterTemplateVersionId,
         String fullNameSnapshot,
@@ -28,11 +28,11 @@ public record HealthCheckRecord(
         String addressDetailSnapshot,
         String occupationSnapshot,
         String workplaceOrSchoolSnapshot,
-        String healthCheckReasonSnapshot,
+        String healthExaminationReasonSnapshot,
         LocalDate plannedExaminationDate,
         LocalDate actualExaminationDate,
         String status,
-        UUID replacesHealthCheckRecordId,
+        UUID replacesHealthExaminationRecordId,
         LocalDateTime createdAt,
         LocalDateTime completedAt,
         LocalDateTime canceledAt,

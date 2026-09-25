@@ -9,16 +9,16 @@ import java.util.UUID;
 import com.ngockhanh.clinic.healthcheck.domain.enums.ImportStatus;
 import com.ngockhanh.clinic.healthcheck.domain.enums.ImportType;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
-import com.ngockhanh.clinic.healthcheck.domain.entity.HealthCheckImportRow;
+import com.ngockhanh.clinic.healthcheck.domain.entity.HealthExaminationImportRow;
 
-public final class HealthCheckImportJob {
+public final class HealthExaminationImportJob {
     private final UUID id;
     private final UUID batchId;
     private final ImportType type;
-    private final Map<Integer, HealthCheckImportRow> rows = new HashMap<>();
+    private final Map<Integer, HealthExaminationImportRow> rows = new HashMap<>();
     private ImportStatus status;
 
-    private HealthCheckImportJob(UUID id, UUID batchId, ImportType type, ImportStatus status) {
+    private HealthExaminationImportJob(UUID id, UUID batchId, ImportType type, ImportStatus status) {
         if (id == null || batchId == null || type == null || status == null) {
             throw new IllegalArgumentException("Invalid import job");
         }
@@ -28,15 +28,15 @@ public final class HealthCheckImportJob {
         this.status = status;
     }
 
-    public static HealthCheckImportJob create(UUID id, UUID batchId, ImportType type) {
-        return new HealthCheckImportJob(id, batchId, type, ImportStatus.UPLOADED);
+    public static HealthExaminationImportJob create(UUID id, UUID batchId, ImportType type) {
+        return new HealthExaminationImportJob(id, batchId, type, ImportStatus.UPLOADED);
     }
 
-    public static HealthCheckImportJob restore(UUID id, UUID batchId, ImportType type, ImportStatus status,
-                                               List<HealthCheckImportRow> rows) {
+    public static HealthExaminationImportJob restore(UUID id, UUID batchId, ImportType type, ImportStatus status,
+                                               List<HealthExaminationImportRow> rows) {
         if (rows == null) throw new IllegalArgumentException("Invalid persisted import job");
-        HealthCheckImportJob job = new HealthCheckImportJob(id, batchId, type, status);
-        for (HealthCheckImportRow row : rows) {
+        HealthExaminationImportJob job = new HealthExaminationImportJob(id, batchId, type, status);
+        for (HealthExaminationImportRow row : rows) {
             if (row == null || job.rows.putIfAbsent(row.rowNumber(), row) != null) {
                 throw new IllegalArgumentException("Invalid persisted import row list");
             }
@@ -44,7 +44,7 @@ public final class HealthCheckImportJob {
         return job;
     }
 
-    public void addRow(HealthCheckImportRow row) {
+    public void addRow(HealthExaminationImportRow row) {
         if (status != ImportStatus.UPLOADED) throw new DomainRuleViolation("Import rows locked");
         if (row == null) throw new IllegalArgumentException("Missing import row");
         if (rows.putIfAbsent(row.rowNumber(), row) != null) throw new DomainRuleViolation("Duplicate import row");
@@ -66,7 +66,7 @@ public final class HealthCheckImportJob {
         status = rows.values().stream().anyMatch(row -> !row.valid()) ? ImportStatus.PARTIAL : ImportStatus.CONFIRMED;
     }
 
-    public List<HealthCheckImportRow> confirmableRosterRows() {
+    public List<HealthExaminationImportRow> confirmableRosterRows() {
         if (type != ImportType.EMPLOYEE_LIST || !isImportReviewed()) {
             throw new DomainRuleViolation("Roster rows are not validated");
         }
@@ -74,7 +74,7 @@ public final class HealthCheckImportJob {
                 .sorted((left, right) -> Integer.compare(left.rowNumber(), right.rowNumber())).toList();
     }
 
-    public List<HealthCheckImportRow> confirmableResultRows() {
+    public List<HealthExaminationImportRow> confirmableResultRows() {
         if (type != ImportType.RESULTS || !isImportReviewed()) {
             throw new DomainRuleViolation("Result rows are not validated");
         }
@@ -91,8 +91,8 @@ public final class HealthCheckImportJob {
     public ImportType type() { return type; }
     public ImportStatus status() { return status; }
     public boolean isConfirmed() { return status == ImportStatus.CONFIRMED || status == ImportStatus.PARTIAL; }
-    public List<HealthCheckImportRow> rows() {
-        List<HealthCheckImportRow> orderedRows = new ArrayList<>(rows.values());
+    public List<HealthExaminationImportRow> rows() {
+        List<HealthExaminationImportRow> orderedRows = new ArrayList<>(rows.values());
         orderedRows.sort((left, right) -> Integer.compare(left.rowNumber(), right.rowNumber()));
         return List.copyOf(orderedRows);
     }

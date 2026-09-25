@@ -26,11 +26,11 @@ Prefer explicit use cases:
 
 ```text
 CreateEncounterUseCase
-AssignEncounterDoctorUseCase
+AssignEncounterPhysicianUseCase
 CreateOrderRoundUseCase
 ReleaseLabResultToPatientUseCase
-RepriceHealthCheckBatchServiceUseCase
-CheckInHealthCheckUseCase
+RepriceHealthExaminationBatchServiceUseCase
+CheckInHealthExaminationUseCase
 ```
 
 Avoid generic command services such as:
@@ -48,7 +48,7 @@ Commands represent intent.
 Example:
 
 ```java
-public record RepriceHealthCheckBatchServiceCommand(
+public record RepriceHealthExaminationBatchServiceCommand(
     UUID batchId,
     UUID batchServiceId,
     BigDecimal newPrice,
@@ -64,7 +64,7 @@ public record RepriceHealthCheckBatchServiceCommand(
 Application/domain-facing interface:
 
 ```text
-HealthCheckBatchRepository
+HealthExaminationBatchRepository
 EncounterRepository
 PatientRepository
 ```
@@ -74,7 +74,7 @@ PatientRepository
 Read use cases may use dedicated read models:
 
 ```text
-DoctorWorklistQuery
+PhysicianWorklistQuery
 PatientTimelineQuery
 EncounterDiagnosticProgressQuery
 ```
@@ -102,8 +102,8 @@ Examples requiring one transaction:
 Update together:
 
 ```text
-HealthCheckBatchService.negotiated_unit_price
-HealthCheckBatchEmployeeService.unit_price_snapshot
+HealthExaminationBatchService.negotiated_unit_price
+HealthExaminationBatchEmployeeService.unit_price_snapshot
 corporate ServiceRequest.unit_price_snapshot
 audit
 outbox
@@ -144,7 +144,7 @@ Use dedicated read queries for:
 ```text
 patient quick view
 patient timeline
-doctor worklist
+physician worklist
 diagnostic progress
 corporate batch summary
 reporting

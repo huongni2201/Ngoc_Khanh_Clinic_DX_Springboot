@@ -2,9 +2,9 @@ package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-public record HealthCheckImportRowRecord(
+public record HealthExaminationImportRowRecord(
         UUID id,
-        UUID healthCheckImportJobId,
+        UUID healthExaminationImportJobId,
         Integer rowNumber,
         String employeeCodeSnapshot,
         String identificationNumberSnapshot,

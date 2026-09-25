@@ -184,8 +184,8 @@ Corporate pricing uses immutable/use-case-controlled snapshots.
 The following must remain consistent after repricing:
 
 ```text
-health_check_batch_services.negotiated_unit_price
-health_check_batch_employee_services.unit_price_snapshot
+health_examination_batch_services.negotiated_unit_price
+health_examination_batch_employee_services.unit_price_snapshot
 corporate service_requests.unit_price_snapshot
 ```
 

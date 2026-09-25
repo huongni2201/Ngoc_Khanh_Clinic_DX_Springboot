@@ -1,31 +1,31 @@
-# Ngọc Khánh Clinic Health Check
+# Ngọc Khánh Clinic Health Examination
 
-The `healthcheck` bounded context models adult and corporate health-check campaigns, their validated roster, and visit-specific administrative records. It does not own clinical results, encounters, or retail billing.
+The `healthcheck` bounded context models adult and corporate health-examination campaigns, their validated roster, and visit-specific administrative records. It does not own clinical results, encounters, or retail billing. `healthcheck` remains the accepted technical module identifier; `Health Examination` is the canonical business term.
 
-## Corporate health check
+## Corporate health examination
 
 **Company**:
-A corporate customer that owns its roster and may run multiple health-check batches. It has exactly one primary contact in the MVP.
+A corporate customer that owns its roster and may run multiple health-examination batches. It has exactly one primary contact in the MVP.
 _Avoid_: client, account
 
 **Company Employee**:
 A company roster member identified within one company by employee code and identification number (CCCD). It is not a Patient until an authorized preparation workflow links it by exact CCCD.
 _Avoid_: patient, staff member
 
-**Health Check Batch**:
-One company health-check campaign with a planned window, examination site, selected service scope, negotiated prices, and a frozen master-form version.
+**Health Examination Batch**:
+One company health-examination campaign with a planned window, examination site, selected service scope, negotiated prices, and a frozen master-form version.
 _Avoid_: appointment group, order batch
 
 **Batch Employee**:
-One Company Employee's participation in one Health Check Batch, including the confirmed administrative roster snapshot for that campaign.
+One Company Employee's participation in one Health Examination Batch, including the confirmed administrative roster snapshot for that campaign.
 _Avoid_: patient visit
 
-**Health Check Record**:
-The visit-specific adult health-check record that owns the immutable SHS and administrative print snapshot for one Encounter.
+**Health Examination Record**:
+The visit-specific adult health-examination record that owns the immutable SHS and administrative print snapshot for one Encounter.
 _Avoid_: form, document
 
 **SHS**:
-The immutable health-check record code shared by Mẫu số 03 and all specialist forms of one health-check Encounter.
+The immutable health-examination record code shared by Mẫu số 03 and all specialist forms of one health-examination Encounter.
 _Avoid_: document code, barcode ID
 
 **Employee Service Assignment**:

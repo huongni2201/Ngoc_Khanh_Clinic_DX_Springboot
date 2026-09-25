@@ -4,7 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record HealthCheckBatchRecord(
+public record HealthExaminationBatchRecord(
         UUID id,
         UUID companyId,
         String batchCode,

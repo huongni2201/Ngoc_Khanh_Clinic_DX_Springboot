@@ -5,9 +5,9 @@ import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record HealthCheckBatchServiceRecord(
+public record HealthExaminationBatchServiceRecord(
         UUID id,
-        UUID healthCheckBatchId,
+        UUID healthExaminationBatchId,
         UUID serviceId,
         UUID documentTemplateVersionId,
         String serviceCodeSnapshot,

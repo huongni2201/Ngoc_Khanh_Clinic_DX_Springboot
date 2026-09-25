@@ -18,20 +18,20 @@ class ModuleVerificationTest {
     }
 
     @Test
-    void healthCheckHasOnlyTheSixDocumentedAggregateRootsAndTheirRepositories() {
+    void healthExaminationHasOnlyTheSixDocumentedAggregateRootsAndTheirRepositories() {
         assertThat(applicationClasses.stream()
                 .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthcheck.domain.aggregate"))
                 .filter(type -> !type.getSimpleName().isBlank())
                 .map(type -> type.getSimpleName())
                 .toList())
-                .containsExactlyInAnyOrder("Company", "CompanyEmployee", "HealthCheckBatch",
-                        "HealthCheckBatchEmployee", "HealthCheckRecord", "HealthCheckImportJob");
+                .containsExactlyInAnyOrder("Company", "CompanyEmployee", "HealthExaminationBatch",
+                        "HealthExaminationBatchEmployee", "HealthExaminationRecord", "HealthExaminationImportJob");
         assertThat(applicationClasses.stream()
                 .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthcheck.domain.repository"))
                 .map(type -> type.getSimpleName())
                 .toList())
-                .containsExactlyInAnyOrder("CompanyRepository", "CompanyEmployeeRepository", "HealthCheckBatchRepository",
-                        "HealthCheckBatchEmployeeRepository", "HealthCheckRecordRepository", "HealthCheckImportJobRepository");
+                .containsExactlyInAnyOrder("CompanyRepository", "CompanyEmployeeRepository", "HealthExaminationBatchRepository",
+                        "HealthExaminationBatchEmployeeRepository", "HealthExaminationRecordRepository", "HealthExaminationImportJobRepository");
     }
     @Test
     void domainDoesNotDependOnFrameworkPersistenceOrTransportTypes() {

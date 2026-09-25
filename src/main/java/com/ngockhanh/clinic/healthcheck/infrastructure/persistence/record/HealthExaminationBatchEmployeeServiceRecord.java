@@ -5,10 +5,10 @@ import java.util.UUID;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record HealthCheckBatchEmployeeServiceRecord(
+public record HealthExaminationBatchEmployeeServiceRecord(
         UUID id,
-        UUID healthCheckBatchEmployeeId,
-        UUID healthCheckBatchServiceId,
+        UUID healthExaminationBatchEmployeeId,
+        UUID healthExaminationBatchServiceId,
         UUID serviceRequestId,
         boolean billable,
         BigDecimal unitPriceSnapshot,

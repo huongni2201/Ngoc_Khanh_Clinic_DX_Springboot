@@ -75,7 +75,7 @@ Result/Report
 
 Status: Accepted
 
-Doctor worklists and progress are derived read models.
+Physician worklists and progress are derived read models.
 
 ### 9. Result release independent from notification delivery
 

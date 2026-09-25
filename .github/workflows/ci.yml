@@ -15,5 +15,7 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      - name: Check medical terminology
+        run: node scripts/check-terminology.mjs
       - name: Verify compile, unit tests, module boundaries, and SQL Server integration
         run: ./mvnw --batch-mode --no-transfer-progress verify

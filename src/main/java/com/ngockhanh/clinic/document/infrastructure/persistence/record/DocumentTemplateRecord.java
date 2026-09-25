@@ -10,7 +10,7 @@ public record DocumentTemplateRecord(
         String templateName,
         String templateType,
         String barcodePolicy,
-        Boolean isMasterHealthCheckForm,
+        Boolean isMasterHealthExaminationForm,
         Boolean isActive,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

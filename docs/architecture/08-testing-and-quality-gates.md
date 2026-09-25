@@ -95,7 +95,7 @@ Regex/text checks do not replace real SQL Server migration tests.
 
 ## 5. Regression tests required for high-risk flows
 
-### Health-check repricing
+### Health-examination repricing
 
 Verify:
 
