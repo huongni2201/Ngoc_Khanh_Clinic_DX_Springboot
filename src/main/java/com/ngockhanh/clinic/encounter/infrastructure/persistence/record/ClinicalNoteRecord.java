@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record ClinicalNoteRecord(
         UUID id,
@@ -11,7 +11,7 @@ public record ClinicalNoteRecord(
         String contentJson,
         UUID authorStaffId,
         String status,
-        LocalDateTime createdAt,
-        LocalDateTime finalizedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime finalizedAt
 ) {
 }

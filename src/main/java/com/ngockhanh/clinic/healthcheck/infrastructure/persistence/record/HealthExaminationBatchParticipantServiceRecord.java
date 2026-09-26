@@ -1,18 +1,17 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-public record HealthExaminationBatchEmployeeServiceRecord(
+public record HealthExaminationBatchParticipantServiceRecord(
         UUID id,
-        UUID healthExaminationBatchEmployeeId,
+        UUID healthExaminationBatchParticipantId,
         UUID healthExaminationBatchServiceId,
         UUID serviceRequestId,
         boolean billable,
         BigDecimal unitPriceSnapshot,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

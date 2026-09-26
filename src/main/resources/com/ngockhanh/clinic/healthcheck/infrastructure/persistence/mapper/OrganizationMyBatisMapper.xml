@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.OrganizationMyBatisMapper">
+    <select id="findById" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord">
+        SELECT id, organization_code, organization_name, tax_code, address, contact_name, contact_phone,
+               contact_job_title, note, status, created_at, updated_at, row_version
+        FROM public.organizations
+        WHERE id = #{id}
+    </select>
+    <select id="findByCode" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord">
+        SELECT id, organization_code, organization_name, tax_code, address, contact_name, contact_phone,
+               contact_job_title, note, status, created_at, updated_at, row_version
+        FROM public.organizations
+        WHERE organization_code = #{code}
+    </select>
+    <select id="findByTaxCode" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord">
+        SELECT id, organization_code, organization_name, tax_code, address, contact_name, contact_phone,
+               contact_job_title, note, status, created_at, updated_at, row_version
+        FROM public.organizations
+        WHERE tax_code = #{taxCode}
+    </select>
+    <insert id="insert">
+        INSERT INTO public.organizations (
+            id, organization_code, organization_name, tax_code, address, contact_name, contact_phone,
+            contact_job_title, note, status, created_at, updated_at
+        ) VALUES (
+            #{id}, #{organizationCode}, #{organizationName}, #{taxCode}, #{address}, #{contactName}, #{contactPhone},
+            #{contactJobTitle}, #{note}, #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+</mapper>

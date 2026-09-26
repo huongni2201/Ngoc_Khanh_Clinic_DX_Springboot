@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record IdempotencyKeyRecord(
         UUID id,
@@ -12,7 +12,7 @@ public record IdempotencyKeyRecord(
         String resultEntityType,
         String resultEntityId,
         String status,
-        LocalDateTime createdAt,
-        LocalDateTime expiresAt
+        OffsetDateTime createdAt,
+        OffsetDateTime expiresAt
 ) {
 }

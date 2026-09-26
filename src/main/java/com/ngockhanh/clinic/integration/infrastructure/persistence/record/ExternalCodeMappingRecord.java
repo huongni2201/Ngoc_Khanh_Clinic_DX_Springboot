@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record ExternalCodeMappingRecord(
         UUID id,
@@ -11,7 +11,7 @@ public record ExternalCodeMappingRecord(
         String externalCode,
         String internalEntityType,
         UUID internalEntityId,
-        LocalDateTime validFrom,
-        LocalDateTime validTo
+        OffsetDateTime validFrom,
+        OffsetDateTime validTo
 ) {
 }

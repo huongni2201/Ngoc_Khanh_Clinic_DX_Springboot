@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.healthcheck.domain.aggregate;
 
 import java.util.UUID;
 
-public final class Company {
+public final class Organization {
     private final UUID id;
     private final String code;
     private final String name;
@@ -14,12 +14,12 @@ public final class Company {
     private final String note;
     private final String status;
 
-    private Company(UUID id, String code, String name, String taxCode, String address, String contactName,
-                    String contactPhone, String contactJobTitle, String note, String status) {
+    private Organization(UUID id, String code, String name, String taxCode, String address, String contactName,
+                         String contactPhone, String contactJobTitle, String note, String status) {
         if (id == null || code == null || code.isBlank() || name == null || name.isBlank()
                 || contactName == null || contactName.isBlank() || contactPhone == null || contactPhone.isBlank()
                 || status == null || status.isBlank()) {
-            throw new IllegalArgumentException("Missing company details");
+            throw new IllegalArgumentException("Missing organization details");
         }
         this.id = id;
         this.code = code;
@@ -33,20 +33,20 @@ public final class Company {
         this.status = status;
     }
 
-    public static Company create(UUID id, String code, String name, String contactName, String contactPhone) {
+    public static Organization create(UUID id, String code, String name, String contactName, String contactPhone) {
         return create(id, code, name, null, null, contactName, contactPhone, null, null);
     }
 
-    public static Company create(UUID id, String code, String name, String taxCode, String address,
-                                  String contactName, String contactPhone, String contactJobTitle, String note) {
-        return new Company(id, code, name, taxCode, address, contactName, contactPhone,
+    public static Organization create(UUID id, String code, String name, String taxCode, String address,
+                                      String contactName, String contactPhone, String contactJobTitle, String note) {
+        return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, "ACTIVE");
     }
 
-    public static Company restore(UUID id, String code, String name, String taxCode, String address,
-                                   String contactName, String contactPhone, String contactJobTitle,
-                                   String note, String status) {
-        return new Company(id, code, name, taxCode, address, contactName, contactPhone,
+    public static Organization restore(UUID id, String code, String name, String taxCode, String address,
+                                       String contactName, String contactPhone, String contactJobTitle,
+                                       String note, String status) {
+        return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, status);
     }
 

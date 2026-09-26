@@ -12,7 +12,7 @@ It combines:
 - Ports and Adapters
 - Spring Modulith
 - MyBatis persistence
-- SQL Server
+- PostgreSQL 17
 - Flyway migrations
 
 The system is deployed as one Spring Boot application but organized into isolated business modules.
@@ -40,7 +40,7 @@ Persistence Ports          Integration Ports
 MyBatis Adapters            External Adapters
        |                         |
        v                         v
-SQL Server                SMS / LIS / PACS / etc.
+PostgreSQL 17             SMS / LIS / PACS / etc.
 ```
 
 ## 3. Dependency direction
@@ -59,7 +59,7 @@ Domain must depend on none of:
 Spring
 MyBatis
 JDBC
-SQL Server
+PostgreSQL
 HTTP
 Jackson
 external SDKs
@@ -173,7 +173,7 @@ event sourcing
 persisted queue-stage state machine
 generic repository abstraction for every entity
 CQRS split databases
-H2 for SQL Server behavior testing
+H2 as a substitute for database integration tests
 ```
 
 Any future change requires an ADR.

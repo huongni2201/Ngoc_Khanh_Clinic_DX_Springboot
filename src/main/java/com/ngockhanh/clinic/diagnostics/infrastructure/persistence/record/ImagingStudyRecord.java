@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record ImagingStudyRecord(
@@ -9,8 +9,8 @@ public record ImagingStudyRecord(
         String modality,
         String externalStudyUid,
         String deviceIdentifier,
-        LocalDateTime studyAt,
+        OffsetDateTime studyAt,
         String metadataJson,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

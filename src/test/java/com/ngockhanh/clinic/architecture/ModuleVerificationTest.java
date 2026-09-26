@@ -24,14 +24,14 @@ class ModuleVerificationTest {
                 .filter(type -> !type.getSimpleName().isBlank())
                 .map(type -> type.getSimpleName())
                 .toList())
-                .containsExactlyInAnyOrder("Company", "CompanyEmployee", "HealthExaminationBatch",
-                        "HealthExaminationBatchEmployee", "HealthExaminationRecord", "HealthExaminationImportJob");
+                .containsExactlyInAnyOrder("Organization", "HealthExaminationParticipant", "HealthExaminationBatch",
+                        "HealthExaminationBatchParticipant", "HealthExaminationRecord", "HealthExaminationImportJob");
         assertThat(applicationClasses.stream()
                 .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthcheck.domain.repository"))
                 .map(type -> type.getSimpleName())
                 .toList())
-                .containsExactlyInAnyOrder("CompanyRepository", "CompanyEmployeeRepository", "HealthExaminationBatchRepository",
-                        "HealthExaminationBatchEmployeeRepository", "HealthExaminationRecordRepository", "HealthExaminationImportJobRepository");
+                .containsExactlyInAnyOrder("OrganizationRepository", "HealthExaminationParticipantRepository", "HealthExaminationBatchRepository",
+                        "HealthExaminationBatchParticipantRepository", "HealthExaminationRecordRepository", "HealthExaminationImportJobRepository");
     }
     @Test
     void domainDoesNotDependOnFrameworkPersistenceOrTransportTypes() {

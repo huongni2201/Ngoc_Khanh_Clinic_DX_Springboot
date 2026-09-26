@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.notification.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record NotificationRecord(
@@ -17,13 +17,13 @@ public record NotificationRecord(
         String idempotencyKey,
         String status,
         Integer attemptCount,
-        LocalDateTime scheduledAt,
-        LocalDateTime sentAt,
-        LocalDateTime deliveredAt,
-        LocalDateTime failedAt,
-        LocalDateTime nextRetryAt,
+        OffsetDateTime scheduledAt,
+        OffsetDateTime sentAt,
+        OffsetDateTime deliveredAt,
+        OffsetDateTime failedAt,
+        OffsetDateTime nextRetryAt,
         String errorCode,
         String errorMessage,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

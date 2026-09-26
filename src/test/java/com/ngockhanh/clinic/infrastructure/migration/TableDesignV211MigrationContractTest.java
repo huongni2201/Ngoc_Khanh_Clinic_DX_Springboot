@@ -13,9 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class TableDesignV211MigrationContractTest {
     private static final Pattern CREATE_TABLE = Pattern.compile(
-            "(?im)\\bcreate\\s+table\\s+dbo\\.([a-z_][a-z0-9_]*)\\b");
+            "(?im)\\bcreate\\s+table\\s+public\\.([a-z_][a-z0-9_]*)\\b");
     private static final Pattern DROP_TABLE = Pattern.compile(
-            "(?im)\\bdrop\\s+table\\s+dbo\\.([a-z_][a-z0-9_]*)\\b");
+            "(?im)\\bdrop\\s+table\\s+public\\.([a-z_][a-z0-9_]*)\\b");
 
     private static final Set<String> EXPECTED_TABLES = Set.of(
             "patients", "patient_allergies", "patient_conditions",
@@ -27,9 +27,9 @@ class TableDesignV211MigrationContractTest {
             "vital_signs", "clinical_notes", "encounter_diagnoses",
             "order_rounds", "service_requests",
             "payment_authorizations", "invoices", "invoice_items", "invoice_adjustments", "payments",
-            "companies", "company_employees", "health_examination_batches",
-            "health_examination_batch_services", "health_examination_batch_employees", "health_examination_records",
-            "health_examination_batch_employee_services", "health_examination_import_jobs", "health_examination_import_rows",
+            "organizations", "health_examination_participants", "health_examination_batches",
+            "health_examination_batch_services", "health_examination_batch_participants", "health_examination_records",
+            "health_examination_batch_participant_services", "health_examination_import_jobs", "health_examination_import_rows",
             "specimens", "specimen_service_requests", "lab_panels", "analytes", "lab_panel_items",
             "analyte_reference_ranges", "lab_results", "lab_result_values", "imaging_studies",
             "diagnostic_reports", "file_attachments",
@@ -48,6 +48,7 @@ class TableDesignV211MigrationContractTest {
         String lifecycleChecks = readMigration("V004__add_core_lifecycle_checks.sql");
         String identifierNames = readMigration("V005__restore_identification_number_column_names.sql");
         String terminologyCutover = readMigration("V006__rename_health_check_to_health_examination.sql");
+        String terminologyParticipantCutover = readMigration("V007__rename_company_terms_to_organization_participant.sql");
         Set<String> actualTables = new TreeSet<>();
         var created = CREATE_TABLE.matcher(baseline + "\n" + cutover + "\n" + resultRelease + "\n"
                 + lifecycleChecks + "\n" + identifierNames);
@@ -56,12 +57,16 @@ class TableDesignV211MigrationContractTest {
         while (dropped.find()) actualTables.remove(dropped.group(1).toLowerCase());
         actualTables = actualTables.stream()
                 .map(TableDesignV211MigrationContractTest::renameHealthCheckTable)
+                .map(TableDesignV211MigrationContractTest::renameOrganizationParticipantTables)
                 .collect(java.util.stream.Collectors.toCollection(TreeSet::new));
 
         assertThat(actualTables).containsExactlyInAnyOrderElementsOf(EXPECTED_TABLES);
         assertThat(terminologyCutover)
                 .contains("health_check_batches", "health_examination_batches")
                 .contains("health_check_records", "health_examination_records");
+        assertThat(terminologyParticipantCutover)
+                .contains("company_employees", "health_examination_participants")
+                .contains("health_examination_batch_employees", "health_examination_batch_participants");
     }
 
     @Test
@@ -69,11 +74,11 @@ class TableDesignV211MigrationContractTest {
         String resultRelease = readMigration("V003__complete_result_release_v2_11.sql").toLowerCase();
 
         assertThat(resultRelease)
-                .contains("released_to_patient_at datetime2(3) null")
-                .contains("released_to_patient_by_user_id uniqueidentifier null")
+                .contains("released_to_patient_at timestamptz(3) null")
+                .contains("released_to_patient_by_user_id uuid null")
                 .contains("fk_lab_results_released_to_patient_by_user_id")
                 .contains("fk_diagnostic_reports_released_to_patient_by_user_id")
-                .contains("references dbo.users(id)");
+                .contains("references public.users(id)");
     }
 
     @Test
@@ -118,13 +123,13 @@ class TableDesignV211MigrationContractTest {
         String cutover = readMigration("V002__align_table_design_v2_11.sql").toLowerCase();
 
         assertThat(cutover)
-                .contains("'dbo.patients.identification_number', 'cccd', 'column'")
-                .contains("'dbo.company_employees.identification_number', 'cccd', 'column'")
-                .contains("'dbo.health_check_records.identification_number_snapshot', 'cccd_snapshot', 'column'")
+                .contains("alter table public.patients rename column identification_number to cccd")
+                .contains("alter table public.company_employees rename column identification_number to cccd")
+                .contains("alter table public.health_check_records rename column identification_number_snapshot to cccd_snapshot")
                 .contains("ux_patients_cccd")
                 .contains("uq_company_employees_company_id_cccd")
-                .contains("drop table dbo.journey_events")
-                .contains("drop table dbo.journeys")
+                .contains("drop table public.journey_events")
+                .contains("drop table public.journeys")
                 .doesNotContain("public_id", "bigint identity", "newid()", "newsequentialid()");
     }
 
@@ -133,12 +138,10 @@ class TableDesignV211MigrationContractTest {
         String identifierNames = readMigration("V005__restore_identification_number_column_names.sql").toLowerCase();
 
         assertThat(identifierNames)
-                .contains("'dbo.patients.cccd', 'identification_number', 'column'")
-                .contains("'dbo.company_employees.cccd', 'identification_number', 'column'")
-                .contains("'dbo.health_check_import_rows.cccd_snapshot', 'identification_number_snapshot', 'column'")
-                .contains("'dbo.health_check_records.cccd_snapshot', 'identification_number_snapshot', 'column'")
-                .contains("'dbo.health_check_records.cccd_issue_date_snapshot', 'identification_number_issue_date_snapshot', 'column'")
-                .contains("'dbo.health_check_records.cccd_issue_place_snapshot', 'identification_number_issue_place_snapshot', 'column'")
+                .contains("alter table public.patients rename column cccd to identification_number")
+                .contains("alter table public.company_employees rename column cccd to identification_number")
+                .contains("alter table public.health_check_import_rows rename column cccd_snapshot to identification_number_snapshot")
+                .contains("alter table public.health_check_records rename column cccd_snapshot to identification_number_snapshot")
                 .contains("ux_patients_identification_number")
                 .contains("uq_company_employees_company_id_identification_number")
                 .doesNotContain("drop table", "drop column", "delete from");
@@ -149,15 +152,35 @@ class TableDesignV211MigrationContractTest {
         String terminologyCutover = readMigration("V006__rename_health_check_to_health_examination.sql").toLowerCase();
 
         assertThat(terminologyCutover)
-                .contains("sp_rename", "health_check_batches", "health_examination_batches")
+                .contains("alter table public.health_check_batches rename to health_examination_batches")
                 .contains("health_check_records", "health_examination_records")
                 .contains("health_check_eligible", "health_examination_eligible")
                 .contains("doctor_staff_id", "physician_staff_id")
                 .doesNotContain("drop table", "drop column", "delete from");
     }
 
+    @Test
+    void organizationParticipantMigrationRenamesSchemaWithoutDroppingData() throws IOException {
+        String terminologyCutover = readMigration("V007__rename_company_terms_to_organization_participant.sql").toLowerCase();
+
+        assertThat(terminologyCutover)
+                .contains("alter table public.companies rename to organizations")
+                .contains("company_employees", "health_examination_participants")
+                .contains("company_id", "organization_id")
+                .contains("employee_code", "participant_code")
+                .doesNotContain("drop table", "drop column", "delete from");
+    }
+
     private static String renameHealthCheckTable(String tableName) {
         return tableName.replace("health_check_", "health_examination_");
+    }
+
+    private static String renameOrganizationParticipantTables(String tableName) {
+        return tableName
+                .replace("companies", "organizations")
+                .replace("company_employees", "health_examination_participants")
+                .replace("health_examination_batch_employee_services", "health_examination_batch_participant_services")
+                .replace("health_examination_batch_employees", "health_examination_batch_participants");
     }
 
     private static String readMigration(String fileName) throws IOException {

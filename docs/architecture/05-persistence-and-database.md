@@ -5,7 +5,7 @@
 Primary database:
 
 ```text
-Microsoft SQL Server 2022+
+PostgreSQL 17
 ```
 
 Persistence framework:
@@ -28,7 +28,7 @@ Preferred:
 
 ```sql
 SELECT id, patient_id, status, created_at
-FROM dbo.encounters
+FROM public.encounters
 WHERE id = #{id}
 ```
 
@@ -56,9 +56,10 @@ They may use:
 UUID
 String
 LocalDate
-LocalDateTime
+OffsetDateTime
 BigDecimal
 byte[]
+long (row_version)
 ```
 
 Do not use persistence records as domain entities.
@@ -87,32 +88,23 @@ V003 ...
 V004 ...
 ```
 
-Current v2.11 direction:
+Fresh-install migration sequence (PostgreSQL 17):
 
 ```text
-V001 = original baseline
-V002 = legacy workflow table removal + legacy CCCD column names
-V003 = complete result release schema
+V001 = translated baseline
+V002 = legacy workflow table removal + temporary CCCD column names
+V003 = result release schema
+V004 = lifecycle checks
+V005-V007 = identifier and terminology cut-overs
 ```
 
-Future changes append new migrations.
+This project had not been deployed when the database conversion was made, so the existing migration scripts were ported to PostgreSQL for fresh initialization. Once the first PostgreSQL database is deployed, treat every applied migration as immutable and append new migrations for future changes. Do not use this chain as an in-place SQL Server-to-PostgreSQL data transfer plan.
 
 ## 6. Legacy workflow cut-over
 
-Removing the legacy workflow tables is destructive.
+V002 removes the unused legacy workflow tables during fresh initialization and raises an error if either contains rows.
 
-V002 should stop if legacy workflow rows exist.
-
-Operational process:
-
-```text
-backup
-inspect legacy rows
-archive/reconcile
-clear only after review
-run migration
-verify derived worklists
-```
+If any data is introduced into these tables before initial deployment, stop and reconcile it before applying V002; never bypass its guard.
 
 Do not silently drop populated legacy workflow tables.
 
@@ -121,7 +113,7 @@ Do not silently drop populated legacy workflow tables.
 Persisted IDs:
 
 ```text
-uniqueidentifier
+uuid
 ```
 
 Application-generated:
@@ -155,6 +147,8 @@ released_to_patient_at
 
 Timestamp semantics must be documented and tested.
 
+The Java persistence contract uses `OffsetDateTime`; event and audit timestamps are stored as `timestamptz(3)` to preserve millisecond precision and identify an unambiguous instant. PostgreSQL normalizes these instants internally and renders them in the session time zone. SQL writes that create timestamps use `CURRENT_TIMESTAMP`.
+
 ## 10. Result release
 
 Required fields:
@@ -162,15 +156,15 @@ Required fields:
 ### lab_results
 
 ```text
-released_to_patient_at datetime2(3) NULL
-released_to_patient_by_user_id uniqueidentifier NULL
+released_to_patient_at timestamptz(3) NULL
+released_to_patient_by_user_id uuid NULL
 ```
 
 ### diagnostic_reports
 
 ```text
-released_to_patient_at datetime2(3) NULL
-released_to_patient_by_user_id uniqueidentifier NULL
+released_to_patient_at timestamptz(3) NULL
+released_to_patient_by_user_id uuid NULL
 ```
 
 Release is exact-version visibility.
@@ -185,7 +179,7 @@ The following must remain consistent after repricing:
 
 ```text
 health_examination_batch_services.negotiated_unit_price
-health_examination_batch_employee_services.unit_price_snapshot
+health_examination_batch_participant_services.unit_price_snapshot
 corporate service_requests.unit_price_snapshot
 ```
 
@@ -209,11 +203,11 @@ Do not try to encode complex cross-aggregate business workflow in unreadable SQL
 Where concurrent updates can cause lost data, use one or more:
 
 ```text
-rowversion
+bigint row_version
 optimistic version check
 transaction locking
 unique constraint
 idempotency key
 ```
 
-Choice depends on aggregate/use case.
+`row_version` is a per-row bigint token incremented by a PostgreSQL before-update trigger. Updates that need optimistic locking must still compare the previously-read version and treat a zero-row update as a conflict.

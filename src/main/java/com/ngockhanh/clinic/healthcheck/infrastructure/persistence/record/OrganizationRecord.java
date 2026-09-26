@@ -1,12 +1,12 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record CompanyRecord(
+public record OrganizationRecord(
         UUID id,
-        String companyCode,
-        String companyName,
+        String organizationCode,
+        String organizationName,
         String taxCode,
         String address,
         String contactName,
@@ -14,8 +14,8 @@ public record CompanyRecord(
         String contactJobTitle,
         String note,
         String status,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
-        byte[] rowVersion
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
+        long rowVersion
 ) {
 }

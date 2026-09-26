@@ -1,18 +1,18 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
-public record HealthExaminationBatchEmployeeRecord(
+public record HealthExaminationBatchParticipantRecord(
         UUID id,
         UUID healthExaminationBatchId,
-        UUID companyEmployeeId,
-        String employeeCodeSnapshot,
+        UUID healthExaminationParticipantId,
+        String participantCodeSnapshot,
         String departmentSnapshot,
         String jobTitleSnapshot,
         String occupationSnapshot,
         String administrativeSnapshotJson,
         String status,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

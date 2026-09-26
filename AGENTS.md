@@ -32,7 +32,7 @@ Use:
 Java                 25
 Spring Boot          4.x
 Spring Framework     7.x
-SQL Server           2022+
+PostgreSQL           17
 MyBatis              4.x Spring Boot starter
 Spring Modulith      2.x
 Maven
@@ -123,7 +123,7 @@ api -> application -> domain
 infrastructure -> domain
 ```
 
-The domain layer must not depend on Spring MVC, MyBatis, SQL Server classes, HTTP DTOs, or persistence records.
+The domain layer must not depend on Spring MVC, MyBatis, PostgreSQL classes, HTTP DTOs, or persistence records.
 
 ---
 
@@ -173,13 +173,14 @@ Never annotate domain objects as persistence records merely for convenience.
 
 Use XML mappers for non-trivial SQL. Small obvious statements may use annotations only when readability is better.
 
-All SQL must be SQL Server compatible.
+All SQL and Flyway migrations must be PostgreSQL 17 compatible.
 
 ---
 
 ## 6. Database Source of Truth
 
 `table-design-v2.11` is the MVP database baseline unless superseded by a later accepted document/ADR.
+PostgreSQL physical type mappings are defined by ADR-0004 and `docs/architecture/05-persistence-and-database.md`; use the baseline for its business tables and invariants.
 
 Important baseline rules:
 
@@ -187,13 +188,13 @@ Important baseline rules:
 - Plural table names.
 - Primary key: `id`.
 - Foreign key: `<entity>_id`.
-- SQL Server types such as `uniqueidentifier`, `datetime2(3)`, `decimal(18,2)`, `nvarchar`, `varchar`, and `rowversion`.
+- PostgreSQL types such as `uuid`, `timestamp(3)` (UTC by convention), `numeric(18,2)`, `text`/`varchar`, `boolean`, and trigger-backed `bigint` version counters.
 - Clinical and financial history is never hard-deleted.
 - Final clinical results and issued prescriptions are versioned, not overwritten.
 - Database schema changes must use Flyway migrations.
 - Application startup must not auto-create or auto-alter production schema.
 
-Never use H2 as a substitute for SQL Server integration tests.
+Never use H2 as a substitute for PostgreSQL integration tests.
 
 ---
 
@@ -211,21 +212,21 @@ Do not silently change these rules:
 ### Corporate Health Check
 
 ```text
-Company
-  -> CompanyEmployee
-  -> HealthCheckBatch
-      -> HealthCheckBatchService
-      -> HealthCheckBatchEmployee
-          -> prepared Patient + Encounter + HealthCheckRecord/SHS
-          -> HealthCheckBatchEmployeeService
+Organization
+  -> HealthExaminationParticipant
+  -> HealthExaminationBatch
+      -> HealthExaminationBatchService
+      -> HealthExaminationBatchParticipant
+          -> prepared Patient + Encounter + HealthExaminationRecord/SHS
+          -> HealthExaminationBatchParticipantService
 ```
 
-- `CompanyEmployee` is not automatically a `Patient`.
-- Importing an employee roster must not create Patient records.
+- `HealthExaminationParticipant` is not automatically a `Patient`.
+- Importing a participant roster must not create Patient records.
 - Patient linking/creation occurs during authorized visit preparation by exact CCCD lookup, before check-in when the record is prepared in advance.
-- Only Doctor may select the per-employee subset of examination services.
-- Selected employee services must be a subset of `HealthCheckBatchService`.
-- Front Desk must not add/select examination items for an employee.
+- Only Doctor may select the per-participant subset of examination services.
+- Selected participant services must be a subset of `HealthExaminationBatchService`.
+- Front Desk must not add/select examination items for a participant.
 - No service outside batch scope may be added by that selection flow.
 - One health-check record has one SHS/health-check record code used across its forms.
 - Mẫu số 03 is the master health-check form and carries the SHS barcode.
@@ -281,7 +282,7 @@ Do not annotate controllers with `@Transactional`.
 
 Do not place Spring transaction annotations in pure domain objects.
 
-Use SQL Server `rowversion` or another explicit optimistic-concurrency strategy where the schema requires concurrent-update protection.
+Use the `bigint` `row_version` counter or another explicit optimistic-concurrency strategy where the schema requires concurrent-update protection.
 
 Detect and report lost-update conflicts explicitly.
 
@@ -437,8 +438,8 @@ critical end-to-end tests when needed
 Rules:
 
 - Domain rules should be testable without Spring where possible.
-- MyBatis/SQL tests use SQL Server Testcontainers.
-- Do not use H2 to claim SQL Server compatibility.
+- MyBatis/SQL tests use PostgreSQL 17 Testcontainers.
+- Do not use H2 to claim PostgreSQL compatibility.
 - Use Spring Modulith verification tests for module boundaries.
 - Test authorization for sensitive endpoints.
 - Test concurrency/idempotency for workflows that require them.
@@ -449,8 +450,8 @@ Critical business rules include:
 ```text
 CCCD / `identification_number` uniqueness
 under-18 rejection for adult health checks
-employee import validation
-doctor-only employee service selection
+participant import validation
+doctor-only participant service selection
 subset-of-batch-service enforcement
 health-check snapshot/reprint behavior
 payment gate
@@ -594,7 +595,7 @@ domain invariants close to the domain
 +
 MyBatis as infrastructure
 +
-SQL Server constraints
+PostgreSQL constraints
 +
 safe healthcare-data handling
 +

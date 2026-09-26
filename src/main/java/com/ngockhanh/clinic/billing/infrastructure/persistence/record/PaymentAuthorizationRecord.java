@@ -2,16 +2,16 @@ package com.ngockhanh.clinic.billing.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record PaymentAuthorizationRecord(
         UUID id,
         UUID serviceRequestId,
         String status,
         UUID invoiceItemId,
-        LocalDateTime authorizedAt,
+        OffsetDateTime authorizedAt,
         UUID authorizedByUserId,
         String reason,
-        LocalDateTime updatedAt
+        OffsetDateTime updatedAt
 ) {
 }

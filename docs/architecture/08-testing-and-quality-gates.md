@@ -40,9 +40,9 @@ cross-aggregate invariants
 
 ### Persistence integration tests
 
-Use real SQL Server through Testcontainers.
+Use real PostgreSQL 17 through Testcontainers.
 
-Do not use H2 as a substitute for SQL Server-specific behavior.
+Do not use H2 as a substitute for PostgreSQL-specific behavior.
 
 Cover:
 
@@ -51,12 +51,12 @@ mapper XML
 column mapping
 constraints
 roundtrip
-rowversion/concurrency
+row_version/optimistic concurrency
 ```
 
 ### Migration integration tests
 
-Start a fresh SQL Server and apply every migration.
+Start a fresh PostgreSQL 17 instance and apply every migration.
 
 Verify:
 
@@ -83,7 +83,7 @@ Target:
 0 legacy workflow tables after v2.11
 `identification_number` columns present
 legacy identity columns absent
-UUID relationships use uniqueidentifier
+UUID relationships use uuid
 result release columns present
 ```
 
@@ -91,7 +91,7 @@ result release columns present
 
 Persistence record contract tests are useful but must never become the only schema verification.
 
-Regex/text checks do not replace real SQL Server migration tests.
+Regex/text checks do not replace real PostgreSQL migration tests.
 
 ## 5. Regression tests required for high-risk flows
 

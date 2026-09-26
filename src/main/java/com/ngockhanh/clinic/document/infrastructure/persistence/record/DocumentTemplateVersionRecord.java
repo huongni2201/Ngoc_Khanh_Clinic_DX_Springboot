@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record DocumentTemplateVersionRecord(
         UUID id,
@@ -18,9 +18,9 @@ public record DocumentTemplateVersionRecord(
         String rendererType,
         String schemaJson,
         String renderTemplate,
-        LocalDateTime effectiveFrom,
-        LocalDateTime retiredAt,
+        OffsetDateTime effectiveFrom,
+        OffsetDateTime retiredAt,
         UUID createdByUserId,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

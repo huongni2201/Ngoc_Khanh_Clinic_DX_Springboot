@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record HealthExaminationImportJobRecord(
@@ -16,7 +16,7 @@ public record HealthExaminationImportJobRecord(
         Integer errorRows,
         UUID createdByUserId,
         UUID confirmedByUserId,
-        LocalDateTime createdAt,
-        LocalDateTime confirmedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime confirmedAt
 ) {
 }

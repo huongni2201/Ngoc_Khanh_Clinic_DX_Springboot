@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record AppointmentRecord(
@@ -9,11 +9,11 @@ public record AppointmentRecord(
         UUID sourceEncounterId,
         UUID departmentId,
         UUID doctorStaffId,
-        LocalDateTime scheduledStart,
-        LocalDateTime scheduledEnd,
+        OffsetDateTime scheduledStart,
+        OffsetDateTime scheduledEnd,
         String status,
         String reason,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

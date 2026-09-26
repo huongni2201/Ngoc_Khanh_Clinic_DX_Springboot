@@ -5,7 +5,7 @@ This backend should keep a focused skill set aligned with:
 ```text
 Java 25
 Spring Boot 4
-SQL Server
+PostgreSQL 17
 MyBatis
 DDD
 Modular Monolith
@@ -35,12 +35,11 @@ skill supports this stack. Apply these compatibility restrictions:
   JavaScript/TypeScript, and Go, not Java/Spring. It is not the Spring Security
   review implementation advertised below; use project security requirements and
   current official documentation for that work.
-- `postgresql-table-design` is not installed for this SQL Server backend.
-  Generic SQL skill examples also require dialect review before use.
+- Use `postgresql-table-design` for this PostgreSQL backend. Generic SQL skill examples still require dialect review before use.
 - `setup-pre-commit` is not installed here; do not add its Node/Husky toolchain
   solely to implement backend checks.
-- Generic architecture/API examples do not authorize Python, PostgreSQL,
-  GraphQL, microservices, or additional frameworks in this project.
+- Generic architecture/API examples do not authorize Python, GraphQL,
+  microservices, or additional frameworks in this project.
 - `code-review` is a diff review workflow requiring a base and a specification;
   it is not an unconditional whole-repository architecture audit.
 
@@ -78,7 +77,7 @@ coverage
 postgresql-table-design
 ```
 
-Do not apply PostgreSQL-specific DDL guidance to this project. Only reuse generic relational-design principles from such a skill; SQL must remain SQL Server compatible.
+Apply PostgreSQL-specific DDL guidance when consistent with the clinic's documented business schema; SQL must remain PostgreSQL 17 compatible.
 
 ---
 
@@ -167,7 +166,7 @@ batch operations
 join/query optimization
 ```
 
-All generated SQL must be reviewed for SQL Server compatibility.
+All generated SQL must be reviewed for PostgreSQL 17 compatibility.
 
 Project persistence is MyBatis, not JPA.
 
@@ -263,7 +262,7 @@ Use when:
 ```text
 MyBatis mapping fails
 transaction behavior is unexpected
-SQL Server constraint errors occur
+PostgreSQL constraint errors occur
 Spring context fails
 module boundary tests fail
 workflow behavior differs from requirements
@@ -403,14 +402,14 @@ Do not use JPA/MapStruct CRUD generators as the default architecture.
 ```text
 Read AGENTS.md, PROJECT_RULES.md, PROJECT_SKILLS.md, relevant ADRs, and the current requirement/use-case/table-design documents first.
 
-Use Java 25 + Spring Boot 4 + SQL Server + MyBatis.
+Use Java 25 + Spring Boot 4 + PostgreSQL 17 + MyBatis.
 Keep DDD modular-monolith boundaries.
 Do not use JPA/Hibernate.
 Domain models must not be MyBatis persistence records.
 Do not access another module's mapper/repository implementation.
 Do not invent business rules, statuses, tables, permissions, or API fields.
 Use Flyway for every schema change.
-Use SQL Server Testcontainers for persistence integration tests.
+Use PostgreSQL 17 Testcontainers for persistence integration tests.
 Run ./mvnw test and ./mvnw verify before claiming completion.
 Report changed modules, migrations, public API changes, tests run, assumptions, and remaining risks.
 ```

@@ -1,12 +1,11 @@
 # Database Terminology Rename Map
 
-Audit date: 2026-09-25
+Audit date: 2026-09-26
 
-The current repository has an append-only Flyway history (`V001` through
-`V005`). Existing migrations are not edited. The implementation uses a
-forward migration so local/dev data and any already-applied schema can be
-preserved; the migration must be run against a backed-up database and verified
-with SQL Server integration tests.
+The terminology rename was initially planned as a forward-only migration for
+SQL Server. Since the backend had not been deployed, V006 and V007 are now
+PostgreSQL 17 migrations in the clean-install sequence. The SQL renames tables,
+columns, constraints and indexes without changing their data or business rules.
 
 ## Tables
 

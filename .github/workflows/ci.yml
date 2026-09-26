@@ -17,5 +17,5 @@ jobs:
           cache: maven
       - name: Check medical terminology
         run: node scripts/check-terminology.mjs
-      - name: Verify compile, unit tests, module boundaries, and SQL Server integration
-        run: ./mvnw --batch-mode --no-transfer-progress verify
+      - name: Verify compile, unit tests, module boundaries, and PostgreSQL 17 integration
+        run: bash ./mvnw --batch-mode --no-transfer-progress verify

@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.patient.infrastructure.persistence.record;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record PatientRecord(
@@ -20,8 +20,8 @@ public record PatientRecord(
         String occupation,
         String note,
         String status,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt,
-        byte[] rowVersion
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt,
+        long rowVersion
 ) {
 }

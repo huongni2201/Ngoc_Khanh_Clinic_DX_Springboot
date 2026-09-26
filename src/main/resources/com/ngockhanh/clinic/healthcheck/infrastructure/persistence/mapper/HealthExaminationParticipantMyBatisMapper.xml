@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper">
+    <sql id="columns">
+        id, organization_id, patient_id, participant_code, identification_number, full_name, date_of_birth, sex,
+        department_name, job_title, occupation, status, created_at, updated_at
+    </sql>
+    <select id="findById" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_participants WHERE id = #{id}
+    </select>
+    <select id="findByOrganizationAndCode" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_participants
+        WHERE organization_id = #{organizationId} AND participant_code = #{participantCode}
+    </select>
+    <select id="findByOrganizationAndIdentificationNumber" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_participants
+        WHERE organization_id = #{organizationId} AND identification_number = #{identificationNumber}
+    </select>
+    <insert id="insert">
+        INSERT INTO public.health_examination_participants (
+            id, organization_id, patient_id, participant_code, identification_number, full_name, date_of_birth, sex,
+            department_name, job_title, occupation, status, created_at, updated_at
+        ) VALUES (
+            #{id}, #{organizationId}, #{patientId}, #{participantCode}, #{identificationNumber}, #{fullName}, #{dateOfBirth}, #{sex},
+            #{departmentName}, #{jobTitle}, #{occupation}, #{status}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+    </insert>
+    <update id="update">
+        UPDATE public.health_examination_participants
+        SET patient_id = #{patientId}, participant_code = #{participantCode}, identification_number = #{identificationNumber},
+            full_name = #{fullName}, date_of_birth = #{dateOfBirth}, sex = #{sex}, department_name = #{departmentName},
+            job_title = #{jobTitle}, occupation = #{occupation}, status = #{status}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND organization_id = #{organizationId}
+    </update>
+</mapper>

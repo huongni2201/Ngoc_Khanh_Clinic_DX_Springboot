@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record SpecimenRecord(
@@ -10,8 +10,8 @@ public record SpecimenRecord(
         UUID encounterId,
         String specimenType,
         String status,
-        LocalDateTime collectedAt,
+        OffsetDateTime collectedAt,
         UUID collectedByStaffId,
-        LocalDateTime receivedAt
+        OffsetDateTime receivedAt
 ) {
 }

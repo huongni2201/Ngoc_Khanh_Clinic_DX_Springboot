@@ -13,7 +13,7 @@ Maven Wrapper
 Database:
 
 ```text
-SQL Server 2022+
+PostgreSQL 17
 ```
 
 ## 2. Configuration
@@ -44,6 +44,7 @@ application-test.yaml
 ```
 
 Production secrets should not live in committed profile files.
+For local development, `docker compose up -d postgres` starts the PostgreSQL 17 service. The committed local fallback password is development-only; production must supply credentials through environment/configuration.
 
 ## 4. Startup
 
@@ -72,7 +73,7 @@ start application
 run API smoke tests
 ```
 
-Legacy workflow removal migration requires an explicit precheck.
+The initial Flyway chain targets PostgreSQL 17. V002 refuses to remove legacy workflow tables if they contain rows.
 
 ## 6. Observability
 

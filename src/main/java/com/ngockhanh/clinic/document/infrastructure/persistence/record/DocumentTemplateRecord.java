@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record DocumentTemplateRecord(
         UUID id,
@@ -12,7 +12,7 @@ public record DocumentTemplateRecord(
         String barcodePolicy,
         Boolean isMasterHealthExaminationForm,
         Boolean isActive,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

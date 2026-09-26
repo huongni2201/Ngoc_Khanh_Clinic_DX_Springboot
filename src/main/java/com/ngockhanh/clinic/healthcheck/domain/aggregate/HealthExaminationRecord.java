@@ -11,7 +11,7 @@ import com.ngockhanh.clinic.healthcheck.domain.valueobject.ShsCode;
 
 public final class HealthExaminationRecord {
     private final UUID id;
-    private final UUID batchEmployeeId;
+    private final UUID batchParticipantId;
     private final ShsCode shs;
     private final UUID patientId;
     private final UUID encounterId;
@@ -22,7 +22,7 @@ public final class HealthExaminationRecord {
     private LocalDate actualExaminationDate;
     private HealthExaminationRecordStatus status;
 
-    private HealthExaminationRecord(UUID id, ShsCode shs, UUID patientId, UUID encounterId, UUID batchEmployeeId,
+    private HealthExaminationRecord(UUID id, ShsCode shs, UUID patientId, UUID encounterId, UUID batchParticipantId,
                               AdministrativeSnapshot snapshot, LocalDate plannedExaminationDate,
                               UUID masterTemplateVersionId, UUID replacesHealthExaminationRecordId,
                               LocalDate actualExaminationDate, HealthExaminationRecordStatus status) {
@@ -30,7 +30,7 @@ public final class HealthExaminationRecord {
         this.shs = shs;
         this.patientId = patientId;
         this.encounterId = encounterId;
-        this.batchEmployeeId = batchEmployeeId;
+        this.batchParticipantId = batchParticipantId;
         this.snapshot = snapshot;
         this.plannedExaminationDate = plannedExaminationDate;
         this.masterTemplateVersionId = masterTemplateVersionId;
@@ -46,43 +46,43 @@ public final class HealthExaminationRecord {
     }
 
     public static HealthExaminationRecord prepare(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
-                                            UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                            UUID batchParticipantId, AdministrativeSnapshot snapshot,
                                             LocalDate plannedExaminationDate, UUID masterTemplateVersionId) {
-        return prepareInternal(id, shs, patientId, encounterId, batchEmployeeId, snapshot,
+        return prepareInternal(id, shs, patientId, encounterId, batchParticipantId, snapshot,
                 plannedExaminationDate, masterTemplateVersionId, null);
     }
 
     public static HealthExaminationRecord prepareReplacement(UUID id, UUID replacesHealthExaminationRecordId, ShsCode shs,
-                                                       UUID patientId, UUID encounterId, UUID batchEmployeeId,
+                                                       UUID patientId, UUID encounterId, UUID batchParticipantId,
                                                        AdministrativeSnapshot snapshot, LocalDate plannedExaminationDate,
                                                        UUID masterTemplateVersionId) {
         if (replacesHealthExaminationRecordId == null) throw new IllegalArgumentException("Missing record being replaced");
-        return prepareInternal(id, shs, patientId, encounterId, batchEmployeeId, snapshot,
+        return prepareInternal(id, shs, patientId, encounterId, batchParticipantId, snapshot,
                 plannedExaminationDate, masterTemplateVersionId, replacesHealthExaminationRecordId);
     }
 
     private static HealthExaminationRecord prepareInternal(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
-                                                     UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                                     UUID batchParticipantId, AdministrativeSnapshot snapshot,
                                                      LocalDate plannedExaminationDate, UUID masterTemplateVersionId,
                                                      UUID replacesHealthExaminationRecordId) {
         validateRequiredFields(id, shs, patientId, encounterId, snapshot, plannedExaminationDate, masterTemplateVersionId);
         if (id.equals(replacesHealthExaminationRecordId)) throw new IllegalArgumentException("A record cannot replace itself");
         requireAdult(snapshot.dateOfBirth(), plannedExaminationDate);
-        return new HealthExaminationRecord(id, shs, patientId, encounterId, batchEmployeeId, snapshot,
+        return new HealthExaminationRecord(id, shs, patientId, encounterId, batchParticipantId, snapshot,
                 plannedExaminationDate, masterTemplateVersionId, replacesHealthExaminationRecordId,
                 null, HealthExaminationRecordStatus.ACTIVE);
     }
 
     public static HealthExaminationRecord restore(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
-                                            UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                            UUID batchParticipantId, AdministrativeSnapshot snapshot,
                                             LocalDate plannedDate, LocalDate actualDate,
                                             UUID masterTemplateVersionId, HealthExaminationRecordStatus status) {
-        return restore(id, shs, patientId, encounterId, batchEmployeeId, snapshot, plannedDate,
+        return restore(id, shs, patientId, encounterId, batchParticipantId, snapshot, plannedDate,
                 actualDate, masterTemplateVersionId, null, status);
     }
 
     public static HealthExaminationRecord restore(UUID id, ShsCode shs, UUID patientId, UUID encounterId,
-                                            UUID batchEmployeeId, AdministrativeSnapshot snapshot,
+                                            UUID batchParticipantId, AdministrativeSnapshot snapshot,
                                             LocalDate plannedDate, LocalDate actualDate,
                                             UUID masterTemplateVersionId, UUID replacesHealthExaminationRecordId,
                                             HealthExaminationRecordStatus status) {
@@ -93,7 +93,7 @@ public final class HealthExaminationRecord {
         }
         requireAdult(snapshot.dateOfBirth(), plannedDate);
         if (actualDate != null) requireAdult(snapshot.dateOfBirth(), actualDate);
-        return new HealthExaminationRecord(id, shs, patientId, encounterId, batchEmployeeId, snapshot, plannedDate,
+        return new HealthExaminationRecord(id, shs, patientId, encounterId, batchParticipantId, snapshot, plannedDate,
                 masterTemplateVersionId, replacesHealthExaminationRecordId, actualDate, status);
     }
 
@@ -138,7 +138,7 @@ public final class HealthExaminationRecord {
     }
 
     public UUID id() { return id; }
-    public UUID batchEmployeeId() { return batchEmployeeId; }
+    public UUID batchParticipantId() { return batchParticipantId; }
     public ShsCode shs() { return shs; }
     public UUID patientId() { return patientId; }
     public UUID encounterId() { return encounterId; }

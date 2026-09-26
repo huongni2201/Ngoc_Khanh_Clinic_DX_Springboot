@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.catalog.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record DepartmentRecord(
         UUID id,
@@ -10,7 +10,7 @@ public record DepartmentRecord(
         String departmentName,
         String departmentType,
         Boolean isActive,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

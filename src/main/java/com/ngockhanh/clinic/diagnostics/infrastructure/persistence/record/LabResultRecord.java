@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record LabResultRecord(
@@ -12,11 +12,11 @@ public record LabResultRecord(
         UUID supersedesLabResultId,
         String resultSource,
         UUID verifiedByStaffId,
-        LocalDateTime verifiedAt,
-        LocalDateTime finalizedAt,
-        LocalDateTime createdAt,
+        OffsetDateTime verifiedAt,
+        OffsetDateTime finalizedAt,
+        OffsetDateTime createdAt,
         String rawMessageReference,
-        LocalDateTime releasedToPatientAt,
+        OffsetDateTime releasedToPatientAt,
         UUID releasedToPatientByUserId
 ) {
 }

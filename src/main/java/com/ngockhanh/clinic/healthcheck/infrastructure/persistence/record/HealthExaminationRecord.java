@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record HealthExaminationRecord(
@@ -9,7 +9,7 @@ public record HealthExaminationRecord(
         String shsCode,
         String sourceType,
         UUID patientId,
-        UUID healthExaminationBatchEmployeeId,
+        UUID healthExaminationBatchParticipantId,
         UUID encounterId,
         UUID masterTemplateVersionId,
         String fullNameSnapshot,
@@ -33,10 +33,10 @@ public record HealthExaminationRecord(
         LocalDate actualExaminationDate,
         String status,
         UUID replacesHealthExaminationRecordId,
-        LocalDateTime createdAt,
-        LocalDateTime completedAt,
-        LocalDateTime canceledAt,
-        byte[] rowVersion
+        OffsetDateTime createdAt,
+        OffsetDateTime completedAt,
+        OffsetDateTime canceledAt,
+        long rowVersion
 ) {
 }
 

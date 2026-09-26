@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record EncounterAssignmentRecord(
         UUID id,
@@ -10,8 +10,8 @@ public record EncounterAssignmentRecord(
         UUID departmentId,
         UUID roomId,
         UUID doctorStaffId,
-        LocalDateTime assignedAt,
-        LocalDateTime endedAt,
+        OffsetDateTime assignedAt,
+        OffsetDateTime endedAt,
         UUID assignedByUserId,
         String destinationLabel
 ) {

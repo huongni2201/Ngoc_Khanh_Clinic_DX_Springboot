@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record ServiceTemplateMappingRecord(
         UUID id,
@@ -10,7 +10,7 @@ public record ServiceTemplateMappingRecord(
         UUID documentTemplateId,
         Integer displayOrder,
         Boolean isActive,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        OffsetDateTime createdAt,
+        OffsetDateTime updatedAt
 ) {
 }

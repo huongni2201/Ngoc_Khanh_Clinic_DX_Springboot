@@ -6,15 +6,15 @@ public record HealthExaminationImportRowRecord(
         UUID id,
         UUID healthExaminationImportJobId,
         Integer rowNumber,
-        String employeeCodeSnapshot,
+        String participantCodeSnapshot,
         String identificationNumberSnapshot,
         String serviceCodeSnapshot,
         String validationStatus,
         String errorCodesJson,
         String normalizedPayloadJson,
         UUID resolvedPatientId,
-        UUID resolvedCompanyEmployeeId,
-        UUID resolvedBatchEmployeeId,
+        UUID resolvedHealthExaminationParticipantId,
+        UUID resolvedBatchParticipantId,
         UUID resolvedBatchServiceId,
         UUID resolvedServiceRequestId
 ) {

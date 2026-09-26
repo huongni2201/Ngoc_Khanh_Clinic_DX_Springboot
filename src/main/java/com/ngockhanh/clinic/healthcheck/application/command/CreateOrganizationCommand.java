@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthcheck.application.command;
 
-public record CreateCompanyCommand(
+public record CreateOrganizationCommand(
         String code,
         String name,
         String taxCode,

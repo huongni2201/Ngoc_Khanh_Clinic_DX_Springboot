@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.clinical.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record OrderRoundRecord(
         UUID id,
@@ -13,6 +13,6 @@ public record OrderRoundRecord(
         String status,
         UUID orderedByStaffId,
         UUID createdByUserId,
-        LocalDateTime orderedAt
+        OffsetDateTime orderedAt
 ) {
 }

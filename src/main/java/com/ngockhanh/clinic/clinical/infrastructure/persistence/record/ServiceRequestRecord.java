@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.clinical.infrastructure.persistence.record;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public record ServiceRequestRecord(
@@ -16,8 +16,8 @@ public record ServiceRequestRecord(
         String serviceNameSnapshot,
         BigDecimal unitPriceSnapshot,
         String preparationInstructionsSnapshot,
-        LocalDateTime orderedAt,
-        LocalDateTime startedAt,
-        LocalDateTime completedAt
+        OffsetDateTime orderedAt,
+        OffsetDateTime startedAt,
+        OffsetDateTime completedAt
 ) {
 }

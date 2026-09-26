@@ -1,21 +1,25 @@
--- Preserve the applied V001 history while cutting over to the v2.11 schema.
--- Journey rows may contain clinical operational history. Require a reviewed
--- migration of that history before removing the obsolete state machine.
-IF EXISTS (SELECT 1 FROM dbo.journey_events) OR EXISTS (SELECT 1 FROM dbo.journeys)
+-- V001 is used only to initialize a new, not-yet-deployed PostgreSQL database.
+-- Keep the guard so this cut-over never discards Journey history if seed data is
+-- introduced before this migration is applied.
+DO $$
 BEGIN
-    THROW 51001, 'Legacy Journey data must be reviewed before the v2.11 cut-over', 1;
+    IF EXISTS (SELECT 1 FROM public.journey_events) OR EXISTS (SELECT 1 FROM public.journeys) THEN
+        RAISE EXCEPTION 'Legacy Journey data must be reviewed before the v2.11 cut-over';
+    END IF;
 END;
+$$;
 
-DROP TABLE dbo.journey_events;
-DROP TABLE dbo.journeys;
+DROP TABLE public.journey_events;
+DROP TABLE public.journeys;
 
-EXEC sp_rename 'dbo.patients.identification_number', 'cccd', 'COLUMN';
-EXEC sp_rename 'dbo.company_employees.identification_number', 'cccd', 'COLUMN';
-EXEC sp_rename 'dbo.health_check_import_rows.identification_number_snapshot', 'cccd_snapshot', 'COLUMN';
-EXEC sp_rename 'dbo.health_check_records.identification_number_snapshot', 'cccd_snapshot', 'COLUMN';
-EXEC sp_rename 'dbo.health_check_records.identification_number_issue_date_snapshot', 'cccd_issue_date_snapshot', 'COLUMN';
-EXEC sp_rename 'dbo.health_check_records.identification_number_issue_place_snapshot', 'cccd_issue_place_snapshot', 'COLUMN';
+ALTER TABLE public.patients RENAME COLUMN identification_number TO cccd;
+ALTER TABLE public.company_employees RENAME COLUMN identification_number TO cccd;
+ALTER TABLE public.health_check_import_rows RENAME COLUMN identification_number_snapshot TO cccd_snapshot;
+ALTER TABLE public.health_check_records RENAME COLUMN identification_number_snapshot TO cccd_snapshot;
+ALTER TABLE public.health_check_records RENAME COLUMN identification_number_issue_date_snapshot TO cccd_issue_date_snapshot;
+ALTER TABLE public.health_check_records RENAME COLUMN identification_number_issue_place_snapshot TO cccd_issue_place_snapshot;
 
-EXEC sp_rename 'dbo.patients.UX_patients_identification_number', 'UX_patients_cccd', 'INDEX';
-EXEC sp_rename 'dbo.UQ_company_employees_company_id_identification_number',
-    'UQ_company_employees_company_id_cccd', 'OBJECT';
+ALTER INDEX public.ux_patients_identification_number RENAME TO ux_patients_cccd;
+ALTER TABLE public.company_employees
+    RENAME CONSTRAINT uq_company_employees_company_id_identification_number
+    TO uq_company_employees_company_id_cccd;

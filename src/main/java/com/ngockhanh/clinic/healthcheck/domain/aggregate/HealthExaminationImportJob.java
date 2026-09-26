@@ -57,7 +57,7 @@ public final class HealthExaminationImportJob {
 
     public void confirm() {
         if (status != ImportStatus.VALIDATED || rows.values().stream().noneMatch(row -> row.valid())
-                || (type == ImportType.EMPLOYEE_LIST && rows.values().stream()
+                || (type == ImportType.PARTICIPANT_LIST && rows.values().stream()
                     .anyMatch(row -> row.valid() && row.administrativeSnapshot() == null))
                 || (type == ImportType.RESULTS && rows.values().stream()
                     .anyMatch(row -> row.valid() && row.serviceRequestId() == null))) {
@@ -67,7 +67,7 @@ public final class HealthExaminationImportJob {
     }
 
     public List<HealthExaminationImportRow> confirmableRosterRows() {
-        if (type != ImportType.EMPLOYEE_LIST || !isImportReviewed()) {
+        if (type != ImportType.PARTICIPANT_LIST || !isImportReviewed()) {
             throw new DomainRuleViolation("Roster rows are not validated");
         }
         return rows.values().stream().filter(row -> row.valid() && row.administrativeSnapshot() != null)

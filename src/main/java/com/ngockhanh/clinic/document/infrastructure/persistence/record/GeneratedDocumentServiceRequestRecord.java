@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record GeneratedDocumentServiceRequestRecord(
         UUID id,
@@ -11,6 +11,6 @@ public record GeneratedDocumentServiceRequestRecord(
         String serviceCodeSnapshot,
         String serviceNameSnapshot,
         Integer displayOrder,
-        LocalDateTime createdAt
+        OffsetDateTime createdAt
 ) {
 }

@@ -8,6 +8,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.time.OffsetDateTime;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PersistenceRecordContractTest {
 
     @org.junit.jupiter.api.Test
-    void resolvedServiceRequestIdentifierUsesUuidLikeItsSqlServerColumn() throws Exception {
+    void resolvedServiceRequestIdentifierUsesUuidLikeItsPostgreSqlColumn() throws Exception {
         RecordComponent component = Arrays.stream(Class.forName(
                 "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportRowRecord")
                 .getRecordComponents())
@@ -29,7 +30,7 @@ class PersistenceRecordContractTest {
     @org.junit.jupiter.api.Test
     void assignmentBillableRecordComponentIsPrimitiveLikeNotNullSqlColumn() throws Exception {
         RecordComponent component = Arrays.stream(Class.forName(
-                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchEmployeeServiceRecord")
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchParticipantServiceRecord")
                 .getRecordComponents())
                 .filter(candidate -> candidate.getName().equals("billable"))
                 .findFirst()
@@ -37,6 +38,29 @@ class PersistenceRecordContractTest {
 
         assertThat(component.getType()).isEqualTo(boolean.class);
     }
+
+    @org.junit.jupiter.api.Test
+    void timestampWithTimeZoneColumnsUseOffsetDateTimeInPersistenceRecords() throws Exception {
+        assertRecordComponentType(
+                "com.ngockhanh.clinic.patient.infrastructure.persistence.record.PatientRecord", "createdAt", OffsetDateTime.class);
+        assertRecordComponentType(
+                "com.ngockhanh.clinic.encounter.infrastructure.persistence.record.AppointmentRecord", "scheduledStart", OffsetDateTime.class);
+        assertRecordComponentType(
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord", "updatedAt", OffsetDateTime.class);
+        assertRecordComponentType(
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchRecord", "finalizedAt", OffsetDateTime.class);
+    }
+
+    private static void assertRecordComponentType(String recordName, String componentName, Class<?> expectedType)
+            throws ClassNotFoundException {
+        RecordComponent component = Arrays.stream(Class.forName(recordName).getRecordComponents())
+                .filter(candidate -> candidate.getName().equals(componentName))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(component.getType()).isEqualTo(expectedType);
+    }
+
     @ParameterizedTest
     @MethodSource("latestSchemaRecords")
     void recordComponentsFollowLatestSchemaColumnOrder(String className, List<String> componentNames)
@@ -87,15 +111,15 @@ class PersistenceRecordContractTest {
                 Arguments.of("com.ngockhanh.clinic.billing.infrastructure.persistence.record.InvoiceItemRecord", List.of("id", "invoice_id", "service_request_id", "service_id", "description_snapshot", "quantity", "unit_price", "discount_amount", "line_total")),
                 Arguments.of("com.ngockhanh.clinic.billing.infrastructure.persistence.record.InvoiceAdjustmentRecord", List.of("id", "invoice_id", "adjustment_type", "amount", "reason", "created_by_user_id", "created_at")),
                 Arguments.of("com.ngockhanh.clinic.billing.infrastructure.persistence.record.PaymentRecord", List.of("id", "invoice_id", "payment_method", "amount", "status", "gateway_transaction_id", "confirmed_by_user_id", "confirmed_at", "created_at")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyRecord", List.of("id", "company_code", "company_name", "tax_code", "address", "contact_name", "contact_phone", "contact_job_title", "note", "status", "created_at", "updated_at", "row_version")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.CompanyEmployeeRecord", List.of("id", "company_id", "patient_id", "employee_code", "identification_number", "full_name", "date_of_birth", "sex", "department_name", "job_title", "occupation", "status", "created_at", "updated_at")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchRecord", List.of("id", "company_id", "batch_code", "batch_name", "start_date", "end_date", "reason", "payer_type", "examination_site_type", "examination_site_name", "examination_site_address", "master_template_version_id", "status", "finalized_at", "closed_at", "created_by_user_id", "created_at", "updated_at")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord", List.of("id", "organization_code", "organization_name", "tax_code", "address", "contact_name", "contact_phone", "contact_job_title", "note", "status", "created_at", "updated_at", "row_version")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationParticipantRecord", List.of("id", "organization_id", "patient_id", "participant_code", "identification_number", "full_name", "date_of_birth", "sex", "department_name", "job_title", "occupation", "status", "created_at", "updated_at")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchRecord", List.of("id", "organization_id", "batch_code", "batch_name", "start_date", "end_date", "reason", "payer_type", "examination_site_type", "examination_site_name", "examination_site_address", "master_template_version_id", "status", "finalized_at", "closed_at", "created_by_user_id", "created_at", "updated_at")),
                 Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchServiceRecord", List.of("id", "health_examination_batch_id", "service_id", "document_template_version_id", "service_code_snapshot", "service_name_snapshot", "base_price_snapshot", "negotiated_unit_price", "currency", "display_order", "status", "created_at", "updated_at")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchEmployeeRecord", List.of("id", "health_examination_batch_id", "company_employee_id", "employee_code_snapshot", "department_snapshot", "job_title_snapshot", "occupation_snapshot", "administrative_snapshot_json", "status", "created_at")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationRecord", List.of("id", "shs_code", "source_type", "patient_id", "health_examination_batch_employee_id", "encounter_id", "master_template_version_id", "full_name_snapshot", "date_of_birth_snapshot", "sex_snapshot", "identification_number_snapshot", "identification_number_issue_date_snapshot", "identification_number_issue_place_snapshot", "ethnicity_snapshot", "subject_type_snapshot", "payer_source_snapshot", "blood_group_snapshot", "phone_snapshot", "province_snapshot", "ward_snapshot", "address_detail_snapshot", "occupation_snapshot", "workplace_or_school_snapshot", "health_examination_reason_snapshot", "planned_examination_date", "actual_examination_date", "status", "replaces_health_examination_record_id", "created_at", "completed_at", "canceled_at", "row_version")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchEmployeeServiceRecord", List.of("id", "health_examination_batch_employee_id", "health_examination_batch_service_id", "service_request_id", "billable", "unit_price_snapshot", "created_at", "updated_at")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord", List.of("id", "health_examination_batch_id", "health_examination_participant_id", "participant_code_snapshot", "department_snapshot", "job_title_snapshot", "occupation_snapshot", "administrative_snapshot_json", "status", "created_at")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationRecord", List.of("id", "shs_code", "source_type", "patient_id", "health_examination_batch_participant_id", "encounter_id", "master_template_version_id", "full_name_snapshot", "date_of_birth_snapshot", "sex_snapshot", "identification_number_snapshot", "identification_number_issue_date_snapshot", "identification_number_issue_place_snapshot", "ethnicity_snapshot", "subject_type_snapshot", "payer_source_snapshot", "blood_group_snapshot", "phone_snapshot", "province_snapshot", "ward_snapshot", "address_detail_snapshot", "occupation_snapshot", "workplace_or_school_snapshot", "health_examination_reason_snapshot", "planned_examination_date", "actual_examination_date", "status", "replaces_health_examination_record_id", "created_at", "completed_at", "canceled_at", "row_version")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchParticipantServiceRecord", List.of("id", "health_examination_batch_participant_id", "health_examination_batch_service_id", "service_request_id", "billable", "unit_price_snapshot", "created_at", "updated_at")),
                 Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportJobRecord", List.of("id", "health_examination_batch_id", "import_type", "source_file_attachment_id", "status", "column_mapping_json", "total_rows", "valid_rows", "warning_rows", "error_rows", "created_by_user_id", "confirmed_by_user_id", "created_at", "confirmed_at")),
-                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportRowRecord", List.of("id", "health_examination_import_job_id", "row_number", "employee_code_snapshot", "identification_number_snapshot", "service_code_snapshot", "validation_status", "error_codes_json", "normalized_payload_json", "resolved_patient_id", "resolved_company_employee_id", "resolved_batch_employee_id", "resolved_batch_service_id", "resolved_service_request_id")),
+                Arguments.of("com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportRowRecord", List.of("id", "health_examination_import_job_id", "row_number", "participant_code_snapshot", "identification_number_snapshot", "service_code_snapshot", "validation_status", "error_codes_json", "normalized_payload_json", "resolved_patient_id", "resolved_health_examination_participant_id", "resolved_batch_participant_id", "resolved_batch_service_id", "resolved_service_request_id")),
                 Arguments.of("com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record.SpecimenRecord", List.of("id", "specimen_code", "patient_id", "encounter_id", "specimen_type", "status", "collected_at", "collected_by_staff_id", "received_at")),
                 Arguments.of("com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record.SpecimenServiceRequestRecord", List.of("id", "specimen_id", "service_request_id")),
                 Arguments.of("com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record.LabPanelRecord", List.of("id", "panel_code", "panel_name", "is_active")),

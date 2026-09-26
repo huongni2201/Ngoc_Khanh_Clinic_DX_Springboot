@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.notification.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record NotificationAttemptRecord(
         UUID id,
@@ -15,6 +15,6 @@ public record NotificationAttemptRecord(
         String responseReference,
         String errorCode,
         String errorMessage,
-        LocalDateTime attemptedAt
+        OffsetDateTime attemptedAt
 ) {
 }

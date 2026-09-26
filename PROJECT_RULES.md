@@ -14,6 +14,8 @@ use-case-v2.7
 table-design-v2.11
 ```
 
+PostgreSQL-specific physical type mappings are defined by ADR-0004 and `docs/architecture/05-persistence-and-database.md`; the baseline remains the source for business schema and invariants.
+
 Do not infer domain behavior from UI mockups when these documents define the rule.
 
 If code, UI, and documentation disagree, identify the conflict before changing business behavior.
@@ -26,7 +28,7 @@ If code, UI, and documentation disagree, identify the conflict before changing b
 Java                 25
 Spring Boot          4.x
 Spring Framework     7.x
-SQL Server           2022+
+PostgreSQL           17
 MyBatis              4.x Spring Boot starter
 Spring Modulith      2.x
 Maven
@@ -37,7 +39,7 @@ Mockito
 Testcontainers
 ```
 
-Persistence stack is **MyBatis + SQL Server**.
+Persistence stack is **MyBatis + PostgreSQL 17**.
 
 Forbidden by default:
 
@@ -45,7 +47,7 @@ Forbidden by default:
 JPA
 Hibernate
 Spring Data JPA
-H2 as SQL Server substitute
+H2 as PostgreSQL substitute
 ```
 
 Any core stack change requires an ADR.
@@ -181,7 +183,7 @@ Forbidden:
 domain -> application
 domain -> api
 domain -> MyBatis
-domain -> SQL Server driver
+domain -> infrastructure/database driver
 domain -> HTTP DTO
 controller -> mapper
 controller -> repository implementation
@@ -302,11 +304,11 @@ Rules:
 - Avoid N+1 query patterns.
 - Batch intentionally when importing large employee rosters.
 - Keep business branching out of SQL when it belongs in domain/application logic.
-- SQL Server-specific behavior must be covered by integration tests.
+- PostgreSQL-specific behavior must be covered by integration tests.
 
 ---
 
-## 11. SQL Server Rules
+## 11. PostgreSQL 17 Rules
 
 Baseline conventions from `table-design-v2.11`:
 
@@ -315,11 +317,11 @@ table names       plural snake_case
 column names      snake_case
 primary key       id
 foreign key       <entity>_id
-time              datetime2(3)
+time              timestamp(3) without time zone; values are UTC by convention to match the current `LocalDateTime` contract
 money             decimal(18,2) unless table design says otherwise
-unicode text      nvarchar
-public UUID       uniqueidentifier where specified
-concurrency       rowversion where specified
+text              text or varchar(n), preserving documented length limits
+public UUID       uuid where specified
+concurrency       trigger-backed bigint `row_version` counter where specified
 ```
 
 Use database constraints for true invariants.
@@ -388,20 +390,20 @@ Rules:
 
 ## 14. Health Check Rules
 
-Company-first flow:
+Organization-first flow:
 
 ```text
-Company
--> HealthCheckBatch
--> HealthCheckBatchService
--> HealthCheckBatchEmployee
--> HealthCheckRecord
+Organization
+-> HealthExaminationBatch
+-> HealthExaminationBatchService
+-> HealthExaminationBatchParticipant
+-> HealthExaminationRecord
 -> Encounter / Services / Results
 ```
 
 Rules:
 
-- Imported `CompanyEmployee`/batch employee is not automatically a Patient.
+- Imported `HealthExaminationParticipant`/batch participant is not automatically a Patient.
 - Excel import must preserve CCCD as text.
 - Blocking validation includes required fields and current adult health-check rules.
 - Do not fabricate missing optional data.
@@ -412,7 +414,7 @@ Rules:
 - Reprint reads administrative snapshot from `HealthCheckRecord`.
 - Updating Patient later must not mutate old health-check snapshots.
 
-Employee service selection:
+Participant service selection:
 
 ```text
 Doctor only
@@ -420,7 +422,7 @@ Doctor only
 subset of HealthCheckBatchService only
 ```
 
-Front Desk must not choose per-employee examination items.
+Front Desk must not choose per-participant examination items.
 
 ---
 
@@ -552,7 +554,7 @@ Do not place `@Transactional` on controllers.
 
 Use explicit optimistic concurrency where required.
 
-For SQL Server `rowversion` tables:
+For PostgreSQL `row_version` tables:
 
 - read current version;
 - update with version predicate or equivalent mapper contract;
@@ -714,7 +716,7 @@ Do not duplicate the same business rule in controller, application service, and 
 
 Do not add Elasticsearch for MVP.
 
-Use SQL Server indexes and well-designed queries first.
+Use PostgreSQL indexes and well-designed queries first.
 
 Patient search must follow requirement-defined fields and authorization.
 
@@ -753,9 +755,9 @@ Test use-case orchestration and transactional behavior.
 
 ### Persistence
 
-Use SQL Server Testcontainers for MyBatis integration tests.
+Use PostgreSQL 17 Testcontainers for MyBatis integration tests.
 
-Never use H2 as proof that SQL Server SQL is correct.
+Never use H2 as proof that PostgreSQL SQL is correct.
 
 ### Module
 
@@ -848,7 +850,7 @@ Before completion:
 And when applicable:
 
 ```text
-SQL Server Testcontainers integration tests
+PostgreSQL Testcontainers integration tests
 Spring Modulith verification
 security tests
 migration startup test
@@ -871,7 +873,7 @@ For a new backend, prefer:
 
 ```text
 1. Foundation/config
-2. SQL Server + Flyway
+2. PostgreSQL 17 + Flyway
 3. global errors/security/audit primitives
 4. Patient reference module
 5. Catalog
@@ -894,4 +896,4 @@ Use `patient` as the first complete reference vertical slice before copying arch
 
 Business correctness and data traceability are more important than reducing the number of classes or writing fewer SQL statements.
 
-Prefer explicit DDD boundaries, reliable SQL Server constraints, auditable clinical/financial history, and testable use cases over framework shortcuts.
+Prefer explicit DDD boundaries, reliable PostgreSQL constraints, auditable clinical/financial history, and testable use cases over framework shortcuts.

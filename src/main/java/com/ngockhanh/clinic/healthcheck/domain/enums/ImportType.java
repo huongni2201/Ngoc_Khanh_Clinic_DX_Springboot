@@ -1,3 +1,3 @@
 package com.ngockhanh.clinic.healthcheck.domain.enums;
 
-public enum ImportType { EMPLOYEE_LIST, RESULTS }
+public enum ImportType { PARTICIPANT_LIST, RESULTS }

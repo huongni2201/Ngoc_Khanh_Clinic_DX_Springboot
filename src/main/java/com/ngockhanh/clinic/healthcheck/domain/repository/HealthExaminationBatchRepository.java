@@ -7,6 +7,6 @@ import java.util.Optional;
 
 public interface HealthExaminationBatchRepository {
     Optional<HealthExaminationBatch> findById(UUID id);
-    Optional<HealthExaminationBatch> findByCompanyAndCode(UUID companyId, String batchCode);
+    Optional<HealthExaminationBatch> findByOrganizationAndCode(UUID organizationId, String batchCode);
     void save(HealthExaminationBatch batch);
 }

@@ -27,16 +27,16 @@ Reason:
 
 ```text
 explicit SQL
-predictable SQL Server behavior
+predictable, explicitly versioned SQL behavior
 clear persistence mapping
 schema-driven control
 ```
 
-### 3. SQL Server
+### 3. PostgreSQL 17
 
 Status: Accepted
 
-All integration/migration tests should use SQL Server semantics.
+See [ADR-0004](../adr/0004-postgresql-17.md). PostgreSQL 17 is the primary database; persistence and migration tests use PostgreSQL semantics. This supersedes the earlier SQL Server baseline without changing the MyBatis decision.
 
 ### 4. Flyway append-only migration history
 
@@ -48,7 +48,7 @@ Never rewrite deployed migration history.
 
 Status: Accepted
 
-Persisted primary/relationship identifiers use UUID v7/`uniqueidentifier`.
+Persisted primary/relationship identifiers use UUID v7/`uuid`.
 
 ### 6. CCCD-only patient identity for current MVP
 
@@ -104,7 +104,7 @@ Create a new ADR before changing any of:
 ```text
 modular monolith -> microservices
 MyBatis -> ORM
-SQL Server -> another primary DB
+PostgreSQL 17 -> another primary DB
 UUID v7 -> another ID strategy
 CCCD-only identity
 separate queue-state persistence
