@@ -3,6 +3,5 @@ spring:
     name: ngoc_khanh_clinic_backend
 mybatis:
   mapper-locations: classpath*:com/ngockhanh/clinic/**/infrastructure/persistence/mapper/*.xml
-  type-handlers-package: com.ngockhanh.clinic.shared.infrastructure.persistence.typehandler
-  configuration:
-    map-underscore-to-camel-case: true
+  type-handlers-package: com.ngockhanh.clinic.shared.infrastructure.mybatis
+  map-underscore-to-camel-case: true

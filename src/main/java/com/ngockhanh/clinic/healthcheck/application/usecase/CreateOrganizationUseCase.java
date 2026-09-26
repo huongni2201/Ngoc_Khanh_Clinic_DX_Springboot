@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.healthcheck.application.usecase;
 
 import java.util.UUID;
 
+import com.ngockhanh.clinic.shared.infrastructure.id.IdGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,10 +11,9 @@ import com.ngockhanh.clinic.healthcheck.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthcheck.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.OrganizationId;
-import com.ngockhanh.clinic.shared.id.IdGenerator;
 
 @Service
-public final class CreateOrganizationUseCase {
+public class CreateOrganizationUseCase {
     private final OrganizationRepository organizations;
     private final IdGenerator ids;
 

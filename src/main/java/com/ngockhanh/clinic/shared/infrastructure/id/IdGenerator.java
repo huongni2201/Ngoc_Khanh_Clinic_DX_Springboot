@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.shared.id;
+package com.ngockhanh.clinic.shared.infrastructure.id;
 
 import java.util.UUID;
 

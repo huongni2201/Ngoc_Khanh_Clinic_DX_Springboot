@@ -1117,7 +1117,7 @@ CREATE INDEX ix_notifications_patient ON public.notifications (patient_id, creat
 CREATE INDEX ix_external_code_mappings_lookup ON public.external_code_mappings (integration_endpoint_id, mapping_type, external_code, valid_to);
 CREATE INDEX ix_outbox_events_pending ON public.outbox_events (status, created_at);
 
--- Preserve SQL Server rowversion's automatic version-token behavior.
+-- Preserve SQL Server row version's automatic version-token behavior.
 CREATE FUNCTION public.bump_row_version() RETURNS trigger
 LANGUAGE plpgsql
 AS $$
