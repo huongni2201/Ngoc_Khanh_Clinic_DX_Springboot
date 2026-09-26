@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.patient.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record PatientConditionRecord(
         UUID id,
@@ -14,6 +14,6 @@ public record PatientConditionRecord(
         LocalDate onsetDate,
         LocalDate resolvedDate,
         String note,
-        OffsetDateTime recordedAt
+        Instant recordedAt
 ) {
 }

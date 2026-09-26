@@ -16,6 +16,7 @@ import com.ngockhanh.clinic.healthcheck.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthcheck.domain.repository.HealthExaminationParticipantRepository;
 import com.ngockhanh.clinic.healthcheck.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.OrganizationId;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -25,7 +26,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     }
 
     @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine")
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine")
             .withDatabaseName("nkclinic")
             .withUsername("nkclinic")
             .withPassword("test-password");
@@ -45,7 +46,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
 
     @Test
     void savesAndRestoresOrganizationThroughMyBatisAgainstPostgreSql() {
-        Organization expected = Organization.create(id(1), "MYBATIS-ORG-01", "Organization", "TAX-01",
+        Organization expected = Organization.create(new OrganizationId(id(1)), "MYBATIS-ORG-01", "Organization", "TAX-01",
                 "Address", "Contact", "0900000000", "Director", "Note");
 
         organizations.save(expected);
@@ -61,19 +62,19 @@ class MyBatisOrganizationRepositoryIntegrationTest {
 
     @Test
     void savesReimportsAndFindsParticipantByOrganizationRosterIdentity() {
-        java.util.UUID organizationId = id(2);
+        OrganizationId organizationId = new OrganizationId(id(2));
         java.util.UUID participantId = id(3);
         organizations.save(Organization.create(organizationId, "MYBATIS-PART-ORG", "Organization", "Contact", "0900000000"));
-        HealthExaminationParticipant participant = HealthExaminationParticipant.create(participantId, organizationId, "PART-01",
+        HealthExaminationParticipant participant = HealthExaminationParticipant.create(participantId, organizationId.value(), "PART-01",
                 IdentificationNumber.of("987654321098"), "Nguyen A", java.time.LocalDate.of(1990, 1, 1), "MALE",
                 "Department", "Technician", "Technician");
         participants.save(participant);
 
         HealthExaminationParticipant restored = participants.findById(participantId).orElseThrow();
         assertThat(restored.departmentName()).isEqualTo("Department");
-        assertThat(participants.findByOrganizationAndCode(organizationId, "PART-01"))
+        assertThat(participants.findByOrganizationAndCode(organizationId.value(), "PART-01"))
                 .get().extracting(HealthExaminationParticipant::id).isEqualTo(participantId);
-        assertThat(participants.findByOrganizationAndIdentificationNumber(organizationId, participant.identificationNumber()))
+        assertThat(participants.findByOrganizationAndIdentificationNumber(organizationId.value(), participant.identificationNumber()))
                 .get().extracting(HealthExaminationParticipant::id).isEqualTo(participantId);
 
         participants.save(restored.reimport("PART-01", participant.identificationNumber(), "Updated Name", participant.dateOfBirth(),

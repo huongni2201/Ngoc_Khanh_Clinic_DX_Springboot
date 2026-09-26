@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.patient.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record PatientAllergyRecord(
         UUID id,
@@ -13,7 +13,7 @@ public record PatientAllergyRecord(
         String severity,
         String verificationStatus,
         UUID recordedByUserId,
-        OffsetDateTime recordedAt,
-        OffsetDateTime endedAt
+        Instant recordedAt,
+        Instant endedAt
 ) {
 }

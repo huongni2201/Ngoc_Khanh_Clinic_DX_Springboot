@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthcheck.domain.repository.OrganizationRepository;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.OrganizationId;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.converter.OrganizationPersistenceConverter;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.OrganizationMyBatisMapper;
 
@@ -20,8 +21,8 @@ public final class MyBatisOrganizationRepository implements OrganizationReposito
     }
 
     @Override
-    public Optional<Organization> findById(UUID id) {
-        return Optional.ofNullable(converter.toDomain(mapper.findById(id)));
+    public Optional<Organization> findById(OrganizationId id) {
+        return Optional.ofNullable(converter.toDomain(mapper.findById(id.value())));
     }
 
     @Override

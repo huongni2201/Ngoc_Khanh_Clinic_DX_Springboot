@@ -13,7 +13,7 @@ Maven Wrapper
 Database:
 
 ```text
-PostgreSQL 17
+PostgreSQL 18
 ```
 
 ## 2. Configuration
@@ -44,7 +44,7 @@ application-test.yaml
 ```
 
 Production secrets should not live in committed profile files.
-For local development, `docker compose up -d postgres` starts the PostgreSQL 17 service. The committed local fallback password is development-only; production must supply credentials through environment/configuration.
+For local development, `docker compose up -d postgres` starts the PostgreSQL 18 service. The committed local fallback password is development-only; production must supply credentials through environment/configuration. PostgreSQL 18 uses a version-specific data directory; the Compose volume mounts `/var/lib/postgresql`. Upgrade existing PostgreSQL 17 data with `pg_upgrade` or dump/restore before starting this image; it cannot open the old cluster directly.
 
 ## 4. Startup
 
@@ -73,7 +73,7 @@ start application
 run API smoke tests
 ```
 
-The initial Flyway chain targets PostgreSQL 17. V002 refuses to remove legacy workflow tables if they contain rows.
+Fresh PostgreSQL 18 installations use the single final-schema migration. After first deployment, future schema changes append new Flyway versions.
 
 ## 6. Observability
 

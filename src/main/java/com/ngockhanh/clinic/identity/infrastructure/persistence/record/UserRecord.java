@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record UserRecord(
@@ -11,7 +11,7 @@ public record UserRecord(
         String authProvider,
         String authSubject,
         String status,
-        OffsetDateTime lastLoginAt,
-        OffsetDateTime createdAt
+        Instant lastLoginAt,
+        Instant createdAt
 ) {
 }

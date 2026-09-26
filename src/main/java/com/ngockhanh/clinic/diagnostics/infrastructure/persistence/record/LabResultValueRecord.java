@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record LabResultValueRecord(
         UUID id,
@@ -15,6 +15,6 @@ public record LabResultValueRecord(
         String referenceRangeSnapshot,
         String abnormalFlag,
         String instrumentCode,
-        OffsetDateTime measuredAt
+        Instant measuredAt
 ) {
 }

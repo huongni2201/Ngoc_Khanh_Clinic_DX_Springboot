@@ -32,7 +32,7 @@ Use:
 Java                 25
 Spring Boot          4.x
 Spring Framework     7.x
-PostgreSQL           17
+PostgreSQL           18
 MyBatis              4.x Spring Boot starter
 Spring Modulith      2.x
 Maven
@@ -173,14 +173,14 @@ Never annotate domain objects as persistence records merely for convenience.
 
 Use XML mappers for non-trivial SQL. Small obvious statements may use annotations only when readability is better.
 
-All SQL and Flyway migrations must be PostgreSQL 17 compatible.
+All SQL and Flyway migrations must be PostgreSQL 18 compatible.
 
 ---
 
 ## 6. Database Source of Truth
 
 `table-design-v2.11` is the MVP database baseline unless superseded by a later accepted document/ADR.
-PostgreSQL physical type mappings are defined by ADR-0004 and `docs/architecture/05-persistence-and-database.md`; use the baseline for its business tables and invariants.
+PostgreSQL physical type mappings are carried forward from ADR-0004 by ADR-0005 and documented in `docs/architecture/05-persistence-and-database.md`; use the baseline for its business tables and invariants.
 
 Important baseline rules:
 
@@ -438,7 +438,7 @@ critical end-to-end tests when needed
 Rules:
 
 - Domain rules should be testable without Spring where possible.
-- MyBatis/SQL tests use PostgreSQL 17 Testcontainers.
+- MyBatis/SQL tests use PostgreSQL 18 Testcontainers.
 - Do not use H2 to claim PostgreSQL compatibility.
 - Use Spring Modulith verification tests for module boundaries.
 - Test authorization for sensitive endpoints.

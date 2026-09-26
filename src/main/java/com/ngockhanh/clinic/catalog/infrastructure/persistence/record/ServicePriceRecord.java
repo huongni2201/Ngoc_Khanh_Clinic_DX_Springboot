@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.catalog.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record ServicePriceRecord(
         UUID id,
@@ -12,8 +12,8 @@ public record ServicePriceRecord(
         String payerReference,
         BigDecimal amount,
         String currency,
-        OffsetDateTime effectiveFrom,
-        OffsetDateTime effectiveTo,
+        Instant effectiveFrom,
+        Instant effectiveTo,
         Boolean isActive
 ) {
 }

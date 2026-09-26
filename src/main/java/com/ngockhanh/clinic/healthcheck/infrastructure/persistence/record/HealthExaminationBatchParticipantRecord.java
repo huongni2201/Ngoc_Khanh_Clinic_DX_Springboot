@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record HealthExaminationBatchParticipantRecord(
@@ -13,6 +13,6 @@ public record HealthExaminationBatchParticipantRecord(
         String occupationSnapshot,
         String administrativeSnapshotJson,
         String status,
-        OffsetDateTime createdAt
+        Instant createdAt
 ) {
 }

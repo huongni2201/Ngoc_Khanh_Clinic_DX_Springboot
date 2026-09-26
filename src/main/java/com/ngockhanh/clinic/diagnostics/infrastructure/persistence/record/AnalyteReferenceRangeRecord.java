@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record AnalyteReferenceRangeRecord(
         UUID id,
@@ -16,7 +16,7 @@ public record AnalyteReferenceRangeRecord(
         String textRange,
         BigDecimal warningLower,
         BigDecimal warningUpper,
-        OffsetDateTime effectiveFrom,
-        OffsetDateTime effectiveTo
+        Instant effectiveFrom,
+        Instant effectiveTo
 ) {
 }

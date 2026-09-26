@@ -5,7 +5,7 @@ This backend should keep a focused skill set aligned with:
 ```text
 Java 25
 Spring Boot 4
-PostgreSQL 17
+PostgreSQL 18
 MyBatis
 DDD
 Modular Monolith
@@ -77,7 +77,7 @@ coverage
 postgresql-table-design
 ```
 
-Apply PostgreSQL-specific DDL guidance when consistent with the clinic's documented business schema; SQL must remain PostgreSQL 17 compatible.
+Apply PostgreSQL-specific DDL guidance when consistent with the clinic's documented business schema; SQL must remain PostgreSQL 18 compatible.
 
 ---
 
@@ -166,7 +166,7 @@ batch operations
 join/query optimization
 ```
 
-All generated SQL must be reviewed for PostgreSQL 17 compatibility.
+All generated SQL must be reviewed for PostgreSQL 18 compatibility.
 
 Project persistence is MyBatis, not JPA.
 
@@ -402,14 +402,14 @@ Do not use JPA/MapStruct CRUD generators as the default architecture.
 ```text
 Read AGENTS.md, PROJECT_RULES.md, PROJECT_SKILLS.md, relevant ADRs, and the current requirement/use-case/table-design documents first.
 
-Use Java 25 + Spring Boot 4 + PostgreSQL 17 + MyBatis.
+Use Java 25 + Spring Boot 4 + PostgreSQL 18 + MyBatis.
 Keep DDD modular-monolith boundaries.
 Do not use JPA/Hibernate.
 Domain models must not be MyBatis persistence records.
 Do not access another module's mapper/repository implementation.
 Do not invent business rules, statuses, tables, permissions, or API fields.
 Use Flyway for every schema change.
-Use PostgreSQL 17 Testcontainers for persistence integration tests.
+Use PostgreSQL 18 Testcontainers for persistence integration tests.
 Run ./mvnw test and ./mvnw verify before claiming completion.
 Report changed modules, migrations, public API changes, tests run, assumptions, and remaining risks.
 ```

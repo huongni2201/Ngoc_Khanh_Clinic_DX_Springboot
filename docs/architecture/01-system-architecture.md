@@ -12,7 +12,7 @@ It combines:
 - Ports and Adapters
 - Spring Modulith
 - MyBatis persistence
-- PostgreSQL 17
+- PostgreSQL 18
 - Flyway migrations
 
 The system is deployed as one Spring Boot application but organized into isolated business modules.
@@ -40,7 +40,7 @@ Persistence Ports          Integration Ports
 MyBatis Adapters            External Adapters
        |                         |
        v                         v
-PostgreSQL 17             SMS / LIS / PACS / etc.
+PostgreSQL 18             SMS / LIS / PACS / etc.
 ```
 
 ## 3. Dependency direction

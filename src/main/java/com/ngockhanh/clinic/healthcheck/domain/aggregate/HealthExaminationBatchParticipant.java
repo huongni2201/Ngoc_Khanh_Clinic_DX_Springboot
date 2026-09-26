@@ -11,16 +11,17 @@ import com.ngockhanh.clinic.healthcheck.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DuplicateParticipantServiceAssignment;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.AdministrativeSnapshot;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.BatchPriceRevision;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.HealthExaminationBatchParticipantId;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.Money;
 
 public final class HealthExaminationBatchParticipant {
-    private final UUID id;
+    private final HealthExaminationBatchParticipantId id;
     private final UUID batchId;
     private final UUID healthExaminationParticipantId;
     private final AdministrativeSnapshot rosterSnapshot;
     private final Map<UUID, HealthExaminationBatchParticipantService> assignments = new HashMap<>();
 
-    private HealthExaminationBatchParticipant(UUID id, UUID batchId, UUID healthExaminationParticipantId,
+    private HealthExaminationBatchParticipant(HealthExaminationBatchParticipantId id, UUID batchId, UUID healthExaminationParticipantId,
                                              AdministrativeSnapshot rosterSnapshot) {
         if (id == null || batchId == null || healthExaminationParticipantId == null || rosterSnapshot == null) {
             throw new IllegalArgumentException("Invalid health-examination batch participant");
@@ -31,13 +32,13 @@ public final class HealthExaminationBatchParticipant {
         this.rosterSnapshot = rosterSnapshot;
     }
 
-    public static HealthExaminationBatchParticipant create(UUID id, UUID batchId,
+    public static HealthExaminationBatchParticipant create(HealthExaminationBatchParticipantId id, UUID batchId,
                                                            UUID healthExaminationParticipantId,
                                                            AdministrativeSnapshot rosterSnapshot) {
         return new HealthExaminationBatchParticipant(id, batchId, healthExaminationParticipantId, rosterSnapshot);
     }
 
-    public static HealthExaminationBatchParticipant restore(UUID id, UUID batchId,
+    public static HealthExaminationBatchParticipant restore(HealthExaminationBatchParticipantId id, UUID batchId,
                                                             UUID healthExaminationParticipantId,
                                                             AdministrativeSnapshot snapshot,
                                                             List<HealthExaminationBatchParticipantService> assignments) {
@@ -89,7 +90,7 @@ public final class HealthExaminationBatchParticipant {
         return assignments.get(batchServiceId);
     }
 
-    public UUID id() { return id; }
+    public HealthExaminationBatchParticipantId id() { return id; }
     public UUID batchId() { return batchId; }
     public UUID healthExaminationParticipantId() { return healthExaminationParticipantId; }
     public AdministrativeSnapshot rosterSnapshot() { return rosterSnapshot; }

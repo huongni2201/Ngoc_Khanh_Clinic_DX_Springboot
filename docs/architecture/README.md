@@ -2,7 +2,7 @@
 
 Project: Ngọc Khánh Clinic Digital Transformation  
 Architecture: DDD Modular Monolith + Clean Architecture + Ports/Adapters  
-Runtime: Java 25, Spring Boot 4.x, PostgreSQL 17, MyBatis, Flyway, Spring Modulith
+Runtime: Java 25, Spring Boot 4.x, PostgreSQL 18, MyBatis, Flyway, Spring Modulith
 
 ## Source-of-truth order
 
@@ -17,7 +17,7 @@ When documents conflict, follow this order:
 
 Architecture documents do not override business rules.
 Markdown mirrors are generated from the FINAL DOCX files by `scripts/docs/sync_baseline_markdown.py`; update the DOCX source and regenerate the mirrors.
-For PostgreSQL physical type mappings, follow [ADR-0004](../adr/0004-postgresql-17.md) and `05-persistence-and-database.md`; the business schema in the baseline remains authoritative for tables and business constraints.
+For PostgreSQL physical type mappings, follow [ADR-0005](../adr/0005-postgresql-18.md) and `05-persistence-and-database.md`; ADR-0005 carries forward the mappings from [ADR-0004](../adr/0004-postgresql-17.md). The business schema in the baseline remains authoritative for tables and business constraints.
 
 ## Architecture documents
 
@@ -25,7 +25,7 @@ For PostgreSQL physical type mappings, follow [ADR-0004](../adr/0004-postgresql-
 - `02-module-boundaries.md` — bounded contexts and dependency rules
 - `03-domain-modeling-rules.md` — Aggregate/Entity/Value Object rules
 - `04-application-and-ports.md` — use cases, ports and transaction boundaries
-- `05-persistence-and-database.md` — PostgreSQL 17, MyBatis, Flyway, UUID, schema rules
+- `05-persistence-and-database.md` — PostgreSQL 18, MyBatis, Flyway, UUID, schema rules
 - `06-integration-and-events.md` — integrations, outbox, notifications and external systems
 - `07-security-and-audit.md` — authentication, authorization and audit rules
 - `08-testing-and-quality-gates.md` — unit, integration, module and migration testing

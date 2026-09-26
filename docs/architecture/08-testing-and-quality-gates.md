@@ -40,7 +40,7 @@ cross-aggregate invariants
 
 ### Persistence integration tests
 
-Use real PostgreSQL 17 through Testcontainers.
+Use real PostgreSQL 18 through Testcontainers.
 
 Do not use H2 as a substitute for PostgreSQL-specific behavior.
 
@@ -56,7 +56,7 @@ row_version/optimistic concurrency
 
 ### Migration integration tests
 
-Start a fresh PostgreSQL 17 instance and apply every migration.
+Start a fresh PostgreSQL 18 instance and apply every migration.
 
 Verify:
 

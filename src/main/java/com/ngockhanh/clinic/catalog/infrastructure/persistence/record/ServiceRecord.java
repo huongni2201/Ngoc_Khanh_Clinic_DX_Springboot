@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.catalog.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record ServiceRecord(
         UUID id,
@@ -18,7 +18,7 @@ public record ServiceRecord(
         UUID labPanelId,
         String preparationInstructions,
         Boolean isActive,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

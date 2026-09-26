@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record OrganizationRecord(
@@ -14,8 +14,8 @@ public record OrganizationRecord(
         String contactJobTitle,
         String note,
         String status,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt,
+        Instant createdAt,
+        Instant updatedAt,
         long rowVersion
 ) {
 }

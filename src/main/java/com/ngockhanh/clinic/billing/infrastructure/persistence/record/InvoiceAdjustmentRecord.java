@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.billing.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record InvoiceAdjustmentRecord(
         UUID id,
@@ -12,6 +12,6 @@ public record InvoiceAdjustmentRecord(
         BigDecimal amount,
         String reason,
         UUID createdByUserId,
-        OffsetDateTime createdAt
+        Instant createdAt
 ) {
 }

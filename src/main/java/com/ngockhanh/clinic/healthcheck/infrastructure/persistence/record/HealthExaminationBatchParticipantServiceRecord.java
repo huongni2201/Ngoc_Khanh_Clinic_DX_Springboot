@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record HealthExaminationBatchParticipantServiceRecord(
@@ -11,7 +11,7 @@ public record HealthExaminationBatchParticipantServiceRecord(
         UUID serviceRequestId,
         boolean billable,
         BigDecimal unitPriceSnapshot,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

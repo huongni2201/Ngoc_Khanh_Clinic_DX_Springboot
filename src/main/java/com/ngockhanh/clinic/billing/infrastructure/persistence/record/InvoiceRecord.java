@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.billing.infrastructure.persistence.record;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record InvoiceRecord(
@@ -15,7 +15,7 @@ public record InvoiceRecord(
         BigDecimal discountAmount,
         BigDecimal totalAmount,
         BigDecimal paidAmount,
-        OffsetDateTime issuedAt,
+        Instant issuedAt,
         UUID createdByUserId
 ) {
 }

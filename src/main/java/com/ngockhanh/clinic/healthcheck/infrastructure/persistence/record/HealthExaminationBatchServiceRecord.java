@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record HealthExaminationBatchServiceRecord(
         UUID id,
@@ -17,7 +17,7 @@ public record HealthExaminationBatchServiceRecord(
         String currency,
         Integer displayOrder,
         String status,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

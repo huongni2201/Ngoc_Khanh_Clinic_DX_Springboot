@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record HealthExaminationParticipantRecord(
@@ -17,7 +17,7 @@ public record HealthExaminationParticipantRecord(
         String jobTitle,
         String occupation,
         String status,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

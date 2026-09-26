@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record EncounterRecord(
@@ -11,14 +11,14 @@ public record EncounterRecord(
         String reason,
         String priority,
         String status,
-        OffsetDateTime startedAt,
-        OffsetDateTime completedAt,
-        OffsetDateTime canceledAt,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt,
+        Instant startedAt,
+        Instant completedAt,
+        Instant canceledAt,
+        Instant createdAt,
+        Instant updatedAt,
         long rowVersion,
-        OffsetDateTime preparedAt,
-        OffsetDateTime checkedInAt,
+        Instant preparedAt,
+        Instant checkedInAt,
         UUID checkedInByUserId
 ) {
 }

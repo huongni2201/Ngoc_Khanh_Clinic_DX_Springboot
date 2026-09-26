@@ -43,6 +43,14 @@ class ModuleVerificationTest {
     }
 
     @Test
+    void domainAndApplicationDoNotDependOnUuidCreator() {
+        noClasses().that().resideInAnyPackage(
+                        "com.ngockhanh.clinic..domain..", "com.ngockhanh.clinic..application..")
+                .should().dependOnClassesThat().resideInAPackage("com.github.f4b6a3.uuid..")
+                .check(applicationClasses);
+    }
+
+    @Test
     void apiAndApplicationDoNotDependOnMyBatisOrPersistenceRecords() {
         noClasses().that().resideInAnyPackage("com.ngockhanh.clinic..api..", "com.ngockhanh.clinic..application..")
                 .should().dependOnClassesThat().resideInAnyPackage(

@@ -39,6 +39,7 @@ const excludedPathReasons = [
   ["docs/domain/MEDICAL_TERMINOLOGY.md", "glossary intentionally names legacy terms"],
   ["docs/refactor/terminology/", "inventory and migration-map documents intentionally name legacy terms"],
   ["docs/superpowers/plans/2026-09-25-medical-terminology-refactor.md", "execution plan intentionally names legacy terms"],
+  ["src/test/java/com/ngockhanh/clinic/infrastructure/migration/PostgreSqlMigrationIntegrationTest.java", "migration integration test checks retired table names are absent"],
   ["AGENTS.md", "repository instructions are an existing authoritative contract"],
   ["PROJECT_RULES.md", "repository rules are an existing authoritative contract"],
   ["PROJECT_SKILLS.md", "repository skills are an existing authoritative contract"],
@@ -50,23 +51,6 @@ function normalizedRelativePath(filePath) {
 }
 
 function exclusionReason(relativePath) {
-  if (
-    relativePath === "src/main/resources/db/migration" ||
-    relativePath.startsWith("src/main/resources/db/migration/")
-  ) {
-    const fileName = path.basename(relativePath);
-    if (/^V00[1-6]__/.test(fileName)) {
-      return "immutable historical migrations and their terminology cutover";
-    }
-  }
-
-  if (
-    relativePath.startsWith("src/test/") &&
-    relativePath.includes("/infrastructure/migration/")
-  ) {
-    return "migration contract tests assert immutable historical identifiers";
-  }
-
   for (const [prefix] of excludedPathReasons) {
     if (relativePath === prefix || relativePath.startsWith(prefix)) {
       return "documented repository exception";

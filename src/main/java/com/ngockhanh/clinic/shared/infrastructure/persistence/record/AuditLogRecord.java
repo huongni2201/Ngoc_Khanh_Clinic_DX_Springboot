@@ -1,11 +1,11 @@
 package com.ngockhanh.clinic.shared.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record AuditLogRecord(
         UUID id,
-        OffsetDateTime occurredAt,
+        Instant occurredAt,
         UUID actorUserId,
         String action,
         String entityType,

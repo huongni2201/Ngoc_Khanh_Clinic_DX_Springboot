@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PostgreSqlMigrationIntegrationTest {
 
     @Container
-    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17-alpine")
+    static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine")
             .withDatabaseName("nkclinic")
             .withUsername("nkclinic")
             .withPassword("test-password");
@@ -26,7 +26,7 @@ class PostgreSqlMigrationIntegrationTest {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(7);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -41,6 +41,10 @@ class PostgreSqlMigrationIntegrationTest {
         assertColumnType(jdbcTemplate, "patients", "identification_number", "character varying");
         assertColumnType(jdbcTemplate, "patients", "row_version", "bigint");
         assertColumnType(jdbcTemplate, "patients", "created_at", "timestamp with time zone");
+        assertThat(jdbcTemplate.queryForObject(
+                "select column_default from information_schema.columns "
+                        + "where table_schema = 'public' and table_name = 'organizations' and column_name = 'id'",
+                String.class)).isNull();
         assertColumnType(jdbcTemplate, "health_examination_participants", "identification_number", "character varying");
         assertColumnType(jdbcTemplate, "services", "health_examination_eligible", "boolean");
         assertColumnType(jdbcTemplate, "document_templates", "is_master_health_examination_form", "boolean");

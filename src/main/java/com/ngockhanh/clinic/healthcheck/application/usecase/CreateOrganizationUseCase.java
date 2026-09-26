@@ -9,7 +9,8 @@ import com.ngockhanh.clinic.healthcheck.application.command.CreateOrganizationCo
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthcheck.domain.repository.OrganizationRepository;
-import com.ngockhanh.clinic.shared.IdGenerator;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.OrganizationId;
+import com.ngockhanh.clinic.shared.id.IdGenerator;
 
 @Service
 public final class CreateOrganizationUseCase {
@@ -29,9 +30,10 @@ public final class CreateOrganizationUseCase {
                     && organizations.findByTaxCode(command.taxCode()).isPresent())) {
             throw new DuplicateOrganizationIdentity();
         }
-        Organization organization = Organization.create(ids.next(), command.code(), command.name(), command.taxCode(),
+        OrganizationId id = new OrganizationId(ids.next());
+        Organization organization = Organization.create(id, command.code(), command.name(), command.taxCode(),
                 command.address(), command.contactName(), command.contactPhone(), command.contactJobTitle(), command.note());
         organizations.save(organization);
-        return organization.id();
+        return organization.id().value();
     }
 }

@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record AppointmentRecord(
@@ -9,11 +9,11 @@ public record AppointmentRecord(
         UUID sourceEncounterId,
         UUID departmentId,
         UUID doctorStaffId,
-        OffsetDateTime scheduledStart,
-        OffsetDateTime scheduledEnd,
+        Instant scheduledStart,
+        Instant scheduledEnd,
         String status,
         String reason,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

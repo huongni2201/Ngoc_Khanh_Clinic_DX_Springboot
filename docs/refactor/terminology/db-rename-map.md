@@ -3,18 +3,20 @@
 Audit date: 2026-09-26
 
 The terminology rename was initially planned as a forward-only migration for
-SQL Server. Since the backend had not been deployed, V006 and V007 are now
-PostgreSQL 17 migrations in the clean-install sequence. The SQL renames tables,
-columns, constraints and indexes without changing their data or business rules.
+SQL Server. Before the first PostgreSQL deployment, the canonical names below
+were folded into `V001__create_final_schema.sql`; this mapping is historical
+context, not a forward migration plan.
 
 ## Tables
 
 | Current | Target |
 | --- | --- |
+| `companies` | `organizations` |
+| `company_employees` | `health_examination_participants` |
 | `health_check_batches` | `health_examination_batches` |
 | `health_check_batch_services` | `health_examination_batch_services` |
-| `health_check_batch_employees` | `health_examination_batch_employees` |
-| `health_check_batch_employee_services` | `health_examination_batch_employee_services` |
+| `health_check_batch_employees` | `health_examination_batch_participants` |
+| `health_check_batch_employee_services` | `health_examination_batch_participant_services` |
 | `health_check_records` | `health_examination_records` |
 | `health_check_import_jobs` | `health_examination_import_jobs` |
 | `health_check_import_rows` | `health_examination_import_rows` |

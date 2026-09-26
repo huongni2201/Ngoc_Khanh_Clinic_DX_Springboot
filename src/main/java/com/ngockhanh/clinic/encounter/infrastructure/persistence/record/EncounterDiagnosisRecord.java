@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record EncounterDiagnosisRecord(
         UUID id,
@@ -12,6 +12,6 @@ public record EncounterDiagnosisRecord(
         String diagnosisType,
         Boolean isPrimary,
         UUID recordedByStaffId,
-        OffsetDateTime recordedAt
+        Instant recordedAt
 ) {
 }

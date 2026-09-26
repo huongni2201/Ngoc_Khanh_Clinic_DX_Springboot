@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.prescription.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record PrescriptionRecord(
@@ -12,7 +12,7 @@ public record PrescriptionRecord(
         Integer versionNumber,
         String status,
         UUID supersedesPrescriptionId,
-        OffsetDateTime issuedAt,
-        OffsetDateTime createdAt
+        Instant issuedAt,
+        Instant createdAt
 ) {
 }

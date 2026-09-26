@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record FileAttachmentRecord(
         UUID id,
@@ -18,6 +18,6 @@ public record FileAttachmentRecord(
         Long sizeBytes,
         String sha256,
         UUID createdByUserId,
-        OffsetDateTime createdAt
+        Instant createdAt
 ) {
 }

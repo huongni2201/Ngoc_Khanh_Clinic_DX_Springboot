@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record IntegrationEndpointRecord(
         UUID id,
@@ -13,7 +13,7 @@ public record IntegrationEndpointRecord(
         String credentialReference,
         String configJson,
         Boolean isActive,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

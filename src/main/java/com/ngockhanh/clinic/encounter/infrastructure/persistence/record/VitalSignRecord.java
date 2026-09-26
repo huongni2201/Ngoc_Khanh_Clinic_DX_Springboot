@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.encounter.infrastructure.persistence.record;
 import java.util.UUID;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record VitalSignRecord(
         UUID id,
@@ -15,7 +15,7 @@ public record VitalSignRecord(
         Integer systolicBp,
         Integer diastolicBp,
         String physicalClassification,
-        OffsetDateTime measuredAt,
+        Instant measuredAt,
         UUID recordedByStaffId
 ) {
 }

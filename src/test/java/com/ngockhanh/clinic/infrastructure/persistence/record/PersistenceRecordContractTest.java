@@ -8,7 +8,7 @@ import java.lang.reflect.RecordComponent;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,15 +40,15 @@ class PersistenceRecordContractTest {
     }
 
     @org.junit.jupiter.api.Test
-    void timestampWithTimeZoneColumnsUseOffsetDateTimeInPersistenceRecords() throws Exception {
+    void timestampWithTimeZoneColumnsUseInstantInPersistenceRecords() throws Exception {
         assertRecordComponentType(
-                "com.ngockhanh.clinic.patient.infrastructure.persistence.record.PatientRecord", "createdAt", OffsetDateTime.class);
+                "com.ngockhanh.clinic.patient.infrastructure.persistence.record.PatientRecord", "createdAt", Instant.class);
         assertRecordComponentType(
-                "com.ngockhanh.clinic.encounter.infrastructure.persistence.record.AppointmentRecord", "scheduledStart", OffsetDateTime.class);
+                "com.ngockhanh.clinic.encounter.infrastructure.persistence.record.AppointmentRecord", "scheduledStart", Instant.class);
         assertRecordComponentType(
-                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord", "updatedAt", OffsetDateTime.class);
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.OrganizationRecord", "updatedAt", Instant.class);
         assertRecordComponentType(
-                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchRecord", "finalizedAt", OffsetDateTime.class);
+                "com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchRecord", "finalizedAt", Instant.class);
     }
 
     private static void assertRecordComponentType(String recordName, String componentName, Class<?> expectedType)

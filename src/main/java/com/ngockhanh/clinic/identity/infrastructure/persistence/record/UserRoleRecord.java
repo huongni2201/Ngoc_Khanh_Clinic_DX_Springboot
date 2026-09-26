@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record UserRoleRecord(
         UUID id,
@@ -10,7 +10,7 @@ public record UserRoleRecord(
         UUID roleId,
         UUID departmentId,
         UUID roomId,
-        OffsetDateTime validFrom,
-        OffsetDateTime validTo
+        Instant validFrom,
+        Instant validTo
 ) {
 }

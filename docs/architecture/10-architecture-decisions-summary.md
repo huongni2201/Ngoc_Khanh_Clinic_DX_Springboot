@@ -32,31 +32,37 @@ clear persistence mapping
 schema-driven control
 ```
 
-### 3. PostgreSQL 17
+### 3. PostgreSQL 18
 
 Status: Accepted
 
-See [ADR-0004](../adr/0004-postgresql-17.md). PostgreSQL 17 is the primary database; persistence and migration tests use PostgreSQL semantics. This supersedes the earlier SQL Server baseline without changing the MyBatis decision.
+See [ADR-0005](../adr/0005-postgresql-18.md). PostgreSQL 18 is the primary database; persistence and migration tests use PostgreSQL 18. ADR-0005 supersedes ADR-0004's PostgreSQL major-version target while retaining its physical type mappings and MyBatis/Flyway decisions.
 
-### 4. Flyway append-only migration history
+### 4. Instant for system timestamps
+
+Status: Accepted
+
+See [ADR-0006](../adr/0006-instant-for-system-timestamps.md). Domain and persistence timestamp values representing moments use `Instant`; PostgreSQL continues to store them as `timestamptz(3)`.
+
+### 5. Flyway append-only migration history
 
 Status: Accepted
 
 Never rewrite deployed migration history.
 
-### 5. UUID v7 identifiers
+### 6. UUID v7 identifiers
 
 Status: Accepted
 
 Persisted primary/relationship identifiers use UUID v7/`uuid`.
 
-### 6. CCCD-only patient identity for current MVP
+### 7. CCCD-only patient identity for current MVP
 
 Status: Accepted
 
 No passport/identity type/fuzzy merge in the current baseline.
 
-### 7. Encounter-centric workflow
+### 8. Encounter-centric workflow
 
 Status: Accepted
 
@@ -71,13 +77,13 @@ PaymentAuthorization
 Result/Report
 ```
 
-### 8. No persisted operational queue state
+### 9. No persisted operational queue state
 
 Status: Accepted
 
 Physician worklists and progress are derived read models.
 
-### 9. Result release independent from notification delivery
+### 10. Result release independent from notification delivery
 
 Status: Accepted
 
@@ -85,13 +91,13 @@ Exact result/report version has its own patient-release state.
 
 SMS is a delivery channel, not visibility state.
 
-### 10. Corporate price snapshots
+### 11. Corporate price snapshots
 
 Status: Accepted
 
 Corporate batch repricing updates all linked snapshots atomically without changing retail catalog price.
 
-### 11. Issued prescription immutability
+### 12. Issued prescription immutability
 
 Status: Accepted
 
@@ -104,8 +110,9 @@ Create a new ADR before changing any of:
 ```text
 modular monolith -> microservices
 MyBatis -> ORM
-PostgreSQL 17 -> another primary DB
+PostgreSQL 18 -> another PostgreSQL major version or primary DB
 UUID v7 -> another ID strategy
+Instant -> another representation for system timestamps
 CCCD-only identity
 separate queue-state persistence
 result release semantics

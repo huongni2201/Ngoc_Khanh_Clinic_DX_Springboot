@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record HealthExaminationBatchRecord(
@@ -18,10 +18,10 @@ public record HealthExaminationBatchRecord(
         String examinationSiteAddress,
         UUID masterTemplateVersionId,
         String status,
-        OffsetDateTime finalizedAt,
-        OffsetDateTime closedAt,
+        Instant finalizedAt,
+        Instant closedAt,
         UUID createdByUserId,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        Instant createdAt,
+        Instant updatedAt
 ) {
 }

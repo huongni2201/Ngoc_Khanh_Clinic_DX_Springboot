@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
 import java.util.UUID;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 
 public record GeneratedDocumentRecord(
         UUID id,
@@ -17,7 +17,7 @@ public record GeneratedDocumentRecord(
         String renderPayloadHash,
         UUID fileAttachmentId,
         UUID generatedByUserId,
-        OffsetDateTime generatedAt,
-        OffsetDateTime invalidatedAt
+        Instant generatedAt,
+        Instant invalidatedAt
 ) {
 }

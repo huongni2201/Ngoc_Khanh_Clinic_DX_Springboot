@@ -1,9 +1,9 @@
 package com.ngockhanh.clinic.healthcheck.domain.aggregate;
 
-import java.util.UUID;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.OrganizationId;
 
 public final class Organization {
-    private final UUID id;
+    private final OrganizationId id;
     private final String code;
     private final String name;
     private final String taxCode;
@@ -14,7 +14,7 @@ public final class Organization {
     private final String note;
     private final String status;
 
-    private Organization(UUID id, String code, String name, String taxCode, String address, String contactName,
+    private Organization(OrganizationId id, String code, String name, String taxCode, String address, String contactName,
                          String contactPhone, String contactJobTitle, String note, String status) {
         if (id == null || code == null || code.isBlank() || name == null || name.isBlank()
                 || contactName == null || contactName.isBlank() || contactPhone == null || contactPhone.isBlank()
@@ -33,24 +33,24 @@ public final class Organization {
         this.status = status;
     }
 
-    public static Organization create(UUID id, String code, String name, String contactName, String contactPhone) {
+    public static Organization create(OrganizationId id, String code, String name, String contactName, String contactPhone) {
         return create(id, code, name, null, null, contactName, contactPhone, null, null);
     }
 
-    public static Organization create(UUID id, String code, String name, String taxCode, String address,
+    public static Organization create(OrganizationId id, String code, String name, String taxCode, String address,
                                       String contactName, String contactPhone, String contactJobTitle, String note) {
         return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, "ACTIVE");
     }
 
-    public static Organization restore(UUID id, String code, String name, String taxCode, String address,
+    public static Organization restore(OrganizationId id, String code, String name, String taxCode, String address,
                                        String contactName, String contactPhone, String contactJobTitle,
                                        String note, String status) {
         return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, status);
     }
 
-    public UUID id() { return id; }
+    public OrganizationId id() { return id; }
     public String code() { return code; }
     public String name() { return name; }
     public String taxCode() { return taxCode; }

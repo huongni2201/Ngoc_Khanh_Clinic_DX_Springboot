@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record OutboxEventRecord(
@@ -11,8 +11,8 @@ public record OutboxEventRecord(
         String payloadJson,
         UUID correlationId,
         String status,
-        OffsetDateTime createdAt,
-        OffsetDateTime publishedAt,
+        Instant createdAt,
+        Instant publishedAt,
         Integer retryCount
 ) {
 }

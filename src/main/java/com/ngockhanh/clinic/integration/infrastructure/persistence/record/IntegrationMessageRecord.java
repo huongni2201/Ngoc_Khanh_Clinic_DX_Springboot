@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record IntegrationMessageRecord(
@@ -14,8 +14,8 @@ public record IntegrationMessageRecord(
         String payloadReference,
         String payloadHash,
         String errorMessage,
-        OffsetDateTime receivedAt,
-        OffsetDateTime processedAt,
+        Instant receivedAt,
+        Instant processedAt,
         Integer retryCount
 ) {
 }

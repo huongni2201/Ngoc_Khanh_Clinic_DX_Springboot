@@ -14,7 +14,7 @@ use-case-v2.7
 table-design-v2.11
 ```
 
-PostgreSQL-specific physical type mappings are defined by ADR-0004 and `docs/architecture/05-persistence-and-database.md`; the baseline remains the source for business schema and invariants.
+PostgreSQL physical type mappings from ADR-0004 remain in force under ADR-0005 and are documented in `docs/architecture/05-persistence-and-database.md`; the baseline remains the source for business schema and invariants.
 
 Do not infer domain behavior from UI mockups when these documents define the rule.
 
@@ -28,7 +28,7 @@ If code, UI, and documentation disagree, identify the conflict before changing b
 Java                 25
 Spring Boot          4.x
 Spring Framework     7.x
-PostgreSQL           17
+PostgreSQL           18
 MyBatis              4.x Spring Boot starter
 Spring Modulith      2.x
 Maven
@@ -39,7 +39,7 @@ Mockito
 Testcontainers
 ```
 
-Persistence stack is **MyBatis + PostgreSQL 17**.
+Persistence stack is **MyBatis + PostgreSQL 18**.
 
 Forbidden by default:
 
@@ -308,7 +308,7 @@ Rules:
 
 ---
 
-## 11. PostgreSQL 17 Rules
+## 11. PostgreSQL 18 Rules
 
 Baseline conventions from `table-design-v2.11`:
 
@@ -317,7 +317,7 @@ table names       plural snake_case
 column names      snake_case
 primary key       id
 foreign key       <entity>_id
-time              timestamp(3) without time zone; values are UTC by convention to match the current `LocalDateTime` contract
+time              `timestamptz(3)`; Java `Instant`; values represent UTC instants
 money             decimal(18,2) unless table design says otherwise
 text              text or varchar(n), preserving documented length limits
 public UUID       uuid where specified
@@ -755,7 +755,7 @@ Test use-case orchestration and transactional behavior.
 
 ### Persistence
 
-Use PostgreSQL 17 Testcontainers for MyBatis integration tests.
+Use PostgreSQL 18 Testcontainers for MyBatis integration tests.
 
 Never use H2 as proof that PostgreSQL SQL is correct.
 
@@ -873,7 +873,7 @@ For a new backend, prefer:
 
 ```text
 1. Foundation/config
-2. PostgreSQL 17 + Flyway
+2. PostgreSQL 18 + Flyway
 3. global errors/security/audit primitives
 4. Patient reference module
 5. Catalog

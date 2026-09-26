@@ -5,7 +5,7 @@
 Primary database:
 
 ```text
-PostgreSQL 17
+PostgreSQL 18
 ```
 
 Persistence framework:
@@ -56,7 +56,7 @@ They may use:
 UUID
 String
 LocalDate
-OffsetDateTime
+Instant
 BigDecimal
 byte[]
 long (row_version)
@@ -88,25 +88,19 @@ V003 ...
 V004 ...
 ```
 
-Fresh-install migration sequence (PostgreSQL 17):
+Fresh-install baseline (PostgreSQL 18):
 
 ```text
-V001 = translated baseline
-V002 = legacy workflow table removal + temporary CCCD column names
-V003 = result release schema
-V004 = lifecycle checks
-V005-V007 = identifier and terminology cut-overs
+V001 = final schema for the current table-design baseline and accepted ADR additions
 ```
 
-This project had not been deployed when the database conversion was made, so the existing migration scripts were ported to PostgreSQL for fresh initialization. Once the first PostgreSQL database is deployed, treat every applied migration as immutable and append new migrations for future changes. Do not use this chain as an in-place SQL Server-to-PostgreSQL data transfer plan.
+The initial migration chain was consolidated before first deployment because no production database exists. Once the first database is deployed, treat every applied migration as immutable and append new migrations for future changes. This clean-install baseline is not an in-place SQL Server-to-PostgreSQL data-transfer plan.
 
-## 6. Legacy workflow cut-over
+## 6. Initial schema scope
 
-V002 removes the unused legacy workflow tables during fresh initialization and raises an error if either contains rows.
+The cut-over instructions that follow describe the pre-squash migration chain and are obsolete. Fresh installation uses only `V001__create_final_schema.sql`.
 
-If any data is introduced into these tables before initial deployment, stop and reconcile it before applying V002; never bypass its guard.
-
-Do not silently drop populated legacy workflow tables.
+The final schema does not create the retired workflow tables. Fresh initialization needs no follow-up cut-over or data-removal step.
 
 ## 7. Identifier strategy
 
@@ -147,7 +141,7 @@ released_to_patient_at
 
 Timestamp semantics must be documented and tested.
 
-The Java persistence contract uses `OffsetDateTime`; event and audit timestamps are stored as `timestamptz(3)` to preserve millisecond precision and identify an unambiguous instant. PostgreSQL normalizes these instants internally and renders them in the session time zone. SQL writes that create timestamps use `CURRENT_TIMESTAMP`.
+Domain and persistence records use `Instant` for values representing a point in time. Event and audit timestamps use `timestamptz(3)` to preserve millisecond precision. The shared MyBatis type handler binds instants as UTC `OffsetDateTime` values and converts reads back with `toInstant()`, so session and JVM time zones do not change the represented instant. SQL writes that create timestamps use `CURRENT_TIMESTAMP`.
 
 ## 10. Result release
 

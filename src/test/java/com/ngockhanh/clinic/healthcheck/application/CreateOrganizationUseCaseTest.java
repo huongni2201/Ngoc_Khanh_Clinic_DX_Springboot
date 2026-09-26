@@ -15,6 +15,7 @@ import com.ngockhanh.clinic.healthcheck.application.usecase.CreateOrganizationUs
 import com.ngockhanh.clinic.healthcheck.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthcheck.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthcheck.domain.repository.OrganizationRepository;
+import com.ngockhanh.clinic.healthcheck.domain.valueobject.OrganizationId;
 
 class CreateOrganizationUseCaseTest {
     @Test
@@ -27,7 +28,7 @@ class CreateOrganizationUseCaseTest {
                 "Contact", "0900000000", "Director", "Note"));
 
         assertThat(result).isEqualTo(id);
-        Organization saved = organizations.findById(id).orElseThrow();
+        Organization saved = organizations.findById(new OrganizationId(id)).orElseThrow();
         assertThat(saved.code()).isEqualTo("ORG-01");
         assertThat(saved.name()).isEqualTo("Clinic Corp");
         assertThat(saved.taxCode()).isEqualTo("TAX-1");
@@ -41,7 +42,7 @@ class CreateOrganizationUseCaseTest {
     void rejectsDuplicateOrganizationCodeBeforeInsert() {
         UUID existingId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         InMemoryOrganizations organizations = new InMemoryOrganizations();
-        organizations.save(Organization.create(existingId, "ORG-01", "Clinic Corp", "Contact", "0900000000"));
+        organizations.save(Organization.create(new OrganizationId(existingId), "ORG-01", "Clinic Corp", "Contact", "0900000000"));
         CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, UUID::randomUUID);
 
         assertThatThrownBy(() -> useCase.execute(new CreateOrganizationCommand("ORG-01", "Other Org", null, null,
@@ -49,10 +50,10 @@ class CreateOrganizationUseCaseTest {
     }
 
     private static final class InMemoryOrganizations implements OrganizationRepository {
-        private final Map<UUID, Organization> organizations = new HashMap<>();
+        private final Map<OrganizationId, Organization> organizations = new HashMap<>();
 
         @Override
-        public Optional<Organization> findById(UUID id) { return Optional.ofNullable(organizations.get(id)); }
+        public Optional<Organization> findById(OrganizationId id) { return Optional.ofNullable(organizations.get(id)); }
         @Override
         public Optional<Organization> findByCode(String code) {
             return organizations.values().stream().filter(organization -> organization.code().equals(code)).findFirst();

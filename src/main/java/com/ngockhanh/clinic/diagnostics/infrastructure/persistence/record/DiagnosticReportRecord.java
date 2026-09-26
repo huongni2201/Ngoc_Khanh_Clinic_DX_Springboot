@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.diagnostics.infrastructure.persistence.record;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record DiagnosticReportRecord(
@@ -16,9 +16,9 @@ public record DiagnosticReportRecord(
         UUID supersedesReportId,
         UUID authorStaffId,
         UUID verifiedByStaffId,
-        OffsetDateTime finalizedAt,
-        OffsetDateTime createdAt,
-        OffsetDateTime releasedToPatientAt,
+        Instant finalizedAt,
+        Instant createdAt,
+        Instant releasedToPatientAt,
         UUID releasedToPatientByUserId
 ) {
 }

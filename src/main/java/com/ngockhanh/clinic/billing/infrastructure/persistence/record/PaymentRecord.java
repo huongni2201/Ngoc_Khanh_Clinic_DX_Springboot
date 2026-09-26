@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.billing.infrastructure.persistence.record;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 public record PaymentRecord(
@@ -12,7 +12,7 @@ public record PaymentRecord(
         String status,
         String gatewayTransactionId,
         UUID confirmedByUserId,
-        OffsetDateTime confirmedAt,
-        OffsetDateTime createdAt
+        Instant confirmedAt,
+        Instant createdAt
 ) {
 }
