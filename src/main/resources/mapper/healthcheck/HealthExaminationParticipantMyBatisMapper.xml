@@ -16,6 +16,16 @@
         SELECT <include refid="columns"/> FROM public.health_examination_participants
         WHERE organization_id = #{organizationId} AND identification_number = #{identificationNumber}
     </select>
+    <select id="findByOrganizationAndCodes" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_participants
+        WHERE organization_id = #{organizationId} AND participant_code IN
+        <foreach collection="codes" item="code" open="(" separator="," close=")">#{code}</foreach>
+    </select>
+    <select id="findByOrganizationAndIdentificationNumbers" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_participants
+        WHERE organization_id = #{organizationId} AND identification_number IN
+        <foreach collection="identificationNumbers" item="number" open="(" separator="," close=")">#{number}</foreach>
+    </select>
     <insert id="insert">
         INSERT INTO public.health_examination_participants (
             id, organization_id, patient_id, participant_code, identification_number, full_name, date_of_birth, sex,

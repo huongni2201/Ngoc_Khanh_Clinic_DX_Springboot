@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.HealthExaminationImportJobMyBatisMapper">
+    <sql id="jobColumns">
+        id, health_examination_batch_id, import_type, source_file_attachment_id, status, column_mapping_json,
+        total_rows, valid_rows, warning_rows, error_rows, created_by_user_id, confirmed_by_user_id, created_at, confirmed_at
+    </sql>
+    <select id="findJobById" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportJobRecord">
+        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs WHERE id = #{id}
+    </select>
+    <select id="findJobByIdForUpdate" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportJobRecord">
+        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs WHERE id = #{id} FOR UPDATE
+    </select>
+    <select id="findRowsByJobId" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationImportRowRecord">
+        SELECT id, health_examination_import_job_id, row_number, participant_code_snapshot,
+               identification_number_snapshot, service_code_snapshot, validation_status, error_codes_json,
+               normalized_payload_json, resolved_patient_id, resolved_health_examination_participant_id,
+               resolved_batch_participant_id, resolved_batch_service_id, resolved_service_request_id
+        FROM public.health_examination_import_rows
+        WHERE health_examination_import_job_id = #{jobId}
+        ORDER BY row_number
+    </select>
+    <insert id="insertJob">
+        INSERT INTO public.health_examination_import_jobs (
+            id, health_examination_batch_id, import_type, source_file_attachment_id, status, column_mapping_json,
+            total_rows, valid_rows, warning_rows, error_rows, created_by_user_id, confirmed_by_user_id,
+            created_at, confirmed_at
+        ) VALUES (
+            #{id}, #{healthExaminationBatchId}, #{importType}, #{sourceFileAttachmentId}, #{status}, #{columnMappingJson},
+            #{totalRows}, #{validRows}, #{warningRows}, #{errorRows}, #{createdByUserId}, #{confirmedByUserId},
+            #{createdAt}, #{confirmedAt}
+        )
+    </insert>
+    <update id="updateJob">
+        UPDATE public.health_examination_import_jobs
+        SET status = #{status}, total_rows = #{totalRows}, valid_rows = #{validRows},
+            warning_rows = #{warningRows}, error_rows = #{errorRows},
+            confirmed_by_user_id = #{confirmedByUserId}, confirmed_at = #{confirmedAt}
+        WHERE id = #{id}
+    </update>
+    <insert id="insertRow">
+        INSERT INTO public.health_examination_import_rows (
+            id, health_examination_import_job_id, row_number, participant_code_snapshot,
+            identification_number_snapshot, service_code_snapshot, validation_status, error_codes_json,
+            normalized_payload_json, resolved_patient_id, resolved_health_examination_participant_id,
+            resolved_batch_participant_id, resolved_batch_service_id, resolved_service_request_id
+        ) VALUES (
+            #{id}, #{healthExaminationImportJobId}, #{rowNumber}, #{participantCodeSnapshot},
+            #{identificationNumberSnapshot}, #{serviceCodeSnapshot}, #{validationStatus}, #{errorCodesJson},
+            #{normalizedPayloadJson}, #{resolvedPatientId}, #{resolvedHealthExaminationParticipantId},
+            #{resolvedBatchParticipantId}, #{resolvedBatchServiceId}, #{resolvedServiceRequestId}
+        )
+    </insert>
+    <update id="updateRow">
+        UPDATE public.health_examination_import_rows
+        SET participant_code_snapshot = #{participantCodeSnapshot},
+            identification_number_snapshot = #{identificationNumberSnapshot},
+            validation_status = #{validationStatus}, error_codes_json = #{errorCodesJson},
+            normalized_payload_json = #{normalizedPayloadJson},
+            resolved_health_examination_participant_id = #{resolvedHealthExaminationParticipantId},
+            resolved_batch_participant_id = #{resolvedBatchParticipantId}
+        WHERE id = #{id} AND health_examination_import_job_id = #{healthExaminationImportJobId}
+    </update>
+</mapper>

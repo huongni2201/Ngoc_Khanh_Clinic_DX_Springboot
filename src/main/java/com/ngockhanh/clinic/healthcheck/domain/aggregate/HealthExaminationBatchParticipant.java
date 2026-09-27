@@ -19,10 +19,15 @@ public final class HealthExaminationBatchParticipant {
     private final UUID batchId;
     private final UUID healthExaminationParticipantId;
     private final AdministrativeSnapshot rosterSnapshot;
+    private final String participantCodeSnapshot;
+    private final String departmentSnapshot;
+    private final String jobTitleSnapshot;
+    private final String occupationSnapshot;
     private final Map<UUID, HealthExaminationBatchParticipantService> assignments = new HashMap<>();
 
     private HealthExaminationBatchParticipant(HealthExaminationBatchParticipantId id, UUID batchId, UUID healthExaminationParticipantId,
-                                             AdministrativeSnapshot rosterSnapshot) {
+                                             AdministrativeSnapshot rosterSnapshot, String participantCodeSnapshot,
+                                             String departmentSnapshot, String jobTitleSnapshot, String occupationSnapshot) {
         if (id == null || batchId == null || healthExaminationParticipantId == null || rosterSnapshot == null) {
             throw new IllegalArgumentException("Invalid health-examination batch participant");
         }
@@ -30,12 +35,25 @@ public final class HealthExaminationBatchParticipant {
         this.batchId = batchId;
         this.healthExaminationParticipantId = healthExaminationParticipantId;
         this.rosterSnapshot = rosterSnapshot;
+        this.participantCodeSnapshot = participantCodeSnapshot;
+        this.departmentSnapshot = departmentSnapshot;
+        this.jobTitleSnapshot = jobTitleSnapshot;
+        this.occupationSnapshot = occupationSnapshot;
     }
 
     public static HealthExaminationBatchParticipant create(HealthExaminationBatchParticipantId id, UUID batchId,
                                                            UUID healthExaminationParticipantId,
                                                            AdministrativeSnapshot rosterSnapshot) {
-        return new HealthExaminationBatchParticipant(id, batchId, healthExaminationParticipantId, rosterSnapshot);
+        return create(id, batchId, healthExaminationParticipantId, rosterSnapshot, null, null, null, null);
+    }
+
+    public static HealthExaminationBatchParticipant create(HealthExaminationBatchParticipantId id, UUID batchId,
+                                                           UUID healthExaminationParticipantId,
+                                                           AdministrativeSnapshot rosterSnapshot,
+                                                           String participantCode, String departmentName,
+                                                           String jobTitle, String occupation) {
+        return new HealthExaminationBatchParticipant(id, batchId, healthExaminationParticipantId, rosterSnapshot,
+                participantCode, departmentName, jobTitle, occupation);
     }
 
     public static HealthExaminationBatchParticipant restore(HealthExaminationBatchParticipantId id, UUID batchId,
@@ -43,8 +61,17 @@ public final class HealthExaminationBatchParticipant {
                                                             AdministrativeSnapshot snapshot,
                                                             List<HealthExaminationBatchParticipantService> assignments) {
         if (assignments == null) throw new IllegalArgumentException("Invalid persisted batch participant");
-        HealthExaminationBatchParticipant participant = new HealthExaminationBatchParticipant(
-                id, batchId, healthExaminationParticipantId, snapshot);
+        return restore(id, batchId, healthExaminationParticipantId, snapshot, null, null, null, null, assignments);
+    }
+
+    public static HealthExaminationBatchParticipant restore(HealthExaminationBatchParticipantId id, UUID batchId,
+                                                            UUID healthExaminationParticipantId,
+                                                            AdministrativeSnapshot snapshot, String participantCode,
+                                                            String departmentName, String jobTitle, String occupation,
+                                                            List<HealthExaminationBatchParticipantService> assignments) {
+        if (assignments == null) throw new IllegalArgumentException("Invalid persisted batch participant");
+        HealthExaminationBatchParticipant participant = new HealthExaminationBatchParticipant(id, batchId,
+                healthExaminationParticipantId, snapshot, participantCode, departmentName, jobTitle, occupation);
         for (HealthExaminationBatchParticipantService assignment : assignments) {
             if (assignment == null || participant.assignments.putIfAbsent(assignment.batchServiceId(), assignment) != null) {
                 throw new IllegalArgumentException("Invalid persisted assignment list");
@@ -94,5 +121,9 @@ public final class HealthExaminationBatchParticipant {
     public UUID batchId() { return batchId; }
     public UUID healthExaminationParticipantId() { return healthExaminationParticipantId; }
     public AdministrativeSnapshot rosterSnapshot() { return rosterSnapshot; }
+    public String participantCodeSnapshot() { return participantCodeSnapshot; }
+    public String departmentSnapshot() { return departmentSnapshot; }
+    public String jobTitleSnapshot() { return jobTitleSnapshot; }
+    public String occupationSnapshot() { return occupationSnapshot; }
     public List<HealthExaminationBatchParticipantService> assignments() { return List.copyOf(assignments.values()); }
 }

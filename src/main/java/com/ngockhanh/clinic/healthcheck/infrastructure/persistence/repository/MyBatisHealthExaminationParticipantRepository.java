@@ -2,6 +2,8 @@ package com.ngockhanh.clinic.healthcheck.infrastructure.persistence.repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Collection;
+import java.util.List;
 
 import org.springframework.stereotype.Repository;
 
@@ -38,6 +40,23 @@ public final class MyBatisHealthExaminationParticipantRepository implements Heal
             UUID organizationId, IdentificationNumber identificationNumber) {
         return Optional.ofNullable(converter.toDomain(
                 mapper.findByOrganizationAndIdentificationNumber(organizationId, identificationNumber.value())));
+    }
+
+    @Override
+    public List<HealthExaminationParticipant> findByOrganizationAndCodes(UUID organizationId,
+                                                                          Collection<String> participantCodes) {
+        if (participantCodes.isEmpty()) return List.of();
+        return mapper.findByOrganizationAndCodes(organizationId, participantCodes).stream()
+                .map(converter::toDomain).toList();
+    }
+
+    @Override
+    public List<HealthExaminationParticipant> findByOrganizationAndIdentificationNumbers(
+            UUID organizationId, Collection<IdentificationNumber> identificationNumbers) {
+        if (identificationNumbers.isEmpty()) return List.of();
+        List<String> values = identificationNumbers.stream().map(IdentificationNumber::value).toList();
+        return mapper.findByOrganizationAndIdentificationNumbers(organizationId, values).stream()
+                .map(converter::toDomain).toList();
     }
 
     @Override

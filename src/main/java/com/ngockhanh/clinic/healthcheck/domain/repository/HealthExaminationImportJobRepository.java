@@ -7,5 +7,6 @@ import java.util.Optional;
 
 public interface HealthExaminationImportJobRepository {
     Optional<HealthExaminationImportJob> findById(UUID id);
+    Optional<HealthExaminationImportJob> findByIdForUpdate(UUID id);
     void save(HealthExaminationImportJob job);
 }

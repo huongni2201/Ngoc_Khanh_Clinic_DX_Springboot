@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.BatchParticipantSummaryMyBatisMapper">
+    <select id="findByBatch" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.BatchParticipantSummaryRecord">
+        SELECT id AS batch_participant_id, health_examination_participant_id AS participant_id,
+               participant_code_snapshot AS participant_code, department_snapshot AS department_name,
+               job_title_snapshot, occupation_snapshot AS occupation, administrative_snapshot_json,
+               status, created_at
+        FROM public.health_examination_batch_participants
+        WHERE health_examination_batch_id = #{batchId}
+        ORDER BY created_at, id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="countByBatch" resultType="long">
+        SELECT count(*) FROM public.health_examination_batch_participants
+        WHERE health_examination_batch_id = #{batchId}
+    </select>
+</mapper>

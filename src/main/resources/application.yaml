@@ -1,7 +1,15 @@
 spring:
   application:
     name: ngoc_khanh_clinic_backend
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
 mybatis:
-  mapper-locations: classpath*:com/ngockhanh/clinic/**/infrastructure/persistence/mapper/*.xml
+  mapper-locations: classpath*:mapper/**/*.xml
   type-handlers-package: com.ngockhanh.clinic.shared.infrastructure.mybatis
   map-underscore-to-camel-case: true
+clinic:
+  file-storage:
+    local-root: ${NKC_LOCAL_FILE_STORAGE_ROOT:var/clinic/file-storage}
+    encryption-key: ${NKC_FILE_ENCRYPTION_KEY:}

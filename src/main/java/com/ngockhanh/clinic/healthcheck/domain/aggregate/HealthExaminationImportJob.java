@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
 
 import com.ngockhanh.clinic.healthcheck.domain.enums.ImportStatus;
 import com.ngockhanh.clinic.healthcheck.domain.enums.ImportType;
@@ -15,10 +16,17 @@ public final class HealthExaminationImportJob {
     private final UUID id;
     private final UUID batchId;
     private final ImportType type;
+    private final UUID sourceFileAttachmentId;
+    private final UUID createdByUserId;
+    private final Instant createdAt;
     private final Map<Integer, HealthExaminationImportRow> rows = new HashMap<>();
     private ImportStatus status;
+    private UUID confirmedByUserId;
+    private Instant confirmedAt;
 
-    private HealthExaminationImportJob(UUID id, UUID batchId, ImportType type, ImportStatus status) {
+    private HealthExaminationImportJob(UUID id, UUID batchId, ImportType type, ImportStatus status,
+                                       UUID sourceFileAttachmentId, UUID createdByUserId, Instant createdAt,
+                                       UUID confirmedByUserId, Instant confirmedAt) {
         if (id == null || batchId == null || type == null || status == null) {
             throw new IllegalArgumentException("Invalid import job");
         }
@@ -26,16 +34,47 @@ public final class HealthExaminationImportJob {
         this.batchId = batchId;
         this.type = type;
         this.status = status;
+        this.sourceFileAttachmentId = sourceFileAttachmentId;
+        this.createdByUserId = createdByUserId;
+        this.createdAt = createdAt;
+        this.confirmedByUserId = confirmedByUserId;
+        this.confirmedAt = confirmedAt;
     }
 
     public static HealthExaminationImportJob create(UUID id, UUID batchId, ImportType type) {
-        return new HealthExaminationImportJob(id, batchId, type, ImportStatus.UPLOADED);
+        return new HealthExaminationImportJob(id, batchId, type, ImportStatus.UPLOADED, null, null, null, null, null);
+    }
+
+    public static HealthExaminationImportJob create(UUID id, UUID batchId, ImportType type,
+                                                     UUID sourceFileAttachmentId, UUID createdByUserId,
+                                                     Instant createdAt) {
+        if (sourceFileAttachmentId == null || createdByUserId == null || createdAt == null) {
+            throw new IllegalArgumentException("Import job audit and source metadata are required");
+        }
+        return new HealthExaminationImportJob(id, batchId, type, ImportStatus.UPLOADED,
+                sourceFileAttachmentId, createdByUserId, createdAt, null, null);
     }
 
     public static HealthExaminationImportJob restore(UUID id, UUID batchId, ImportType type, ImportStatus status,
                                                List<HealthExaminationImportRow> rows) {
         if (rows == null) throw new IllegalArgumentException("Invalid persisted import job");
-        HealthExaminationImportJob job = new HealthExaminationImportJob(id, batchId, type, status);
+        HealthExaminationImportJob job = new HealthExaminationImportJob(id, batchId, type, status,
+                null, null, null, null, null);
+        for (HealthExaminationImportRow row : rows) {
+            if (row == null || job.rows.putIfAbsent(row.rowNumber(), row) != null) {
+                throw new IllegalArgumentException("Invalid persisted import row list");
+            }
+        }
+        return job;
+    }
+
+    public static HealthExaminationImportJob restore(UUID id, UUID batchId, ImportType type, ImportStatus status,
+                                                      UUID sourceFileAttachmentId, UUID createdByUserId,
+                                                      Instant createdAt, UUID confirmedByUserId, Instant confirmedAt,
+                                                      List<HealthExaminationImportRow> rows) {
+        if (rows == null) throw new IllegalArgumentException("Invalid persisted import job");
+        HealthExaminationImportJob job = new HealthExaminationImportJob(id, batchId, type, status,
+                sourceFileAttachmentId, createdByUserId, createdAt, confirmedByUserId, confirmedAt);
         for (HealthExaminationImportRow row : rows) {
             if (row == null || job.rows.putIfAbsent(row.rowNumber(), row) != null) {
                 throw new IllegalArgumentException("Invalid persisted import row list");
@@ -66,6 +105,13 @@ public final class HealthExaminationImportJob {
         status = rows.values().stream().anyMatch(row -> !row.valid()) ? ImportStatus.PARTIAL : ImportStatus.CONFIRMED;
     }
 
+    public void confirm(UUID actorUserId, Instant confirmedAt) {
+        if (actorUserId == null || confirmedAt == null) throw new IllegalArgumentException("Confirmation audit is required");
+        confirm();
+        this.confirmedByUserId = actorUserId;
+        this.confirmedAt = confirmedAt;
+    }
+
     public List<HealthExaminationImportRow> confirmableRosterRows() {
         if (type != ImportType.PARTICIPANT_LIST || !isImportReviewed()) {
             throw new DomainRuleViolation("Roster rows are not validated");
@@ -90,6 +136,11 @@ public final class HealthExaminationImportJob {
     public UUID batchId() { return batchId; }
     public ImportType type() { return type; }
     public ImportStatus status() { return status; }
+    public UUID sourceFileAttachmentId() { return sourceFileAttachmentId; }
+    public UUID createdByUserId() { return createdByUserId; }
+    public UUID confirmedByUserId() { return confirmedByUserId; }
+    public Instant createdAt() { return createdAt; }
+    public Instant confirmedAt() { return confirmedAt; }
     public boolean isConfirmed() { return status == ImportStatus.CONFIRMED || status == ImportStatus.PARTIAL; }
     public List<HealthExaminationImportRow> rows() {
         List<HealthExaminationImportRow> orderedRows = new ArrayList<>(rows.values());
