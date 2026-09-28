@@ -1,4 +1,15 @@
 spring:
+  flyway:
+    enabled: false
+  aop:
+    proxy-target-class: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      connect-timeout: 2s
+      timeout: 2s
   application:
     name: ngoc_khanh_clinic_backend
   servlet:
@@ -10,6 +21,8 @@ mybatis:
   type-handlers-package: com.ngockhanh.clinic.shared.infrastructure.mybatis
   map-underscore-to-camel-case: true
 clinic:
+  auth:
+    jwt-key: ${NKC_AUTH_JWT_KEY:rgWUUNR6X8P7GV6SGioKc6FvG4Ax2K5IFFr7p1wka2s}
   file-storage:
     local-root: ${NKC_LOCAL_FILE_STORAGE_ROOT:var/clinic/file-storage}
     encryption-key: ${NKC_FILE_ENCRYPTION_KEY:}

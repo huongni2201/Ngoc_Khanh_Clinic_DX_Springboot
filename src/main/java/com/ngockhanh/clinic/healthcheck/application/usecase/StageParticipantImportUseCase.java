@@ -42,7 +42,7 @@ import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.infrastructure.id.IdGenerator;
 
 @Service
-public final class StageParticipantImportUseCase {
+public class StageParticipantImportUseCase {
     private static final int MAX_FILE_BYTES = 20 * 1024 * 1024;
     private static final String XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 

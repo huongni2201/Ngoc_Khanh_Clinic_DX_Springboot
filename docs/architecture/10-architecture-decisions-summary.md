@@ -119,3 +119,10 @@ result release semantics
 corporate repricing model
 prescription versioning
 ```
+
+## Staff authentication addition
+
+See [ADR-0008](../adr/0008-staff-credentials-and-server-side-sessions.md):
+nullable staff credentials replace provider/subject identifiers; JWT snapshots
+stay in Redis and browsers receive opaque cookies. This supersedes the credential
+representation in the baseline without implementing business RBAC or patient login.

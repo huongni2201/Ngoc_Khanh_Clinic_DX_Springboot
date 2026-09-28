@@ -11,7 +11,7 @@ import com.ngockhanh.clinic.healthcheck.domain.repository.HealthExaminationImpor
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 
 @Service
-public final class GetParticipantImportPreviewUseCase {
+public class GetParticipantImportPreviewUseCase {
     private final ParticipantImportBatchQuery batchQuery;
     private final HealthExaminationImportJobRepository importJobRepository;
 

@@ -26,7 +26,7 @@ class PostgreSqlMigrationIntegrationTest {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -61,7 +61,8 @@ class PostgreSqlMigrationIntegrationTest {
         assertColumnType(jdbcTemplate, "diagnostic_reports", "released_to_patient_by_user_id", "uuid");
         assertThat(countRows(jdbcTemplate,
                 "select count(*) from information_schema.columns "
-                        + "where table_schema = 'public' and data_type = 'timestamp without time zone'"))
+                        + "where table_schema = 'public' and table_name <> 'flyway_schema_history' "
+                        + "and data_type = 'timestamp without time zone'"))
                 .isZero();
         assertForeignKey(jdbcTemplate, "lab_results", "fk_lab_results_released_to_patient_by_user_id");
         assertForeignKey(jdbcTemplate, "diagnostic_reports", "fk_diagnostic_reports_released_to_patient_by_user_id");
@@ -73,7 +74,7 @@ class PostgreSqlMigrationIntegrationTest {
         assertThat(countRows(jdbcTemplate,
                 "select count(*) from information_schema.columns where table_schema = 'public' "
                         + "and column_name like 'identification_number%'"))
-                .isEqualTo(6);
+                .isEqualTo(9);
         assertThat(countRows(jdbcTemplate,
                 "select count(*) from information_schema.columns where table_schema = 'public' "
                         + "and column_name like 'cccd%'"))

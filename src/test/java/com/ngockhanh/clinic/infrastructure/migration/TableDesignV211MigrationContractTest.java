@@ -42,12 +42,14 @@ class TableDesignV211MigrationContractTest {
     );
 
     @Test
-    void freshInstallUsesOneVersionedMigration() throws IOException {
+    void freshInstallUsesCurrentVersionedMigrations() throws IOException {
         try (Stream<Path> migrations = Files.list(Path.of("src/main/resources/db/migration"))) {
             assertThat(migrations
                     .map(path -> path.getFileName().toString())
                     .filter(name -> name.matches("V\\d+__.+\\.sql")))
-                    .containsExactly("V001__create_final_schema.sql");
+                    .containsExactlyInAnyOrder("V001__create_final_schema.sql",
+                            "V002__store_batch_employee_administrative_snapshot_as_columns.sql",
+                            "V003__update_users_credentials.sql");
         }
     }
 

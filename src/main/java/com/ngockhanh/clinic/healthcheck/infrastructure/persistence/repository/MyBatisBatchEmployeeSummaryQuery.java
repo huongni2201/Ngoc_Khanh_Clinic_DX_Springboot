@@ -9,6 +9,7 @@ import com.ngockhanh.clinic.healthcheck.api.response.EmployeeListResponse;
 import com.ngockhanh.clinic.healthcheck.application.port.BatchEmployeeSummaryQuery;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.AdministrativeSnapshot;
 import com.ngockhanh.clinic.healthcheck.domain.valueobject.IdentificationNumber;
+import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.converter.AdministrativeSnapshotResponseConverter;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.BatchEmployeeSummaryMyBatisMapper;
 import com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.BatchEmployeeSummaryRecord;
 
@@ -43,7 +44,8 @@ public final class MyBatisBatchEmployeeSummaryQuery implements BatchEmployeeSumm
                     record.addressDetailSnapshot(), record.administrativeOccupationSnapshot(),
                     record.workplaceOrSchoolSnapshot(), record.healthExaminationReasonSnapshot());
             return new EmployeeListResponse(record.batchEmployeeId(), record.employeeId(), record.employeeCode(),
-                    record.departmentName(), record.jobTitle(), record.occupation(), snapshot, record.status(), record.createdAt());
+                    record.departmentName(), record.jobTitle(), record.occupation(),
+                    AdministrativeSnapshotResponseConverter.from(snapshot), record.status(), record.createdAt());
         } catch (RuntimeException failure) {
             throw new IllegalStateException("Unable to map stored employee snapshot", failure);
         }
