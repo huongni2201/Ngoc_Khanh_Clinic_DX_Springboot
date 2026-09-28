@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.BatchEmployeeSummaryMyBatisMapper">
+    <sql id="employeeSearchFilter">
+        AND (
+            CAST(#{searchPattern} AS text) IS NULL
+            OR full_name_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
+            OR identification_number_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
+            OR phone_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
+        )
+    </sql>
+    <select id="findByBatch" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.BatchEmployeeSummaryRecord">
+        SELECT id AS batch_employee_id, health_examination_participant_id AS employee_id,
+               participant_code_snapshot AS employee_code, department_snapshot AS department_name,
+               job_title_snapshot, occupation_snapshot AS occupation, full_name_snapshot,
+               date_of_birth_snapshot, sex_snapshot, identification_number_snapshot,
+               identification_number_issue_date_snapshot, identification_number_issue_place_snapshot,
+               ethnicity_snapshot, subject_type_snapshot, payer_source_snapshot, blood_group_snapshot,
+               phone_snapshot, province_snapshot, ward_snapshot, address_detail_snapshot,
+               administrative_occupation_snapshot, workplace_or_school_snapshot, health_examination_reason_snapshot,
+               status, created_at
+        FROM public.health_examination_batch_participants
+        WHERE health_examination_batch_id = #{batchId}
+        <include refid="employeeSearchFilter"/>
+        ORDER BY
+        <choose>
+            <when test="sortType == 'employeeId'">health_examination_participant_id</when>
+            <when test="sortType == 'employeeCode'">participant_code_snapshot</when>
+            <when test="sortType == 'fullName'">full_name_snapshot</when>
+            <when test="sortType == 'departmentName'">department_snapshot</when>
+            <when test="sortType == 'jobTitle'">job_title_snapshot</when>
+            <when test="sortType == 'occupation'">occupation_snapshot</when>
+            <when test="sortType == 'status'">status</when>
+            <when test="sortType == 'createdAt'">created_at</when>
+            <otherwise>id</otherwise>
+        </choose>
+        <choose>
+            <when test="sortBy != null and sortBy == 'DESC'">DESC</when>
+            <otherwise>ASC</otherwise>
+        </choose>
+        , id ASC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="countByBatch" resultType="long">
+        SELECT count(*) FROM public.health_examination_batch_participants
+        WHERE health_examination_batch_id = #{batchId}
+        <include refid="employeeSearchFilter"/>
+    </select>
+</mapper>

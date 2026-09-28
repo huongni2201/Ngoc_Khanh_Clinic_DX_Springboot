@@ -4,14 +4,13 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-public record HealthExaminationBatchParticipantRecord(
-        UUID id,
-        UUID healthExaminationBatchId,
-        UUID healthExaminationParticipantId,
-        String participantCodeSnapshot,
-        String departmentSnapshot,
-        String jobTitleSnapshot,
-        String occupationSnapshot,
+public record BatchEmployeeSummaryRecord(
+        UUID batchEmployeeId,
+        UUID employeeId,
+        String employeeCode,
+        String departmentName,
+        String jobTitle,
+        String occupation,
         String fullNameSnapshot,
         LocalDate dateOfBirthSnapshot,
         String sexSnapshot,
@@ -30,6 +29,5 @@ public record HealthExaminationBatchParticipantRecord(
         String workplaceOrSchoolSnapshot,
         String healthExaminationReasonSnapshot,
         String status,
-        Instant createdAt
-) {
+        Instant createdAt) {
 }

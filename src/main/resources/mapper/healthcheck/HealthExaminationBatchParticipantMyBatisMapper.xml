@@ -3,7 +3,13 @@
 <mapper namespace="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper">
     <sql id="columns">
         id, health_examination_batch_id, health_examination_participant_id, participant_code_snapshot,
-        department_snapshot, job_title_snapshot, occupation_snapshot, administrative_snapshot_json, status, created_at
+        department_snapshot, job_title_snapshot, occupation_snapshot, full_name_snapshot,
+        date_of_birth_snapshot, sex_snapshot, identification_number_snapshot,
+        identification_number_issue_date_snapshot, identification_number_issue_place_snapshot,
+        ethnicity_snapshot, subject_type_snapshot, payer_source_snapshot, blood_group_snapshot,
+        phone_snapshot, province_snapshot, ward_snapshot, address_detail_snapshot,
+        administrative_occupation_snapshot, workplace_or_school_snapshot, health_examination_reason_snapshot,
+        status, created_at
     </sql>
     <select id="findById" resultType="com.ngockhanh.clinic.healthcheck.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
         SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE id = #{id}
@@ -27,10 +33,21 @@
     <insert id="insert">
         INSERT INTO public.health_examination_batch_participants (
             id, health_examination_batch_id, health_examination_participant_id, participant_code_snapshot,
-            department_snapshot, job_title_snapshot, occupation_snapshot, administrative_snapshot_json, status, created_at
+            department_snapshot, job_title_snapshot, occupation_snapshot, full_name_snapshot,
+            date_of_birth_snapshot, sex_snapshot, identification_number_snapshot,
+            identification_number_issue_date_snapshot, identification_number_issue_place_snapshot,
+            ethnicity_snapshot, subject_type_snapshot, payer_source_snapshot, blood_group_snapshot,
+            phone_snapshot, province_snapshot, ward_snapshot, address_detail_snapshot,
+            administrative_occupation_snapshot, workplace_or_school_snapshot, health_examination_reason_snapshot,
+            status, created_at
         ) VALUES (
             #{id}, #{healthExaminationBatchId}, #{healthExaminationParticipantId}, #{participantCodeSnapshot},
-            #{departmentSnapshot}, #{jobTitleSnapshot}, #{occupationSnapshot}, #{administrativeSnapshotJson},
+            #{departmentSnapshot}, #{jobTitleSnapshot}, #{occupationSnapshot}, #{fullNameSnapshot},
+            #{dateOfBirthSnapshot}, #{sexSnapshot}, #{identificationNumberSnapshot},
+            #{identificationNumberIssueDateSnapshot}, #{identificationNumberIssuePlaceSnapshot},
+            #{ethnicitySnapshot}, #{subjectTypeSnapshot}, #{payerSourceSnapshot}, #{bloodGroupSnapshot},
+            #{phoneSnapshot}, #{provinceSnapshot}, #{wardSnapshot}, #{addressDetailSnapshot},
+            #{administrativeOccupationSnapshot}, #{workplaceOrSchoolSnapshot}, #{healthExaminationReasonSnapshot},
             #{status}, CURRENT_TIMESTAMP
         )
     </insert>
