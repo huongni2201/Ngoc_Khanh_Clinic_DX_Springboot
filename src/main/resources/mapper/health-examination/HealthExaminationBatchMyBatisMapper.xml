@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchMyBatisMapper">
+    <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">
+        SELECT id, organization_id, batch_code, batch_name, start_date, end_date, reason, payer_type,
+               examination_site_type, examination_site_name, examination_site_address,
+               master_template_version_id, status, finalized_at, closed_at, created_by_user_id,
+               created_at, updated_at
+        FROM public.health_examination_batches
+        WHERE id = #{id}
+    </select>
+</mapper>

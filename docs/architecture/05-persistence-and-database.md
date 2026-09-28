@@ -48,7 +48,10 @@ Never interpolate user data with `${...}`.
 
 ## 3. Persistence records
 
-Persistence records represent database shape.
+Each file in `infrastructure/persistence/record` represents rows of one existing
+table. Reuse that table record across queries. No summary, reference, join-result,
+or screen-specific record files belong here. This table mapping uses MyBatis;
+it does not introduce JPA or Hibernate.
 
 They may use:
 
@@ -74,6 +77,12 @@ PersistenceRecord -> Domain restore(...)
 ```
 
 Mapping must preserve all lifecycle and concurrency fields.
+
+Repository adapters coordinate mapper calls and pass records to converters.
+Converters never execute SQL. Restore aggregates with their required owned state;
+use explicit domain read contracts for summaries rather than incomplete aggregates.
+Reuse existing files: a private nested converter in the repository is permitted,
+and read contract types may be nested in their owning repository interface.
 
 ## 5. Migration policy
 

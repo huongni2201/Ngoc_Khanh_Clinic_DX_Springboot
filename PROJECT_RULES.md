@@ -113,7 +113,6 @@ Owns:
 ```text
 REST controllers
 request DTOs
-response DTOs
 HTTP mapping
 transport validation
 ```
@@ -131,6 +130,7 @@ transaction boundaries
 authorization orchestration where applicable
 cross-aggregate orchestration
 mapping between transport/application/domain models
+response DTOs in application/response
 ```
 
 ### `domain`
@@ -268,7 +268,18 @@ patient/infrastructure/persistence/mapper/PatientMapper.java
 patient/infrastructure/persistence/repository/MyBatisPatientRepository.java
 ```
 
-`PatientRecord` may reflect SQL structure.
+Each file in `infrastructure/persistence/record` represents rows of exactly one
+existing database table. Reuse its table record; do not add summary, reference,
+join-result, or screen-specific record files here. This convention does not add JPA.
+
+Repository adapters coordinate SQL mapper calls. Converters map table records to
+domain aggregates, entities, or explicit read contracts, and back. Converters do
+not query the database. Restore aggregates with all required owned state; use read
+contracts instead of incomplete aggregates for read-only summaries.
+
+Reuse existing files/folders. A private converter nested in its repository and a
+read contract nested in its owning interface are allowed when needed to avoid new
+files. Do not generate new files or folders without explicit authorization.
 
 `Patient` should reflect business behavior and invariants.
 
@@ -502,6 +513,12 @@ Do not expose persistence table shapes directly.
 
 HTTP/API DTOs are transport contracts, not domain entities.
 
+Structured input belongs in `api/request`, then maps to `application/command` or
+`application/query`. Simple path IDs may remain scalar parameters. Use cases return
+payload DTOs from `application/response`; controllers use those directly and add
+only HTTP status and the shared envelope. No domain-to-response mapping belongs in
+controllers. Commands with no result may return `void`.
+
 Use consistent pagination, validation, and error shapes.
 
 Never return HTTP 200 for failed business commands.
@@ -649,6 +666,16 @@ Do not put secret/token material or unnecessarily complete clinical payloads in 
 ## 27. Logging
 
 Use structured, concise logs.
+
+Controllers and application use cases must use `@Slf4j` and parameterized logs.
+Use DEBUG for request/read handling and INFO for meaningful mutations. Log only
+identifiers/counts, not request, response, command/query objects or search text.
+Logs inside a transaction must not claim it has committed. Logs do not replace audit.
+
+Outside domain, prefer Lombok `@RequiredArgsConstructor` for final dependencies and
+Lombok for useful DTO boilerplate. Existing Java records do not need redundant
+constructors. Avoid generated `toString()` on sensitive DTOs. Domain may use Lombok
+but must preserve invariant-enforcing constructors, factories, and business methods.
 
 Never log full:
 

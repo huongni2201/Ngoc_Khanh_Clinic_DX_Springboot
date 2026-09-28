@@ -42,7 +42,7 @@ class TableDesignV211MigrationContractTest {
     );
 
     @Test
-    void freshInstallUsesCurrentVersionedMigrations() throws IOException {
+    void freshInstallUsesTheVersionedMigrationsForTheCurrentSchema() throws IOException {
         try (Stream<Path> migrations = Files.list(Path.of("src/main/resources/db/migration"))) {
             assertThat(migrations
                     .map(path -> path.getFileName().toString())

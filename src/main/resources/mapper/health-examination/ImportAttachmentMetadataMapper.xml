@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.ImportAttachmentMetadataMapper">
+    <insert id="insert">
+        INSERT INTO public.file_attachments (
+            id, entity_type, entity_id, document_type, storage_provider, storage_key,
+            file_name, mime_type, size_bytes, sha256, created_by_user_id, created_at
+        ) VALUES (
+            #{id}, 'HEALTH_EXAMINATION_IMPORT', #{importJobId}, 'PARTICIPANT_ROSTER_SOURCE', 'LOCAL_AES_GCM',
+            #{storageKey}, #{fileName}, #{mimeType}, #{sizeBytes}, #{sha256}, #{createdByUserId}, #{createdAt}
+        )
+    </insert>
+</mapper>

@@ -1,6 +1,6 @@
 # Ngọc Khánh Clinic Health Examination
 
-The `healthcheck` bounded context models adult and corporate health-examination campaigns, their validated roster, and visit-specific administrative records. It does not own clinical results, encounters, or retail billing. `healthcheck` remains the accepted technical module identifier; `Health Examination` is the canonical business term.
+The `health-examination` bounded context models adult and corporate health-examination campaigns, their validated roster, and visit-specific administrative records. It does not own clinical results, encounters, or retail billing. `health-examination` remains the accepted technical module identifier; `Health Examination` is the canonical business term.
 
 ## Corporate health examination
 
