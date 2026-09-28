@@ -39,13 +39,7 @@ class OrganizationControllerTest {
         getOrganizationUseCase = mock(GetOrganizationUseCase.class);
         updateOrganizationUseCase = mock(UpdateOrganizationUseCase.class);
         deactivateOrganizationUseCase = mock(DeactivateOrganizationUseCase.class);
-
-        controller = new OrganizationController(
-                createOrganizationUseCase,
-                getOrganizationUseCase,
-                updateOrganizationUseCase,
-                deactivateOrganizationUseCase
-        );
+        this.controller = new OrganizationController();
     }
 
     @Test

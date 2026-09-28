@@ -32,7 +32,6 @@ import com.ngockhanh.clinic.shared.web.ApiResponse;
 @RestController
 @RequestMapping("/api/v1/organizations")
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrganizationController {
 
     CreateOrganizationUseCase createOrganizationUseCase;
