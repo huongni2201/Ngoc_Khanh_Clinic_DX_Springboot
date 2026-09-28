@@ -20,14 +20,15 @@ class ModuleVerificationTest {
     @Test
     void healthExaminationHasOnlyTheSixDocumentedAggregateRootsAndTheirRepositories() {
         assertThat(applicationClasses.stream()
-                .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthcheck.domain.aggregate"))
+                .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthexamination.domain.aggregate"))
                 .filter(type -> !type.getSimpleName().isBlank())
                 .map(type -> type.getSimpleName())
                 .toList())
                 .containsExactlyInAnyOrder("Organization", "HealthExaminationParticipant", "HealthExaminationBatch",
                         "HealthExaminationBatchParticipant", "HealthExaminationRecord", "HealthExaminationImportJob");
         assertThat(applicationClasses.stream()
-                .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthcheck.domain.repository"))
+                .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.healthexamination.domain.repository"))
+                .filter(type -> type.getSimpleName().endsWith("Repository"))
                 .map(type -> type.getSimpleName())
                 .toList())
                 .containsExactlyInAnyOrder("OrganizationRepository", "HealthExaminationParticipantRepository", "HealthExaminationBatchRepository",

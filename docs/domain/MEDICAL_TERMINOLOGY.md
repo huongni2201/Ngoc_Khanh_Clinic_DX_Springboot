@@ -29,7 +29,7 @@ technical identifiers use the canonical English terms below.
 
 ## Decisions and preserved representations
 
-- `healthcheck` remains the existing bounded-context package name in this
+- `health-examination` remains the existing bounded-context package name in this
   repository because it is an accepted module identifier in the backend
   architecture. The business/domain symbols and SQL identifiers are renamed
   to `HealthExamination`; moving the entire module would be a separate module

@@ -45,7 +45,6 @@ Examples:
 IdentificationNumber
 Money
 ShsCode
-AdministrativeSnapshot
 ExaminationSite
 ```
 
@@ -67,6 +66,10 @@ Use:
 - `restore(...)` for trusted persistence reconstruction.
 
 Do not expose a public constructor that allows invalid aggregate state.
+
+Lombok is allowed when it preserves these rules. Do not generate setters, builders,
+or constructors that bypass invariant checks. Outside domain, prefer
+`@RequiredArgsConstructor` over handwritten dependency-injection constructors.
 
 ## 5. Mutation
 
