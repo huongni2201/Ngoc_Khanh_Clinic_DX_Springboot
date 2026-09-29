@@ -24,14 +24,13 @@ class CreateOrganizationUseCaseTest {
         InMemoryOrganizations organizations = new InMemoryOrganizations();
         CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, () -> id);
 
-        var result = useCase.execute(new CreateOrganizationCommand("ORG-01", "Clinic Corp", "TAX-1", "Address",
+        var result = useCase.execute(new CreateOrganizationCommand("Clinic Corp", "TAX-1", "Address",
                 "Contact", "0900000000", "Director", "Note"));
 
         assertThat(result.id()).isEqualTo(id);
         assertThat(result.name()).isEqualTo("Clinic Corp");
         assertThat(result.status()).isEqualTo("ACTIVE");
         Organization saved = organizations.findById(new AggregateId(id)).orElseThrow();
-        assertThat(saved.code()).isEqualTo("ORG-01");
         assertThat(saved.name()).isEqualTo("Clinic Corp");
         assertThat(saved.taxCode()).isEqualTo("TAX-1");
         assertThat(saved.address()).isEqualTo("Address");
@@ -41,13 +40,14 @@ class CreateOrganizationUseCaseTest {
     }
 
     @Test
-    void rejectsDuplicateOrganizationCodeBeforeInsert() {
+    void rejectsDuplicateOrganizationTaxCodeBeforeInsert() {
         UUID existingId = UUID.fromString("00000000-0000-0000-0000-000000000002");
         InMemoryOrganizations organizations = new InMemoryOrganizations();
-        organizations.save(Organization.create(new AggregateId(existingId), "ORG-01", "Clinic Corp", "Contact", "0900000000"));
+        organizations.save(Organization.create(new AggregateId(existingId), "Clinic Corp", "TAX-1", null,
+                "Contact", "0900000000", null, null));
         CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, UUID::randomUUID);
 
-        assertThatThrownBy(() -> useCase.execute(new CreateOrganizationCommand("ORG-01", "Other Org", null, null,
+        assertThatThrownBy(() -> useCase.execute(new CreateOrganizationCommand("Other Org", "TAX-1", null,
                 "Contact", "0900000000", null, null))).isInstanceOf(DuplicateOrganizationIdentity.class);
     }
 
@@ -56,10 +56,6 @@ class CreateOrganizationUseCaseTest {
 
         @Override
         public Optional<Organization> findById(AggregateId id) { return Optional.ofNullable(organizations.get(id)); }
-        @Override
-        public Optional<Organization> findByCode(String code) {
-            return organizations.values().stream().filter(organization -> organization.code().equals(code)).findFirst();
-        }
         @Override
         public Optional<Organization> findByTaxCode(String taxCode) {
             return organizations.values().stream().filter(organization -> taxCode.equals(organization.taxCode())).findFirst();

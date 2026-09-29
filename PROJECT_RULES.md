@@ -80,7 +80,7 @@ encounter
 clinical
 billing
 diagnostics
-healthcheck
+healthexamination
 document
 prescription
 notification
@@ -364,9 +364,7 @@ src/main/resources/db/migration/
 Naming:
 
 ```text
-V001__create_security_tables.sql
-V002__create_patient_tables.sql
-...
+V<version>__<description>.sql
 ```
 
 Rules:
@@ -374,6 +372,7 @@ Rules:
 - Never use application auto-DDL in production.
 - Never edit an already-applied shared migration.
 - Add a new migration for every subsequent schema change.
+- Apply the full chain in `src/main/resources/db/migration/` for fresh installations; V001 alone is not the current schema.
 - Include required FK/UK/check/index definitions in migrations.
 - Migration rollback strategy must be considered for destructive changes.
 - Destructive production data changes require explicit review.
@@ -422,7 +421,7 @@ Rules:
 - One health-check visit/record has exactly one SHS.
 - SHS is reused across the forms for that health-check record.
 - Mẫu số 03 is the master form and uses the SHS barcode.
-- Reprint reads administrative snapshot from `HealthCheckRecord`.
+- Reprint reads administrative snapshot from `HealthExaminationRecord`.
 - Updating Patient later must not mutate old health-check snapshots.
 
 Participant service selection:
@@ -430,7 +429,7 @@ Participant service selection:
 ```text
 Doctor only
 +
-subset of HealthCheckBatchService only
+subset of HealthExaminationBatchService only
 ```
 
 Front Desk must not choose per-participant examination items.
@@ -902,7 +901,7 @@ For a new backend, prefer:
 1. Foundation/config
 2. PostgreSQL 18 + Flyway
 3. global errors/security/audit primitives
-4. Patient reference module
+4. Patient
 5. Catalog
 6. Encounter
 7. Clinical
@@ -915,7 +914,7 @@ For a new backend, prefer:
 14. External integration
 ```
 
-Use `patient` as the first complete reference vertical slice before copying architectural patterns to other modules.
+Use `healthexamination` as the reference for package structure, request/command/query/response boundaries, use cases, domain repository ports, and MyBatis adapters. Apply project rules and accepted ADRs when reusing a pattern; existing code is not an exception to those rules.
 
 ---
 

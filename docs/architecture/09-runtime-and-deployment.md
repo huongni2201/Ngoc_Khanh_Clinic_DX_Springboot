@@ -73,7 +73,10 @@ start application
 run API smoke tests
 ```
 
-Fresh PostgreSQL 18 installations use the single final-schema migration. After first deployment, future schema changes append new Flyway versions.
+Fresh PostgreSQL 18 installations apply the complete versioned chain in
+`src/main/resources/db/migration/`, including migrations after V001. See
+[the current migration chain](05-persistence-and-database.md#6-current-migration-chain).
+Existing databases apply pending versions; applied migrations remain immutable.
 
 ## 6. Observability
 

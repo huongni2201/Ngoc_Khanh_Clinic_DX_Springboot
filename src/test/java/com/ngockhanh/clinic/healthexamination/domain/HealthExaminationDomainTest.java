@@ -310,7 +310,7 @@ class HealthExaminationDomainTest {
 
     @Test
     void loadedAggregatesRetainIdentityAndCorporateVisitLink() {
-        Organization company = Organization.create(id(1), "C01", "Organization", "Contact", "0900000000");
+        Organization company = Organization.create(id(1), "Organization", "Contact", "0900000000");
         HealthExaminationParticipant employee = HealthExaminationParticipant.create(id(2), id(1), "E01", IdentificationNumber.of("012345678901"), "Nguyen A", LocalDate.of(1990, 1, 1), "MALE");
         HealthExaminationBatchParticipant participant = participant(batchParticipantId(3), List.of());
         HealthExaminationRecord visit = preparedBatchRecord(id(4), ShsCode.of("SHS-4"),

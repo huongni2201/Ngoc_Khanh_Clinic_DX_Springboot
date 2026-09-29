@@ -48,7 +48,9 @@ PostgreSQL 18             SMS / LIS / PACS / etc.
 Allowed:
 
 ```text
-infrastructure -> application -> domain
+api -> application -> domain
+infrastructure -> domain (repository adapters)
+infrastructure -> application (application-port adapters)
 ```
 
 Application may depend on domain and public ports/contracts.
@@ -71,27 +73,36 @@ Each bounded context should follow:
 
 ```text
 <context>/
+├── api/
+│   ├── controller/
+│   └── request/
 ├── domain/
 │   ├── aggregate/
 │   ├── entity/
+│   ├── enums/
 │   ├── valueobject/
-│   ├── event/
-│   ├── service/
+│   ├── repository/
 │   └── exception/
 ├── application/
 │   ├── usecase/
 │   ├── command/
 │   ├── query/
 │   ├── port/
-│   └── dto/
+│   └── response/
 └── infrastructure/
-    ├── web/
-    ├── persistence/
-    ├── integration/
-    └── configuration/
+    └── persistence/
+        ├── repository/
+        ├── mapper/
+        ├── record/
+        └── converter/
 ```
 
-Do not force empty directories. Create only what the module needs.
+This structure follows `healthexamination`. Add domain events/services and infrastructure integration/configuration only when required. Do not force empty directories.
+
+Structured HTTP input maps from `api/request` to application commands/queries.
+Use cases return `application/response` payloads; controllers add HTTP status and
+the shared envelope. Domain repository ports are implemented by MyBatis adapters.
+SQL XML files live under `src/main/resources/mapper/health-examination/` for this module.
 
 ## 5. Current bounded contexts
 
@@ -103,7 +114,7 @@ encounter
 clinical
 billing
 diagnostics
-healthcheck
+healthexamination
 document
 prescription
 notification
@@ -153,13 +164,13 @@ Patient
 Health-examination corporate workflow adds:
 
 ```text
-Company
+Organization
+  -> HealthExaminationParticipant
   -> HealthExaminationBatch
       -> HealthExaminationBatchService
-      -> HealthExaminationBatchEmployee
-          -> HealthExaminationBatchEmployeeService
-          -> HealthExaminationRecord
-          -> Encounter
+      -> HealthExaminationBatchParticipant
+          -> HealthExaminationBatchParticipantService
+          -> prepared Patient + Encounter + HealthExaminationRecord/SHS
 ```
 
 ## 8. Non-goals

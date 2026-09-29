@@ -5,7 +5,6 @@ import java.util.UUID;
 
 public record OrganizationRecord(
         UUID id,
-        String organizationCode,
         String organizationName,
         String taxCode,
         String address,

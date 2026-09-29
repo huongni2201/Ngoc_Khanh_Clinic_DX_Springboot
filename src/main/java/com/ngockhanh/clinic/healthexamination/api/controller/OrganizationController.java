@@ -3,9 +3,7 @@ package com.ngockhanh.clinic.healthexamination.api.controller;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
-import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,21 +30,25 @@ import com.ngockhanh.clinic.shared.web.ApiResponse;
 @RestController
 @RequestMapping("/api/v1/organizations")
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrganizationController {
 
-    CreateOrganizationUseCase createOrganizationUseCase;
-    GetOrganizationUseCase getOrganizationUseCase;
-    UpdateOrganizationUseCase updateOrganizationUseCase;
-    DeactivateOrganizationUseCase deactivateOrganizationUseCase;
+    private final CreateOrganizationUseCase createOrganizationUseCase;
+    private final GetOrganizationUseCase getOrganizationUseCase;
+    private final UpdateOrganizationUseCase updateOrganizationUseCase;
+    private final DeactivateOrganizationUseCase deactivateOrganizationUseCase;
 
+    /**
+     * Creates a new organization.
+     *
+     * @param request organization data submitted by the client
+     * @return the created organization
+     */
     @PostMapping
     public ResponseEntity<ApiResponse<OrganizationResponse>> create(
             @Valid @RequestBody OrganizationRequest request
     ) {
         log.debug("Create organization request received");
         CreateOrganizationCommand command = CreateOrganizationCommand.builder()
-                .code(request.code())
                 .name(request.name())
                 .taxCode(request.taxCode())
                 .address(request.address())
@@ -62,6 +64,12 @@ public class OrganizationController {
                 .body(ApiResponse.success(HttpStatus.CREATED.value(), "Organization created", response));
     }
 
+    /**
+     * Retrieves an organization by its identifier.
+     *
+     * @param organizationId organization identifier
+     * @return the requested organization
+     */
     @GetMapping("/{organizationId}")
     public ResponseEntity<ApiResponse<OrganizationResponse>> get(
             @PathVariable UUID organizationId
@@ -70,6 +78,13 @@ public class OrganizationController {
         return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
     }
 
+    /**
+     * Updates an existing organization.
+     *
+     * @param organizationId organization identifier
+     * @param request updated organization data submitted by the client
+     * @return the updated organization
+     */
     @PutMapping("/{organizationId}")
     public ResponseEntity<ApiResponse<OrganizationResponse>> update(
             @PathVariable UUID organizationId,
@@ -78,7 +93,6 @@ public class OrganizationController {
         log.debug("Update organization request: organizationId={}", organizationId);
 
         UpdateOrganizationCommand command = UpdateOrganizationCommand.builder()
-                .code(request.code())
                 .name(request.name())
                 .taxCode(request.taxCode())
                 .address(request.address())
@@ -94,6 +108,12 @@ public class OrganizationController {
                 response));
     }
 
+    /**
+     * Deactivates an organization by its identifier.
+     *
+     * @param organizationId organization identifier
+     * @return an empty successful response
+     */
     @DeleteMapping("/{organizationId}")
     public ResponseEntity<ApiResponse<Void>> delete(
             @PathVariable UUID organizationId

@@ -21,11 +21,11 @@ class OrganizationCrudUseCaseTest {
     void updatesDetailsAndDeactivatesOrganization() {
         UUID id = UUID.fromString("00000000-0000-0000-0000-000000000010");
         InMemoryOrganizations organizations = new InMemoryOrganizations();
-        organizations.save(Organization.restore(new AggregateId(id), "ORG-01", "Old name", null, null,
+        organizations.save(Organization.restore(new AggregateId(id), "Old name", null, null,
                 "Contact", "0900000000", null, null, "ACTIVE", 3L));
 
         var updated = new UpdateOrganizationUseCase(organizations).execute(id,
-                new UpdateOrganizationCommand("ORG-02", "New name", "TAX-2", "Address", "New contact",
+                new UpdateOrganizationCommand("New name", "TAX-2", "Address", "New contact",
                         "0911111111", "Director", "Note"));
 
         assertThat(updated.name()).isEqualTo("New name");
@@ -44,11 +44,6 @@ class OrganizationCrudUseCaseTest {
         @Override
         public Optional<Organization> findById(AggregateId id) {
             return Optional.ofNullable(organizations.get(id));
-        }
-
-        @Override
-        public Optional<Organization> findByCode(String code) {
-            return organizations.values().stream().filter(organization -> organization.code().equals(code)).findFirst();
         }
 
         @Override

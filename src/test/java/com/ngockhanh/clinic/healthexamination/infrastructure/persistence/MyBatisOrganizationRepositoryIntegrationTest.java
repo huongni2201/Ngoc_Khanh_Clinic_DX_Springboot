@@ -46,17 +46,15 @@ class MyBatisOrganizationRepositoryIntegrationTest {
 
     @Test
     void savesAndRestoresOrganizationThroughMyBatisAgainstPostgreSql() {
-        Organization expected = Organization.create(new AggregateId(id(1)), "MYBATIS-ORG-01", "Organization", "TAX-01",
+        Organization expected = Organization.create(new AggregateId(id(1)), "Organization", "TAX-01",
                 "Address", "Contact", "0900000000", "Director", "Note");
 
         organizations.save(expected);
 
         Organization restored = organizations.findById(expected.id()).orElseThrow();
-        assertThat(restored.code()).isEqualTo(expected.code());
         assertThat(restored.name()).isEqualTo(expected.name());
         assertThat(restored.taxCode()).isEqualTo(expected.taxCode());
         assertThat(restored.address()).isEqualTo(expected.address());
-        assertThat(organizations.findByCode(expected.code())).get().extracting(Organization::id).isEqualTo(expected.id());
         assertThat(organizations.findByTaxCode(expected.taxCode())).get().extracting(Organization::id).isEqualTo(expected.id());
     }
 
@@ -64,7 +62,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     void savesReimportsAndFindsParticipantByOrganizationRosterIdentity() {
         AggregateId organizationId = new AggregateId(id(2));
         AggregateId participantId = new AggregateId(id(3));
-        organizations.save(Organization.create(organizationId, "MYBATIS-PART-ORG", "Organization", "Contact", "0900000000"));
+        organizations.save(Organization.create(organizationId, "Organization", "Contact", "0900000000"));
         HealthExaminationParticipant participant = HealthExaminationParticipant.create(participantId, organizationId, "PART-01",
                 IdentificationNumber.of("987654321098"), "Nguyen A", java.time.LocalDate.of(1990, 1, 1), "MALE",
                 "Department", "Technician", "Technician");

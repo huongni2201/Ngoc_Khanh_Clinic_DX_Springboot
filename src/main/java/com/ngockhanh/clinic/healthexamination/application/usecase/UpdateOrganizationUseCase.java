@@ -30,18 +30,18 @@ public class UpdateOrganizationUseCase {
         Organization current = organizations.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization"));
 
-        if (organizations.findByCode(command.code())
-                .filter(found -> !found.id().equals(current.id())).isPresent()
-                || (command.taxCode() != null && !command.taxCode().isBlank()
+        if (command.taxCode() != null && !command.taxCode().isBlank()
                 && organizations.findByTaxCode(command.taxCode())
-                .filter(found -> !found.id().equals(current.id())).isPresent())) {
+                .filter(found -> !found.id().equals(current.id())).isPresent()) {
             throw new DuplicateOrganizationIdentity();
         }
 
-        Organization updated = current.updateDetails(command.code(), command.name(), command.taxCode(), command.address(),
+        Organization updated = current.updateDetails(command.name(), command.taxCode(), command.address(),
                 command.contactName(), command.contactPhone(), command.contactJobTitle(), command.note());
         organizations.update(updated, current.rowVersion());
+
         log.info("Organization update persisted: organizationId={}", id);
+
         return OrganizationResponse.from(updated);
     }
 }

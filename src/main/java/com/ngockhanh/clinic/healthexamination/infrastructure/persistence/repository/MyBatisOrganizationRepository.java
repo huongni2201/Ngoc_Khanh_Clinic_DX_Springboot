@@ -24,11 +24,6 @@ public final class MyBatisOrganizationRepository implements OrganizationReposito
     }
 
     @Override
-    public Optional<Organization> findByCode(String code) {
-        return Optional.ofNullable(converter.toDomain(mapper.findByCode(code)));
-    }
-
-    @Override
     public Optional<Organization> findByTaxCode(String taxCode) {
         if (taxCode == null || taxCode.isBlank()) return Optional.empty();
         return Optional.ofNullable(converter.toDomain(mapper.findByTaxCode(taxCode)));

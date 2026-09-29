@@ -22,8 +22,10 @@ public class GetOrganizationUseCase {
     @Transactional(readOnly = true)
     public OrganizationResponse execute(UUID id) {
         if (id == null) throw new IllegalArgumentException("Organization ID is required");
+
         Organization organization = organizations.findById(AggregateId.of(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Organization"));
+
         log.debug("Organization retrieved: organizationId={}", id);
         return OrganizationResponse.from(organization);
     }

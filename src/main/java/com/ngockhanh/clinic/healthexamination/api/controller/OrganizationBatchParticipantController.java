@@ -42,7 +42,7 @@ public class OrganizationBatchParticipantController {
             @PathVariable UUID batchId,
             @Valid @ModelAttribute OrganizationBatchParticipantRequest request
     ) {
-        log.debug("List batch participants request: organizationId={}, batchId={}", organizationId, batchId);
+        log.info("List batch participants request: organizationId={}, batchId={}", organizationId, batchId);
         OrganizationBatchParticipantQuery query = OrganizationBatchParticipantQuery.builder()
                 .page(request.getPage())
                 .size(request.getSize())

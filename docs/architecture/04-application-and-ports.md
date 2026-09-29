@@ -129,7 +129,7 @@ Update together:
 
 ```text
 HealthExaminationBatchService.negotiated_unit_price
-HealthExaminationBatchEmployeeService.unit_price_snapshot
+HealthExaminationBatchParticipantService.unit_price_snapshot
 corporate ServiceRequest.unit_price_snapshot
 audit
 outbox
