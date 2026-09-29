@@ -8,9 +8,11 @@ import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
+import tools.jackson.databind.json.JsonMapper;
 
 class GlobalExceptionHandlerTest {
-    private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
+    private final GlobalExceptionHandler handler = new GlobalExceptionHandler(
+            new ApiResponseWriter(JsonMapper.builder().build()));
 
     @Test
     void mapsKnownFailuresAndHidesUnexpectedDetails() {

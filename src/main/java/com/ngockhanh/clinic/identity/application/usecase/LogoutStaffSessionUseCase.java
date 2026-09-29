@@ -5,7 +5,6 @@ import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
 import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -17,14 +16,23 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LogoutStaffSessionUseCase {
     private final SessionStore sessions;
     private final AuthAudit audit;
     private final Clock clock;
-    @Qualifier("staffAccountWriteTransaction")
     private final TransactionOperations accountWriteTransaction;
+
+    public LogoutStaffSessionUseCase(
+            SessionStore sessions,
+            AuthAudit audit,
+            Clock clock,
+            @Qualifier("staffAccountWriteTransaction") TransactionOperations accountWriteTransaction) {
+        this.sessions = sessions;
+        this.audit = audit;
+        this.clock = clock;
+        this.accountWriteTransaction = accountWriteTransaction;
+    }
 
     public void execute(LogoutStaffSessionCommand command) {
         String sessionId = singleSessionCookie(command.sessionIds());

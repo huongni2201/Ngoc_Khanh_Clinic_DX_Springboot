@@ -1,21 +1,65 @@
 package com.ngockhanh.clinic.identity.infrastructure.configuration;
 
+import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
+import com.ngockhanh.clinic.identity.application.port.Passwords;
+import com.ngockhanh.clinic.identity.application.port.SessionStore;
+import com.ngockhanh.clinic.identity.application.port.SessionTokens;
+import com.ngockhanh.clinic.identity.application.usecase.LoginStaffUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutAllStaffSessionsUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutStaffSessionUseCase;
+import com.ngockhanh.clinic.identity.domain.repository.StaffAccountRepository;
 import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
 import com.ngockhanh.clinic.identity.infrastructure.security.JwtSettings;
+import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class AuthInfrastructureConfigurationTest {
+    @Test
+    void authUseCasesSelectTheirNamedTransactionBoundaries() {
+        TransactionOperations read = mock(TransactionOperations.class);
+        TransactionOperations snapshot = mock(TransactionOperations.class);
+        TransactionOperations write = mock(TransactionOperations.class);
+
+        new ApplicationContextRunner()
+                .withUserConfiguration(
+                        LoginStaffUseCase.class,
+                        LogoutStaffSessionUseCase.class,
+                        LogoutAllStaffSessionsUseCase.class)
+                .withBean(StaffAccountRepository.class, () -> mock(StaffAccountRepository.class))
+                .withBean(AuthAudit.class, () -> mock(AuthAudit.class))
+                .withBean(Passwords.class, () -> mock(Passwords.class))
+                .withBean(SessionTokens.class, () -> mock(SessionTokens.class))
+                .withBean(SessionStore.class, () -> mock(SessionStore.class))
+                .withBean(LoginThrottle.class, () -> mock(LoginThrottle.class))
+                .withBean(StaffSessionPolicy.class,
+                        () -> new StaffSessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8)))
+                .withBean(Clock.class, Clock::systemUTC)
+                .withBean(Supplier.class, () -> (Supplier<String>) () -> "session-id")
+                .withBean("staffAccountReadTransaction", TransactionOperations.class, () -> read)
+                .withBean("staffAccountSnapshotTransaction", TransactionOperations.class, () -> snapshot)
+                .withBean("staffAccountWriteTransaction", TransactionOperations.class, () -> write)
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context).hasSingleBean(LoginStaffUseCase.class);
+                    assertThat(context).hasSingleBean(LogoutStaffSessionUseCase.class);
+                    assertThat(context).hasSingleBean(LogoutAllStaffSessionsUseCase.class);
+                });
+    }
+
     @Test
     void applicationAndAdapterSettingsKeepExistingDefaults() {
         var environment = new MockEnvironment();

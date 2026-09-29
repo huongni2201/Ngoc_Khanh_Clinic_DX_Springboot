@@ -1,14 +1,4 @@
 services:
-  redis:
-    image: redis:7.4-alpine
-    command: ["redis-server", "--maxmemory-policy", "noeviction"]
-    ports:
-      - "127.0.0.1:6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
   backend:
     build:
       context: .
@@ -42,6 +32,17 @@ services:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    command: [ "redis-server", "--maxmemory-policy", "noeviction" ]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
       retries: 10
 
 volumes:

@@ -14,7 +14,6 @@ import com.ngockhanh.clinic.identity.domain.repository.StaffAccountRepository;
 import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
 import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -29,7 +28,6 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LoginStaffUseCase {
     private final StaffAccountRepository accounts;
@@ -41,12 +39,36 @@ public class LoginStaffUseCase {
     private final StaffSessionPolicy sessionPolicy;
     private final Clock clock;
     private final Supplier<String> sessionIds;
-    @Qualifier("staffAccountReadTransaction")
     private final TransactionOperations accountReadTransaction;
-    @Qualifier("staffAccountSnapshotTransaction")
     private final TransactionOperations accountSnapshotTransaction;
-    @Qualifier("staffAccountWriteTransaction")
     private final TransactionOperations accountWriteTransaction;
+
+    public LoginStaffUseCase(
+            StaffAccountRepository accounts,
+            AuthAudit audit,
+            Passwords passwords,
+            SessionTokens tokens,
+            SessionStore sessions,
+            LoginThrottle throttle,
+            StaffSessionPolicy sessionPolicy,
+            Clock clock,
+            Supplier<String> sessionIds,
+            @Qualifier("staffAccountReadTransaction") TransactionOperations accountReadTransaction,
+            @Qualifier("staffAccountSnapshotTransaction") TransactionOperations accountSnapshotTransaction,
+            @Qualifier("staffAccountWriteTransaction") TransactionOperations accountWriteTransaction) {
+        this.accounts = accounts;
+        this.audit = audit;
+        this.passwords = passwords;
+        this.tokens = tokens;
+        this.sessions = sessions;
+        this.throttle = throttle;
+        this.sessionPolicy = sessionPolicy;
+        this.clock = clock;
+        this.sessionIds = sessionIds;
+        this.accountReadTransaction = accountReadTransaction;
+        this.accountSnapshotTransaction = accountSnapshotTransaction;
+        this.accountWriteTransaction = accountWriteTransaction;
+    }
 
     public StaffLoginResult execute(LoginStaffCommand command) {
         String username = command.username();

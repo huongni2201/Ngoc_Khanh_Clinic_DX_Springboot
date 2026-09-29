@@ -1,7 +1,5 @@
-package com.ngockhanh.clinic.identity;
+package com.ngockhanh.clinic.identity.infrastructure.configuration;
 
-import com.ngockhanh.clinic.identity.infrastructure.configuration.AuthHttpSettings;
-import com.ngockhanh.clinic.identity.infrastructure.configuration.AuthInfrastructureConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 

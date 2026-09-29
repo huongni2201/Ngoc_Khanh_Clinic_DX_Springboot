@@ -6,7 +6,6 @@ import com.ngockhanh.clinic.identity.application.port.SessionRevocation;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
 import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -16,14 +15,23 @@ import java.time.Clock;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LogoutAllStaffSessionsUseCase implements SessionRevocation {
     private final SessionStore sessions;
     private final AuthAudit audit;
     private final Clock clock;
-    @Qualifier("staffAccountWriteTransaction")
     private final TransactionOperations accountWriteTransaction;
+
+    public LogoutAllStaffSessionsUseCase(
+            SessionStore sessions,
+            AuthAudit audit,
+            Clock clock,
+            @Qualifier("staffAccountWriteTransaction") TransactionOperations accountWriteTransaction) {
+        this.sessions = sessions;
+        this.audit = audit;
+        this.clock = clock;
+        this.accountWriteTransaction = accountWriteTransaction;
+    }
 
     public void execute(LogoutAllStaffSessionsCommand command) {
         sessionDependency(() -> sessions.revokeAll(command.userId()));
