@@ -5,6 +5,9 @@
 Accepted — 2026-09-28, implementing the approved staff-login plan on
 `feature/TungTQ/staff-login`.
 
+The mixed-profile startup rejection below is superseded by
+[ADR-0009](0009-remove-auth-mixed-profile-rejection.md); other decisions remain in force.
+
 ## Context
 
 The provider/subject identity baseline does not implement the requested staff
@@ -14,7 +17,7 @@ through SMS links and business RBAC are separate features.
 
 ## Decision
 
-- V003 replaces `users.auth_provider/auth_subject` and their unique constraint
+- V004 replaces `users.auth_provider/auth_subject` and their unique constraint
   with nullable `username varchar(200)` (unique, case sensitive) and `password text`.
   This supersedes that credential representation in table-design-v2.11. Principal
   type, staff/patient relations and existing constraints remain intact.
@@ -41,13 +44,14 @@ through SMS links and business RBAC are separate features.
   indexed sessions. Login reads that version before loading credentials/roles.
   Lua rejects stale issuance and never recreates missing sessions during touch.
 - `identity::access` exports the application principal under
-  `application.query.access`; `identity::sessions` exports
-  `application.port.access.SessionRevocation`. Features changing passwords,
+  `application.query.access`; `identity::sessions` exports only
+  `application.port.SessionRevocation`. Features changing passwords,
   account status or grants must revoke sessions after their DB commit.
 - Business RBAC is deferred. Default/production configuration denies business
   endpoints even for authenticated staff. Only local/test profiles allow
-  authenticated development access. Combining prod/production with local/test
-  fails startup. Role permissions are not flattened into Spring authorities.
+  authenticated development access. If local/test is active alongside a
+  production profile, local/test development settings apply, as specified by
+  ADR-0009. Role permissions are not flattened into Spring authorities.
 - Cookie-based authentication requires CSRF on login and unsafe requests.
   CookieCsrfTokenRepository supplies a masked token through JSON; the browser sends
   the named header. Login/logout clear the CSRF cookie, requiring a new token.
@@ -92,17 +96,21 @@ Rate limiting uses Redis: 10 failed attempts per username and 60 attempts per IP
 per 15-minute window, with Retry-After. Shared clinic NATs require capacity tuning.
 Forwarded client IPs are trusted only through explicitly configured proxy addresses.
 
-Existing provider/subject data requires a verified backup before V003. Recreating
+Existing provider/subject data requires a verified backup before V004. Recreating
 the dropped columns does not recover their values. Restore from backup under an
 approved migration/rollback procedure. No default accounts or passwords are seeded.
 
 ## Implementation boundaries
 
-Identity follows the healthcheck package layout: API controller/request/response,
-application command/query/port/usecase, domain entity/valueobject, and persistence
-converter/mapper/record/repository. Only needed packages are created. Security and
-Redis adapters remain under infrastructure. System times use Clock/Instant and
-timestamptz(3), as in ADR-0006.
+Identity follows the `healthexamination` package layout subject to project rules:
+API controller/request, application command/query/port/response/usecase, domain
+entity/valueobject/repository, and persistence converter/mapper/projection/record/
+repository. The HTTP-specific cookie and trusted-proxy adapters remain in
+`api.http`; Spring/security/Redis configuration and adapters remain under
+infrastructure. Only needed packages are created. Use cases own their orchestration
+and call explicitly configured transaction operations for short database work;
+password hashing, JWT signing and Redis operations remain outside database
+transactions. System times use Clock/Instant and timestamptz(3), as in ADR-0006.
 
 Redis starter and Spring Security JOSE use the Spring Boot 4.1.1 dependency
 management already in this project. Java 25 compile/runtime and PostgreSQL 18 /

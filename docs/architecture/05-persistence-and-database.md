@@ -102,6 +102,7 @@ Fresh PostgreSQL 18 installations apply every migration in
 | `V001__create_final_schema.sql` | Initial consolidated schema. |
 | `V002__store_batch_employee_administrative_snapshot_as_columns.sql` | Backfills batch-participant administrative snapshots into typed columns, then drops `administrative_snapshot_json` (ADR-0007). The historical filename retains `employee`. |
 | `V003__remove_organization_code.sql` | Drops the organization-code unique constraint and `organizations.organization_code`. |
+| `V004__update_users_credentials.sql` | Replaces the legacy provider/subject login keys with nullable staff username/password-hash columns (ADR-0008). |
 
 This describes files currently present in the workspace, not which versions have
 been applied to an environment. Verify deployment state from that environment's

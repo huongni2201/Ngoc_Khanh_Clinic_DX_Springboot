@@ -15,36 +15,36 @@ class PostgreSqlMigrationIntegrationTest {
 
     @Container
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine")
-            .withDatabaseName("nkclinic")
-            .withUsername("nkclinic")
-            .withPassword("test-password");
+        .withDatabaseName("nkclinic")
+        .withUsername("nkclinic")
+        .withPassword("test-password");
 
     @Test
     void migrationCreatesLatestPostgreSqlSchemaAndRepresentativeTypes() {
         Flyway flyway = Flyway.configure()
-                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
-                .locations("classpath:db/migration")
-                .load();
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .locations("classpath:db/migration")
+            .load();
 
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
 
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+            POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
 
         assertThat(jdbcTemplate.queryForObject(
-                "select count(*) from information_schema.tables "
-                        + "where table_schema = 'public' and table_type = 'BASE TABLE' "
-                        + "and table_name <> 'flyway_schema_history'",
-                Integer.class)).isEqualTo(65);
+            "select count(*) from information_schema.tables "
+                + "where table_schema = 'public' and table_type = 'BASE TABLE' "
+                + "and table_name <> 'flyway_schema_history'",
+            Integer.class)).isEqualTo(65);
 
         assertColumnType(jdbcTemplate, "patients", "identification_number", "character varying");
         assertColumnType(jdbcTemplate, "patients", "row_version", "bigint");
         assertColumnType(jdbcTemplate, "patients", "created_at", "timestamp with time zone");
         assertThat(jdbcTemplate.queryForObject(
-                "select column_default from information_schema.columns "
-                        + "where table_schema = 'public' and table_name = 'organizations' and column_name = 'id'",
-                String.class)).isNull();
+            "select column_default from information_schema.columns "
+                + "where table_schema = 'public' and table_name = 'organizations' and column_name = 'id'",
+            String.class)).isNull();
         assertColumnType(jdbcTemplate, "health_examination_participants", "identification_number", "character varying");
         assertColumnType(jdbcTemplate, "services", "health_examination_eligible", "boolean");
         assertColumnType(jdbcTemplate, "document_templates", "is_master_health_examination_form", "boolean");
@@ -60,25 +60,25 @@ class PostgreSqlMigrationIntegrationTest {
         assertColumnType(jdbcTemplate, "diagnostic_reports", "released_to_patient_at", "timestamp with time zone");
         assertColumnType(jdbcTemplate, "diagnostic_reports", "released_to_patient_by_user_id", "uuid");
         assertThat(countRows(jdbcTemplate,
-                "select count(*) from information_schema.columns "
-                        + "where table_schema = 'public' and table_name <> 'flyway_schema_history' "
-                        + "and data_type = 'timestamp without time zone'"))
-                .isZero();
+            "select count(*) from information_schema.columns "
+                + "where table_schema = 'public' and table_name <> 'flyway_schema_history' "
+                + "and data_type = 'timestamp without time zone'"))
+            .isZero();
         assertForeignKey(jdbcTemplate, "lab_results", "fk_lab_results_released_to_patient_by_user_id");
         assertForeignKey(jdbcTemplate, "diagnostic_reports", "fk_diagnostic_reports_released_to_patient_by_user_id");
 
         assertThat(countRows(jdbcTemplate,
-                "select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'journey%'")).isZero();
+            "select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'journey%'")).isZero();
         assertThat(countRows(jdbcTemplate,
-                "select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'health_check%'")).isZero();
+            "select count(*) from information_schema.tables where table_schema = 'public' and table_name like 'health_check%'")).isZero();
         assertThat(countRows(jdbcTemplate,
-                "select count(*) from information_schema.columns where table_schema = 'public' "
-                        + "and column_name like 'identification_number%'"))
-                .isEqualTo(9);
+            "select count(*) from information_schema.columns where table_schema = 'public' "
+                + "and column_name like 'identification_number%'"))
+            .isEqualTo(9);
         assertThat(countRows(jdbcTemplate,
-                "select count(*) from information_schema.columns where table_schema = 'public' "
-                        + "and column_name like 'cccd%'"))
-                .isZero();
+            "select count(*) from information_schema.columns where table_schema = 'public' "
+                + "and column_name like 'cccd%'"))
+            .isZero();
 
         assertUniqueIndex(jdbcTemplate, "patients", "ux_patients_identification_number");
         assertUniqueIndex(jdbcTemplate, "encounters", "uq_encounters_encounter_code");
@@ -102,51 +102,51 @@ class PostgreSqlMigrationIntegrationTest {
     }
 
     private static void assertColumnType(
-            JdbcTemplate jdbcTemplate,
-            String tableName,
-            String columnName,
-            String expectedType) {
+        JdbcTemplate jdbcTemplate,
+        String tableName,
+        String columnName,
+        String expectedType) {
         String actualType = jdbcTemplate.queryForObject(
-                "select data_type from information_schema.columns "
-                        + "where table_schema = 'public' and table_name = ? and column_name = ?",
-                String.class,
-                tableName,
-                columnName);
+            "select data_type from information_schema.columns "
+                + "where table_schema = 'public' and table_name = ? and column_name = ?",
+            String.class,
+            tableName,
+            columnName);
 
         assertThat(actualType).isEqualTo(expectedType);
     }
 
     private static void assertForeignKey(JdbcTemplate jdbcTemplate, String tableName, String constraintName) {
         assertThat(jdbcTemplate.queryForObject(
-                "select count(*) from pg_constraint c "
-                        + "join pg_class t on t.oid = c.conrelid "
-                        + "join pg_namespace n on n.oid = t.relnamespace "
-                        + "where n.nspname = 'public' and t.relname = ? "
-                        + "and c.conname = ? and c.contype = 'f'",
-                Integer.class,
-                tableName,
-                constraintName)).isEqualTo(1);
+            "select count(*) from pg_constraint c "
+                + "join pg_class t on t.oid = c.conrelid "
+                + "join pg_namespace n on n.oid = t.relnamespace "
+                + "where n.nspname = 'public' and t.relname = ? "
+                + "and c.conname = ? and c.contype = 'f'",
+            Integer.class,
+            tableName,
+            constraintName)).isEqualTo(1);
     }
 
     private static void assertUniqueIndex(JdbcTemplate jdbcTemplate, String tableName, String indexName) {
         assertThat(jdbcTemplate.queryForObject(
-                "select count(*) from pg_indexes "
-                        + "where schemaname = 'public' and tablename = ? and indexname = ? "
-                        + "and indexdef like 'CREATE UNIQUE INDEX%'",
-                Integer.class,
-                tableName,
-                indexName)).isEqualTo(1);
+            "select count(*) from pg_indexes "
+                + "where schemaname = 'public' and tablename = ? and indexname = ? "
+                + "and indexdef like 'CREATE UNIQUE INDEX%'",
+            Integer.class,
+            tableName,
+            indexName)).isEqualTo(1);
     }
 
     private static void assertCheckConstraint(JdbcTemplate jdbcTemplate, String tableName, String constraintName) {
         assertThat(jdbcTemplate.queryForObject(
-                "select count(*) from pg_constraint c "
-                        + "join pg_class t on t.oid = c.conrelid "
-                        + "join pg_namespace n on n.oid = t.relnamespace "
-                        + "where n.nspname = 'public' and t.relname = ? "
-                        + "and c.conname = ? and c.contype = 'c' and c.convalidated",
-                Integer.class,
-                tableName,
-                constraintName)).isEqualTo(1);
+            "select count(*) from pg_constraint c "
+                + "join pg_class t on t.oid = c.conrelid "
+                + "join pg_namespace n on n.oid = t.relnamespace "
+                + "where n.nspname = 'public' and t.relname = ? "
+                + "and c.conname = ? and c.contype = 'c' and c.convalidated",
+            Integer.class,
+            tableName,
+            constraintName)).isEqualTo(1);
     }
 }

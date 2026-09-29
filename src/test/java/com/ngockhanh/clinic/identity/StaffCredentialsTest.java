@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.identity;
 
 import com.ngockhanh.clinic.identity.infrastructure.security.StaffPasswordEncoder;
 import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.*;
 
 class StaffCredentialsTest {

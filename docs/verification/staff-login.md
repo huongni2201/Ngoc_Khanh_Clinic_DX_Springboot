@@ -90,3 +90,14 @@ session revocation. This implementation targets standalone Redis.
 
 Before deploying V003 on existing data, back up and validate restoration of the
 provider/subject mappings. No default accounts or passwords are supplied.
+
+## Follow-up implementation note — 2026-09-29
+
+The current migration source assigns credentials to
+`V004__update_users_credentials.sql`; `V003__remove_organization_code.sql`
+retains its existing version. The verification results above describe the
+2026-09-28 source and were not rerun or rewritten as evidence for this follow-up.
+The current source tests the fresh V001–V004 sequence and the V003-to-V004
+credentials upgrade. Do not deploy by renaming a migration after it has been
+recorded in a shared database; reconcile that database's Flyway history and
+schema before deployment.

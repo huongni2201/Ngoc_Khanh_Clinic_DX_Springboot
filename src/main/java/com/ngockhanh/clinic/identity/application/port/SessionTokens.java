@@ -8,14 +8,14 @@ import java.util.UUID;
 import java.util.Optional;
 
 public interface SessionTokens {
-  record Claims(UUID userId, UUID staffId, String username, UUID tokenId,
-                Instant issuedAt, Instant expiresAt, List<RoleAssignment> roles) {
-    public Claims {
-      roles = List.copyOf(roles);
+    record Claims(UUID userId, UUID staffId, String username, UUID tokenId,
+                  Instant issuedAt, Instant expiresAt, List<RoleAssignment> roles) {
+        public Claims {
+            roles = List.copyOf(roles);
+        }
     }
-  }
 
-  String issue(Claims claims);
+    String issue(Claims claims);
 
-  Optional<Claims> verify(String jwt);
+    Optional<Claims> verify(String jwt);
 }

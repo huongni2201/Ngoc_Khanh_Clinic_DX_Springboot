@@ -2,8 +2,8 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.repository;
 
 import com.ngockhanh.clinic.identity.domain.entity.StaffAccount;
 import com.ngockhanh.clinic.identity.domain.repository.StaffAccountRepository;
-import com.ngockhanh.clinic.identity.infrastructure.persistence.converter.StaffAccountConverter;
-import com.ngockhanh.clinic.identity.infrastructure.persistence.mapper.StaffLoginMapper;
+import com.ngockhanh.clinic.identity.infrastructure.persistence.converter.StaffAccountPersistenceConverter;
+import com.ngockhanh.clinic.identity.infrastructure.persistence.mapper.StaffLoginMyBatisMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -13,24 +13,24 @@ import java.util.UUID;
 @Repository
 @RequiredArgsConstructor
 public class MyBatisStaffAccountRepository implements StaffAccountRepository {
-  private final StaffLoginMapper mapper;
+    private final StaffLoginMyBatisMapper mapper;
 
-  @Override
-  public UUID identify(String username) {
-    return mapper.identify(username);
-  }
-
-  @Override
-  public StaffAccount find(String username, Instant now) {
-    var row = mapper.find(username);
-    if (row == null) {
-      return null;
+    @Override
+    public UUID identify(String username) {
+        return mapper.identify(username);
     }
-    return StaffAccountConverter.from(row, mapper.grants(row.userId(), now));
-  }
 
-  @Override
-  public int recordLogin(UUID userId, Instant now, UUID correlationId) {
-    return mapper.lastLogin(userId, now);
-  }
+    @Override
+    public StaffAccount find(String username, Instant now) {
+        var row = mapper.find(username);
+        if (row == null) {
+            return null;
+        }
+        return StaffAccountPersistenceConverter.from(row, mapper.grants(row.userId(), now));
+    }
+
+    @Override
+    public int recordLogin(UUID userId, Instant now) {
+        return mapper.lastLogin(userId, now);
+    }
 }

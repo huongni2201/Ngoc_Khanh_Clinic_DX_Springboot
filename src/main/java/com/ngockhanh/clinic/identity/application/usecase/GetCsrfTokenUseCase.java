@@ -2,13 +2,14 @@ package com.ngockhanh.clinic.identity.application.usecase;
 
 import com.ngockhanh.clinic.identity.application.query.GetCsrfTokenQuery;
 import com.ngockhanh.clinic.identity.application.response.CsrfResponse;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
-@RequiredArgsConstructor
+@Slf4j
 public class GetCsrfTokenUseCase {
-  public CsrfResponse execute(GetCsrfTokenQuery query) {
-    return new CsrfResponse(query.token(), query.headerName());
-  }
+    public CsrfResponse execute(GetCsrfTokenQuery query) {
+        log.debug("Preparing CSRF token response");
+        return new CsrfResponse(query.token(), query.headerName());
+    }
 }

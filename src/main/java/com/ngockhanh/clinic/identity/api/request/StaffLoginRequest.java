@@ -6,8 +6,8 @@ import jakarta.validation.constraints.Size;
 
 public record StaffLoginRequest(@NotBlank @Size(max = 200) String username,
                                 @NotEmpty @Size(max = 72) String password) {
-  @Override
-  public String toString() {
-    return "StaffLoginRequest[redacted]";
-  }
+    @Override
+    public String toString() {
+        return "StaffLoginRequest[redacted]";
+    }
 }

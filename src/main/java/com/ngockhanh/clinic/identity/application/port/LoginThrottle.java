@@ -1,10 +1,10 @@
 package com.ngockhanh.clinic.identity.application.port;
 
 public interface LoginThrottle {
-  record CheckResult(boolean allowed, long retryAfterSeconds) {
-  }
+    record CheckResult(boolean allowed, long retryAfterSeconds) {
+    }
 
-  CheckResult check(String username, String ip);
+    CheckResult check(String username, String ip);
 
-  void failed(String username);
+    void failed(String username);
 }

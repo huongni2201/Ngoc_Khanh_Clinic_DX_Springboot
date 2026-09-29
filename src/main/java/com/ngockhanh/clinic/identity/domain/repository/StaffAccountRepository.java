@@ -6,9 +6,9 @@ import java.time.Instant;
 import java.util.UUID;
 
 public interface StaffAccountRepository {
-  UUID identify(String username);
+    UUID identify(String username);
 
-  StaffAccount find(String username, Instant now);
+    StaffAccount find(String username, Instant now);
 
-  int recordLogin(UUID userId, Instant now, UUID correlationId);
+    int recordLogin(UUID userId, Instant now);
 }

@@ -10,12 +10,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Mapper
-public interface StaffLoginMapper {
-  UUID identify(String username);
+public interface StaffLoginMyBatisMapper {
+    UUID identify(String username);
 
-  StaffLoginRow find(String username);
+    StaffLoginRow find(String username);
 
-  List<RoleGrantRow> grants(@Param("userId") UUID userId, @Param("now") Instant now);
+    List<RoleGrantRow> grants(@Param("userId") UUID userId, @Param("now") Instant now);
 
-  int lastLogin(@Param("userId") UUID userId, @Param("now") Instant now);
+    int lastLogin(@Param("userId") UUID userId, @Param("now") Instant now);
 }

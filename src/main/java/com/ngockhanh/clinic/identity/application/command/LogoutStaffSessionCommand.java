@@ -4,12 +4,12 @@ import java.util.List;
 import java.util.UUID;
 
 public record LogoutStaffSessionCommand(List<String> sessionIds, UUID correlationId) {
-  public LogoutStaffSessionCommand {
-    sessionIds = List.copyOf(sessionIds);
-  }
+    public LogoutStaffSessionCommand {
+        sessionIds = List.copyOf(sessionIds);
+    }
 
-  @Override
-  public String toString() {
-    return "LogoutStaffSessionCommand[correlationId=" + correlationId + "]";
-  }
+    @Override
+    public String toString() {
+        return "LogoutStaffSessionCommand[correlationId=" + correlationId + "]";
+    }
 }
