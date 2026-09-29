@@ -98,7 +98,7 @@ class ModuleVerificationTest {
                 .toList())
                 .isEmpty();
         assertThat(SessionRevocation.class.getAnnotation(org.springframework.modulith.NamedInterface.class).value())
-                .isEqualTo("sessions");
+                .containsExactly("sessions");
     }
 
     @Test
