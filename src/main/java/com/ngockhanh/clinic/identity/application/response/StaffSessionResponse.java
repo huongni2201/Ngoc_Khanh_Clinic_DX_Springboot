@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.identity.api.response;
+package com.ngockhanh.clinic.identity.application.response;
 
 import com.ngockhanh.clinic.identity.application.query.access.StaffPrincipal;
 

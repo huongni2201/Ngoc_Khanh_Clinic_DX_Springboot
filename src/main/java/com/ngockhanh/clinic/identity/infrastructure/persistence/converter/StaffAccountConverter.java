@@ -2,8 +2,8 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.converter;
 
 import com.ngockhanh.clinic.identity.domain.entity.StaffAccount;
 import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
-import com.ngockhanh.clinic.identity.infrastructure.persistence.record.RoleGrantRow;
-import com.ngockhanh.clinic.identity.infrastructure.persistence.record.StaffLoginRow;
+import com.ngockhanh.clinic.identity.infrastructure.persistence.projection.RoleGrantRow;
+import com.ngockhanh.clinic.identity.infrastructure.persistence.projection.StaffLoginRow;
 
 import java.util.*;
 import java.util.stream.Collectors;

@@ -16,7 +16,7 @@ The zero-byte key under src/test/resources is exclusively a synthetic test fixtu
 Redis connection settings: `REDIS_HOST` (localhost), `REDIS_PORT` (6379),
 `REDIS_PASSWORD` (empty only for isolated local Redis). Standard Spring
 `spring.data.redis.*` settings remain available, including TLS. Local Compose
-adds Redis 7.4 bound to 127.0.0.1 with noeviction. Start it with
+adds Redis 7.4 bound to 127.0.0.1 with no eviction. Start it with
 `docker compose up -d redis`; run the existing PostgreSQL service as needed.
 Never expose that unauthenticated local Redis service to a shared/public network.
 

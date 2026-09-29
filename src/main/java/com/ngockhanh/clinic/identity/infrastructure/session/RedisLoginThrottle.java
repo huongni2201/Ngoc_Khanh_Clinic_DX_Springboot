@@ -1,19 +1,18 @@
 package com.ngockhanh.clinic.identity.infrastructure.session;
 
-import com.ngockhanh.clinic.identity.application.usecase.*;
-import com.ngockhanh.clinic.identity.application.port.*;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
+import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class RedisLoginThrottle implements LoginThrottle {
-  private final StringRedisTemplate redis;
-  private final AuthSettings settings;
   private static final DefaultRedisScript<Long> CHECK = new DefaultRedisScript<>("""
       local ipCount = redis.call('INCR', KEYS[1])
       if ipCount == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[3]) end
@@ -30,28 +29,26 @@ public class RedisLoginThrottle implements LoginThrottle {
       return count
       """, Long.class);
 
-  public RedisLoginThrottle(StringRedisTemplate redis, AuthSettings settings) {
-    this.redis = redis;
-    this.settings = settings;
-  }
+  private final StringRedisTemplate redis;
+  private final LoginThrottleSettings settings;
 
-  public void check(String username, String ip) {
+  public CheckResult check(String username, String ip) {
     try {
       Long wait = redis.execute(CHECK, List.of("nkc:auth:limit:ip:" + RedisSessionStore.digest(ip), userKey(username)),
           Integer.toString(settings.usernameLimit()), Integer.toString(settings.ipLimit()),
-          Long.toString(settings.throttleWindow().toMillis()));
-      if (wait != null && wait > 0)
-        throw new AuthenticationFailure(429, "Too many login attempts", Math.max(1, (wait + 999) / 1000));
+          Long.toString(settings.window().toMillis()));
+      long retryAfterSeconds = wait == null || wait <= 0 ? 0 : Math.max(1, (wait + 999) / 1000);
+      return new CheckResult(retryAfterSeconds == 0, retryAfterSeconds);
     } catch (DataAccessException e) {
-      throw AuthenticationFailure.unavailable();
+      throw new DependencyUnavailableException("Login throttle unavailable", e);
     }
   }
 
   public void failed(String username) {
     try {
-      redis.execute(FAIL, List.of(userKey(username)), Long.toString(settings.throttleWindow().toMillis()));
+      redis.execute(FAIL, List.of(userKey(username)), Long.toString(settings.window().toMillis()));
     } catch (DataAccessException e) {
-      throw AuthenticationFailure.unavailable();
+      throw new DependencyUnavailableException("Login throttle unavailable", e);
     }
   }
 

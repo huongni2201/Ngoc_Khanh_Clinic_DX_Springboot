@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.identity.infrastructure.persistence.record;
+package com.ngockhanh.clinic.identity.infrastructure.persistence.projection;
 
 import java.time.Instant;
 import java.util.UUID;

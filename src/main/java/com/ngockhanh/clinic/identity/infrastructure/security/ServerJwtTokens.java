@@ -1,27 +1,46 @@
 package com.ngockhanh.clinic.identity.infrastructure.security;
 
-import com.ngockhanh.clinic.identity.application.usecase.*;
-import com.ngockhanh.clinic.identity.application.port.*;
+import com.ngockhanh.clinic.identity.application.AuthSettings;
+
 import com.ngockhanh.clinic.identity.application.port.SessionTokens;
 import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.*;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import javax.crypto.spec.SecretKeySpec;
-import java.time.*;
-import java.util.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 public final class ServerJwtTokens implements SessionTokens {
   private final JwtEncoder encoder;
   private final JwtDecoder decoder;
-  private final AuthSettings settings;
+  private final JwtSettings jwtSettings;
+  private final AuthSettings authSettings;
   private final Clock clock;
 
-  public ServerJwtTokens(String base64Key, AuthSettings settings, Clock clock) {
+  public ServerJwtTokens(JwtSettings jwtSettings, AuthSettings authSettings, Clock clock) {
     byte[] key;
     try {
-      key = Base64.getDecoder().decode(base64Key);
+      key = Base64.getDecoder().decode(jwtSettings.base64Key());
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException("Invalid JWT key configuration");
     }
@@ -32,13 +51,14 @@ public final class ServerJwtTokens implements SessionTokens {
     var timestamps = new JwtTimestampValidator(Duration.ZERO);
     timestamps.setClock(clock);
     verifier.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
-        timestamps, new JwtIssuerValidator(settings.issuer()),
-        jwt -> jwt.getAudience().contains(settings.audience())
+        timestamps, new JwtIssuerValidator(jwtSettings.issuer()),
+        jwt -> jwt.getAudience() != null && jwt.getAudience().contains(jwtSettings.audience())
             ? org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success()
             : org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
             new org.springframework.security.oauth2.core.OAuth2Error("invalid_token"))));
     decoder = verifier;
-    this.settings = settings;
+    this.jwtSettings = jwtSettings;
+    this.authSettings = authSettings;
     this.clock = clock;
   }
 
@@ -54,7 +74,7 @@ public final class ServerJwtTokens implements SessionTokens {
       data.put("validTo", role.validTo() == null ? null : role.validTo().toString());
       return data;
     }).toList();
-    var payload = JwtClaimsSet.builder().issuer(settings.issuer()).audience(List.of(settings.audience()))
+    var payload = JwtClaimsSet.builder().issuer(jwtSettings.issuer()).audience(List.of(jwtSettings.audience()))
         .subject(claims.userId().toString()).id(claims.tokenId().toString())
         .issuedAt(claims.issuedAt()).expiresAt(claims.expiresAt())
         .claim("userId", claims.userId().toString()).claim("staffId", claims.staffId().toString())
@@ -64,9 +84,17 @@ public final class ServerJwtTokens implements SessionTokens {
         JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), payload)).getTokenValue();
   }
 
-  public Claims verify(String token) {
+  public Optional<Claims> verify(String token) {
+    if (token == null || token.isBlank()) {
+      return Optional.empty();
+    }
+    Jwt jwt;
     try {
-      Jwt jwt = decoder.decode(token);
+      jwt = decoder.decode(token);
+    } catch (JwtException invalidToken) {
+      return Optional.empty();
+    }
+    try {
       Instant now = clock.instant();
       UUID userId = UUID.fromString(jwt.getClaimAsString("userId"));
       UUID staffId = UUID.fromString(jwt.getClaimAsString("staffId"));
@@ -75,15 +103,16 @@ public final class ServerJwtTokens implements SessionTokens {
       if (!userId.toString().equals(jwt.getSubject()) || !"STAFF".equals(jwt.getClaimAsString("principalType"))
           || username == null || username.isBlank() || username.length() > 200
           || issued == null || expires == null || issued.isAfter(now) || !now.isBefore(expires)
-          || !expires.isAfter(issued) || Duration.between(issued, expires).compareTo(settings.absoluteTimeout()) > 0) {
-        throw AuthenticationFailure.invalid();
+          || !expires.isAfter(issued)
+          || Duration.between(issued, expires).compareTo(authSettings.absoluteTimeout()) > 0) {
+        return Optional.empty();
       }
       Object raw = jwt.getClaim("roleAssignments");
-      if (!(raw instanceof List<?> list) || list.isEmpty()) throw AuthenticationFailure.invalid();
+      if (!(raw instanceof List<?> list) || list.isEmpty()) return Optional.empty();
       List<RoleAssignment> roles = new ArrayList<>();
       for (Object value : list) {
         if (!(value instanceof Map<?, ?> map) || !(map.get("permissions") instanceof List<?> permissions)) {
-          throw AuthenticationFailure.invalid();
+          return Optional.empty();
         }
         roles.add(new RoleAssignment(UUID.fromString((String) map.get("assignmentId")),
             (String) map.get("roleCode"), permissions.stream().map(String.class::cast).toList(),
@@ -91,9 +120,9 @@ public final class ServerJwtTokens implements SessionTokens {
             Instant.parse((String) map.get("validFrom")),
             map.get("validTo") == null ? null : Instant.parse((String) map.get("validTo"))));
       }
-      return new Claims(userId, staffId, username, UUID.fromString(jwt.getId()), issued, expires, roles);
-    } catch (RuntimeException e) {
-      throw AuthenticationFailure.invalid();
+      return Optional.of(new Claims(userId, staffId, username, UUID.fromString(jwt.getId()), issued, expires, roles));
+    } catch (IllegalArgumentException | ClassCastException | NullPointerException malformedClaims) {
+      return Optional.empty();
     }
   }
 

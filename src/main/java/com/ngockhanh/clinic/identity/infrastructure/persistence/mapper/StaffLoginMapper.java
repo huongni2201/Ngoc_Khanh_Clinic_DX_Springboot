@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.identity.infrastructure.persistence.mapper;
 
-import com.ngockhanh.clinic.identity.infrastructure.persistence.record.*;
+import com.ngockhanh.clinic.identity.infrastructure.persistence.projection.RoleGrantRow;
+import com.ngockhanh.clinic.identity.infrastructure.persistence.projection.StaffLoginRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

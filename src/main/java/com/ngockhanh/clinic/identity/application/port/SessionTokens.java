@@ -5,6 +5,7 @@ import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
 public interface SessionTokens {
   record Claims(UUID userId, UUID staffId, String username, UUID tokenId,
@@ -16,5 +17,5 @@ public interface SessionTokens {
 
   String issue(Claims claims);
 
-  Claims verify(String jwt);
+  Optional<Claims> verify(String jwt);
 }

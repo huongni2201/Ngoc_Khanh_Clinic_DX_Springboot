@@ -4,13 +4,13 @@
     <select id="identify" resultType="java.util.UUID">
         SELECT id FROM public.users WHERE username = #{username}
     </select>
-    <select id="find" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.record.StaffLoginRow">
+    <select id="find" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.StaffLoginRow">
         SELECT u.id AS user_id, u.staff_id, u.username, u.password, u.status, u.principal_type,
                coalesce(s.is_active, false) AS staff_active
         FROM public.users u LEFT JOIN public.staff s ON s.id = u.staff_id
         WHERE u.username = #{username}
     </select>
-    <select id="grants" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.record.RoleGrantRow">
+    <select id="grants" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.RoleGrantRow">
         SELECT ur.id AS assignment_id, r.role_code, ur.department_id, ur.room_id,
                ur.valid_from, ur.valid_to, p.permission_code
         FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id

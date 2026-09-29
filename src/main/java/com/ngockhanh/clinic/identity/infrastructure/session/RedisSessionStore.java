@@ -1,27 +1,30 @@
 package com.ngockhanh.clinic.identity.infrastructure.session;
 
-import com.ngockhanh.clinic.identity.application.port.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
+import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Repository;
 
+import lombok.RequiredArgsConstructor;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.*;
-import java.util.*;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 @Repository
+@RequiredArgsConstructor
 public class RedisSessionStore implements SessionStore {
   private static final String PREFIX = "nkc:auth:";
   private final StringRedisTemplate redis;
-  private final java.security.SecureRandom epochs = new java.security.SecureRandom();
-
-  public RedisSessionStore(StringRedisTemplate redis) {
-    this.redis = redis;
-  }
+  private final SecureRandom epochs = new SecureRandom();
 
   private static final DefaultRedisScript<Long> CREATE = script("""
       if redis.call('GET', KEYS[2]) ~= ARGV[3] then return 0 end
@@ -85,7 +88,7 @@ public class RedisSessionStore implements SessionStore {
         return new Stored(UUID.fromString((String) data.get("uid")), (String) data.get("jwt"),
             Long.parseLong((String) data.get("gen")), Instant.ofEpochMilli(Long.parseLong((String) data.get("exp"))));
       } catch (RuntimeException e) {
-        throw AuthenticationFailure.invalid();
+        return null;
       }
     });
   }
@@ -127,7 +130,7 @@ public class RedisSessionStore implements SessionStore {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(input.getBytes(StandardCharsets.UTF_8)));
     } catch (java.security.NoSuchAlgorithmException e) {
-      throw new IllegalStateException(e);
+      throw new IllegalStateException("SHA-256 is unavailable", e);
     }
   }
 
@@ -143,7 +146,7 @@ public class RedisSessionStore implements SessionStore {
     try {
       return operation.get();
     } catch (DataAccessException e) {
-      throw AuthenticationFailure.unavailable();
+      throw new DependencyUnavailableException("Redis session store unavailable", e);
     }
   }
 }

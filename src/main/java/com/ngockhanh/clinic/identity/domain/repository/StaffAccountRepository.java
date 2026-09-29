@@ -10,5 +10,5 @@ public interface StaffAccountRepository {
 
   StaffAccount find(String username, Instant now);
 
-  void recordLogin(UUID userId, Instant now, UUID correlationId);
+  int recordLogin(UUID userId, Instant now, UUID correlationId);
 }
