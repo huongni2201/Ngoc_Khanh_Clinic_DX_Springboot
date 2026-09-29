@@ -6,7 +6,6 @@ import lombok.Builder;
 
 @Builder
 public record OrganizationRequest(
-        @NotBlank @Size(max = 40) String code,
         @NotBlank @Size(max = 300) String name,
         @Size(max = 40) String taxCode,
         @Size(max = 500) String address,

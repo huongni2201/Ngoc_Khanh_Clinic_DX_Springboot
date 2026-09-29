@@ -7,13 +7,13 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.
 public final class OrganizationPersistenceConverter {
     public Organization toDomain(OrganizationRecord record) {
         if (record == null) return null;
-        return Organization.restore(new AggregateId(record.id()), record.organizationCode(), record.organizationName(), record.taxCode(),
+        return Organization.restore(new AggregateId(record.id()), record.organizationName(), record.taxCode(),
                 record.address(), record.contactName(), record.contactPhone(), record.contactJobTitle(),
                 record.note(), record.status(), record.rowVersion());
     }
 
     public OrganizationRecord toRecord(Organization organization) {
-        return new OrganizationRecord(organization.id().value(), organization.code(), organization.name(), organization.taxCode(),
+        return new OrganizationRecord(organization.id().value(), organization.name(), organization.taxCode(),
                 organization.address(), organization.contactName(), organization.contactPhone(),
                 organization.contactJobTitle(), organization.note(), organization.status(), null, null,
                 organization.rowVersion());

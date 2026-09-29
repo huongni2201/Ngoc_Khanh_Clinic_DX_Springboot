@@ -25,13 +25,12 @@ public class CreateOrganizationUseCase {
     @Transactional
     public OrganizationResponse execute(CreateOrganizationCommand command) {
         if (command == null) throw new IllegalArgumentException("Missing organization command");
-        if (organizations.findByCode(command.code()).isPresent()
-                || (command.taxCode() != null && !command.taxCode().isBlank()
-                    && organizations.findByTaxCode(command.taxCode()).isPresent())) {
+        if (command.taxCode() != null && !command.taxCode().isBlank()
+                && organizations.findByTaxCode(command.taxCode()).isPresent()) {
             throw new DuplicateOrganizationIdentity();
         }
         AggregateId id = new AggregateId(ids.next());
-        Organization organization = Organization.create(id, command.code(), command.name(), command.taxCode(),
+        Organization organization = Organization.create(id, command.name(), command.taxCode(),
                 command.address(), command.contactName(), command.contactPhone(), command.contactJobTitle(), command.note());
         organizations.save(organization);
         log.info("Organization creation persisted: organizationId={}", organization.id().value());

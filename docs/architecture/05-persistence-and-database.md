@@ -88,28 +88,27 @@ and read contract types may be nested in their owning repository interface.
 
 Never edit an already-applied Flyway migration to change deployed schema.
 
-Use:
+Use `V<version>__<description>.sql` and append new versions for schema changes.
+The initial chain was consolidated into V001 before first deployment; subsequent
+migrations extend that starting schema. Treat applied migrations as immutable.
 
-```text
-V001 ...
-V002 ...
-V003 ...
-V004 ...
-```
+## 6. Current migration chain
 
-Fresh-install baseline (PostgreSQL 18):
+Fresh PostgreSQL 18 installations apply every migration in
+`src/main/resources/db/migration/` in version order. V001 alone is not the current schema.
 
-```text
-V001 = final schema for the current table-design baseline and accepted ADR additions
-```
+| Migration | Effect |
+|---|---|
+| `V001__create_final_schema.sql` | Initial consolidated schema. |
+| `V002__store_batch_employee_administrative_snapshot_as_columns.sql` | Backfills batch-participant administrative snapshots into typed columns, then drops `administrative_snapshot_json` (ADR-0007). The historical filename retains `employee`. |
+| `V003__remove_organization_code.sql` | Drops the organization-code unique constraint and `organizations.organization_code`. |
 
-The initial migration chain was consolidated before first deployment because no production database exists. Once the first database is deployed, treat every applied migration as immutable and append new migrations for future changes. This clean-install baseline is not an in-place SQL Server-to-PostgreSQL data-transfer plan.
+This describes files currently present in the workspace, not which versions have
+been applied to an environment. Verify deployment state from that environment's
+Flyway history. This chain is not a SQL Server-to-PostgreSQL data-transfer plan.
 
-## 6. Initial schema scope
-
-The cut-over instructions that follow describe the pre-squash migration chain and are obsolete. Fresh installation uses only `V001__create_final_schema.sql`.
-
-The final schema does not create the retired workflow tables. Fresh initialization needs no follow-up cut-over or data-removal step.
+ADR-0008 keeps administrative snapshot values as explicit aggregate fields and
+retains the typed columns introduced by V002; it requires no separate migration.
 
 ## 7. Identifier strategy
 

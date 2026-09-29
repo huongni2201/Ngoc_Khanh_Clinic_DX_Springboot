@@ -4,7 +4,6 @@ import lombok.Builder;
 
 @Builder
 public record CreateOrganizationCommand(
-        String code,
         String name,
         String taxCode,
         String address,

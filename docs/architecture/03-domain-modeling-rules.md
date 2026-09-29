@@ -25,7 +25,7 @@ Examples:
 
 ```text
 HealthExaminationBatchService
-HealthExaminationBatchEmployeeService
+HealthExaminationBatchParticipantService
 HealthExaminationImportRow
 PrescriptionItem
 ```
@@ -47,6 +47,10 @@ Money
 ShsCode
 ExaminationSite
 ```
+
+Per [ADR-0008](../adr/0008-administrative-snapshot-fields.md), administrative
+snapshot values remain explicit fields on batch participants, health-examination
+records, and import rows; do not wrap them in an `AdministrativeSnapshot` value object.
 
 ## 4. Constructors
 
@@ -103,7 +107,7 @@ Examples:
 ```text
 CCCD format -> IdentificationNumber
 batch lifecycle -> HealthExaminationBatch
-employee assignment price -> HealthExaminationBatchEmployee
+participant assignment price -> HealthExaminationBatchParticipant
 prescription issued immutability -> Prescription
 adult health-examination eligibility -> HealthExaminationRecord
 ```

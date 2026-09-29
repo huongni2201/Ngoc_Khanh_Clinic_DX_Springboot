@@ -12,13 +12,12 @@ Before making any non-trivial change, read in this order:
 2. `PROJECT_SKILLS.md`
 3. Relevant ADRs in `docs/adr/`
 4. Backend architecture docs in `docs/architecture/`
-5. The generated Markdown mirrors in `docs/baseline/` for the affected business contracts:
-   - `requirement-v2.5.md`
-   - `use-case-v2.7.md`
-   - `table-design-v2.11.md`
-6. Read the corresponding `*_FINAL.docx` when a Markdown mirror is missing or a task depends on formatting or visual reference.
+5. The corresponding `*_FINAL.docx` for affected business contracts:
+   - `requirement-v2.5`
+   - `use-case-v2.7`
+   - `table-design-v2.11`
 
-The Markdown mirrors are generated from the FINAL DOCX files by `scripts/docs/sync_baseline_markdown.py`; edit the DOCX source and regenerate rather than editing a mirror by hand. If a required source document is unavailable, do not invent business rules. State the missing contract and stop at a safe boundary.
+Use the FINAL DOCX sources directly for business-contract changes. Architecture-only documentation updates use project rules, accepted ADRs, and the existing implementation. If a required business source document is unavailable, do not invent business rules. State the missing contract and stop at a safe boundary.
 
 Accepted ADRs and project rules override generic skill examples.
 
@@ -83,7 +82,7 @@ encounter
 clinical
 billing
 diagnostics
-healthcheck
+healthexamination
 document
 prescription
 notification
@@ -92,6 +91,8 @@ shared
 ```
 
 Create only modules required by the current task. Do not generate empty folder trees speculatively.
+
+Use `healthexamination` as the reference module for package structure and layer responsibilities, subject to project rules and accepted ADRs.
 
 ---
 
@@ -134,7 +135,7 @@ A module may not reach into another module's internals.
 Forbidden:
 
 ```text
-healthcheck -> patient.infrastructure
+healthexamination -> patient.infrastructure
 billing -> encounter.persistence mapper
 clinical -> diagnostics SQL table directly
 module A -> module B internal package
@@ -188,7 +189,7 @@ Important baseline rules:
 - Plural table names.
 - Primary key: `id`.
 - Foreign key: `<entity>_id`.
-- PostgreSQL types such as `uuid`, `timestamp(3)` (UTC by convention), `numeric(18,2)`, `text`/`varchar`, `boolean`, and trigger-backed `bigint` version counters.
+- PostgreSQL types such as `uuid`, `timestamptz(3)` (Java `Instant`, per ADR-0006), `numeric(18,2)`, `text`/`varchar`, `boolean`, and trigger-backed `bigint` version counters.
 - Clinical and financial history is never hard-deleted.
 - Final clinical results and issued prescriptions are versioned, not overwritten.
 - Database schema changes must use Flyway migrations.
@@ -230,7 +231,7 @@ Organization
 - No service outside batch scope may be added by that selection flow.
 - One health-check record has one SHS/health-check record code used across its forms.
 - Mẫu số 03 is the master health-check form and carries the SHS barcode.
-- Administrative print data comes from the `HealthCheckRecord` snapshot, not the mutable current Patient record.
+- Administrative print data comes from the `HealthExaminationRecord` snapshot, not the mutable current Patient record.
 
 ### Encounter and diagnostic progress
 
@@ -374,6 +375,13 @@ unless the name accurately describes a technical abstraction.
 
 Prefer domain language from requirements.
 
+Controller comments:
+
+- Write concise English Javadoc for every public endpoint method.
+- Describe the endpoint behavior and document each parameter with `@param` and each non-void result with `@return`.
+- Document externally visible behavior only; do not narrate annotations, logging, or obvious implementation details.
+- Update the Javadoc when the endpoint contract, parameters, response, or authorization behavior changes.
+
 ---
 
 ## 14. DTO / Model Rules
@@ -471,13 +479,12 @@ Never modify an already-applied migration in a shared environment.
 Naming:
 
 ```text
-V001__create_security_tables.sql
-V002__create_patient_tables.sql
-V003__create_catalog_tables.sql
-...
+V<version>__<description>.sql
 ```
 
 Migrations must include constraints and indexes required by the documented model.
+
+Apply the full migration chain in `src/main/resources/db/migration/` for a fresh database; see `docs/architecture/05-persistence-and-database.md`.
 
 Do not rely only on application validation for database invariants such as a unique `patients.identification_number`.
 

@@ -2,7 +2,6 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;

@@ -103,6 +103,15 @@ Status: Accepted
 
 Correction creates a new version; an issued prescription is not overwritten.
 
+### 13. Administrative snapshots
+
+Status: Accepted
+
+Administrative snapshots follow [ADR-0007](../adr/0007-batch-employee-administrative-snapshot-columns.md)
+for typed database columns and [ADR-0008](../adr/0008-administrative-snapshot-fields.md)
+for explicit aggregate fields. ADR-0008 supersedes ADR-0007's application/API
+value-object decision, while preserving its database representation.
+
 ## Decisions requiring ADR if changed
 
 Create a new ADR before changing any of:

@@ -11,12 +11,11 @@ When documents conflict, follow this order:
 1. `PROJECT_RULES.md`
 2. Accepted ADRs
 3. `docs/architecture/*`
-4. Generated Markdown baseline mirrors in `docs/baseline/` for affected requirements, use cases, and schema contracts
-5. Corresponding FINAL DOCX when a mirror is missing or formatting/visual reference matters
-6. Existing implementation
+4. Corresponding FINAL DOCX for affected requirements, use cases, and schema contracts
+5. Existing implementation
 
 Architecture documents do not override business rules.
-Markdown mirrors are generated from the FINAL DOCX files by `scripts/docs/sync_baseline_markdown.py`; update the DOCX source and regenerate the mirrors.
+Use FINAL DOCX sources directly when changing business contracts. Architecture-only updates use project rules, accepted ADRs, and the existing implementation.
 For PostgreSQL physical type mappings, follow [ADR-0005](../adr/0005-postgresql-18.md) and `05-persistence-and-database.md`; ADR-0005 carries forward the mappings from [ADR-0004](../adr/0004-postgresql-17.md). The business schema in the baseline remains authoritative for tables and business constraints.
 
 ## Architecture documents
@@ -33,6 +32,8 @@ For PostgreSQL physical type mappings, follow [ADR-0005](../adr/0005-postgresql-
 - `10-architecture-decisions-summary.md` — current architecture decisions
 
 ## Core principles
+
+Use `healthexamination` as the reference module for package structure and layer responsibilities. Existing implementation remains subject to project rules and accepted ADRs.
 
 - Package by bounded context, not by technical layer globally.
 - Domain model must not depend on Spring, MyBatis, SQL, HTTP or infrastructure.

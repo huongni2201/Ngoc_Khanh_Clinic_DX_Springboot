@@ -31,13 +31,13 @@ private application service
 Forbidden example:
 
 ```text
-healthcheck -> billing.infrastructure.persistence.PaymentMapper
+healthexamination -> billing.infrastructure.persistence.PaymentMapper
 ```
 
 Preferred:
 
 ```text
-healthcheck -> billing.application.port.PaymentAuthorizationQuery
+healthexamination -> billing.application.port.PaymentAuthorizationQuery
 ```
 
 or published event/contract.
@@ -131,17 +131,17 @@ result finalization
 result release
 ```
 
-### healthcheck
+### healthexamination
 
 Owns:
 
 ```text
-Company
-CompanyEmployee
+Organization
+HealthExaminationParticipant
 HealthExaminationBatch
 HealthExaminationBatchService
-HealthExaminationBatchEmployee
-HealthExaminationBatchEmployeeService
+HealthExaminationBatchParticipant
+HealthExaminationBatchParticipantService
 HealthExaminationRecord
 HealthExaminationImportJob
 HealthExaminationImportRow

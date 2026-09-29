@@ -16,7 +16,7 @@ class MedicalTerminologyBackendContractTest {
     void organizationAndParticipantExposeCanonicalIdentityNames() {
         AggregateId organizationId = new AggregateId(UUID.randomUUID());
         Organization organization = Organization.create(
-                organizationId, "ORG-01", "Ngoc Khanh Clinic", "Contact", "0900000000");
+                organizationId, "Ngoc Khanh Clinic", "Contact", "0900000000");
         HealthExaminationParticipant participant = HealthExaminationParticipant.create(
                 new AggregateId(UUID.randomUUID()), organization.id(), "PART-01", IdentificationNumber.of("012345678901"),
                 "Nguyen A", java.time.LocalDate.of(1990, 1, 1), "MALE");

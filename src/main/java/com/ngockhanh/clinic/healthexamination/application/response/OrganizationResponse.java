@@ -8,7 +8,6 @@ import lombok.Builder;
 @Builder
 public record OrganizationResponse(
 		UUID id,
-		String code,
 		String name,
 		String taxCode,
 		String address,
@@ -21,7 +20,6 @@ public record OrganizationResponse(
 	public static OrganizationResponse from(Organization organization) {
 		return new OrganizationResponse(
 				organization.id().value(),
-				organization.code(),
 				organization.name(),
 				organization.taxCode(),
 				organization.address(),

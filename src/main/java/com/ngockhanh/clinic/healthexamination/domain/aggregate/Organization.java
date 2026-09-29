@@ -4,7 +4,6 @@ import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 
 public final class Organization {
     private final AggregateId id;
-    private final String code;
     private final String name;
     private final String taxCode;
     private final String address;
@@ -15,15 +14,14 @@ public final class Organization {
     private final String status;
     private final long rowVersion;
 
-    private Organization(AggregateId id, String code, String name, String taxCode, String address, String contactName,
+    private Organization(AggregateId id, String name, String taxCode, String address, String contactName,
                          String contactPhone, String contactJobTitle, String note, String status, long rowVersion) {
-        if (id == null || code == null || code.isBlank() || name == null || name.isBlank()
+        if (id == null || name == null || name.isBlank()
                 || contactName == null || contactName.isBlank() || contactPhone == null || contactPhone.isBlank()
                 || status == null || status.isBlank()) {
             throw new IllegalArgumentException("Missing organization details");
         }
         this.id = id;
-        this.code = code;
         this.name = name;
         this.taxCode = taxCode;
         this.address = address;
@@ -35,42 +33,41 @@ public final class Organization {
         this.rowVersion = rowVersion;
     }
 
-    public static Organization create(AggregateId id, String code, String name, String contactName, String contactPhone) {
-        return create(id, code, name, null, null, contactName, contactPhone, null, null);
+    public static Organization create(AggregateId id, String name, String contactName, String contactPhone) {
+        return create(id, name, null, null, contactName, contactPhone, null, null);
     }
 
-    public static Organization create(AggregateId id, String code, String name, String taxCode, String address,
+    public static Organization create(AggregateId id, String name, String taxCode, String address,
                                       String contactName, String contactPhone, String contactJobTitle, String note) {
-        return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
+        return new Organization(id, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, "ACTIVE", 0L);
     }
 
-    public static Organization restore(AggregateId id, String code, String name, String taxCode, String address,
+    public static Organization restore(AggregateId id, String name, String taxCode, String address,
                                        String contactName, String contactPhone, String contactJobTitle,
                                        String note, String status) {
-        return restore(id, code, name, taxCode, address, contactName, contactPhone, contactJobTitle, note, status, 0L);
+        return restore(id, name, taxCode, address, contactName, contactPhone, contactJobTitle, note, status, 0L);
     }
 
-    public static Organization restore(AggregateId id, String code, String name, String taxCode, String address,
+    public static Organization restore(AggregateId id, String name, String taxCode, String address,
                                        String contactName, String contactPhone, String contactJobTitle,
                                        String note, String status, long rowVersion) {
-        return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
+        return new Organization(id, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, status, rowVersion);
     }
 
-    public Organization updateDetails(String code, String name, String taxCode, String address,
+    public Organization updateDetails(String name, String taxCode, String address,
                                       String contactName, String contactPhone, String contactJobTitle, String note) {
-        return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
+        return new Organization(id, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, status, rowVersion);
     }
 
     public Organization deactivate() {
-        return new Organization(id, code, name, taxCode, address, contactName, contactPhone,
+        return new Organization(id, name, taxCode, address, contactName, contactPhone,
                 contactJobTitle, note, "INACTIVE", rowVersion);
     }
 
     public AggregateId id() { return id; }
-    public String code() { return code; }
     public String name() { return name; }
     public String taxCode() { return taxCode; }
     public String address() { return address; }
