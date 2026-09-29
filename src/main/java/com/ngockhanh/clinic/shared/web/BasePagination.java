@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.shared.web;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
@@ -19,6 +20,7 @@ public class BasePagination {
   private Integer page =  PaginationConstants.DEFAULT_PAGE_NUMBER;
 
   @Min(value = 1, message = "Size must be greater than or equal to 1")
+  @Max(value = PaginationConstants.MAX_PAGE_SIZE, message = "Size must not exceed 100")
   @Builder.Default
   private Integer size = PaginationConstants.DEFAULT_PAGE_SIZE;
 

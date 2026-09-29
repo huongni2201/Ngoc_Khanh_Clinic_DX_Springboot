@@ -24,82 +24,89 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class ListBatchParticipantUseCase {
-    private final HealthExaminationBatchRepository batchRepository;
-    private final HealthExaminationBatchParticipantRepository batchParticipantRepository;
+	private final HealthExaminationBatchRepository batchRepository;
+	private final HealthExaminationBatchParticipantRepository batchParticipantRepository;
 
-    @Transactional(readOnly = true)
-    public PageResponse<OrganizationBatchParticipantResponse> execute(
-            UUID organizationId, UUID batchId, OrganizationBatchParticipantQuery query) {
-        if (query == null) throw new IllegalArgumentException("Participant list query is required");
+	@Transactional(readOnly = true)
+	public PageResponse<OrganizationBatchParticipantResponse> execute(
+			UUID organizationId, UUID batchId, OrganizationBatchParticipantQuery query) {
+		if (query == null) throw new IllegalArgumentException("Participant list query is required");
 
-        AggregateId organization = AggregateId.of(organizationId);
-        AggregateId batch = AggregateId.of(batchId);
+		AggregateId organization = AggregateId.of(organizationId);
+		AggregateId batch = AggregateId.of(batchId);
 
-        batchRepository.findById(batch)
-                .filter(found -> found.organizationId().equals(organization))
-                .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+		batchRepository.findById(batch)
+				.filter(found -> found.organizationId().equals(organization))
+				.orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
 
-        int page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
-        int size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
-        String sortKey = normalize(query.sortKey());
+		int page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
+		int size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
 
-        String sortBy = normalize(query.sortBy());
+		String sortKey = normalizeOrDefault(query.sortKey(), PaginationConstants.DEFAULT_SORTED_KEY);
 
-        String searchKey = normalize(query.searchKey());
-        String searchPattern = searchKey == null ? null : toContainsPattern(searchKey);
-        long requestedOffset = (page - 1L) * size;
-        if (requestedOffset > Integer.MAX_VALUE) throw new IllegalArgumentException("Invalid pagination");
+		String sortBy = normalizeOrDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY)
+				.toUpperCase(Locale.ROOT);
 
-        long total = batchParticipantRepository.countByBatch(batch, searchPattern);
-        int pages = total == 0 ? 0 : (int) ((total - 1) / size + 1);
+		String searchKey = normalize(query.searchKey());
+		String searchPattern = searchKey == null ? null : toContainsPattern(searchKey);
+		long requestedOffset = (page - 1L) * size;
+		if (requestedOffset > Integer.MAX_VALUE) throw new IllegalArgumentException("Invalid pagination");
 
-        List<OrganizationBatchParticipantResponse> participants = batchParticipantRepository.findByBatch(
-                        batch, requestedOffset, size, searchPattern, sortKey, sortBy)
-                .stream().map(ListBatchParticipantUseCase::toResponse).toList();
+		long total = batchParticipantRepository.countByBatch(batch, searchPattern);
+		int pages = total == 0 ? 0 : (int) ((total - 1) / size + 1);
 
-        log.info("Batch participants retrieved: batchId={}, page={}, size={}, total={}", batchId, page, size, total);
-        return new PageResponse<>(participants, page, size, total, pages);
-    }
+		List<OrganizationBatchParticipantResponse> participants = batchParticipantRepository.findByBatch(
+						batch, requestedOffset, size, searchPattern, sortKey, sortBy)
+				.stream().map(ListBatchParticipantUseCase::toResponse).toList();
 
-    private static String normalize(String value) {
-        if (value == null || value.isBlank()) return null;
-        return value.trim();
-    }
+		log.info("Batch participants retrieved: batchId={}, page={}, size={}, total={}", batchId, page, size, total);
+		return new PageResponse<>(participants, page, size, total, pages);
+	}
 
-    private static String toContainsPattern(String value) {
-        String escapedValue = value.toLowerCase(Locale.ROOT)
-                .replace("\\", "\\\\")
-                .replace("%", "\\%")
-                .replace("_", "\\_");
-        return "%" + escapedValue + "%";
-    }
+	private static String normalize(String value) {
+		if (value == null || value.isBlank()) return null;
+		return value.trim();
+	}
 
-    private static OrganizationBatchParticipantResponse toResponse(BatchParticipantSummary participant) {
-        return new OrganizationBatchParticipantResponse(
-                participant.batchParticipantId().value(),
-                participant.participantId().value(),
-                participant.participantCode(),
-                participant.departmentName(),
-                participant.jobTitle(),
-                participant.occupation(),
-                participant.fullName(),
-                participant.dateOfBirth(),
-                participant.sex(),
-                participant.identificationNumber(),
-                participant.identificationNumberIssueDate(),
-                participant.identificationNumberIssuePlace(),
-                participant.ethnicity(),
-                participant.subjectType(),
-                participant.payerSource(),
-                participant.bloodGroup(),
-                participant.phone(),
-                participant.province(),
-                participant.ward(),
-                participant.addressDetail(),
-                participant.administrativeOccupation(),
-                participant.workplaceOrSchool(),
-                participant.healthExaminationReason(),
-                participant.status(),
-                participant.createdAt());
-    }
+	private static String normalizeOrDefault(String value, String defaultValue) {
+		String normalized = normalize(value);
+		return normalized == null ? defaultValue : normalized;
+	}
+
+	private static String toContainsPattern(String value) {
+		String escapedValue = value.toLowerCase(Locale.ROOT)
+				.replace("\\", "\\\\")
+				.replace("%", "\\%")
+				.replace("_", "\\_");
+		return "%" + escapedValue + "%";
+	}
+
+	private static OrganizationBatchParticipantResponse toResponse(BatchParticipantSummary participant) {
+		return new OrganizationBatchParticipantResponse(
+				participant.batchParticipantId().value(),
+				participant.participantId().value(),
+				participant.participantCode(),
+				participant.departmentName(),
+				participant.jobTitle(),
+				participant.occupation(),
+				participant.fullName(),
+				participant.dateOfBirth(),
+				participant.sex(),
+				participant.identificationNumber(),
+				participant.identificationNumberIssueDate(),
+				participant.identificationNumberIssuePlace(),
+				participant.ethnicity(),
+				participant.subjectType(),
+				participant.payerSource(),
+				participant.bloodGroup(),
+				participant.phone(),
+				participant.province(),
+				participant.ward(),
+				participant.addressDetail(),
+				participant.administrativeOccupation(),
+				participant.workplaceOrSchool(),
+				participant.healthExaminationReason(),
+				participant.status(),
+				participant.createdAt());
+	}
 }

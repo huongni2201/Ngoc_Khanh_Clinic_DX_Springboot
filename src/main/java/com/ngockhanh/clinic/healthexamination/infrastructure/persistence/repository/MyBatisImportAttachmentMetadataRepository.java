@@ -9,7 +9,7 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.
 
 @Repository
 @RequiredArgsConstructor
-public final class MyBatisImportAttachmentMetadataRepository implements ImportAttachmentMetadataRepository {
+public class MyBatisImportAttachmentMetadataRepository implements ImportAttachmentMetadataRepository {
     private final ImportAttachmentMetadataMapper mapper;
 
     @Override

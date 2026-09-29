@@ -14,7 +14,7 @@ import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 
 @Repository
 @RequiredArgsConstructor
-public final class MyBatisOrganizationRepository implements OrganizationRepository {
+public class MyBatisOrganizationRepository implements OrganizationRepository {
     private final OrganizationMyBatisMapper mapper;
     private final OrganizationPersistenceConverter converter = new OrganizationPersistenceConverter();
 

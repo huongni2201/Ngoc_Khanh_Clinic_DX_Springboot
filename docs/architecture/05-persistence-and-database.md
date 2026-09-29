@@ -89,26 +89,24 @@ and read contract types may be nested in their owning repository interface.
 Never edit an already-applied Flyway migration to change deployed schema.
 
 Use `V<version>__<description>.sql` and append new versions for schema changes.
-The initial chain was consolidated into V001 before first deployment; subsequent
-migrations extend that starting schema. Treat applied migrations as immutable.
+The complete baseline was consolidated into V001 before first deployment. Treat
+the applied migration as immutable.
 
-## 6. Current migration chain
+## 6. Current migration baseline
 
-Fresh PostgreSQL 18 installations apply every migration in
-`src/main/resources/db/migration/` in version order. V001 alone is not the current schema.
+Fresh PostgreSQL 18 installations apply the single baseline migration in
+`src/main/resources/db/migration/`.
 
 | Migration | Effect |
 |---|---|
-| `V001__create_final_schema.sql` | Initial consolidated schema. |
-| `V002__store_batch_employee_administrative_snapshot_as_columns.sql` | Backfills batch-participant administrative snapshots into typed columns, then drops `administrative_snapshot_json` (ADR-0007). The historical filename retains `employee`. |
-| `V003__remove_organization_code.sql` | Drops the organization-code unique constraint and `organizations.organization_code`. |
+| `V001__create_final_schema.sql` | Complete PostgreSQL 18 baseline, including typed administrative snapshots, removal of `organizations.organization_code`, and health-examination integrity constraints. |
 
-This describes files currently present in the workspace, not which versions have
+This describes files currently present in the workspace, not which version has
 been applied to an environment. Verify deployment state from that environment's
-Flyway history. This chain is not a SQL Server-to-PostgreSQL data-transfer plan.
+Flyway history. This baseline is not a SQL Server-to-PostgreSQL data-transfer plan.
 
 ADR-0008 keeps administrative snapshot values as explicit aggregate fields and
-retains the typed columns introduced by V002; it requires no separate migration.
+retains the typed columns in the baseline; it requires no separate migration.
 
 ## 7. Identifier strategy
 

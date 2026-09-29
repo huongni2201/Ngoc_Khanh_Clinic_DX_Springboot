@@ -1,0 +1,7 @@
+.git
+.codegraph
+.superpowers
+.idea
+target
+*.iml
+.env

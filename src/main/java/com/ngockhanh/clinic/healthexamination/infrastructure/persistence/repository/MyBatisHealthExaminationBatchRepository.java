@@ -13,7 +13,7 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.
 
 @Repository
 @RequiredArgsConstructor
-public final class MyBatisHealthExaminationBatchRepository implements HealthExaminationBatchRepository {
+public class MyBatisHealthExaminationBatchRepository implements HealthExaminationBatchRepository {
     private final HealthExaminationBatchMyBatisMapper mapper;
 
     @Override

@@ -19,4 +19,5 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
     List<UUID> findParticipantIdsByBatch(@Param("batchId") UUID batchId,
                                          @Param("participantIds") Collection<UUID> participantIds);
     int insert(HealthExaminationBatchParticipantRecord participant);
+    int insertAssignments(@Param("items") Collection<HealthExaminationBatchParticipantServiceRecord> assignments);
 }

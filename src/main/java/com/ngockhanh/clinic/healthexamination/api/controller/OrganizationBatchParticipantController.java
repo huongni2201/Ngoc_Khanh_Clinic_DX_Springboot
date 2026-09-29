@@ -29,31 +29,31 @@ import com.ngockhanh.clinic.shared.web.PageResponse;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrganizationBatchParticipantController {
 
-    ListBatchParticipantUseCase listBatchParticipantUseCase;
+	ListBatchParticipantUseCase listBatchParticipantUseCase;
 
-    /**
-     * Lists a batch roster. Defaults are page 1, size 10, sortKey id, and sortBy ASC.
-     * searchKey is a case-insensitive keyword across employee name, CCCD, and phone number.
-     * sortKey selects an allowlisted field; sortBy selects its direction.
-     */
-    @GetMapping("/participant")
-    public ResponseEntity<ApiResponse<PageResponse<OrganizationBatchParticipantResponse>>> participants(
-            @PathVariable UUID organizationId,
-            @PathVariable UUID batchId,
-            @Valid @ModelAttribute OrganizationBatchParticipantRequest request
-    ) {
-        log.info("List batch participants request: organizationId={}, batchId={}", organizationId, batchId);
-        OrganizationBatchParticipantQuery query = OrganizationBatchParticipantQuery.builder()
-                .page(request.getPage())
-                .size(request.getSize())
-                .searchKey(request.getSearchKey())
-                .sortBy(request.getSortBy())
-                .sortKey(request.getSortKey())
-                .build();
+	/**
+	 * Lists a batch roster. Defaults are page 1, size 10, sortKey id, and sortBy ASC.
+	 * searchKey is a case-insensitive keyword across employee name, CCCD, and phone number.
+	 * sortKey selects an allowlisted field; sortBy selects its direction.
+	 */
+	@GetMapping("/participant")
+	public ResponseEntity<ApiResponse<PageResponse<OrganizationBatchParticipantResponse>>> participants(
+			@PathVariable UUID organizationId,
+			@PathVariable UUID batchId,
+			@Valid @ModelAttribute OrganizationBatchParticipantRequest request
+	) {
+		log.info("List batch participants request: organizationId={}, batchId={}", organizationId, batchId);
+		OrganizationBatchParticipantQuery query = OrganizationBatchParticipantQuery.builder()
+				.page(request.getPage())
+				.size(request.getSize())
+				.searchKey(request.getSearchKey())
+				.sortBy(request.getSortBy())
+				.sortKey(request.getSortKey())
+				.build();
 
-        PageResponse<OrganizationBatchParticipantResponse> response = listBatchParticipantUseCase.execute(
-                organizationId, batchId, query);
+		PageResponse<OrganizationBatchParticipantResponse> response = listBatchParticipantUseCase.execute(
+				organizationId, batchId, query);
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Health examination batch participants", response));
-    }
+		return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Health examination batch participants", response));
+	}
 }

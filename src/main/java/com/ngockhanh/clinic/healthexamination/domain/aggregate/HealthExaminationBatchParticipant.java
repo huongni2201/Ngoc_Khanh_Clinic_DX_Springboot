@@ -9,6 +9,7 @@ import java.util.Objects;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateParticipantServiceAssignment;
+import com.ngockhanh.clinic.healthexamination.domain.exception.ServiceOutsideBatchScope;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.BatchPriceRevision;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
@@ -169,14 +170,38 @@ public final class HealthExaminationBatchParticipant {
 
 	public void assignService(AggregateId assignmentId, AggregateId batchServiceId,
 	                          AggregateId serviceRequestId, Money negotiatedPrice) {
-		if (assignmentId == null || batchServiceId == null || serviceRequestId == null || negotiatedPrice == null) {
+		assignService(assignmentId, batchServiceId, negotiatedPrice,
+				HealthExaminationBatchParticipantService.create(assignmentId, batchServiceId,
+						serviceRequestId, negotiatedPrice));
+	}
+
+	public void assignService(AggregateId assignmentId, AggregateId batchServiceId, Money negotiatedPrice) {
+		assignService(assignmentId, batchServiceId, negotiatedPrice,
+				HealthExaminationBatchParticipantService.create(assignmentId, batchServiceId, negotiatedPrice));
+	}
+
+	private void assignService(AggregateId assignmentId, AggregateId batchServiceId, Money negotiatedPrice,
+	                           HealthExaminationBatchParticipantService assignment) {
+		if (assignmentId == null || batchServiceId == null || negotiatedPrice == null) {
 			throw new IllegalArgumentException("Incomplete participant service assignment");
 		}
-		if (assignments.putIfAbsent(batchServiceId,
-				HealthExaminationBatchParticipantService.create(assignmentId, batchServiceId,
-						serviceRequestId, negotiatedPrice)) != null) {
+		if (assignments.putIfAbsent(batchServiceId, assignment) != null) {
 			throw new DuplicateParticipantServiceAssignment();
 		}
+	}
+
+	public void linkServiceRequest(AggregateId batchServiceId, AggregateId serviceRequestId) {
+		if (batchServiceId == null || serviceRequestId == null) {
+			throw new IllegalArgumentException("Incomplete Service Request link");
+		}
+		HealthExaminationBatchParticipantService assignment = assignments.get(batchServiceId);
+		if (assignment == null) throw new ServiceOutsideBatchScope();
+		if (assignments.values().stream()
+				.anyMatch(existing -> !Objects.equals(existing.batchServiceId(), batchServiceId)
+						&& Objects.equals(existing.serviceRequestId(), serviceRequestId))) {
+			throw new DomainRuleViolation("Service Request already linked");
+		}
+		assignments.put(batchServiceId, assignment.linkServiceRequest(serviceRequestId));
 	}
 
 	public void markServiceBillable(AggregateId serviceRequestId) {

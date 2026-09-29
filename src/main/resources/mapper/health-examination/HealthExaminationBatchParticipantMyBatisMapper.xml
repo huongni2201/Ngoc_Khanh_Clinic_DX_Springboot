@@ -51,4 +51,17 @@
             #{status}, CURRENT_TIMESTAMP
         )
     </insert>
+    <insert id="insertAssignments">
+        INSERT INTO public.health_examination_batch_participant_services (
+            id, health_examination_batch_participant_id, health_examination_batch_service_id,
+            service_request_id, billable, unit_price_snapshot, created_at, updated_at
+        ) VALUES
+        <foreach collection="items" item="assignment" separator=",">
+            (
+                #{assignment.id}, #{assignment.healthExaminationBatchParticipantId},
+                #{assignment.healthExaminationBatchServiceId}, #{assignment.serviceRequestId},
+                #{assignment.billable}, #{assignment.unitPriceSnapshot}, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+        </foreach>
+    </insert>
 </mapper>

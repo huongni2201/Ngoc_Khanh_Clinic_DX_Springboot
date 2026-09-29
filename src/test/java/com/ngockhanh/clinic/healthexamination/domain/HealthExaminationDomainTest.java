@@ -220,6 +220,20 @@ class HealthExaminationDomainTest {
         assertThat(employee.assignmentFor(id(11)).billable()).isTrue();
         assertThat(employee.assignmentFor(id(11)).unitPrice().amount()).isEqualByComparingTo(new BigDecimal("90000"));
     }
+
+    @Test
+    void participantServiceAssignmentCanBeLinkedToARequestLater() {
+        HealthExaminationBatchParticipant participant = participant(batchParticipantId(22), List.of());
+
+        participant.assignService(id(20), id(11), Money.vnd("90000"));
+        assertThat(participant.assignmentFor(id(11)).serviceRequestId()).isNull();
+
+        participant.linkServiceRequest(id(11), id(301));
+        participant.linkServiceRequest(sameId(id(11)), sameId(id(301)));
+        assertThat(participant.assignmentFor(id(11)).serviceRequestId()).isEqualTo(id(301));
+        assertThatThrownBy(() -> participant.linkServiceRequest(id(11), id(302)))
+                .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
+    }
     @Test
     void importJobConfirmsValidRowsPartiallyAndRejectsDuplicateLineNumbers() {
         HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.PARTICIPANT_LIST);
@@ -312,7 +326,9 @@ class HealthExaminationDomainTest {
     void loadedAggregatesRetainIdentityAndCorporateVisitLink() {
         Organization company = Organization.create(id(1), "Organization", "Contact", "0900000000");
         HealthExaminationParticipant employee = HealthExaminationParticipant.create(id(2), id(1), "E01", IdentificationNumber.of("012345678901"), "Nguyen A", LocalDate.of(1990, 1, 1), "MALE");
-        HealthExaminationBatchParticipant participant = participant(batchParticipantId(3), List.of());
+        HealthExaminationBatchParticipant participant = HealthExaminationBatchParticipant.restore(
+                batchParticipantId(3), id(7), id(2), "Nguyen A", LocalDate.of(1990, 1, 1), "MALE",
+                IdentificationNumber.of("012345678901"), List.of());
         HealthExaminationRecord visit = preparedBatchRecord(id(4), ShsCode.of("SHS-4"),
                 LocalDate.of(1990, 1, 1), LocalDate.of(2026, 9, 22));
         assertThat(company.id()).isEqualTo(id(1));

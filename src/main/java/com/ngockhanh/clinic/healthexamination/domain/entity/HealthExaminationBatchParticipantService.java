@@ -1,7 +1,10 @@
 package com.ngockhanh.clinic.healthexamination.domain.entity;
 
+import java.util.Objects;
+
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
+import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 
 public final class HealthExaminationBatchParticipantService {
     private final AggregateId id;
@@ -13,7 +16,7 @@ public final class HealthExaminationBatchParticipantService {
     private HealthExaminationBatchParticipantService(AggregateId id, AggregateId batchServiceId,
                                                     AggregateId serviceRequestId, Money unitPrice,
                                                     boolean billable) {
-        if (id == null || batchServiceId == null || serviceRequestId == null || unitPrice == null) {
+        if (id == null || batchServiceId == null || unitPrice == null) {
             throw new IllegalArgumentException("Invalid participant assignment");
         }
         this.id = id;
@@ -21,6 +24,11 @@ public final class HealthExaminationBatchParticipantService {
         this.serviceRequestId = serviceRequestId;
         this.unitPrice = unitPrice;
         this.billable = billable;
+    }
+
+    public static HealthExaminationBatchParticipantService create(AggregateId id, AggregateId batchServiceId,
+                                                                   Money unitPrice) {
+        return new HealthExaminationBatchParticipantService(id, batchServiceId, null, unitPrice, false);
     }
 
     public static HealthExaminationBatchParticipantService create(AggregateId id, AggregateId batchServiceId,
@@ -42,6 +50,15 @@ public final class HealthExaminationBatchParticipantService {
     public HealthExaminationBatchParticipantService withUnitPrice(Money price) {
         if (price == null) throw new IllegalArgumentException("Missing price");
         return new HealthExaminationBatchParticipantService(id, batchServiceId, serviceRequestId, price, billable);
+    }
+
+    public HealthExaminationBatchParticipantService linkServiceRequest(AggregateId requestId) {
+        if (requestId == null) throw new IllegalArgumentException("Missing Service Request");
+        if (serviceRequestId != null && !Objects.equals(serviceRequestId, requestId)) {
+            throw new DomainRuleViolation("Service Request relink forbidden");
+        }
+        if (Objects.equals(serviceRequestId, requestId)) return this;
+        return new HealthExaminationBatchParticipantService(id, batchServiceId, requestId, unitPrice, billable);
     }
 
     public AggregateId id() { return id; }
