@@ -25,13 +25,19 @@ public class CreateOrganizationUseCase {
     @Transactional
     public OrganizationResponse execute(CreateOrganizationCommand command) {
         if (command == null) throw new IllegalArgumentException("Missing organization command");
-        if (command.taxCode() != null && !command.taxCode().isBlank()
-                && organizations.findByTaxCode(command.taxCode()).isPresent()) {
+        String taxCode = OrganizationFieldNormalizer.optional(command.taxCode());
+        if (taxCode != null && organizations.findByTaxCode(taxCode).isPresent()) {
             throw new DuplicateOrganizationIdentity();
         }
+        String name = OrganizationFieldNormalizer.required(command.name());
+        String address = OrganizationFieldNormalizer.optional(command.address());
+        String contactName = OrganizationFieldNormalizer.required(command.contactName());
+        String contactPhone = OrganizationFieldNormalizer.required(command.contactPhone());
+        String contactJobTitle = OrganizationFieldNormalizer.optional(command.contactJobTitle());
+        String note = OrganizationFieldNormalizer.optional(command.note());
         AggregateId id = new AggregateId(ids.next());
-        Organization organization = Organization.create(id, command.name(), command.taxCode(),
-                command.address(), command.contactName(), command.contactPhone(), command.contactJobTitle(), command.note());
+        Organization organization = Organization.create(id, name, taxCode, address,
+                contactName, contactPhone, contactJobTitle, note);
         organizations.save(organization);
         log.info("Organization creation persisted: organizationId={}", organization.id().value());
         return OrganizationResponse.from(organization);

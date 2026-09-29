@@ -12,15 +12,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @SuperBuilder
 @AllowedSortKeys({
-    "id",
-    "participantId",
-    "participantCode",
-    "fullName",
-    "departmentName",
-    "jobTitle",
-    "occupation",
-    "status",
-    "createdAt"
+    "id", "participantId", "fullName", "createdAt", "departmentName", "jobTitle"
 })
 public class OrganizationBatchParticipantRequest extends BasePagination {
 

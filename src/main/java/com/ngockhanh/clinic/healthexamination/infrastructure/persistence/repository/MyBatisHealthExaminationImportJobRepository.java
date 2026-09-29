@@ -23,7 +23,7 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.
 
 @Repository
 @RequiredArgsConstructor
-public final class MyBatisHealthExaminationImportJobRepository implements HealthExaminationImportJobRepository {
+public class MyBatisHealthExaminationImportJobRepository implements HealthExaminationImportJobRepository {
 
     private final HealthExaminationImportJobMyBatisMapper mapper;
     private final JsonMapper objectMapper;
@@ -92,7 +92,8 @@ public final class MyBatisHealthExaminationImportJobRepository implements Health
                         payload.administrativeOccupation(), payload.workplaceOrSchool(),
                         payload.healthExaminationReason(), payload.departmentName(), payload.jobTitle(),
                         payload.occupation(), record.serviceCodeSnapshot(), toId(record.resolvedServiceRequestId()),
-                        toId(record.resolvedHealthExaminationParticipantId()), toId(record.resolvedBatchParticipantId()));
+                        toId(record.resolvedPatientId()), toId(record.resolvedHealthExaminationParticipantId()),
+                        toId(record.resolvedBatchParticipantId()), toId(record.resolvedBatchServiceId()));
             } catch (RuntimeException failure) {
                 throw new IllegalStateException("Unable to read stored import row", failure);
             }
@@ -119,8 +120,9 @@ public final class MyBatisHealthExaminationImportJobRepository implements Health
                 return new HealthExaminationImportRowRecord(row.id().value(), jobId.value(), row.rowNumber(),
                         row.participantCode(), row.identificationNumber() == null ? null : row.identificationNumber().value(),
                         row.serviceCode(), row.valid() ? "VALID" : "INVALID",
-                        objectMapper.writeValueAsString(row.errorCodes()), normalizedPayload, null,
-                        value(row.resolvedParticipantId()), value(row.resolvedBatchParticipantId()), null,
+                        objectMapper.writeValueAsString(row.errorCodes()), normalizedPayload,
+                        value(row.resolvedPatientId()), value(row.resolvedParticipantId()),
+                        value(row.resolvedBatchParticipantId()), value(row.resolvedBatchServiceId()),
                         value(row.serviceRequestId()));
             } catch (RuntimeException failure) {
                 throw new IllegalStateException("Unable to serialize import row", failure);

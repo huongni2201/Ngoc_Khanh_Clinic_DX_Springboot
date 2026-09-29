@@ -55,10 +55,14 @@
         UPDATE public.health_examination_import_rows
         SET participant_code_snapshot = #{participantCodeSnapshot},
             identification_number_snapshot = #{identificationNumberSnapshot},
+            service_code_snapshot = #{serviceCodeSnapshot},
             validation_status = #{validationStatus}, error_codes_json = #{errorCodesJson},
             normalized_payload_json = #{normalizedPayloadJson},
+            resolved_patient_id = #{resolvedPatientId},
             resolved_health_examination_participant_id = #{resolvedHealthExaminationParticipantId},
-            resolved_batch_participant_id = #{resolvedBatchParticipantId}
+            resolved_batch_participant_id = #{resolvedBatchParticipantId},
+            resolved_batch_service_id = #{resolvedBatchServiceId},
+            resolved_service_request_id = #{resolvedServiceRequestId}
         WHERE id = #{id} AND health_examination_import_job_id = #{healthExaminationImportJobId}
     </update>
 </mapper>

@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminatio
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
@@ -56,6 +58,29 @@ class MyBatisOrganizationRepositoryIntegrationTest {
         assertThat(restored.taxCode()).isEqualTo(expected.taxCode());
         assertThat(restored.address()).isEqualTo(expected.address());
         assertThat(organizations.findByTaxCode(expected.taxCode())).get().extracting(Organization::id).isEqualTo(expected.id());
+    }
+
+    @Test
+    void incrementsOrganizationVersionAndRejectsStaleUpdates() {
+        Organization expected = Organization.create(new AggregateId(id(4)), "Organization", "TAX-04",
+                "Address", "Contact", "0900000000", "Director", "Note");
+        organizations.save(expected);
+
+        Organization loaded = organizations.findById(expected.id()).orElseThrow();
+        organizations.update(loaded.updateDetails("Updated", loaded.taxCode(), loaded.address(),
+                loaded.contactName(), loaded.contactPhone(), loaded.contactJobTitle(), loaded.note()), loaded.rowVersion());
+
+        Organization current = organizations.findById(expected.id()).orElseThrow();
+        assertThat(current.rowVersion()).isEqualTo(1L);
+
+        assertThatThrownBy(() -> organizations.update(
+                loaded.updateDetails("Stale", loaded.taxCode(), loaded.address(), loaded.contactName(),
+                        loaded.contactPhone(), loaded.contactJobTitle(), loaded.note()), loaded.rowVersion()))
+                .isInstanceOf(ConcurrentUpdateException.class);
+
+        organizations.update(current.updateDetails("Updated again", current.taxCode(), current.address(),
+                current.contactName(), current.contactPhone(), current.contactJobTitle(), current.note()), current.rowVersion());
+        assertThat(organizations.findById(expected.id()).orElseThrow().rowVersion()).isEqualTo(2L);
     }
 
     @Test

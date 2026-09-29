@@ -32,96 +32,96 @@ import com.ngockhanh.clinic.shared.web.ApiResponse;
 @RequiredArgsConstructor
 public class OrganizationController {
 
-    private final CreateOrganizationUseCase createOrganizationUseCase;
-    private final GetOrganizationUseCase getOrganizationUseCase;
-    private final UpdateOrganizationUseCase updateOrganizationUseCase;
-    private final DeactivateOrganizationUseCase deactivateOrganizationUseCase;
+	private final CreateOrganizationUseCase createOrganizationUseCase;
+	private final GetOrganizationUseCase getOrganizationUseCase;
+	private final UpdateOrganizationUseCase updateOrganizationUseCase;
+	private final DeactivateOrganizationUseCase deactivateOrganizationUseCase;
 
-    /**
-     * Creates a new organization.
-     *
-     * @param request organization data submitted by the client
-     * @return the created organization
-     */
-    @PostMapping
-    public ResponseEntity<ApiResponse<OrganizationResponse>> create(
-            @Valid @RequestBody OrganizationRequest request
-    ) {
-        log.debug("Create organization request received");
-        CreateOrganizationCommand command = CreateOrganizationCommand.builder()
-                .name(request.name())
-                .taxCode(request.taxCode())
-                .address(request.address())
-                .contactName(request.contactName())
-                .contactPhone(request.contactPhone())
-                .contactJobTitle(request.contactJobTitle())
-                .note(request.note())
-                .build();
+	/**
+	 * Creates a new organization.
+	 *
+	 * @param request organization data submitted by the client
+	 * @return the created organization
+	 */
+	@PostMapping
+	public ResponseEntity<ApiResponse<OrganizationResponse>> create(
+			@Valid @RequestBody OrganizationRequest request
+	) {
+		log.debug("Create organization request received");
+		CreateOrganizationCommand command = CreateOrganizationCommand.builder()
+				.name(request.name())
+				.taxCode(request.taxCode())
+				.address(request.address())
+				.contactName(request.contactName())
+				.contactPhone(request.contactPhone())
+				.contactJobTitle(request.contactJobTitle())
+				.note(request.note())
+				.build();
 
-        OrganizationResponse response = createOrganizationUseCase.execute(command);
+		OrganizationResponse response = createOrganizationUseCase.execute(command);
 
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(HttpStatus.CREATED.value(), "Organization created", response));
-    }
+		return ResponseEntity.status(HttpStatus.CREATED)
+				.body(ApiResponse.success(HttpStatus.CREATED.value(), "Organization created", response));
+	}
 
-    /**
-     * Retrieves an organization by its identifier.
-     *
-     * @param organizationId organization identifier
-     * @return the requested organization
-     */
-    @GetMapping("/{organizationId}")
-    public ResponseEntity<ApiResponse<OrganizationResponse>> get(
-            @PathVariable UUID organizationId
-    ) {
-        log.debug("Get organization request: organizationId={}", organizationId);
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
-    }
+	/**
+	 * Retrieves an organization by its identifier.
+	 *
+	 * @param organizationId organization identifier
+	 * @return the requested organization
+	 */
+	@GetMapping("/{organizationId}")
+	public ResponseEntity<ApiResponse<OrganizationResponse>> get(
+			@PathVariable UUID organizationId
+	) {
+		log.debug("Get organization request: organizationId={}", organizationId);
+		return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
+	}
 
-    /**
-     * Updates an existing organization.
-     *
-     * @param organizationId organization identifier
-     * @param request updated organization data submitted by the client
-     * @return the updated organization
-     */
-    @PutMapping("/{organizationId}")
-    public ResponseEntity<ApiResponse<OrganizationResponse>> update(
-            @PathVariable UUID organizationId,
-            @Valid @RequestBody OrganizationRequest request
-    ) {
-        log.debug("Update organization request: organizationId={}", organizationId);
+	/**
+	 * Updates an existing organization.
+	 *
+	 * @param organizationId organization identifier
+	 * @param request        updated organization data submitted by the client
+	 * @return the updated organization
+	 */
+	@PutMapping("/{organizationId}")
+	public ResponseEntity<ApiResponse<OrganizationResponse>> update(
+			@PathVariable UUID organizationId,
+			@Valid @RequestBody OrganizationRequest request
+	) {
+		log.debug("Update organization request: organizationId={}", organizationId);
 
-        UpdateOrganizationCommand command = UpdateOrganizationCommand.builder()
-                .name(request.name())
-                .taxCode(request.taxCode())
-                .address(request.address())
-                .contactName(request.contactName())
-                .contactPhone(request.contactPhone())
-                .contactJobTitle(request.contactJobTitle())
-                .note(request.note())
-                .build();
+		UpdateOrganizationCommand command = UpdateOrganizationCommand.builder()
+				.name(request.name())
+				.taxCode(request.taxCode())
+				.address(request.address())
+				.contactName(request.contactName())
+				.contactPhone(request.contactPhone())
+				.contactJobTitle(request.contactJobTitle())
+				.note(request.note())
+				.build();
 
-        OrganizationResponse response = updateOrganizationUseCase.execute(organizationId, command);
+		OrganizationResponse response = updateOrganizationUseCase.execute(organizationId, command);
 
-        return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Organization updated",
-                response));
-    }
+		return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), "Organization updated",
+				response));
+	}
 
-    /**
-     * Deactivates an organization by its identifier.
-     *
-     * @param organizationId organization identifier
-     * @return an empty successful response
-     */
-    @DeleteMapping("/{organizationId}")
-    public ResponseEntity<ApiResponse<Void>> delete(
-            @PathVariable UUID organizationId
-    ) {
-        log.debug("Deactivate organization request: organizationId={}", organizationId);
+	/**
+	 * Deactivates an organization by its identifier.
+	 *
+	 * @param organizationId organization identifier
+	 * @return an empty successful response
+	 */
+	@DeleteMapping("/{organizationId}")
+	public ResponseEntity<ApiResponse<Void>> delete(
+			@PathVariable UUID organizationId
+	) {
+		log.debug("Deactivate organization request: organizationId={}", organizationId);
 
-        deactivateOrganizationUseCase.execute(organizationId);
-        return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "Organization deactivated"));
-    }
+		deactivateOrganizationUseCase.execute(organizationId);
+		return ResponseEntity.ok(new ApiResponse<>(HttpStatus.OK.value(), "Organization deactivated"));
+	}
 
 }

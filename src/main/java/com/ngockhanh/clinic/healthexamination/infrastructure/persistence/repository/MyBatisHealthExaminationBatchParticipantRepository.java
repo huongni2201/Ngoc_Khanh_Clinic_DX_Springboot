@@ -22,7 +22,7 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.
 
 @Repository
 @RequiredArgsConstructor
-public final class MyBatisHealthExaminationBatchParticipantRepository
+public class MyBatisHealthExaminationBatchParticipantRepository
         implements HealthExaminationBatchParticipantRepository {
     private final HealthExaminationBatchParticipantMyBatisMapper mapper;
     private final BatchParticipantSummaryMyBatisMapper summaryMapper;
@@ -64,6 +64,12 @@ public final class MyBatisHealthExaminationBatchParticipantRepository
     public void save(HealthExaminationBatchParticipant participant) {
         HealthExaminationBatchParticipantRecord record = Converter.toRecord(participant);
         if (mapper.insert(record) != 1) throw new IllegalStateException("Batch participant was not saved");
+        List<HealthExaminationBatchParticipantServiceRecord> assignments = participant.assignments().stream()
+                .map(assignment -> Converter.toRecord(participant, assignment))
+                .toList();
+        if (!assignments.isEmpty() && mapper.insertAssignments(assignments) != assignments.size()) {
+            throw new IllegalStateException("Batch participant service assignments were not saved");
+        }
     }
 
     private HealthExaminationBatchParticipant toDomain(HealthExaminationBatchParticipantRecord record) {
@@ -87,13 +93,23 @@ public final class MyBatisHealthExaminationBatchParticipantRepository
                 "REGISTERED", null);
         }
 
+        static HealthExaminationBatchParticipantServiceRecord toRecord(
+                HealthExaminationBatchParticipant participant,
+                HealthExaminationBatchParticipantService assignment) {
+            return new HealthExaminationBatchParticipantServiceRecord(
+                    assignment.id().value(), participant.id().value(), assignment.batchServiceId().value(),
+                    assignment.serviceRequestId() == null ? null : assignment.serviceRequestId().value(),
+                    assignment.billable(), assignment.unitPrice().amount(),
+                    null, null);
+        }
+
         static HealthExaminationBatchParticipant toDomain(HealthExaminationBatchParticipantRecord record,
                     List<HealthExaminationBatchParticipantServiceRecord> assignmentRecords) {
             if (record == null) return null;
             List<HealthExaminationBatchParticipantService> assignments = assignmentRecords.stream()
                     .map(service -> HealthExaminationBatchParticipantService.restore(
                             new AggregateId(service.id()), new AggregateId(service.healthExaminationBatchServiceId()),
-                            new AggregateId(service.serviceRequestId()),
+                            service.serviceRequestId() == null ? null : new AggregateId(service.serviceRequestId()),
                             new Money(service.unitPriceSnapshot(), "VND"), service.billable()))
                     .toList();
             return HealthExaminationBatchParticipant.restore(new AggregateId(record.id()),

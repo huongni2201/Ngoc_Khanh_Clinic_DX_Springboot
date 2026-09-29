@@ -17,7 +17,7 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.
 
 @Repository
 @RequiredArgsConstructor
-public final class  MyBatisHealthExaminationParticipantRepository implements HealthExaminationParticipantRepository {
+public class MyBatisHealthExaminationParticipantRepository implements HealthExaminationParticipantRepository {
     private final HealthExaminationParticipantMyBatisMapper mapper;
     private final HealthExaminationParticipantPersistenceConverter converter =
             new HealthExaminationParticipantPersistenceConverter();

@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.healthexamination.application;
+package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -10,8 +10,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
-import com.ngockhanh.clinic.healthexamination.application.usecase.DeactivateOrganizationUseCase;
-import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -36,6 +34,27 @@ class OrganizationCrudUseCaseTest {
         new DeactivateOrganizationUseCase(organizations).execute(id);
 
         assertThat(organizations.findById(new AggregateId(id)).orElseThrow().status()).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void normalizesOptionalFieldsWhenUpdatingOrganization() {
+        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000011");
+        InMemoryOrganizations organizations = new InMemoryOrganizations();
+        organizations.save(Organization.create(new AggregateId(id), "Old name", null, null,
+                "Contact", "0900000000", null, null));
+
+        new UpdateOrganizationUseCase(organizations).execute(id,
+                new UpdateOrganizationCommand(" New name ", "  ", " ", " New contact ",
+                        " 0911111111 ", " ", " "));
+
+        Organization updated = organizations.findById(new AggregateId(id)).orElseThrow();
+        assertThat(updated.name()).isEqualTo("New name");
+        assertThat(updated.taxCode()).isNull();
+        assertThat(updated.address()).isNull();
+        assertThat(updated.contactName()).isEqualTo("New contact");
+        assertThat(updated.contactPhone()).isEqualTo("0911111111");
+        assertThat(updated.contactJobTitle()).isNull();
+        assertThat(updated.note()).isNull();
     }
 
     private static final class InMemoryOrganizations implements OrganizationRepository {

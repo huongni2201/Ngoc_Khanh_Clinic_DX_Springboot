@@ -34,8 +34,10 @@ public final class HealthExaminationImportRow {
     private final String occupation;
     private final String serviceCode;
     private final AggregateId serviceRequestId;
+    private AggregateId resolvedPatientId;
     private AggregateId resolvedParticipantId;
     private AggregateId resolvedBatchParticipantId;
+    private AggregateId resolvedBatchServiceId;
 
     private HealthExaminationImportRow(AggregateId id, int rowNumber, boolean valid, List<String> errorCodes,
                                        String participantCode, String fullName, LocalDate dateOfBirth, String sex,
@@ -48,6 +50,26 @@ public final class HealthExaminationImportRow {
                                        String departmentName, String jobTitle, String occupation, String serviceCode,
                                        AggregateId serviceRequestId, AggregateId resolvedParticipantId,
                                        AggregateId resolvedBatchParticipantId) {
+        this(id, rowNumber, valid, errorCodes, participantCode, fullName, dateOfBirth, sex,
+                identificationNumber, identificationNumberIssueDate, identificationNumberIssuePlace, ethnicity,
+                subjectType, payerSource, bloodGroup, phone, province, ward, addressDetail,
+                administrativeOccupation, workplaceOrSchool, healthExaminationReason, departmentName, jobTitle,
+                occupation, serviceCode, serviceRequestId, null, resolvedParticipantId,
+                resolvedBatchParticipantId, null);
+    }
+
+    private HealthExaminationImportRow(AggregateId id, int rowNumber, boolean valid, List<String> errorCodes,
+                                       String participantCode, String fullName, LocalDate dateOfBirth, String sex,
+                                       IdentificationNumber identificationNumber,
+                                       LocalDate identificationNumberIssueDate,
+                                       String identificationNumberIssuePlace, String ethnicity, String subjectType,
+                                       String payerSource, String bloodGroup, String phone, String province,
+                                       String ward, String addressDetail, String administrativeOccupation,
+                                       String workplaceOrSchool, String healthExaminationReason,
+                                       String departmentName, String jobTitle, String occupation, String serviceCode,
+                                       AggregateId serviceRequestId, AggregateId resolvedPatientId,
+                                       AggregateId resolvedParticipantId, AggregateId resolvedBatchParticipantId,
+                                       AggregateId resolvedBatchServiceId) {
         if (id == null || rowNumber < 1 || (!valid && (errorCodes == null || errorCodes.isEmpty()))) {
             throw new IllegalArgumentException("Invalid import row validation");
         }
@@ -78,8 +100,10 @@ public final class HealthExaminationImportRow {
         this.occupation = occupation;
         this.serviceCode = serviceCode;
         this.serviceRequestId = serviceRequestId;
+        this.resolvedPatientId = resolvedPatientId;
         this.resolvedParticipantId = resolvedParticipantId;
         this.resolvedBatchParticipantId = resolvedBatchParticipantId;
+        this.resolvedBatchServiceId = resolvedBatchServiceId;
     }
 
     public static HealthExaminationImportRow roster(AggregateId id, int rowNumber, String participantCode,
@@ -168,6 +192,29 @@ public final class HealthExaminationImportRow {
                 resolvedBatchParticipantId);
     }
 
+    public static HealthExaminationImportRow restore(AggregateId id, int rowNumber, boolean valid,
+                                                      List<String> errorCodes, String participantCode,
+                                                      String fullName, LocalDate dateOfBirth, String sex,
+                                                      IdentificationNumber identificationNumber,
+                                                      LocalDate identificationNumberIssueDate,
+                                                      String identificationNumberIssuePlace, String ethnicity,
+                                                      String subjectType, String payerSource, String bloodGroup,
+                                                      String phone, String province, String ward, String addressDetail,
+                                                      String administrativeOccupation, String workplaceOrSchool,
+                                                      String healthExaminationReason, String departmentName,
+                                                      String jobTitle, String occupation, String serviceCode,
+                                                      AggregateId serviceRequestId, AggregateId resolvedPatientId,
+                                                      AggregateId resolvedParticipantId,
+                                                      AggregateId resolvedBatchParticipantId,
+                                                      AggregateId resolvedBatchServiceId) {
+        return new HealthExaminationImportRow(id, rowNumber, valid, errorCodes, participantCode, fullName,
+                dateOfBirth, sex, identificationNumber, identificationNumberIssueDate,
+                identificationNumberIssuePlace, ethnicity, subjectType, payerSource, bloodGroup, phone, province,
+                ward, addressDetail, administrativeOccupation, workplaceOrSchool, healthExaminationReason,
+                departmentName, jobTitle, occupation, serviceCode, serviceRequestId, resolvedPatientId,
+                resolvedParticipantId, resolvedBatchParticipantId, resolvedBatchServiceId);
+    }
+
     public boolean hasAdministrativeIdentity() {
         return fullName != null && !fullName.isBlank() && dateOfBirth != null
                 && sex != null && !sex.isBlank() && identificationNumber != null;
@@ -189,6 +236,17 @@ public final class HealthExaminationImportRow {
         }
         resolvedParticipantId = participantId;
         resolvedBatchParticipantId = batchParticipantId;
+    }
+
+    public void resolve(AggregateId patientId, AggregateId participantId,
+                        AggregateId batchParticipantId, AggregateId batchServiceId) {
+        if (!valid || patientId == null || participantId == null || batchParticipantId == null
+                || batchServiceId == null) {
+            throw new IllegalArgumentException("Invalid confirmed import row resolution");
+        }
+        resolve(participantId, batchParticipantId);
+        resolvedPatientId = patientId;
+        resolvedBatchServiceId = batchServiceId;
     }
 
     public AggregateId id() { return id; }
@@ -219,6 +277,8 @@ public final class HealthExaminationImportRow {
     public String occupation() { return occupation; }
     public String serviceCode() { return serviceCode; }
     public AggregateId serviceRequestId() { return serviceRequestId; }
+    public AggregateId resolvedPatientId() { return resolvedPatientId; }
     public AggregateId resolvedParticipantId() { return resolvedParticipantId; }
     public AggregateId resolvedBatchParticipantId() { return resolvedBatchParticipantId; }
+    public AggregateId resolvedBatchServiceId() { return resolvedBatchServiceId; }
 }

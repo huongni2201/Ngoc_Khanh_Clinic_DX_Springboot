@@ -82,7 +82,6 @@ CREATE TABLE public.document_templates (
 
 CREATE TABLE public.organizations (
     id uuid NOT NULL CONSTRAINT pk_organizations PRIMARY KEY,
-    organization_code varchar(40) NOT NULL,
     organization_name varchar(300) NOT NULL,
     tax_code varchar(40) NULL,
     address varchar(500) NULL,
@@ -94,7 +93,7 @@ CREATE TABLE public.organizations (
     created_at timestamptz(3) NOT NULL,
     updated_at timestamptz(3) NOT NULL,
     row_version bigint NOT NULL DEFAULT 0,
-    CONSTRAINT uq_organizations_organization_code UNIQUE (organization_code)
+    CONSTRAINT ck_organizations_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
 CREATE TABLE public.lab_panels (
@@ -225,6 +224,7 @@ CREATE TABLE public.health_examination_participants (
     updated_at timestamptz(3) NOT NULL,
     CONSTRAINT fk_health_examination_participants_organization_id FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
     CONSTRAINT fk_health_examination_participants_patient_id FOREIGN KEY (patient_id) REFERENCES public.patients(id),
+    CONSTRAINT ck_health_examination_participants_status CHECK (status IN ('ACTIVE', 'INACTIVE')),
     CONSTRAINT uq_health_examination_participants_organization_id_par_01022f71 UNIQUE (organization_id, participant_code),
     CONSTRAINT uq_health_examination_participants_organization_id_ide_9e2a14f3 UNIQUE (organization_id, identification_number)
 );
@@ -710,6 +710,7 @@ CREATE TABLE public.health_examination_batches (
     created_at timestamptz(3) NOT NULL,
     updated_at timestamptz(3) NOT NULL,
     CONSTRAINT ck_health_examination_batches_status CHECK (status IN ('DRAFT', 'READY', 'IN_PROGRESS', 'RESULT_PROCESSING', 'FINALIZED', 'CLOSED', 'CANCELED')),
+    CONSTRAINT ck_health_examination_batches_date_range CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date),
     CONSTRAINT fk_health_examination_batches_organization_id FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
     CONSTRAINT fk_health_examination_batches_master_template_version_id FOREIGN KEY (master_template_version_id) REFERENCES public.document_template_versions(id),
     CONSTRAINT fk_health_examination_batches_created_by_user_id FOREIGN KEY (created_by_user_id) REFERENCES public.users(id),
@@ -746,10 +747,14 @@ CREATE TABLE public.health_examination_batch_services (
     status varchar(16) NOT NULL DEFAULT 'ACTIVE',
     created_at timestamptz(3) NOT NULL,
     updated_at timestamptz(3) NOT NULL,
+    CONSTRAINT ck_health_examination_batch_services_base_price_nonnegative CHECK (base_price_snapshot >= 0),
+    CONSTRAINT ck_health_examination_batch_services_neg_price_nonnegative CHECK (negotiated_unit_price >= 0),
+    CONSTRAINT ck_health_examination_batch_services_display_order_positive CHECK (display_order > 0),
+    CONSTRAINT ck_health_examination_batch_services_currency_vnd CHECK (currency = 'VND'),
     CONSTRAINT fk_health_examination_batch_services_health_examinatio_0c047c02 FOREIGN KEY (health_examination_batch_id) REFERENCES public.health_examination_batches(id),
     CONSTRAINT fk_health_examination_batch_services_service_id FOREIGN KEY (service_id) REFERENCES public.services(id),
     CONSTRAINT fk_health_examination_batch_services_document_template_cc6a7644 FOREIGN KEY (document_template_version_id) REFERENCES public.document_template_versions(id),
-    CONSTRAINT uq_health_examination_batch_services_health_examinatio_7244f2fd UNIQUE (health_examination_batch_id, service_id)
+    CONSTRAINT uq_health_examination_batch_services_health_examination_7244f2fd UNIQUE (health_examination_batch_id, service_id)
 );
 
 CREATE TABLE public.health_examination_batch_participants (
@@ -760,11 +765,27 @@ CREATE TABLE public.health_examination_batch_participants (
     department_snapshot varchar(200) NULL,
     job_title_snapshot varchar(200) NULL,
     occupation_snapshot varchar(200) NULL,
-    administrative_snapshot_json text NOT NULL,
+    full_name_snapshot varchar(200) NOT NULL,
+    date_of_birth_snapshot date NOT NULL,
+    sex_snapshot varchar(16) NOT NULL,
+    identification_number_snapshot varchar(20) NOT NULL,
+    identification_number_issue_date_snapshot date NULL,
+    identification_number_issue_place_snapshot varchar(200) NULL,
+    ethnicity_snapshot varchar(100) NULL,
+    subject_type_snapshot varchar(100) NULL,
+    payer_source_snapshot varchar(150) NULL,
+    blood_group_snapshot varchar(16) NULL,
+    phone_snapshot varchar(30) NULL,
+    province_snapshot varchar(150) NULL,
+    ward_snapshot varchar(150) NULL,
+    address_detail_snapshot varchar(500) NULL,
+    administrative_occupation_snapshot varchar(200) NULL,
+    workplace_or_school_snapshot varchar(300) NULL,
+    health_examination_reason_snapshot varchar(500) NULL,
     status varchar(24) NOT NULL DEFAULT 'REGISTERED',
     created_at timestamptz(3) NOT NULL,
-    CONSTRAINT fk_health_examination_batch_participants_health_examin_508052ab FOREIGN KEY (health_examination_batch_id) REFERENCES public.health_examination_batches(id),
-    CONSTRAINT fk_health_examination_batch_participants_health_examin_0f29bbce FOREIGN KEY (health_examination_participant_id) REFERENCES public.health_examination_participants(id),
+    CONSTRAINT fk_health_examination_batch_participants_health_examine_508052ab FOREIGN KEY (health_examination_batch_id) REFERENCES public.health_examination_batches(id),
+    CONSTRAINT fk_health_examination_batch_participants_health_examine_0f29bbce FOREIGN KEY (health_examination_participant_id) REFERENCES public.health_examination_participants(id),
     CONSTRAINT uq_health_examination_batch_participants_batch_participant UNIQUE (health_examination_batch_id, health_examination_participant_id)
 );
 
@@ -783,6 +804,9 @@ CREATE TABLE public.health_examination_import_jobs (
     confirmed_by_user_id uuid NULL,
     created_at timestamptz(3) NOT NULL,
     confirmed_at timestamptz(3) NULL,
+    CONSTRAINT ck_health_examination_import_jobs_counts_nonnegative CHECK (total_rows >= 0 AND valid_rows >= 0 AND warning_rows >= 0 AND error_rows >= 0),
+    CONSTRAINT ck_health_examination_import_jobs_counts_not_over_total CHECK (valid_rows + warning_rows + error_rows <= total_rows),
+    CONSTRAINT ck_health_examination_import_jobs_status CHECK (status IN ('UPLOADED', 'VALIDATED', 'CONFIRMED', 'PARTIAL', 'FAILED', 'CANCELED')),
     CONSTRAINT fk_health_examination_import_jobs_health_examination_batch_id FOREIGN KEY (health_examination_batch_id) REFERENCES public.health_examination_batches(id),
     CONSTRAINT fk_health_examination_import_jobs_source_file_attachment_id FOREIGN KEY (source_file_attachment_id) REFERENCES public.file_attachments(id),
     CONSTRAINT fk_health_examination_import_jobs_created_by_user_id FOREIGN KEY (created_by_user_id) REFERENCES public.users(id),
@@ -923,11 +947,12 @@ CREATE TABLE public.health_examination_batch_participant_services (
     id uuid NOT NULL CONSTRAINT pk_health_examination_batch_participant_services PRIMARY KEY,
     health_examination_batch_participant_id uuid NOT NULL,
     health_examination_batch_service_id uuid NOT NULL,
-    service_request_id uuid NOT NULL,
+    service_request_id uuid NULL,
     billable boolean NOT NULL DEFAULT false,
     unit_price_snapshot decimal(18,2) NOT NULL,
     created_at timestamptz(3) NOT NULL,
     updated_at timestamptz(3) NOT NULL,
+    CONSTRAINT ck_health_exam_participant_services_unit_price_nonnegative CHECK (unit_price_snapshot >= 0),
     CONSTRAINT fk_health_examination_batch_participant_services_participant FOREIGN KEY (health_examination_batch_participant_id) REFERENCES public.health_examination_batch_participants(id),
     CONSTRAINT fk_health_examination_batch_participant_services_service FOREIGN KEY (health_examination_batch_service_id) REFERENCES public.health_examination_batch_services(id),
     CONSTRAINT fk_health_examination_batch_participant_services_servi_f13cfd69 FOREIGN KEY (service_request_id) REFERENCES public.service_requests(id),
@@ -949,6 +974,8 @@ CREATE TABLE public.health_examination_import_rows (
     resolved_batch_participant_id uuid NULL,
     resolved_batch_service_id uuid NULL,
     resolved_service_request_id uuid NULL,
+    CONSTRAINT ck_health_examination_import_rows_row_number_positive CHECK (row_number > 0),
+    CONSTRAINT ck_health_examination_import_rows_validation_status CHECK (validation_status IN ('VALID', 'INVALID')),
     CONSTRAINT fk_health_examination_import_rows_health_examination_i_d82a1d21 FOREIGN KEY (health_examination_import_job_id) REFERENCES public.health_examination_import_jobs(id),
     CONSTRAINT fk_health_examination_import_rows_resolved_patient_id FOREIGN KEY (resolved_patient_id) REFERENCES public.patients(id),
     CONSTRAINT fk_health_examination_import_rows_resolved_health_exam_39da0b81 FOREIGN KEY (resolved_health_examination_participant_id) REFERENCES public.health_examination_participants(id),

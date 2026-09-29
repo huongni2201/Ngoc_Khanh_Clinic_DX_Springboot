@@ -30,14 +30,19 @@ public class UpdateOrganizationUseCase {
         Organization current = organizations.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization"));
 
-        if (command.taxCode() != null && !command.taxCode().isBlank()
-                && organizations.findByTaxCode(command.taxCode())
+        String taxCode = OrganizationFieldNormalizer.optional(command.taxCode());
+        if (taxCode != null && organizations.findByTaxCode(taxCode)
                 .filter(found -> !found.id().equals(current.id())).isPresent()) {
             throw new DuplicateOrganizationIdentity();
         }
 
-        Organization updated = current.updateDetails(command.name(), command.taxCode(), command.address(),
-                command.contactName(), command.contactPhone(), command.contactJobTitle(), command.note());
+        Organization updated = current.updateDetails(
+                OrganizationFieldNormalizer.required(command.name()), taxCode,
+                OrganizationFieldNormalizer.optional(command.address()),
+                OrganizationFieldNormalizer.required(command.contactName()),
+                OrganizationFieldNormalizer.required(command.contactPhone()),
+                OrganizationFieldNormalizer.optional(command.contactJobTitle()),
+                OrganizationFieldNormalizer.optional(command.note()));
         organizations.update(updated, current.rowVersion());
 
         log.info("Organization update persisted: organizationId={}", id);

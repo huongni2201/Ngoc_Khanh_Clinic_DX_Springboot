@@ -73,10 +73,12 @@ start application
 run API smoke tests
 ```
 
-Fresh PostgreSQL 18 installations apply the complete versioned chain in
-`src/main/resources/db/migration/`, including migrations after V001. See
-[the current migration chain](05-persistence-and-database.md#6-current-migration-chain).
+Fresh PostgreSQL 18 installations apply the single baseline migration in
+`src/main/resources/db/migration/`. See
+[the current migration baseline](05-persistence-and-database.md#6-current-migration-baseline).
 Existing databases apply pending versions; applied migrations remain immutable.
+The consolidated baseline is intended for fresh or explicitly recreated databases;
+deployed databases must retain their historical Flyway files.
 
 ## 6. Observability
 

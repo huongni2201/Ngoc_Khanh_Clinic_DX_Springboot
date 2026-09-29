@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.healthexamination.application;
+package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -11,7 +11,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
-import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
@@ -49,6 +48,36 @@ class CreateOrganizationUseCaseTest {
 
         assertThatThrownBy(() -> useCase.execute(new CreateOrganizationCommand("Other Org", "TAX-1", null,
                 "Contact", "0900000000", null, null))).isInstanceOf(DuplicateOrganizationIdentity.class);
+    }
+
+    @Test
+    void normalizesBlankOptionalFieldsAndTrimsRequiredFieldsBeforeSaving() {
+        UUID id = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        InMemoryOrganizations organizations = new InMemoryOrganizations();
+        CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, () -> id);
+
+        useCase.execute(new CreateOrganizationCommand(" Clinic Corp ", "  ", "  ",
+                " Contact ", " 0900000000 ", " ", "  "));
+
+        Organization saved = organizations.findById(new AggregateId(id)).orElseThrow();
+        assertThat(saved.name()).isEqualTo("Clinic Corp");
+        assertThat(saved.taxCode()).isNull();
+        assertThat(saved.address()).isNull();
+        assertThat(saved.contactName()).isEqualTo("Contact");
+        assertThat(saved.contactPhone()).isEqualTo("0900000000");
+        assertThat(saved.contactJobTitle()).isNull();
+        assertThat(saved.note()).isNull();
+    }
+
+    @Test
+    void allowsMultipleOrganizationsWithBlankTaxCodes() {
+        InMemoryOrganizations organizations = new InMemoryOrganizations();
+        CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, UUID::randomUUID);
+
+        useCase.execute(new CreateOrganizationCommand("First", "", null, "Contact", "0900000000", null, null));
+        useCase.execute(new CreateOrganizationCommand("Second", " ", null, "Contact", "0900000001", null, null));
+
+        assertThat(organizations.organizations).hasSize(2);
     }
 
     private static final class InMemoryOrganizations implements OrganizationRepository {
