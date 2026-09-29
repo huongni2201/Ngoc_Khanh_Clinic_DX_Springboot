@@ -1,4 +1,4 @@
-# ADR-0008: Staff credentials and server-side JWT sessions
+# ADR-0009: Staff credentials and server-side JWT sessions
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted — 2026-09-28, implementing the approved staff-login plan on
 `feature/TungTQ/staff-login`.
 
 The mixed-profile startup rejection below is superseded by
-[ADR-0009](0009-remove-auth-mixed-profile-rejection.md); other decisions remain in force.
+[ADR-0010](0010-remove-auth-mixed-profile-rejection.md); other decisions remain in force.
 
 ## Context
 
@@ -17,7 +17,7 @@ through SMS links and business RBAC are separate features.
 
 ## Decision
 
-- V004 replaces `users.auth_provider/auth_subject` and their unique constraint
+- V002 replaces `users.auth_provider/auth_subject` and their unique constraint
   with nullable `username varchar(200)` (unique, case sensitive) and `password text`.
   This supersedes that credential representation in table-design-v2.11. Principal
   type, staff/patient relations and existing constraints remain intact.
@@ -51,7 +51,7 @@ through SMS links and business RBAC are separate features.
   endpoints even for authenticated staff. Only local/test profiles allow
   authenticated development access. If local/test is active alongside a
   production profile, local/test development settings apply, as specified by
-  ADR-0009. Role permissions are not flattened into Spring authorities.
+  ADR-0010. Role permissions are not flattened into Spring authorities.
 - Cookie-based authentication requires CSRF on login and unsafe requests.
   CookieCsrfTokenRepository supplies a masked token through JSON; the browser sends
   the named header. Login/logout clear the CSRF cookie, requiring a new token.
@@ -96,7 +96,7 @@ Rate limiting uses Redis: 10 failed attempts per username and 60 attempts per IP
 per 15-minute window, with Retry-After. Shared clinic NATs require capacity tuning.
 Forwarded client IPs are trusted only through explicitly configured proxy addresses.
 
-Existing provider/subject data requires a verified backup before V004. Recreating
+Existing provider/subject data requires a verified backup before V002. Recreating
 the dropped columns does not recover their values. Restore from backup under an
 approved migration/rollback procedure. No default accounts or passwords are seeded.
 

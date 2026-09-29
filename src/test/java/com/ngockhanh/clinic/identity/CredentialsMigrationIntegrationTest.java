@@ -19,7 +19,7 @@ class CredentialsMigrationIntegrationTest {
 
     @Test
     void upgradesLegacyAccountsWithoutInventingCredentialsAndPreservesConstraints() {
-        Flyway.configure().dataSource(PG.getJdbcUrl(), PG.getUsername(), PG.getPassword()).target("3").load().migrate();
+        Flyway.configure().dataSource(PG.getJdbcUrl(), PG.getUsername(), PG.getPassword()).target("1").load().migrate();
         var jdbc = new JdbcTemplate(new DriverManagerDataSource(PG.getJdbcUrl(), PG.getUsername(), PG.getPassword()));
         UUID user = UUID.randomUUID();
         UUID staff = UUID.randomUUID();

@@ -1,10 +1,10 @@
-# ADR-0009: Remove authentication mixed-profile startup rejection
+# ADR-0010: Remove authentication mixed-profile startup rejection
 
 ## Status
 
 Accepted — 2026-09-29, following the explicit request to remove profile guards.
 Supersedes only the mixed-profile rejection in
-[ADR-0008](0008-staff-credentials-and-server-side-sessions.md).
+[ADR-0009](0009-staff-credentials-and-server-side-sessions.md).
 
 ## Decision
 

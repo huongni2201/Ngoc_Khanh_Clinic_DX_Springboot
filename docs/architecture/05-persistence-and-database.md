@@ -95,16 +95,17 @@ the applied migration as immutable.
 ## 6. Current migration baseline
 
 Fresh PostgreSQL 18 installations apply the consolidated V001 baseline, followed
-by V004 when the staff-credentials feature is present, from
+by V002 when the staff-credentials feature is present, from
 `src/main/resources/db/migration/`.
 
 | Migration | Effect |
 |---|---|
 | `V001__create_final_schema.sql` | Complete PostgreSQL 18 baseline, including typed administrative snapshots, removal of `organizations.organization_code`, and health-examination integrity constraints. |
-| `V002__update_users_credentials.sql` | Replaces the legacy provider/subject login keys with nullable staff username/password-hash columns (ADR-0008). |
+| `V002__update_users_credentials.sql` | Replaces the legacy provider/subject login keys with nullable staff username/password-hash columns (ADR-0009). |
 
-The changes formerly represented by V002 and V003 are consolidated into V001;
-those migration files are no longer present in the current source tree.
+The earlier batch-snapshot and organization-code migrations were consolidated
+into V001; those historical migration files are no longer present in the current
+source tree.
 
 This describes files currently present in the workspace, not which version has
 been applied to an environment. Verify deployment state from that environment's

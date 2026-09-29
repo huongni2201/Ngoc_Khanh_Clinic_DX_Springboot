@@ -131,11 +131,11 @@ prescription versioning
 
 ## Staff authentication addition
 
-See [ADR-0008](../adr/0008-staff-credentials-and-server-side-sessions.md):
+See [ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md):
 nullable staff credentials replace provider/subject identifiers; JWT snapshots
 stay in Redis and browsers receive opaque cookies. This supersedes the credential
 representation in the baseline without implementing business RBAC or patient login.
 
-[ADR-0009](../adr/0009-remove-auth-mixed-profile-rejection.md) removes identity's
+[ADR-0010](../adr/0010-remove-auth-mixed-profile-rejection.md) removes identity's
 mixed-profile startup rejection. An active local/test profile retains development
 authentication settings even when combined with prod/production.

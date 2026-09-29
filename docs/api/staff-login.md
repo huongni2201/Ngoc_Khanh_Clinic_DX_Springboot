@@ -1,8 +1,8 @@
 # Staff login: API and operations
 
 Branch: `feature/TungTQ/staff-login`. Decision:
-[ADR-0008](../adr/0008-staff-credentials-and-server-side-sessions.md), with profile
-validation amended by [ADR-0009](../adr/0009-remove-auth-mixed-profile-rejection.md).
+[ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md), with profile
+validation amended by [ADR-0010](../adr/0010-remove-auth-mixed-profile-rejection.md).
 
 ## Environment
 
@@ -110,9 +110,9 @@ permission string is present in a session.
 
 ## Provision credentials
 
-Migration V004 does not create accounts, usernames, passwords or roles.
+Migration V002 does not create accounts, usernames, passwords or roles.
 
-1. Back up the database and provider/subject mappings before V004 on any populated
+1. Back up the database and provider/subject mappings before V002 on any populated
    database. Validate the backup restore procedure. This branch only tests migration
    in disposable containers; deployment migration is a separate operator action.
 2. Use existing active staff and role records. Keep the user ID of an existing STAFF

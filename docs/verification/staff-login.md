@@ -81,23 +81,21 @@ Supporting baseline fixes needed for executable checks:
 
 Required environment/provisioning steps are documented in
 [staff-login.md](../api/staff-login.md), with the credential/session decision in
-[ADR-0008](../adr/0008-staff-credentials-and-server-side-sessions.md).
+[ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md).
 
 Business RBAC and Next.js UI remain separate features. Default/production denies
 business endpoints pending explicit policies. Patient login/SMS links are not
 implemented. Direct database credential/grant changes still require explicit
 session revocation. This implementation targets standalone Redis.
 
-Before deploying V003 on existing data, back up and validate restoration of the
+Before deploying V002 on existing data, back up and validate restoration of the
 provider/subject mappings. No default accounts or passwords are supplied.
 
 ## Follow-up implementation note — 2026-09-29
 
-The current migration source assigns credentials to
-`V002__update_users_credentials.sql`
-retains its existing version. The verification results above describe the
-2026-09-28 source and were not rerun or rewritten as evidence for this follow-up.
-The current source tests the fresh V001–V004 sequence and the V003-to-V004
-credentials upgrade. Do not deploy by renaming a migration after it has been
-recorded in a shared database; reconcile that database's Flyway history and
-schema before deployment.
+The credentials migration is `V002__update_users_credentials.sql`. The earlier
+batch-snapshot and organization-code schema changes are consolidated into V001
+for fresh installs. The verification results above describe the 2026-09-28 source
+and were not rerun or rewritten as evidence for this follow-up. Do not rename a
+migration after it has been recorded in a shared database; reconcile that
+database's Flyway history and schema before deployment.

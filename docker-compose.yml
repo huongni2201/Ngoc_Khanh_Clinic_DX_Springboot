@@ -8,9 +8,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-nkclinic}
       DB_USERNAME: ${POSTGRES_USER:-nkclinic}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
+      REDIS_HOST: redis
       NKC_LOCAL_FILE_STORAGE_ROOT: /app/var/clinic/file-storage
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8080:8080"

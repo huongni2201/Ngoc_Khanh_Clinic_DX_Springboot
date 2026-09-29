@@ -124,7 +124,7 @@ Map internal failures to controlled API error responses.
 
 ## 9. Staff sessions
 
-[ADR-0008](../adr/0008-staff-credentials-and-server-side-sessions.md) implements
+[ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md) implements
 staff username/password authentication with an opaque HttpOnly cookie and a signed
 JWT snapshot stored in Redis. See the [API and operations guide](../api/staff-login.md)
 for CSRF, environment settings, provisioning, revocation and failure handling.
