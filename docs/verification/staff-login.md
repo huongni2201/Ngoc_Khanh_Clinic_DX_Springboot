@@ -94,7 +94,7 @@ provider/subject mappings. No default accounts or passwords are supplied.
 ## Follow-up implementation note — 2026-09-29
 
 The current migration source assigns credentials to
-`V004__update_users_credentials.sql`; `V003__remove_organization_code.sql`
+`V002__update_users_credentials.sql`
 retains its existing version. The verification results above describe the
 2026-09-28 source and were not rerun or rewritten as evidence for this follow-up.
 The current source tests the fresh V001–V004 sequence and the V003-to-V004

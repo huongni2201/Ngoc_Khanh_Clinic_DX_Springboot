@@ -49,9 +49,7 @@ class TableDesignV211MigrationContractTest {
                 .filter(name -> name.matches("V\\d+__.+\\.sql"))
                 .sorted())
                 .containsExactly("V001__create_final_schema.sql",
-                    "V002__store_batch_employee_administrative_snapshot_as_columns.sql",
-                    "V003__remove_organization_code.sql",
-                    "V004__update_users_credentials.sql");
+                    "V002__update_users_credentials.sql");
         }
     }
 
