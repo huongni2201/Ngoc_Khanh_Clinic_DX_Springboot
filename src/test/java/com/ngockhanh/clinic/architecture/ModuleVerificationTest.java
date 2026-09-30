@@ -4,13 +4,17 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ngockhanh.clinic.NgocKhanhClinicApplication;
+import com.ngockhanh.clinic.identity.application.port.SessionRevocation;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
+import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
 
 class ModuleVerificationTest {
-    private final JavaClasses applicationClasses = new ClassFileImporter().importPackages("com.ngockhanh.clinic");
+    private final JavaClasses applicationClasses = new ClassFileImporter()
+            .withImportOption(new ImportOption.DoNotIncludeTests())
+            .importPackages("com.ngockhanh.clinic");
 
     @Test
     void modulesRespectTheirPublishedBoundaries() {
@@ -34,6 +38,7 @@ class ModuleVerificationTest {
                 .containsExactlyInAnyOrder("OrganizationRepository", "HealthExaminationParticipantRepository", "HealthExaminationBatchRepository",
                         "HealthExaminationBatchParticipantRepository", "HealthExaminationRecordRepository", "HealthExaminationImportJobRepository");
     }
+
     @Test
     void domainDoesNotDependOnFrameworkPersistenceOrTransportTypes() {
         noClasses().that().resideInAPackage("com.ngockhanh.clinic..domain..")
@@ -66,6 +71,63 @@ class ModuleVerificationTest {
                 .should().dependOnClassesThat().resideInAnyPackage(
                         "com.ngockhanh.clinic..domain..", "com.ngockhanh.clinic..infrastructure..")
                 .allowEmptyShould(true)
+                .check(applicationClasses);
+    }
+
+    @Test
+    void identityApplicationDoesNotDependOnApiOrInfrastructure() {
+        noClasses().that().resideInAPackage("com.ngockhanh.clinic.identity.application..")
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "com.ngockhanh.clinic.identity.api..", "com.ngockhanh.clinic.identity.infrastructure..")
+                .check(applicationClasses);
+    }
+
+    @Test
+    void identityApiDoesNotDependOnInfrastructure() {
+        noClasses().that().resideInAPackage("com.ngockhanh.clinic.identity.api..")
+                .should().dependOnClassesThat().resideInAPackage("com.ngockhanh.clinic.identity.infrastructure..")
+                .check(applicationClasses);
+    }
+
+    @Test
+    void identityUseCasePackageContainsOnlyUseCasesAndSessionRevocationIsNamedAtTypeLevel() {
+        assertThat(applicationClasses.stream()
+                .filter(type -> type.getPackageName().equals("com.ngockhanh.clinic.identity.application.usecase"))
+                .map(type -> type.getSimpleName())
+                .filter(name -> !name.endsWith("UseCase"))
+                .toList())
+                .isEmpty();
+        assertThat(SessionRevocation.class.getAnnotation(org.springframework.modulith.NamedInterface.class).value())
+                .containsExactly("sessions");
+    }
+
+    @Test
+    void infrastructureDoesNotDependOnApiTypes() {
+        noClasses().that().resideInAPackage("com.ngockhanh.clinic.identity.infrastructure..")
+                .and().resideOutsideOfPackage("com.ngockhanh.clinic.identity.infrastructure.configuration")
+                .should().dependOnClassesThat().resideInAPackage("com.ngockhanh.clinic.identity.api..")
+                .check(applicationClasses);
+    }
+
+    @Test
+    void authenticationFailuresAreRaisedInsideApplicationOrDomain() {
+        assertThat(applicationClasses.stream()
+                .filter(type -> type.getPackageName().startsWith("com.ngockhanh.clinic.identity.api")
+                        || type.getPackageName().startsWith("com.ngockhanh.clinic.identity.infrastructure"))
+                .flatMap(type -> type.getMethodCallsFromSelf().stream())
+                .filter(call -> call.getTarget().getOwner().getPackageName()
+                        .equals("com.ngockhanh.clinic.identity.application.exception"))
+                .filter(call -> call.getTarget().getName().equals("invalid")
+                        || call.getTarget().getName().equals("invalidRequest")
+                        || call.getTarget().getName().equals("rateLimited")
+                        || call.getTarget().getName().equals("unavailable")))
+                .isEmpty();
+    }
+
+    @Test
+    void sharedDoesNotDependOnIdentity() {
+        noClasses().that().resideInAPackage("com.ngockhanh.clinic.shared..")
+                .should().dependOnClassesThat().resideInAPackage("com.ngockhanh.clinic.identity..")
                 .check(applicationClasses);
     }
 }

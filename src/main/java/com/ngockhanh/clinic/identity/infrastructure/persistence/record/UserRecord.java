@@ -8,10 +8,14 @@ public record UserRecord(
         String principalType,
         UUID staffId,
         UUID patientId,
-        String authProvider,
-        String authSubject,
         String status,
         Instant lastLoginAt,
-        Instant createdAt
+        Instant createdAt,
+        String username,
+        String password
 ) {
+    @Override
+    public String toString() {
+        return "UserRecord[id=" + id + ", principalType=" + principalType + ", status=" + status + "]";
+    }
 }

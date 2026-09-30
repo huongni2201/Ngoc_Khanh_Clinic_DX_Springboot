@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.identity.infrastructure.persistence.mapper.StaffLoginMyBatisMapper">
+    <select id="identify" resultType="java.util.UUID">
+        SELECT id FROM public.users WHERE username = #{username}
+    </select>
+    <select id="find" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.StaffLoginRow">
+        SELECT u.id AS user_id, u.staff_id, u.username, u.password, u.status, u.principal_type,
+               coalesce(s.is_active, false) AS staff_active
+        FROM public.users u LEFT JOIN public.staff s ON s.id = u.staff_id
+        WHERE u.username = #{username}
+    </select>
+    <select id="grants" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.RoleGrantRow">
+        SELECT ur.id AS assignment_id, r.role_code, ur.department_id, ur.room_id,
+               ur.valid_from, ur.valid_to, p.permission_code
+        FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+        LEFT JOIN public.role_permissions rp ON rp.role_id = r.id
+        LEFT JOIN public.permissions p ON p.id = rp.permission_id
+        WHERE ur.user_id = #{userId} AND r.is_active = true
+          AND ur.valid_from &lt;= #{now} AND (ur.valid_to IS NULL OR #{now} &lt; ur.valid_to)
+        ORDER BY ur.id, p.permission_code
+    </select>
+    <update id="lastLogin">
+        UPDATE public.users SET last_login_at = #{now}
+        WHERE id = #{userId} AND status = 'ACTIVE' AND principal_type = 'STAFF'
+          AND EXISTS (SELECT 1 FROM public.staff s WHERE s.id = users.staff_id AND s.is_active = true)
+    </update>
+</mapper>

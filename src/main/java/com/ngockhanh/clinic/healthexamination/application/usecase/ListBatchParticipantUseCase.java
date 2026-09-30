@@ -24,6 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 public class ListBatchParticipantUseCase {
+	private static final List<String> ALLOWED_SORT_KEYS = List.of(
+			"id", "participantId", "fullName", "createdAt", "departmentName", "jobTitle");
+	private static final List<String> ALLOWED_SORT_DIRECTIONS = List.of("ASC", "DESC");
+
 	private final HealthExaminationBatchRepository batchRepository;
 	private final HealthExaminationBatchParticipantRepository batchParticipantRepository;
 
@@ -32,20 +36,19 @@ public class ListBatchParticipantUseCase {
 			UUID organizationId, UUID batchId, OrganizationBatchParticipantQuery query) {
 		if (query == null) throw new IllegalArgumentException("Participant list query is required");
 
+		int page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
+		int size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
+		String sortKey = normalizeOrDefault(query.sortKey(), PaginationConstants.DEFAULT_SORTED_KEY);
+		String sortBy = normalizeOrDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY)
+				.toUpperCase(Locale.ROOT);
+		validateQuery(page, size, sortKey, sortBy);
+
 		AggregateId organization = AggregateId.of(organizationId);
 		AggregateId batch = AggregateId.of(batchId);
 
 		batchRepository.findById(batch)
 				.filter(found -> found.organizationId().equals(organization))
 				.orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-
-		int page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
-		int size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
-
-		String sortKey = normalizeOrDefault(query.sortKey(), PaginationConstants.DEFAULT_SORTED_KEY);
-
-		String sortBy = normalizeOrDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY)
-				.toUpperCase(Locale.ROOT);
 
 		String searchKey = normalize(query.searchKey());
 		String searchPattern = searchKey == null ? null : toContainsPattern(searchKey);
@@ -61,6 +64,18 @@ public class ListBatchParticipantUseCase {
 
 		log.info("Batch participants retrieved: batchId={}, page={}, size={}, total={}", batchId, page, size, total);
 		return new PageResponse<>(participants, page, size, total, pages);
+	}
+
+	private static void validateQuery(int page, int size, String sortKey, String sortBy) {
+		if (page < PaginationConstants.DEFAULT_PAGE_NUMBER || size < 1 || size > PaginationConstants.MAX_PAGE_SIZE) {
+			throw new IllegalArgumentException("Invalid pagination");
+		}
+		if (!ALLOWED_SORT_KEYS.contains(sortKey)) {
+			throw new IllegalArgumentException("Invalid sort key");
+		}
+		if (!ALLOWED_SORT_DIRECTIONS.contains(sortBy)) {
+			throw new IllegalArgumentException("Invalid sort direction");
+		}
 	}
 
 	private static String normalize(String value) {

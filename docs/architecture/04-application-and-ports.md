@@ -40,6 +40,12 @@ as the response envelope payload (including `id`), rather than a bare UUID. GET
 and PUT also receive this payload directly from their use cases. HTTP routes and
 status codes remain unchanged.
 
+HTTP errors use the shared `ApiResponse` envelope and are mapped by
+`shared.web.GlobalExceptionHandler`. Security filters use the shared response
+writer for failures raised before MVC dispatch. Application/domain layers own
+business and authentication failures; infrastructure adapters report technical
+dependency failures without assigning HTTP status codes.
+
 ## 2. Use case design
 
 Prefer explicit use cases:

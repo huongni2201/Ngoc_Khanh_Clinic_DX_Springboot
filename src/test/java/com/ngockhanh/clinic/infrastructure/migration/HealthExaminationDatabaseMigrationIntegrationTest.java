@@ -33,7 +33,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(Arrays.stream(flyway.info().applied())
                 .map(info -> info.getVersion().getVersion()))
-                .containsExactly("001");
+                .containsExactly("001", "002");
 
         JdbcTemplate jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));

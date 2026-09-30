@@ -8,9 +8,12 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-nkclinic}
       DB_USERNAME: ${POSTGRES_USER:-nkclinic}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
+      REDIS_HOST: redis
       NKC_LOCAL_FILE_STORAGE_ROOT: /app/var/clinic/file-storage
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -32,6 +35,17 @@ services:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    command: [ "redis-server", "--maxmemory-policy", "noeviction" ]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
       retries: 10
 
 volumes:
