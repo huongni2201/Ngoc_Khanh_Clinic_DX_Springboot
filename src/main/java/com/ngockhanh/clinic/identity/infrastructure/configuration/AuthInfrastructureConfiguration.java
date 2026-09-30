@@ -1,9 +1,9 @@
 package com.ngockhanh.clinic.identity.infrastructure.configuration;
 
-import com.ngockhanh.clinic.identity.api.http.StaffSessionCookieFactory;
+import com.ngockhanh.clinic.identity.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.identity.api.http.TrustedProxyClientIpResolver;
 import com.ngockhanh.clinic.identity.application.port.SessionTokens;
-import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
+import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 import com.ngockhanh.clinic.identity.infrastructure.security.JwtSettings;
 import com.ngockhanh.clinic.identity.infrastructure.security.ServerJwtTokens;
 import com.ngockhanh.clinic.identity.infrastructure.session.LoginThrottleSettings;
@@ -31,8 +31,8 @@ public class AuthInfrastructureConfiguration {
     }
 
     @Bean
-    StaffSessionPolicy staffSessionPolicy(Environment environment) {
-        return new StaffSessionPolicy(
+    SessionPolicy sessionPolicy(Environment environment) {
+        return new SessionPolicy(
                 environment.getProperty("clinic.auth.idle-timeout", Duration.class, Duration.ofMinutes(30)),
                 environment.getProperty("clinic.auth.absolute-timeout", Duration.class, Duration.ofHours(8)));
     }
@@ -51,8 +51,8 @@ public class AuthInfrastructureConfiguration {
     }
 
     @Bean
-    StaffSessionCookieFactory staffSessionCookieFactory(AuthHttpSettings settings) {
-        return new StaffSessionCookieFactory(settings.secureCookie());
+    SessionCookieFactory sessionCookieFactory(AuthHttpSettings settings) {
+        return new SessionCookieFactory(settings.secureCookie());
     }
 
     @Bean
@@ -76,19 +76,19 @@ public class AuthInfrastructureConfiguration {
     }
 
     @Bean
-    SessionTokens sessionTokens(JwtSettings jwtSettings, StaffSessionPolicy policy, Clock clock) {
+    SessionTokens sessionTokens(JwtSettings jwtSettings, SessionPolicy policy, Clock clock) {
         return new ServerJwtTokens(jwtSettings, policy, clock);
     }
 
     @Bean
-    TransactionOperations staffAccountReadTransaction(PlatformTransactionManager transactionManager) {
+    TransactionOperations accountReadTransaction(PlatformTransactionManager transactionManager) {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
         transaction.setReadOnly(true);
         return transaction;
     }
 
     @Bean
-    TransactionOperations staffAccountSnapshotTransaction(PlatformTransactionManager transactionManager) {
+    TransactionOperations accountSnapshotTransaction(PlatformTransactionManager transactionManager) {
         TransactionTemplate transaction = new TransactionTemplate(transactionManager);
         transaction.setReadOnly(true);
         transaction.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
@@ -96,7 +96,7 @@ public class AuthInfrastructureConfiguration {
     }
 
     @Bean
-    TransactionOperations staffAccountWriteTransaction(PlatformTransactionManager transactionManager) {
+    TransactionOperations accountWriteTransaction(PlatformTransactionManager transactionManager) {
         return new TransactionTemplate(transactionManager);
     }
 

@@ -1,8 +1,8 @@
 package com.ngockhanh.clinic.identity.infrastructure.security;
 
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
-import com.ngockhanh.clinic.identity.application.query.AuthenticateStaffSessionQuery;
-import com.ngockhanh.clinic.identity.application.usecase.AuthenticateStaffSessionUseCase;
+import com.ngockhanh.clinic.identity.application.query.AuthenticateSessionQuery;
+import com.ngockhanh.clinic.identity.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,12 +20,12 @@ import java.util.List;
 import java.util.Set;
 
 @RequiredArgsConstructor
-public final class StaffSessionFilter extends OncePerRequestFilter {
+public final class SessionFilter extends OncePerRequestFilter {
     private static final String SESSION_COOKIE = "NKC_SESSION";
     private static final Set<String> PUBLIC_ENDPOINTS = Set.of(
-            "/api/v1/auth/csrf", "/api/v1/auth/staff/login", "/api/v1/auth/logout");
+            "/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/logout");
 
-    private final AuthenticateStaffSessionUseCase authenticateSession;
+    private final AuthenticateSessionUseCase authenticateSession;
     private final ApiResponseWriter errors;
 
     @Override
@@ -41,7 +41,7 @@ public final class StaffSessionFilter extends OncePerRequestFilter {
                 .map(Cookie::getValue).toList();
         if (!sessionIds.isEmpty()) {
             try {
-                var principal = authenticateSession.execute(new AuthenticateStaffSessionQuery(sessionIds));
+                var principal = authenticateSession.execute(new AuthenticateSessionQuery(sessionIds));
                 var context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(new UsernamePasswordAuthenticationToken(principal, null, List.of()));
                 SecurityContextHolder.setContext(context);

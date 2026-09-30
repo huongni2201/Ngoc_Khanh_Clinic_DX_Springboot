@@ -1,12 +1,12 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
+import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
 import com.ngockhanh.clinic.identity.application.port.SessionTokens;
-import com.ngockhanh.clinic.identity.application.query.AuthenticateStaffSessionQuery;
-import com.ngockhanh.clinic.identity.application.query.StaffPrincipal;
+import com.ngockhanh.clinic.identity.application.query.AuthenticateSessionQuery;
+import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,13 +18,13 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AuthenticateStaffSessionUseCase {
+public class AuthenticateSessionUseCase {
     private final SessionStore sessions;
     private final SessionTokens tokens;
-    private final StaffSessionPolicy sessionPolicy;
+    private final SessionPolicy sessionPolicy;
     private final Clock clock;
 
-    public StaffPrincipal execute(AuthenticateStaffSessionQuery query) {
+    public UserPrincipal execute(AuthenticateSessionQuery query) {
         String sessionId = singleSessionCookie(query.sessionIds());
         if (sessionId == null) {
             throw AuthenticationFailure.invalid();
@@ -38,9 +38,7 @@ public class AuthenticateStaffSessionUseCase {
         if (claims == null) {
             rejectSession(sessionId);
         }
-        var now = clock.instant();
-        if (!claims.userId().equals(stored.userId()) || !claims.expiresAt().equals(stored.absoluteExpiresAt())
-                || claims.roles().stream().noneMatch(role -> role.effectiveAt(now))) {
+        if (!claims.userId().equals(stored.userId()) || !claims.expiresAt().equals(stored.absoluteExpiresAt())) {
             rejectSession(sessionId);
         }
 
@@ -49,9 +47,9 @@ public class AuthenticateStaffSessionUseCase {
         if (idleDeadline == null) {
             throw AuthenticationFailure.invalid();
         }
-        StaffPrincipal principal = StaffPrincipal.from(claims.userId(), claims.staffId(), claims.username(),
-                claims.roles(), idleDeadline, claims.expiresAt(), clock.instant());
-        log.debug("Authenticated staff session userId={}", principal.userId());
+        UserPrincipal principal = UserPrincipal.from(claims.userId(), claims.staffId(), claims.patientId(),
+                claims.username(), claims.principalType(), claims.roles(), idleDeadline, claims.expiresAt(), clock.instant());
+        log.debug("Authenticated user session userId={}", principal.userId());
         return principal;
     }
 

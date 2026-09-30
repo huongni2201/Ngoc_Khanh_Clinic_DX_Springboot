@@ -1,14 +1,14 @@
 package com.ngockhanh.clinic.identity.domain.repository;
 
-import com.ngockhanh.clinic.identity.domain.entity.StaffAccount;
+import com.ngockhanh.clinic.identity.domain.entity.UserAccount;
 
 import java.time.Instant;
 import java.util.UUID;
 
-public interface StaffAccountRepository {
+public interface UserAccountRepository {
     UUID identify(String username);
 
-    StaffAccount find(String username, Instant now);
+    UserAccount find(String username, Instant now);
 
     int recordLogin(UUID userId, Instant now);
 }

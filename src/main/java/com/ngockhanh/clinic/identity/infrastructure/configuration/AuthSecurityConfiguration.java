@@ -1,7 +1,8 @@
 package com.ngockhanh.clinic.identity.infrastructure.configuration;
 
-import com.ngockhanh.clinic.identity.application.usecase.AuthenticateStaffSessionUseCase;
-import com.ngockhanh.clinic.identity.infrastructure.security.StaffSessionFilter;
+import com.ngockhanh.clinic.identity.application.usecase.AuthenticateSessionUseCase;
+import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
+import com.ngockhanh.clinic.identity.infrastructure.security.SessionFilter;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -33,7 +35,7 @@ public class AuthSecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain staffSecurity(HttpSecurity http, AuthenticateStaffSessionUseCase authenticateSession,
+    SecurityFilterChain userSecurity(HttpSecurity http, AuthenticateSessionUseCase authenticateSession,
                                       AuthHttpSettings settings, CookieCsrfTokenRepository csrf,
                                       ApiResponseWriter errors) throws Exception {
         http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -51,15 +53,22 @@ public class AuthSecurityConfiguration {
                         .accessDeniedHandler((request, response, exception) -> errors.write(response, 403, "Access denied")))
                 .authorizeHttpRequests(authorize -> {
                     authorize.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                            .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/staff/login", "/api/v1/auth/logout").permitAll()
+                            .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/logout").permitAll()
                             .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout-all").authenticated();
                     if (settings.businessAccess()) {
-                        authorize.requestMatchers("/api/v1/**").authenticated();
+                        authorize.requestMatchers("/api/v1/**").access((authentication, context) -> {
+                            var current = authentication.get();
+                            boolean allowed = current.isAuthenticated()
+                                    && current.getPrincipal() instanceof UserPrincipal principal
+                                    && "STAFF".equals(principal.principalType())
+                                    && !principal.roleAssignments().isEmpty();
+                            return new AuthorizationDecision(allowed);
+                        });
                     }
                     authorize.anyRequest().denyAll();
                 })
                 .addFilterBefore(corsFilter(settings, errors), CsrfFilter.class)
-                .addFilterBefore(new StaffSessionFilter(authenticateSession, errors), AnonymousAuthenticationFilter.class);
+                .addFilterBefore(new SessionFilter(authenticateSession, errors), AnonymousAuthenticationFilter.class);
         return http.build();
     }
 

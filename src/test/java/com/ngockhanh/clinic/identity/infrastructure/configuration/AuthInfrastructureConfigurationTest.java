@@ -4,11 +4,11 @@ import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
 import com.ngockhanh.clinic.identity.application.port.Passwords;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
 import com.ngockhanh.clinic.identity.application.port.SessionTokens;
-import com.ngockhanh.clinic.identity.application.usecase.LoginStaffUseCase;
-import com.ngockhanh.clinic.identity.application.usecase.LogoutAllStaffSessionsUseCase;
-import com.ngockhanh.clinic.identity.application.usecase.LogoutStaffSessionUseCase;
-import com.ngockhanh.clinic.identity.domain.repository.StaffAccountRepository;
-import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
+import com.ngockhanh.clinic.identity.application.usecase.LoginUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutAllSessionsUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutSessionUseCase;
+import com.ngockhanh.clinic.identity.domain.repository.UserAccountRepository;
+import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 import com.ngockhanh.clinic.identity.infrastructure.security.JwtSettings;
 import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import org.junit.jupiter.api.Test;
@@ -36,27 +36,27 @@ class AuthInfrastructureConfigurationTest {
 
         new ApplicationContextRunner()
                 .withUserConfiguration(
-                        LoginStaffUseCase.class,
-                        LogoutStaffSessionUseCase.class,
-                        LogoutAllStaffSessionsUseCase.class)
-                .withBean(StaffAccountRepository.class, () -> mock(StaffAccountRepository.class))
+                        LoginUseCase.class,
+                        LogoutSessionUseCase.class,
+                        LogoutAllSessionsUseCase.class)
+                .withBean(UserAccountRepository.class, () -> mock(UserAccountRepository.class))
                 .withBean(AuthAudit.class, () -> mock(AuthAudit.class))
                 .withBean(Passwords.class, () -> mock(Passwords.class))
                 .withBean(SessionTokens.class, () -> mock(SessionTokens.class))
                 .withBean(SessionStore.class, () -> mock(SessionStore.class))
                 .withBean(LoginThrottle.class, () -> mock(LoginThrottle.class))
-                .withBean(StaffSessionPolicy.class,
-                        () -> new StaffSessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8)))
+                .withBean(SessionPolicy.class,
+                        () -> new SessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8)))
                 .withBean(Clock.class, Clock::systemUTC)
                 .withBean(Supplier.class, () -> (Supplier<String>) () -> "session-id")
-                .withBean("staffAccountReadTransaction", TransactionOperations.class, () -> read)
-                .withBean("staffAccountSnapshotTransaction", TransactionOperations.class, () -> snapshot)
-                .withBean("staffAccountWriteTransaction", TransactionOperations.class, () -> write)
+                .withBean("accountReadTransaction", TransactionOperations.class, () -> read)
+                .withBean("accountSnapshotTransaction", TransactionOperations.class, () -> snapshot)
+                .withBean("accountWriteTransaction", TransactionOperations.class, () -> write)
                 .run(context -> {
                     assertThat(context).hasNotFailed();
-                    assertThat(context).hasSingleBean(LoginStaffUseCase.class);
-                    assertThat(context).hasSingleBean(LogoutStaffSessionUseCase.class);
-                    assertThat(context).hasSingleBean(LogoutAllStaffSessionsUseCase.class);
+                    assertThat(context).hasSingleBean(LoginUseCase.class);
+                    assertThat(context).hasSingleBean(LogoutSessionUseCase.class);
+                    assertThat(context).hasSingleBean(LogoutAllSessionsUseCase.class);
                 });
     }
 
@@ -65,8 +65,8 @@ class AuthInfrastructureConfigurationTest {
         var environment = new MockEnvironment();
         var configuration = new AuthInfrastructureConfiguration();
 
-        assertThat(configuration.staffSessionPolicy(environment))
-                .isEqualTo(new StaffSessionPolicy(
+        assertThat(configuration.sessionPolicy(environment))
+                .isEqualTo(new SessionPolicy(
                         Duration.ofMinutes(30), Duration.ofHours(8)));
         assertThat(configuration.jwtSettings(environment))
                 .isEqualTo(new JwtSettings("nkc-clinic", "nkc-staff", ""));
@@ -79,7 +79,7 @@ class AuthInfrastructureConfigurationTest {
     void startupRejectsMissingInvalidAndShortJwtKeys() {
         var configuration = new AuthInfrastructureConfiguration();
         var environment = new MockEnvironment();
-        var sessionPolicy = configuration.staffSessionPolicy(environment);
+        var sessionPolicy = configuration.sessionPolicy(environment);
         for (String key : new String[]{"", "not-base64!", "c2hvcnQ="}) {
             var jwtSettings = new JwtSettings("nkc", "nkc-staff", key);
             assertThatThrownBy(() -> configuration.sessionTokens(jwtSettings, sessionPolicy, Clock.systemUTC()))
@@ -89,7 +89,7 @@ class AuthInfrastructureConfigurationTest {
 
     @Test
     void configurationTypesRejectInvalidSessionAndThrottleLimits() {
-        assertThatThrownBy(() -> new StaffSessionPolicy(
+        assertThatThrownBy(() -> new SessionPolicy(
                 Duration.ofHours(9), Duration.ofHours(8))).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new com.ngockhanh.clinic.identity.infrastructure.session.LoginThrottleSettings(
                 0, 60, Duration.ofMinutes(15))).isInstanceOf(IllegalArgumentException.class);
@@ -100,9 +100,9 @@ class AuthInfrastructureConfigurationTest {
         var configuration = new AuthInfrastructureConfiguration();
         PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
 
-        TransactionTemplate read = (TransactionTemplate) configuration.staffAccountReadTransaction(manager);
-        TransactionTemplate snapshot = (TransactionTemplate) configuration.staffAccountSnapshotTransaction(manager);
-        TransactionTemplate write = (TransactionTemplate) configuration.staffAccountWriteTransaction(manager);
+        TransactionTemplate read = (TransactionTemplate) configuration.accountReadTransaction(manager);
+        TransactionTemplate snapshot = (TransactionTemplate) configuration.accountSnapshotTransaction(manager);
+        TransactionTemplate write = (TransactionTemplate) configuration.accountWriteTransaction(manager);
 
         assertThat(read.isReadOnly()).isTrue();
         assertThat(snapshot.isReadOnly()).isTrue();

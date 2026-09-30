@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity;
 
-import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
+import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 import com.ngockhanh.clinic.identity.infrastructure.security.JwtSettings;
 import com.ngockhanh.clinic.identity.infrastructure.session.LoginThrottleSettings;
 
@@ -27,8 +27,8 @@ class SessionAdaptersTest {
     @Container
     static final GenericContainer<?> REDIS = new GenericContainer<>(DockerImageName.parse("redis:7.4-alpine")).withExposedPorts(6379);
 
-    static StaffSessionPolicy settings() {
-        return new StaffSessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8));
+    static SessionPolicy settings() {
+        return new SessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8));
     }
 
     static JwtSettings jwtSettings(String key) {
@@ -46,7 +46,7 @@ class SessionAdaptersTest {
         var codec = new ServerJwtTokens(jwtSettings(key), settings(), Clock.fixed(now, ZoneOffset.UTC));
         UUID user = UUID.randomUUID();
         var role = new RoleAssignment(UUID.randomUUID(), "DOCTOR", List.of("READ"), UUID.randomUUID(), null, now, null);
-        var claims = new SessionTokens.Claims(user, UUID.randomUUID(), "staff", UUID.randomUUID(), now, now.plusSeconds(60), List.of(role));
+        var claims = new SessionTokens.Claims(user, UUID.randomUUID(), null, "staff", "STAFF", UUID.randomUUID(), now, now.plusSeconds(60), List.of(role));
         String jwt = codec.issue(claims);
         assertThat(codec.verify(jwt)).contains(claims);
         assertThat(codec.verify(jwt.substring(0, jwt.lastIndexOf('.') + 1) + "invalid")).isEmpty();

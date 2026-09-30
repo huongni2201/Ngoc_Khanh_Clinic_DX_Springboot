@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.infrastructure.security;
 
-import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
+import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 
 import com.ngockhanh.clinic.identity.application.port.SessionTokens;
 import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -34,10 +35,10 @@ public final class ServerJwtTokens implements SessionTokens {
     private final JwtEncoder encoder;
     private final JwtDecoder decoder;
     private final JwtSettings jwtSettings;
-    private final StaffSessionPolicy sessionPolicy;
+    private final SessionPolicy sessionPolicy;
     private final Clock clock;
 
-    public ServerJwtTokens(JwtSettings jwtSettings, StaffSessionPolicy sessionPolicy, Clock clock) {
+    public ServerJwtTokens(JwtSettings jwtSettings, SessionPolicy sessionPolicy, Clock clock) {
         byte[] key;
         try {
             key = Base64.getDecoder().decode(jwtSettings.base64Key());
@@ -77,11 +78,17 @@ public final class ServerJwtTokens implements SessionTokens {
         var payload = JwtClaimsSet.builder().issuer(jwtSettings.issuer()).audience(List.of(jwtSettings.audience()))
                 .subject(claims.userId().toString()).id(claims.tokenId().toString())
                 .issuedAt(claims.issuedAt()).expiresAt(claims.expiresAt())
-                .claim("userId", claims.userId().toString()).claim("staffId", claims.staffId().toString())
-                .claim("username", claims.username()).claim("principalType", "STAFF")
-                .claim("roleAssignments", roles).build();
+                .claim("userId", claims.userId().toString())
+                .claim("username", claims.username()).claim("principalType", claims.principalType())
+                .claim("roleAssignments", roles);
+        if (claims.staffId() != null) {
+            payload.claim("staffId", claims.staffId().toString());
+        }
+        if (claims.patientId() != null) {
+            payload.claim("patientId", claims.patientId().toString());
+        }
         return encoder.encode(JwtEncoderParameters.from(
-                JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), payload)).getTokenValue();
+                JwsHeader.with(MacAlgorithm.HS256).type("JWT").build(), payload.build())).getTokenValue();
     }
 
     public Optional<Claims> verify(String token) {
@@ -97,10 +104,17 @@ public final class ServerJwtTokens implements SessionTokens {
         try {
             Instant now = clock.instant();
             UUID userId = UUID.fromString(jwt.getClaimAsString("userId"));
-            UUID staffId = UUID.fromString(jwt.getClaimAsString("staffId"));
+            UUID staffId = uuid(jwt.getClaim("staffId"));
+            UUID patientId = uuid(jwt.getClaim("patientId"));
+            String principalType = jwt.getClaimAsString("principalType");
+            boolean validIdentity = switch (principalType) {
+                case "STAFF" -> staffId != null && patientId == null;
+                case "PATIENT" -> patientId != null && staffId == null;
+                case null, default -> false;
+            };
             String username = jwt.getClaimAsString("username");
             Instant issued = jwt.getIssuedAt(), expires = jwt.getExpiresAt();
-            if (!userId.toString().equals(jwt.getSubject()) || !"STAFF".equals(jwt.getClaimAsString("principalType"))
+            if (!userId.toString().equals(jwt.getSubject()) || !validIdentity
                     || username == null || username.isBlank() || username.length() > 200
                     || issued == null || expires == null || issued.isAfter(now) || !now.isBefore(expires)
                     || !expires.isAfter(issued)
@@ -108,7 +122,9 @@ public final class ServerJwtTokens implements SessionTokens {
                 return Optional.empty();
             }
             Object raw = jwt.getClaim("roleAssignments");
-            if (!(raw instanceof List<?> list) || list.isEmpty()) return Optional.empty();
+            if (!(raw instanceof List<?> list)) {
+                return Optional.empty();
+            }
             List<RoleAssignment> roles = new ArrayList<>();
             for (Object value : list) {
                 if (!(value instanceof Map<?, ?> map) || !(map.get("permissions") instanceof List<?> permissions)) {
@@ -120,8 +136,9 @@ public final class ServerJwtTokens implements SessionTokens {
                         Instant.parse((String) map.get("validFrom")),
                         map.get("validTo") == null ? null : Instant.parse((String) map.get("validTo"))));
             }
-            return Optional.of(new Claims(userId, staffId, username, UUID.fromString(jwt.getId()), issued, expires, roles));
-        } catch (IllegalArgumentException | ClassCastException | NullPointerException malformedClaims) {
+            return Optional.of(new Claims(userId, staffId, patientId, username, principalType,
+                    UUID.fromString(jwt.getId()), issued, expires, roles));
+        } catch (IllegalArgumentException | ClassCastException | NullPointerException | DateTimeException malformedClaims) {
             return Optional.empty();
         }
     }

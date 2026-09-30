@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity;
 
-import com.ngockhanh.clinic.identity.api.http.StaffSessionCookieFactory;
+import com.ngockhanh.clinic.identity.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.identity.api.http.TrustedProxyClientIpResolver;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IdentityHttpAdaptersTest {
     @Test
     void sessionCookieRetainsSecurityAttributesAndCanBeCleared() {
-        var cookie = new StaffSessionCookieFactory(true).create("opaque-id", Duration.ofHours(8));
+        var cookie = new SessionCookieFactory(true).create("opaque-id", Duration.ofHours(8));
         assertThat(cookie.getName()).isEqualTo("NKC_SESSION");
         assertThat(cookie.isHttpOnly()).isTrue();
         assertThat(cookie.isSecure()).isTrue();
@@ -22,7 +22,7 @@ class IdentityHttpAdaptersTest {
         assertThat(cookie.getDomain()).isNull();
         assertThat(cookie.getMaxAge()).isEqualTo(Duration.ofHours(8));
 
-        var cleared = new StaffSessionCookieFactory(false).clear();
+        var cleared = new SessionCookieFactory(false).clear();
         assertThat(cleared.getValue()).isEmpty();
         assertThat(cleared.getMaxAge()).isZero();
         assertThat(cleared.isSecure()).isFalse();

@@ -6,7 +6,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
-public final class StaffPasswordEncoder implements com.ngockhanh.clinic.identity.application.port.Passwords {
+public final class UserPasswordEncoder implements com.ngockhanh.clinic.identity.application.port.Passwords {
     private final BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder(12);
     private final String dummyHash = bcrypt.encode("not-an-account-password");
 

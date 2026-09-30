@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.identity.application.command.LogoutStaffSessionCommand;
+import com.ngockhanh.clinic.identity.application.command.LogoutSessionCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
 import com.ngockhanh.clinic.shared.audit.AuthAudit;
@@ -17,24 +17,24 @@ import java.util.function.Supplier;
 
 @Service
 @Slf4j
-public class LogoutStaffSessionUseCase {
+public class LogoutSessionUseCase {
     private final SessionStore sessions;
     private final AuthAudit audit;
     private final Clock clock;
     private final TransactionOperations accountWriteTransaction;
 
-    public LogoutStaffSessionUseCase(
+    public LogoutSessionUseCase(
             SessionStore sessions,
             AuthAudit audit,
             Clock clock,
-            @Qualifier("staffAccountWriteTransaction") TransactionOperations accountWriteTransaction) {
+            @Qualifier("accountWriteTransaction") TransactionOperations accountWriteTransaction) {
         this.sessions = sessions;
         this.audit = audit;
         this.clock = clock;
         this.accountWriteTransaction = accountWriteTransaction;
     }
 
-    public void execute(LogoutStaffSessionCommand command) {
+    public void execute(LogoutSessionCommand command) {
         String sessionId = singleSessionCookie(command.sessionIds());
         var stored = sessionId == null ? null
                 : sessionDependency(() -> sessions.find(sessionId));
@@ -43,7 +43,7 @@ public class LogoutStaffSessionUseCase {
         }
         if (stored != null) {
             recordRevocation(stored.userId(), false, command.correlationId());
-            log.info("Staff session revoked userId={} correlationId={}", stored.userId(), command.correlationId());
+            log.info("User session revoked userId={} correlationId={}", stored.userId(), command.correlationId());
         }
     }
 
@@ -73,8 +73,8 @@ public class LogoutStaffSessionUseCase {
     private void recordRevocation(UUID userId, boolean all, UUID correlationId) {
         try {
             accountWriteTransaction.executeWithoutResult(status ->
-                    audit.record(userId, all ? "STAFF_SESSIONS_REVOKED" : "STAFF_LOGOUT", clock.instant(), correlationId));
-            log.info("Staff session revocation recorded userId={} all={} correlationId={}",
+                    audit.record(userId, all ? "USER_SESSIONS_REVOKED" : "USER_LOGOUT", clock.instant(), correlationId));
+            log.info("User session revocation recorded userId={} all={} correlationId={}",
                     userId, all, correlationId);
         } catch (RuntimeException auditFailure) {
             log.error("Session revocation succeeded but audit failed userId={} correlationId={} failureType={}",
