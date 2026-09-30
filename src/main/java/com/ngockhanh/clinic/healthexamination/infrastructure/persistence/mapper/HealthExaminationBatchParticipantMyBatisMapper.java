@@ -18,6 +18,16 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
     List<HealthExaminationBatchParticipantServiceRecord> findAssignments(@Param("batchParticipantId") UUID batchParticipantId);
     List<UUID> findParticipantIdsByBatch(@Param("batchId") UUID batchId,
                                          @Param("participantIds") Collection<UUID> participantIds);
+    List<HealthExaminationBatchParticipantRecord> findRosterSnapshots(
+            @Param("batchId") UUID batchId, @Param("participantIds") Collection<UUID> participantIds);
+    List<HealthExaminationBatchParticipantRecord> findRosterSnapshotsForUpdate(
+            @Param("batchId") UUID batchId, @Param("participantIds") Collection<UUID> participantIds);
+    List<UUID> findBatchParticipantIdsWithHealthRecords(@Param("batchParticipantIds") Collection<UUID> batchParticipantIds);
+    int insertRosterSnapshots(@Param("batchId") UUID batchId,
+                              @Param("items") Collection<HealthExaminationBatchParticipantRecord> items);
+    int updateRosterSnapshots(@Param("batchId") UUID batchId,
+                              @Param("items") Collection<HealthExaminationBatchParticipantRecord> items);
     int insert(HealthExaminationBatchParticipantRecord participant);
+    int updateRosterSnapshot(HealthExaminationBatchParticipantRecord participant);
     int insertAssignments(@Param("items") Collection<HealthExaminationBatchParticipantServiceRecord> assignments);
 }

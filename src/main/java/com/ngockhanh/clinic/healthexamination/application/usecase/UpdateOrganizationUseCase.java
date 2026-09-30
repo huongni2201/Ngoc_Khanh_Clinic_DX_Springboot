@@ -30,23 +30,33 @@ public class UpdateOrganizationUseCase {
         Organization current = organizations.findById(organizationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Organization"));
 
-        String taxCode = OrganizationFieldNormalizer.optional(command.taxCode());
+        String taxCode = trimOptional(command.taxCode());
         if (taxCode != null && organizations.findByTaxCode(taxCode)
                 .filter(found -> !found.id().equals(current.id())).isPresent()) {
             throw new DuplicateOrganizationIdentity();
         }
 
         Organization updated = current.updateDetails(
-                OrganizationFieldNormalizer.required(command.name()), taxCode,
-                OrganizationFieldNormalizer.optional(command.address()),
-                OrganizationFieldNormalizer.required(command.contactName()),
-                OrganizationFieldNormalizer.required(command.contactPhone()),
-                OrganizationFieldNormalizer.optional(command.contactJobTitle()),
-                OrganizationFieldNormalizer.optional(command.note()));
+                trimRequired(command.name()), taxCode,
+                trimOptional(command.address()),
+                trimRequired(command.contactName()),
+                trimRequired(command.contactPhone()),
+                trimOptional(command.contactJobTitle()),
+                trimOptional(command.note()));
         organizations.update(updated, current.rowVersion());
 
         log.info("Organization update persisted: organizationId={}", id);
 
         return OrganizationResponse.from(updated);
+    }
+
+    private static String trimRequired(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private static String trimOptional(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

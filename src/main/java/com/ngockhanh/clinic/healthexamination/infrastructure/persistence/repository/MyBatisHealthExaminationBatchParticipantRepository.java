@@ -13,12 +13,14 @@ import org.springframework.stereotype.Repository;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository.BatchParticipantSummary;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository.BatchParticipantRosterSnapshot;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord;
+import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 
 @Repository
 @RequiredArgsConstructor
@@ -61,6 +63,58 @@ public class MyBatisHealthExaminationBatchParticipantRepository
     }
 
     @Override
+    public List<BatchParticipantRosterSnapshot> findRosterSnapshots(AggregateId batchId,
+                                                                      Collection<AggregateId> participantIds) {
+        if (participantIds.isEmpty()) return List.of();
+        List<java.util.UUID> ids = participantIds.stream().map(AggregateId::value).toList();
+        return toRosterSnapshots(mapper.findRosterSnapshots(batchId.value(), ids));
+    }
+
+    @Override
+    public List<BatchParticipantRosterSnapshot> findRosterSnapshotsForUpdate(
+            AggregateId batchId, Collection<AggregateId> participantIds) {
+        if (participantIds.isEmpty()) return List.of();
+        List<java.util.UUID> ids = participantIds.stream().map(AggregateId::value).toList();
+        return toRosterSnapshots(mapper.findRosterSnapshotsForUpdate(batchId.value(), ids));
+    }
+
+    @Override
+    public Set<AggregateId> findBatchParticipantIdsWithHealthRecords(Collection<AggregateId> batchParticipantIds) {
+        if (batchParticipantIds.isEmpty()) return Set.of();
+        List<java.util.UUID> ids = batchParticipantIds.stream().map(AggregateId::value).toList();
+        return mapper.findBatchParticipantIdsWithHealthRecords(ids).stream()
+                .map(AggregateId::new).collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    @Override
+    public void insertRosterSnapshots(AggregateId batchId,
+                                      Collection<BatchParticipantRosterSnapshot> snapshots) {
+        List<BatchParticipantRosterSnapshot> items = List.copyOf(snapshots);
+        for (int start = 0; start < items.size(); start += 500) {
+            List<HealthExaminationBatchParticipantRecord> records = items.subList(start,
+                            Math.min(start + 500, items.size())).stream()
+                    .map(snapshot -> Converter.toRosterRecord(batchId, snapshot)).toList();
+            if (mapper.insertRosterSnapshots(batchId.value(), records) != records.size()) {
+                throw new ConcurrentUpdateException();
+            }
+        }
+    }
+
+    @Override
+    public void updateRosterSnapshots(AggregateId batchId,
+                                      Collection<BatchParticipantRosterSnapshot> snapshots) {
+        List<BatchParticipantRosterSnapshot> items = List.copyOf(snapshots);
+        for (int start = 0; start < items.size(); start += 500) {
+            List<HealthExaminationBatchParticipantRecord> records = items.subList(start,
+                            Math.min(start + 500, items.size())).stream()
+                    .map(snapshot -> Converter.toRosterRecord(batchId, snapshot)).toList();
+            if (mapper.updateRosterSnapshots(batchId.value(), records) != records.size()) {
+                throw new ConcurrentUpdateException();
+            }
+        }
+    }
+
+    @Override
     public void save(HealthExaminationBatchParticipant participant) {
         HealthExaminationBatchParticipantRecord record = Converter.toRecord(participant);
         if (mapper.insert(record) != 1) throw new IllegalStateException("Batch participant was not saved");
@@ -72,12 +126,50 @@ public class MyBatisHealthExaminationBatchParticipantRepository
         }
     }
 
+    @Override
+    public void updateRosterSnapshot(HealthExaminationBatchParticipant participant) {
+        HealthExaminationBatchParticipantRecord record = Converter.toRecord(participant);
+        if (mapper.updateRosterSnapshot(record) != 1) throw new ConcurrentUpdateException();
+    }
+
     private HealthExaminationBatchParticipant toDomain(HealthExaminationBatchParticipantRecord record) {
         if (record == null) return null;
         return Converter.toDomain(record, mapper.findAssignments(record.id()));
     }
 
+    private static List<BatchParticipantRosterSnapshot> toRosterSnapshots(
+            List<HealthExaminationBatchParticipantRecord> records) {
+        return records.stream().map(Converter::toRosterSnapshot).toList();
+    }
+
     private static final class Converter {
+        static BatchParticipantRosterSnapshot toRosterSnapshot(HealthExaminationBatchParticipantRecord record) {
+            return new BatchParticipantRosterSnapshot(new AggregateId(record.id()),
+                    new AggregateId(record.healthExaminationParticipantId()), record.participantCodeSnapshot(),
+                    record.departmentSnapshot(), record.jobTitleSnapshot(), record.occupationSnapshot(),
+                    record.fullNameSnapshot(), record.dateOfBirthSnapshot(), record.sexSnapshot(),
+                    IdentificationNumber.of(record.identificationNumberSnapshot()),
+                    record.identificationNumberIssueDateSnapshot(), record.identificationNumberIssuePlaceSnapshot(),
+                    record.ethnicitySnapshot(), record.subjectTypeSnapshot(), record.payerSourceSnapshot(),
+                    record.bloodGroupSnapshot(), record.phoneSnapshot(), record.provinceSnapshot(), record.wardSnapshot(),
+                    record.addressDetailSnapshot(), record.administrativeOccupationSnapshot(),
+                    record.workplaceOrSchoolSnapshot(), record.healthExaminationReasonSnapshot(),
+                    record.rosterNoteSnapshot());
+        }
+
+        static HealthExaminationBatchParticipantRecord toRosterRecord(AggregateId batchId,
+                                                                       BatchParticipantRosterSnapshot snapshot) {
+            return new HealthExaminationBatchParticipantRecord(snapshot.batchParticipantId().value(), batchId.value(),
+                    snapshot.participantId().value(), snapshot.participantCode(), snapshot.departmentName(),
+                    snapshot.jobTitle(), snapshot.occupation(), snapshot.fullName(), snapshot.dateOfBirth(),
+                    snapshot.sex(), snapshot.identificationNumber().value(), snapshot.identificationNumberIssueDate(),
+                    snapshot.identificationNumberIssuePlace(), snapshot.ethnicity(), snapshot.subjectType(),
+                    snapshot.payerSource(), snapshot.bloodGroup(), snapshot.phone(), snapshot.province(),
+                    snapshot.ward(), snapshot.addressDetail(), snapshot.administrativeOccupation(),
+                    snapshot.workplaceOrSchool(), snapshot.healthExaminationReason(), snapshot.rosterNote(),
+                    "REGISTERED", null);
+        }
+
         static HealthExaminationBatchParticipantRecord toRecord(HealthExaminationBatchParticipant participant) {
             return new HealthExaminationBatchParticipantRecord(
                 participant.id().value(), participant.batchId().value(),
@@ -90,6 +182,7 @@ public class MyBatisHealthExaminationBatchParticipantRepository
                 participant.phoneSnapshot(), participant.provinceSnapshot(), participant.wardSnapshot(),
                 participant.addressDetailSnapshot(), participant.administrativeOccupationSnapshot(),
                 participant.workplaceOrSchoolSnapshot(), participant.healthExaminationReasonSnapshot(),
+                participant.rosterNoteSnapshot(),
                 "REGISTERED", null);
         }
 
@@ -112,7 +205,7 @@ public class MyBatisHealthExaminationBatchParticipantRepository
                             service.serviceRequestId() == null ? null : new AggregateId(service.serviceRequestId()),
                             new Money(service.unitPriceSnapshot(), "VND"), service.billable()))
                     .toList();
-            return HealthExaminationBatchParticipant.restore(new AggregateId(record.id()),
+            HealthExaminationBatchParticipant participant = HealthExaminationBatchParticipant.restore(new AggregateId(record.id()),
                     new AggregateId(record.healthExaminationBatchId()),
                     new AggregateId(record.healthExaminationParticipantId()), record.participantCodeSnapshot(),
                     record.departmentSnapshot(), record.jobTitleSnapshot(), record.occupationSnapshot(),
@@ -123,6 +216,8 @@ public class MyBatisHealthExaminationBatchParticipantRepository
                     record.bloodGroupSnapshot(), record.phoneSnapshot(), record.provinceSnapshot(), record.wardSnapshot(),
                     record.addressDetailSnapshot(), record.administrativeOccupationSnapshot(),
                     record.workplaceOrSchoolSnapshot(), record.healthExaminationReasonSnapshot(), assignments);
+            participant.updateRosterNoteSnapshot(record.rosterNoteSnapshot());
+            return participant;
         }
 
         static BatchParticipantSummary toSummary(HealthExaminationBatchParticipantRecord record) {

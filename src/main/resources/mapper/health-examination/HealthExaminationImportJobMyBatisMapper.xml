@@ -5,11 +5,14 @@
         id, health_examination_batch_id, import_type, source_file_attachment_id, status, column_mapping_json,
         total_rows, valid_rows, warning_rows, error_rows, created_by_user_id, confirmed_by_user_id, created_at, confirmed_at
     </sql>
-    <select id="findJobById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord">
-        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs WHERE id = #{id}
+    <select id="findJobByIdAndBatchId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord">
+        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs
+        WHERE id = #{id} AND health_examination_batch_id = #{batchId}
     </select>
-    <select id="findJobByIdForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord">
-        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs WHERE id = #{id} FOR UPDATE
+    <select id="findJobByIdAndBatchIdForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord">
+        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs
+        WHERE id = #{id} AND health_examination_batch_id = #{batchId}
+        FOR UPDATE
     </select>
     <select id="findRowsByJobId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportRowRecord">
         SELECT id, health_examination_import_job_id, row_number, participant_code_snapshot,
@@ -33,7 +36,8 @@
     </insert>
     <update id="updateJob">
         UPDATE public.health_examination_import_jobs
-        SET status = #{status}, total_rows = #{totalRows}, valid_rows = #{validRows},
+        SET status = #{status}, column_mapping_json = #{columnMappingJson},
+            total_rows = #{totalRows}, valid_rows = #{validRows},
             warning_rows = #{warningRows}, error_rows = #{errorRows},
             confirmed_by_user_id = #{confirmedByUserId}, confirmed_at = #{confirmedAt}
         WHERE id = #{id}
@@ -65,4 +69,42 @@
             resolved_service_request_id = #{resolvedServiceRequestId}
         WHERE id = #{id} AND health_examination_import_job_id = #{healthExaminationImportJobId}
     </update>
+    <insert id="upsertRows">
+        INSERT INTO public.health_examination_import_rows (
+            id, health_examination_import_job_id, row_number, participant_code_snapshot,
+            identification_number_snapshot, service_code_snapshot, validation_status, error_codes_json,
+            normalized_payload_json, resolved_patient_id, resolved_health_examination_participant_id,
+            resolved_batch_participant_id, resolved_batch_service_id, resolved_service_request_id
+        ) VALUES
+        <foreach collection="items" item="row" separator=",">
+            (
+                #{row.id}, #{row.healthExaminationImportJobId}, #{row.rowNumber}, #{row.participantCodeSnapshot},
+                #{row.identificationNumberSnapshot}, #{row.serviceCodeSnapshot}, #{row.validationStatus},
+                #{row.errorCodesJson}, #{row.normalizedPayloadJson}, #{row.resolvedPatientId},
+                #{row.resolvedHealthExaminationParticipantId}, #{row.resolvedBatchParticipantId},
+                #{row.resolvedBatchServiceId}, #{row.resolvedServiceRequestId}
+            )
+        </foreach>
+        ON CONFLICT (health_examination_import_job_id, row_number)
+        DO UPDATE SET
+            participant_code_snapshot = EXCLUDED.participant_code_snapshot,
+            identification_number_snapshot = EXCLUDED.identification_number_snapshot,
+            service_code_snapshot = EXCLUDED.service_code_snapshot,
+            validation_status = EXCLUDED.validation_status,
+            error_codes_json = EXCLUDED.error_codes_json,
+            normalized_payload_json = EXCLUDED.normalized_payload_json,
+            resolved_patient_id = EXCLUDED.resolved_patient_id,
+            resolved_health_examination_participant_id = EXCLUDED.resolved_health_examination_participant_id,
+            resolved_batch_participant_id = EXCLUDED.resolved_batch_participant_id,
+            resolved_batch_service_id = EXCLUDED.resolved_batch_service_id,
+            resolved_service_request_id = EXCLUDED.resolved_service_request_id
+    </insert>
+    <insert id="insertImportAudit">
+        INSERT INTO public.audit_logs (
+            id, occurred_at, actor_user_id, action, entity_type, entity_id, before_json, after_json
+        ) VALUES (
+            #{id}, #{occurredAt}, #{actorUserId}, #{action}, 'HEALTH_EXAMINATION_IMPORT', #{entityId},
+            #{beforeJson}, #{afterJson}
+        )
+    </insert>
 </mapper>

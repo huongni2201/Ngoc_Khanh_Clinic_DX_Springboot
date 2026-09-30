@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import com.ngockhanh.clinic.healthexamination.application.query.OrganizationBatchParticipantQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationBatchParticipantResponse;
+import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.HealthExaminationBatchReference;
@@ -32,8 +33,10 @@ class ListBatchParticipantUseCaseTest {
 
     @BeforeEach
     void batchExists() {
-        when(batchQuery.findById(AggregateId.of(BATCH_ID))).thenReturn(Optional.of(
-                new HealthExaminationBatchReference(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID), LocalDate.of(2026, 9, 28))));
+        when(batchQuery.findByIdAndOrganizationId(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID)))
+                .thenReturn(Optional.of(
+                new HealthExaminationBatchReference(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID),
+                        LocalDate.of(2026, 9, 28), BatchStatus.IN_PROGRESS)));
     }
 
     @Test
@@ -71,19 +74,13 @@ class ListBatchParticipantUseCaseTest {
     }
 
     @Test
-    void rejectsInvalidPaginationAndSortValues() {
-        assertThatThrownBy(() -> execute(OrganizationBatchParticipantQuery.builder().page(0).size(10).build()))
+    void rejectsOffsetsBeyondMapperSupportedRange() {
+        assertThatThrownBy(() -> execute(OrganizationBatchParticipantQuery.builder()
+                .page(Integer.MAX_VALUE)
+                .size(100)
+                .build()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid pagination");
-        assertThatThrownBy(() -> execute(OrganizationBatchParticipantQuery.builder().page(1).size(101).build()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid pagination");
-        assertThatThrownBy(() -> execute(OrganizationBatchParticipantQuery.builder().page(1).size(10).sortKey("unknown").build()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid sort key");
-        assertThatThrownBy(() -> execute(OrganizationBatchParticipantQuery.builder().page(1).size(10).sortBy("sideways").build()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid sort direction");
     }
 
     private void execute(OrganizationBatchParticipantQuery query) {

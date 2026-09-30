@@ -26,6 +26,13 @@
         WHERE organization_id = #{organizationId} AND identification_number IN
         <foreach collection="identificationNumbers" item="number" open="(" separator="," close=")">#{number}</foreach>
     </select>
+    <select id="findByOrganizationAndIdentificationNumbersForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_participants
+        WHERE organization_id = #{organizationId} AND identification_number IN
+        <foreach collection="identificationNumbers" item="number" open="(" separator="," close=")">#{number}</foreach>
+        ORDER BY id
+        FOR UPDATE
+    </select>
     <insert id="insert">
         INSERT INTO public.health_examination_participants (
             id, organization_id, patient_id, participant_code, identification_number, full_name, date_of_birth, sex,
@@ -42,4 +49,30 @@
             job_title = #{jobTitle}, occupation = #{occupation}, status = #{status}, updated_at = CURRENT_TIMESTAMP
         WHERE id = #{id} AND organization_id = #{organizationId}
     </update>
+    <insert id="upsertParticipants">
+        INSERT INTO public.health_examination_participants (
+            id, organization_id, patient_id, participant_code, identification_number, full_name, date_of_birth, sex,
+            department_name, job_title, occupation, status, created_at, updated_at
+        ) VALUES
+        <foreach collection="items" item="participant" separator=",">
+            (
+                #{participant.id}, #{participant.organizationId}, #{participant.patientId},
+                #{participant.participantCode}, #{participant.identificationNumber}, #{participant.fullName},
+                #{participant.dateOfBirth}, #{participant.sex}, #{participant.departmentName},
+                #{participant.jobTitle}, #{participant.occupation}, #{participant.status},
+                CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+            )
+        </foreach>
+        ON CONFLICT (id) DO UPDATE SET
+            full_name = EXCLUDED.full_name,
+            date_of_birth = EXCLUDED.date_of_birth,
+            sex = EXCLUDED.sex,
+            department_name = EXCLUDED.department_name,
+            job_title = EXCLUDED.job_title,
+            occupation = EXCLUDED.occupation,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE public.health_examination_participants.organization_id = EXCLUDED.organization_id
+          AND public.health_examination_participants.participant_code = EXCLUDED.participant_code
+          AND public.health_examination_participants.identification_number = EXCLUDED.identification_number
+    </insert>
 </mapper>

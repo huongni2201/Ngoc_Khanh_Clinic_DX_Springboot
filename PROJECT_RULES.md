@@ -8,12 +8,6 @@ The backend supports a real outpatient clinic and adult/corporate health-check w
 
 Current source-of-truth documents:
 
-```text
-requirement-v2.5
-use-case-v2.7
-table-design-v2.11
-```
-
 PostgreSQL physical type mappings from ADR-0004 remain in force under ADR-0005 and are documented in `docs/architecture/05-persistence-and-database.md`; the baseline remains the source for business schema and invariants.
 
 Do not infer domain behavior from UI mockups when these documents define the rule.

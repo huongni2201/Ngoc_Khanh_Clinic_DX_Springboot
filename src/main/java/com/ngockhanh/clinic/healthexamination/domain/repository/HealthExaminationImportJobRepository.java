@@ -6,7 +6,7 @@ import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExamination
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 
 public interface HealthExaminationImportJobRepository {
-    Optional<HealthExaminationImportJob> findById(AggregateId id);
-    Optional<HealthExaminationImportJob> findByIdForUpdate(AggregateId id);
+    Optional<HealthExaminationImportJob> findByIdAndBatchId(AggregateId importId, AggregateId batchId);
+    Optional<HealthExaminationImportJob> findByIdAndBatchIdForUpdate(AggregateId importId, AggregateId batchId);
     void save(HealthExaminationImportJob job);
 }

@@ -13,3 +13,7 @@ clinic:
   file-storage:
     local-root: ${NKC_LOCAL_FILE_STORAGE_ROOT:var/clinic/file-storage}
     encryption-key: ${NKC_FILE_ENCRYPTION_KEY:}
+  health-examination:
+    employee-import:
+      max-file-size-bytes: 10485760
+      max-rows: 10000

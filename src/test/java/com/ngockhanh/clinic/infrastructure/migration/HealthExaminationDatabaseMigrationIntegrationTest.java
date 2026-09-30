@@ -33,7 +33,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
         assertThat(flyway.info().pending()).isEmpty();
         assertThat(Arrays.stream(flyway.info().applied())
                 .map(info -> info.getVersion().getVersion()))
-                .containsExactly("001");
+                .containsExactly("001", "002", "003");
 
         JdbcTemplate jdbcTemplate = new JdbcTemplate(new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
@@ -64,8 +64,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
         assertConstraintAbsent(jdbcTemplate, "uq_organizations_organization_code");
 
         assertConstraint(jdbcTemplate, "health_examination_batches", "ck_health_examination_batches_date_range");
-        assertConstraint(jdbcTemplate, "health_examination_batch_services",
-                "ck_health_examination_batch_services_base_price_nonnegative");
+        assertColumnAbsent(jdbcTemplate, "health_examination_batch_services", "base_price_snapshot");
         assertConstraint(jdbcTemplate, "health_examination_batch_services",
                 "ck_health_examination_batch_services_neg_price_nonnegative");
         assertConstraint(jdbcTemplate, "health_examination_batch_services",

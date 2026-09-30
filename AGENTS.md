@@ -12,10 +12,6 @@ Before making any non-trivial change, read in this order:
 2. `PROJECT_SKILLS.md`
 3. Relevant ADRs in `docs/adr/`
 4. Backend architecture docs in `docs/architecture/`
-5. The corresponding `*_FINAL.docx` for affected business contracts:
-   - `requirement-v2.5`
-   - `use-case-v2.7`
-   - `table-design-v2.11`
 
 Use the FINAL DOCX sources directly for business-contract changes. Architecture-only documentation updates use project rules, accepted ADRs, and the existing implementation. If a required business source document is unavailable, do not invent business rules. State the missing contract and stop at a safe boundary.
 
@@ -266,6 +262,12 @@ Controllers:
 - do not call MyBatis mappers directly;
 - do not open manual JDBC connections;
 - do not own transactions.
+
+Validation ownership:
+
+- Bean Validation on `api/request` DTOs, triggered with `@Valid`, owns HTTP structural constraints such as bounds, formats, and allowed values.
+- Use cases own business rules and application preconditions; do not repeat the same request constraint for the same call path.
+- If another supported entry point needs that constraint, define it once in the application input contract and have adapters use that contract.
 
 Do not expose persistence records as API responses.
 

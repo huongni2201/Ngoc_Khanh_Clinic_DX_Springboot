@@ -10,6 +10,8 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -24,6 +26,7 @@ import com.ngockhanh.clinic.shared.web.ApiResponse;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 
 class OrganizationBatchParticipantControllerTest {
+    private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
     private ListBatchParticipantUseCase listBatchParticipantUseCase;
     private OrganizationBatchParticipantController controller;
@@ -77,5 +80,19 @@ class OrganizationBatchParticipantControllerTest {
         assertThat(captured.searchKey()).isEqualTo("Nguyen");
         assertThat(captured.sortBy()).isEqualTo("ASC");
         assertThat(captured.sortKey()).isEqualTo("fullName");
+    }
+
+    @Test
+    void requestRejectsInvalidPaginationAndSortValues() {
+        OrganizationBatchParticipantRequest request = OrganizationBatchParticipantRequest.builder()
+                .page(0)
+                .size(101)
+                .sortBy("sideways")
+                .sortKey("unknown")
+                .build();
+
+        assertThat(validator.validate(request))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .contains("page", "size", "sortBy", "sortKey");
     }
 }

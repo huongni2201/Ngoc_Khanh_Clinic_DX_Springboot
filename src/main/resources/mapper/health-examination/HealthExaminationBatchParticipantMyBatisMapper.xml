@@ -9,6 +9,7 @@
         ethnicity_snapshot, subject_type_snapshot, payer_source_snapshot, blood_group_snapshot,
         phone_snapshot, province_snapshot, ward_snapshot, address_detail_snapshot,
         administrative_occupation_snapshot, workplace_or_school_snapshot, health_examination_reason_snapshot,
+        roster_note_snapshot,
         status, created_at
     </sql>
     <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
@@ -30,6 +31,26 @@
           AND health_examination_participant_id IN
           <foreach collection="participantIds" item="participantId" open="(" separator="," close=")">#{participantId}</foreach>
     </select>
+    <select id="findRosterSnapshots" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_batch_participants
+        WHERE health_examination_batch_id = #{batchId}
+          AND health_examination_participant_id IN
+            <foreach collection="participantIds" item="participantId" open="(" separator="," close=")">#{participantId}</foreach>
+    </select>
+    <select id="findRosterSnapshotsForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_batch_participants
+        WHERE health_examination_batch_id = #{batchId}
+          AND health_examination_participant_id IN
+          <foreach collection="participantIds" item="participantId" open="(" separator="," close=")">#{participantId}</foreach>
+        ORDER BY id
+        FOR UPDATE
+    </select>
+    <select id="findBatchParticipantIdsWithHealthRecords" resultType="java.util.UUID">
+        SELECT DISTINCT health_examination_batch_participant_id
+        FROM public.health_examination_records
+        WHERE health_examination_batch_participant_id IN
+            <foreach collection="batchParticipantIds" item="batchParticipantId" open="(" separator="," close=")">#{batchParticipantId}</foreach>
+    </select>
     <insert id="insert">
         INSERT INTO public.health_examination_batch_participants (
             id, health_examination_batch_id, health_examination_participant_id, participant_code_snapshot,
@@ -39,6 +60,7 @@
             ethnicity_snapshot, subject_type_snapshot, payer_source_snapshot, blood_group_snapshot,
             phone_snapshot, province_snapshot, ward_snapshot, address_detail_snapshot,
             administrative_occupation_snapshot, workplace_or_school_snapshot, health_examination_reason_snapshot,
+            roster_note_snapshot,
             status, created_at
         ) VALUES (
             #{id}, #{healthExaminationBatchId}, #{healthExaminationParticipantId}, #{participantCodeSnapshot},
@@ -48,9 +70,109 @@
             #{ethnicitySnapshot}, #{subjectTypeSnapshot}, #{payerSourceSnapshot}, #{bloodGroupSnapshot},
             #{phoneSnapshot}, #{provinceSnapshot}, #{wardSnapshot}, #{addressDetailSnapshot},
             #{administrativeOccupationSnapshot}, #{workplaceOrSchoolSnapshot}, #{healthExaminationReasonSnapshot},
+            #{rosterNoteSnapshot},
             #{status}, CURRENT_TIMESTAMP
         )
     </insert>
+    <update id="updateRosterSnapshot">
+        UPDATE public.health_examination_batch_participants
+        SET participant_code_snapshot = #{participantCodeSnapshot},
+            department_snapshot = #{departmentSnapshot},
+            job_title_snapshot = #{jobTitleSnapshot},
+            occupation_snapshot = #{occupationSnapshot},
+            full_name_snapshot = #{fullNameSnapshot},
+            date_of_birth_snapshot = #{dateOfBirthSnapshot},
+            sex_snapshot = #{sexSnapshot},
+            identification_number_snapshot = #{identificationNumberSnapshot},
+            identification_number_issue_date_snapshot = #{identificationNumberIssueDateSnapshot},
+            identification_number_issue_place_snapshot = #{identificationNumberIssuePlaceSnapshot},
+            ethnicity_snapshot = #{ethnicitySnapshot},
+            subject_type_snapshot = #{subjectTypeSnapshot},
+            payer_source_snapshot = #{payerSourceSnapshot},
+            blood_group_snapshot = #{bloodGroupSnapshot},
+            phone_snapshot = #{phoneSnapshot},
+            province_snapshot = #{provinceSnapshot},
+            ward_snapshot = #{wardSnapshot},
+            address_detail_snapshot = #{addressDetailSnapshot},
+            administrative_occupation_snapshot = #{administrativeOccupationSnapshot},
+            workplace_or_school_snapshot = #{workplaceOrSchoolSnapshot},
+            health_examination_reason_snapshot = #{healthExaminationReasonSnapshot},
+            roster_note_snapshot = #{rosterNoteSnapshot}
+        WHERE id = #{id}
+          AND health_examination_batch_id = #{healthExaminationBatchId}
+          AND health_examination_participant_id = #{healthExaminationParticipantId}
+    </update>
+    <insert id="insertRosterSnapshots">
+        INSERT INTO public.health_examination_batch_participants (
+            id, health_examination_batch_id, health_examination_participant_id, participant_code_snapshot,
+            department_snapshot, job_title_snapshot, occupation_snapshot, full_name_snapshot,
+            date_of_birth_snapshot, sex_snapshot, identification_number_snapshot,
+            identification_number_issue_date_snapshot, identification_number_issue_place_snapshot,
+            ethnicity_snapshot, subject_type_snapshot, payer_source_snapshot, blood_group_snapshot,
+            phone_snapshot, province_snapshot, ward_snapshot, address_detail_snapshot,
+            administrative_occupation_snapshot, workplace_or_school_snapshot, health_examination_reason_snapshot,
+            roster_note_snapshot, status, created_at
+        ) VALUES
+        <foreach collection="items" item="item" separator=",">
+            (
+                #{item.id}, #{batchId}, #{item.healthExaminationParticipantId}, #{item.participantCodeSnapshot},
+                #{item.departmentSnapshot}, #{item.jobTitleSnapshot}, #{item.occupationSnapshot}, #{item.fullNameSnapshot},
+                #{item.dateOfBirthSnapshot}, #{item.sexSnapshot}, #{item.identificationNumberSnapshot},
+                #{item.identificationNumberIssueDateSnapshot}, #{item.identificationNumberIssuePlaceSnapshot},
+                #{item.ethnicitySnapshot}, #{item.subjectTypeSnapshot}, #{item.payerSourceSnapshot}, #{item.bloodGroupSnapshot},
+                #{item.phoneSnapshot}, #{item.provinceSnapshot}, #{item.wardSnapshot}, #{item.addressDetailSnapshot},
+                #{item.administrativeOccupationSnapshot}, #{item.workplaceOrSchoolSnapshot}, #{item.healthExaminationReasonSnapshot},
+                #{item.rosterNoteSnapshot}, 'REGISTERED', CURRENT_TIMESTAMP
+            )
+        </foreach>
+    </insert>
+    <update id="updateRosterSnapshots">
+        UPDATE public.health_examination_batch_participants AS target
+        SET participant_code_snapshot = source.participant_code_snapshot,
+            department_snapshot = source.department_snapshot,
+            job_title_snapshot = source.job_title_snapshot,
+            occupation_snapshot = source.occupation_snapshot,
+            full_name_snapshot = source.full_name_snapshot,
+            date_of_birth_snapshot = source.date_of_birth_snapshot,
+            sex_snapshot = source.sex_snapshot,
+            identification_number_snapshot = source.identification_number_snapshot,
+            identification_number_issue_date_snapshot = source.identification_number_issue_date_snapshot,
+            identification_number_issue_place_snapshot = source.identification_number_issue_place_snapshot,
+            ethnicity_snapshot = source.ethnicity_snapshot,
+            subject_type_snapshot = source.subject_type_snapshot,
+            payer_source_snapshot = source.payer_source_snapshot,
+            blood_group_snapshot = source.blood_group_snapshot,
+            phone_snapshot = source.phone_snapshot,
+            province_snapshot = source.province_snapshot,
+            ward_snapshot = source.ward_snapshot,
+            address_detail_snapshot = source.address_detail_snapshot,
+            administrative_occupation_snapshot = source.administrative_occupation_snapshot,
+            workplace_or_school_snapshot = source.workplace_or_school_snapshot,
+            health_examination_reason_snapshot = source.health_examination_reason_snapshot,
+            roster_note_snapshot = source.roster_note_snapshot
+        FROM (VALUES
+            <foreach collection="items" item="item" separator=",">
+                (#{item.id}, #{batchId}, #{item.healthExaminationParticipantId},
+                 #{item.participantCodeSnapshot}, #{item.departmentSnapshot}, #{item.jobTitleSnapshot},
+                 #{item.occupationSnapshot}, #{item.fullNameSnapshot}, #{item.dateOfBirthSnapshot},
+                 #{item.sexSnapshot}, #{item.identificationNumberSnapshot},
+                 CAST(#{item.identificationNumberIssueDateSnapshot} AS date), #{item.identificationNumberIssuePlaceSnapshot},
+                 #{item.ethnicitySnapshot}, #{item.subjectTypeSnapshot}, #{item.payerSourceSnapshot},
+                 #{item.bloodGroupSnapshot}, #{item.phoneSnapshot}, #{item.provinceSnapshot}, #{item.wardSnapshot},
+                 #{item.addressDetailSnapshot}, #{item.administrativeOccupationSnapshot},
+                 #{item.workplaceOrSchoolSnapshot}, #{item.healthExaminationReasonSnapshot}, #{item.rosterNoteSnapshot})
+            </foreach>
+        ) AS source(id, batch_id, participant_id, participant_code_snapshot, department_snapshot,
+                    job_title_snapshot, occupation_snapshot, full_name_snapshot, date_of_birth_snapshot,
+                    sex_snapshot, identification_number_snapshot, identification_number_issue_date_snapshot,
+                    identification_number_issue_place_snapshot, ethnicity_snapshot, subject_type_snapshot,
+                    payer_source_snapshot, blood_group_snapshot, phone_snapshot, province_snapshot, ward_snapshot,
+                    address_detail_snapshot, administrative_occupation_snapshot, workplace_or_school_snapshot,
+                    health_examination_reason_snapshot, roster_note_snapshot)
+        WHERE target.id = source.id
+          AND target.health_examination_batch_id = source.batch_id
+          AND target.health_examination_participant_id = source.participant_id
+    </update>
     <insert id="insertAssignments">
         INSERT INTO public.health_examination_batch_participant_services (
             id, health_examination_batch_participant_id, health_examination_batch_service_id,

@@ -5,9 +5,9 @@ import org.springframework.stereotype.Component;
 import com.github.f4b6a3.uuid.UuidCreator;
 
 @Component
-public final class UuidV7Generator implements IdGenerator {
-    @Override
-    public UUID next() {
+public final class UuidV7Generator {
+
+    public static UUID generate() {
         return UuidCreator.getTimeOrderedEpoch();
     }
 }
