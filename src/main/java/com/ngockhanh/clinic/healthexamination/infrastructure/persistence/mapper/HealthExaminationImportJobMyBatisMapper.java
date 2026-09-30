@@ -8,14 +8,19 @@ import org.apache.ibatis.annotations.Param;
 
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportRowRecord;
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.ImportAuditLogRecord;
 
 @Mapper
 public interface HealthExaminationImportJobMyBatisMapper {
-    HealthExaminationImportJobRecord findJobById(@Param("id") UUID id);
-    HealthExaminationImportJobRecord findJobByIdForUpdate(@Param("id") UUID id);
+    HealthExaminationImportJobRecord findJobByIdAndBatchId(
+            @Param("id") UUID id, @Param("batchId") UUID batchId);
+    HealthExaminationImportJobRecord findJobByIdAndBatchIdForUpdate(
+            @Param("id") UUID id, @Param("batchId") UUID batchId);
     List<HealthExaminationImportRowRecord> findRowsByJobId(@Param("jobId") UUID jobId);
     int insertJob(HealthExaminationImportJobRecord job);
     int updateJob(HealthExaminationImportJobRecord job);
     int insertRow(HealthExaminationImportRowRecord row);
     int updateRow(HealthExaminationImportRowRecord row);
+    int upsertRows(@Param("items") List<HealthExaminationImportRowRecord> rows);
+    int insertImportAudit(ImportAuditLogRecord audit);
 }

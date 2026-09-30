@@ -11,6 +11,8 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,14 +33,19 @@ public class GlobalExceptionHandler {
     return builder.body(ApiResponse.error(status.value(), exception.getMessage()));
   }
 
-  @ExceptionHandler(HttpMessageNotReadableException.class)
-  ResponseEntity<ApiResponse<Void>> malformedRequest(HttpMessageNotReadableException exception) {
+  @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+  ResponseEntity<ApiResponse<Void>> malformedRequest(RuntimeException exception) {
     return error(HttpStatus.BAD_REQUEST, "Invalid request");
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
   ResponseEntity<ApiResponse<Void>> validation(MethodArgumentNotValidException exception) {
     return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  ResponseEntity<ApiResponse<Void>> forbidden(AccessDeniedException exception) {
+    return error(HttpStatus.FORBIDDEN, "You are not authorized to perform this action");
   }
 
   @ExceptionHandler(IllegalArgumentException.class)

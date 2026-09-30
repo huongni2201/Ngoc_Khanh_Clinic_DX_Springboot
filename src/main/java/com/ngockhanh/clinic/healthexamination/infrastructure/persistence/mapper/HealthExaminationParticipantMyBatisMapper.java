@@ -21,6 +21,10 @@ public interface HealthExaminationParticipantMyBatisMapper {
     List<HealthExaminationParticipantRecord> findByOrganizationAndIdentificationNumbers(
             @Param("organizationId") UUID organizationId,
             @Param("identificationNumbers") Collection<String> identificationNumbers);
+    List<HealthExaminationParticipantRecord> findByOrganizationAndIdentificationNumbersForUpdate(
+            @Param("organizationId") UUID organizationId,
+            @Param("identificationNumbers") Collection<String> identificationNumbers);
     int insert(HealthExaminationParticipantRecord participant);
     int update(HealthExaminationParticipantRecord participant);
+    int upsertParticipants(@Param("items") Collection<HealthExaminationParticipantRecord> participants);
 }

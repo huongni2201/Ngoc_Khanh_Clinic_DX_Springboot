@@ -94,18 +94,15 @@ the applied migration as immutable.
 
 ## 6. Current migration baseline
 
-Fresh PostgreSQL 18 installations apply the consolidated V001 baseline, followed
-by V002 when the staff-credentials feature is present, from
+Fresh PostgreSQL 18 installations apply the complete migration chain in
 `src/main/resources/db/migration/`.
 
 | Migration | Effect |
 |---|---|
 | `V001__create_final_schema.sql` | Complete PostgreSQL 18 baseline, including typed administrative snapshots, removal of `organizations.organization_code`, and health-examination integrity constraints. |
-| `V002__update_users_credentials.sql` | Replaces the legacy provider/subject login keys with nullable staff username/password-hash columns (ADR-0009). |
-
-The earlier batch-snapshot and organization-code migrations were consolidated
-into V001; those historical migration files are no longer present in the current
-source tree.
+| `V002__update_users_credentials.sql` | Replaces legacy provider/subject login keys with nullable staff username/password-hash columns. |
+| `V002__add_roster_note_snapshot.sql` | Add the optional roster note snapshot for participant import. |
+| `V003__simplify_health_examination_batch_price_and_status.sql` | Add DELETED status and remove the batch-service reference-price column. |
 
 This describes files currently present in the workspace, not which version has
 been applied to an environment. Verify deployment state from that environment's
@@ -217,3 +214,14 @@ idempotency key
 ```
 
 `row_version` is a per-row bigint token incremented by a PostgreSQL before-update trigger. Updates that need optimistic locking must still compare the previously-read version and treat a zero-row update as a conflict.
+
+## 14. Draft batch CRUD contract update (2026-09-30)
+
+The owner approved one entered price per corporate batch service and soft deletion of draft batches.
+V003 adds DELETED to health_examination_batches.status and removes base_price_snapshot and its check constraint.
+negotiated_unit_price is the only batch-service price; retail service_prices is not queried by batch CRUD.
+Retained service IDs/code/name snapshots survive draft updates. Deletion retains rows and reserves the code.
+
+The current chain is V001 (baseline), V002 (roster note snapshot), and V003 (batch price/status update).
+The local-only repeatable actor fixture under db/local is excluded from default/production migration locations.
+See docs/api/health-examination-batches.md for transport and actor behavior.

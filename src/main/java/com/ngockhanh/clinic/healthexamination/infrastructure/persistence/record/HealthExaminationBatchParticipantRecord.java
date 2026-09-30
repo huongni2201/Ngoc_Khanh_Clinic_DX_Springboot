@@ -29,6 +29,7 @@ public record HealthExaminationBatchParticipantRecord(
         String administrativeOccupationSnapshot,
         String workplaceOrSchoolSnapshot,
         String healthExaminationReasonSnapshot,
+        String rosterNoteSnapshot,
         String status,
         Instant createdAt
 ) {

@@ -17,5 +17,8 @@ public interface HealthExaminationParticipantRepository {
             AggregateId organizationId, Collection<String> participantCodes);
     List<HealthExaminationParticipant> findByOrganizationAndIdentificationNumbers(
             AggregateId organizationId, Collection<IdentificationNumber> identificationNumbers);
+    List<HealthExaminationParticipant> findByOrganizationAndIdentificationNumbersForUpdate(
+            AggregateId organizationId, Collection<IdentificationNumber> identificationNumbers);
     void save(HealthExaminationParticipant participant);
+    void saveAll(Collection<HealthExaminationParticipant> participants);
 }

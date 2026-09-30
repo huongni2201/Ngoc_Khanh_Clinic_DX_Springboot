@@ -15,7 +15,7 @@ class GlobalExceptionHandlerTest {
             new ApiResponseWriter(JsonMapper.builder().build()));
 
     @Test
-    void mapsKnownFailuresAndHidesUnexpectedDetails() {
+    void mapsKnownFailuresAndHidesUnexpectedDetails() throws Exception {
         assertError(handler.businessRule(new BusinessRuleException("business rule") { }), 409);
         ResponseEntity<ApiResponse<Void>> invalidInput = handler.invalidInput(new IllegalArgumentException("internal validation detail"));
         assertError(invalidInput, 400);
@@ -23,6 +23,14 @@ class GlobalExceptionHandlerTest {
         assertError(handler.duplicate(new org.springframework.dao.DuplicateKeyException("unique index")), 409);
         assertError(handler.notFound(new ResourceNotFoundException("patient")), 404);
         assertError(handler.concurrency(new ConcurrentUpdateException()), 409);
+        ResponseEntity<ApiResponse<Void>> stalePreview = handler.concurrency(
+                new ConcurrentUpdateException("IMPORT_PREVIEW_STALE", "Preview is stale"));
+        assertError(stalePreview, 409);
+        assertThat(stalePreview.getBody().message()).isEqualTo("Preview is stale");
+        assertThat(JsonMapper.builder().build().writeValueAsString(stalePreview.getBody()))
+                .contains("\"code\":409")
+                .doesNotContain("errorCode");
+        assertError(handler.forbidden(new org.springframework.security.access.AccessDeniedException("denied")), 403);
         ResponseEntity<ApiResponse<Void>> unexpected = handler.unexpected(new RuntimeException("secret database detail"));
         assertError(unexpected, 500);
         assertThat(unexpected.getBody().message()).doesNotContain("secret");

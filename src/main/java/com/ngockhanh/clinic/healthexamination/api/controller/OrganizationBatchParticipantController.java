@@ -3,9 +3,7 @@ package com.ngockhanh.clinic.healthexamination.api.controller;
 import java.util.UUID;
 
 import jakarta.validation.Valid;
-import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,10 +24,9 @@ import com.ngockhanh.clinic.shared.web.PageResponse;
 @RestController
 @RequestMapping("/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}")
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrganizationBatchParticipantController {
 
-	ListBatchParticipantUseCase listBatchParticipantUseCase;
+	private final ListBatchParticipantUseCase listBatchParticipantUseCase;
 
 	/**
 	 * Lists a batch roster. Defaults are page 1, size 10, sortKey id, and sortBy ASC.
