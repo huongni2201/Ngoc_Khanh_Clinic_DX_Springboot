@@ -1,17 +1,17 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.identity.application.command.LoginStaffCommand;
+import com.ngockhanh.clinic.identity.application.command.LoginCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
 import com.ngockhanh.clinic.identity.application.port.Passwords;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
 import com.ngockhanh.clinic.identity.application.port.SessionTokens;
-import com.ngockhanh.clinic.identity.application.query.StaffPrincipal;
-import com.ngockhanh.clinic.identity.application.response.StaffLoginResult;
-import com.ngockhanh.clinic.identity.application.response.StaffSessionResponse;
-import com.ngockhanh.clinic.identity.domain.entity.StaffAccount;
-import com.ngockhanh.clinic.identity.domain.repository.StaffAccountRepository;
-import com.ngockhanh.clinic.identity.domain.valueobject.StaffSessionPolicy;
+import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
+import com.ngockhanh.clinic.identity.application.response.LoginResult;
+import com.ngockhanh.clinic.identity.application.response.UserSessionResponse;
+import com.ngockhanh.clinic.identity.domain.entity.UserAccount;
+import com.ngockhanh.clinic.identity.domain.repository.UserAccountRepository;
+import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import lombok.extern.slf4j.Slf4j;
@@ -29,33 +29,33 @@ import java.util.function.Supplier;
 
 @Service
 @Slf4j
-public class LoginStaffUseCase {
-    private final StaffAccountRepository accounts;
+public class LoginUseCase {
+    private final UserAccountRepository accounts;
     private final AuthAudit audit;
     private final Passwords passwords;
     private final SessionTokens tokens;
     private final SessionStore sessions;
     private final LoginThrottle throttle;
-    private final StaffSessionPolicy sessionPolicy;
+    private final SessionPolicy sessionPolicy;
     private final Clock clock;
     private final Supplier<String> sessionIds;
     private final TransactionOperations accountReadTransaction;
     private final TransactionOperations accountSnapshotTransaction;
     private final TransactionOperations accountWriteTransaction;
 
-    public LoginStaffUseCase(
-            StaffAccountRepository accounts,
+    public LoginUseCase(
+            UserAccountRepository accounts,
             AuthAudit audit,
             Passwords passwords,
             SessionTokens tokens,
             SessionStore sessions,
             LoginThrottle throttle,
-            StaffSessionPolicy sessionPolicy,
+            SessionPolicy sessionPolicy,
             Clock clock,
             Supplier<String> sessionIds,
-            @Qualifier("staffAccountReadTransaction") TransactionOperations accountReadTransaction,
-            @Qualifier("staffAccountSnapshotTransaction") TransactionOperations accountSnapshotTransaction,
-            @Qualifier("staffAccountWriteTransaction") TransactionOperations accountWriteTransaction) {
+            @Qualifier("accountReadTransaction") TransactionOperations accountReadTransaction,
+            @Qualifier("accountSnapshotTransaction") TransactionOperations accountSnapshotTransaction,
+            @Qualifier("accountWriteTransaction") TransactionOperations accountWriteTransaction) {
         this.accounts = accounts;
         this.audit = audit;
         this.passwords = passwords;
@@ -70,7 +70,7 @@ public class LoginStaffUseCase {
         this.accountWriteTransaction = accountWriteTransaction;
     }
 
-    public StaffLoginResult execute(LoginStaffCommand command) {
+    public LoginResult execute(LoginCommand command) {
         String username = command.username();
         String password = command.password();
         if (username == null || username.strip().isEmpty() || username.strip().length() > 200
@@ -88,15 +88,16 @@ public class LoginStaffUseCase {
         UUID userId = accountReadTransaction.execute(status -> accounts.identify(normalizedUsername));
         long generation = userId == null ? 0 : sessionDependency(() -> sessions.generation(userId));
         Instant now = clock.instant().truncatedTo(ChronoUnit.SECONDS);
-        StaffAccount account = accountSnapshotTransaction.execute(status -> accounts.find(normalizedUsername, now));
+        UserAccount account = accountSnapshotTransaction.execute(status -> accounts.find(normalizedUsername, now));
         boolean passwordMatches = passwords.matches(password, account == null ? null : account.password());
         if (!passwordMatches || account == null || !account.eligible() || !account.userId().equals(userId)) {
             failedAttempt(normalizedUsername);
-            log.info("Staff login rejected correlationId={}", command.correlationId());
+            log.info("User login rejected correlationId={}", command.correlationId());
             throw AuthenticationFailure.invalid();
         }
 
-        var claims = new SessionTokens.Claims(userId, account.staffId(), account.username(), UUID.randomUUID(),
+        var claims = new SessionTokens.Claims(userId, account.staffId(), account.patientId(), account.username(),
+                account.principalType(), UUID.randomUUID(),
                 now, now.plus(sessionPolicy.absoluteTimeout()), account.roles());
         String sessionId = sessionIds.get();
         var stored = new SessionStore.Stored(userId, tokens.issue(claims), generation, claims.expiresAt());
@@ -114,13 +115,14 @@ public class LoginStaffUseCase {
             if (previousSessionId != null && !previousSessionId.equals(sessionId)) {
                 sessionDependency(() -> sessions.delete(previousSessionId));
             }
-            StaffSessionResponse response = StaffSessionResponse.from(
-                    StaffPrincipal.from(claims.userId(), claims.staffId(), claims.username(), claims.roles(),
+            UserSessionResponse response = UserSessionResponse.from(
+                    UserPrincipal.from(claims.userId(), claims.staffId(), claims.patientId(), claims.username(),
+                            claims.principalType(), claims.roles(),
                             idleDeadline, claims.expiresAt(), clock.instant()));
-            log.info("Staff login completed userId={} correlationId={}", userId, command.correlationId());
-            return new StaffLoginResult(sessionId, response);
+            log.info("User login completed userId={} correlationId={}", userId, command.correlationId());
+            return new LoginResult(sessionId, response);
         } catch (RuntimeException failure) {
-            log.error("Staff login could not complete correlationId={} failureType={}",
+            log.error("User login could not complete correlationId={} failureType={}",
                     command.correlationId(), failure.getClass().getSimpleName());
             cleanupUnissuedSession(sessionId, command.correlationId());
             throw failure;
@@ -167,12 +169,12 @@ public class LoginStaffUseCase {
     }
 
     private void recordLogin(UUID userId, Instant now, UUID correlationId) {
-        log.debug("Recording staff login audit userId={} correlationId={}", userId, correlationId);
+        log.debug("Recording user login audit userId={} correlationId={}", userId, correlationId);
         accountWriteTransaction.executeWithoutResult(status -> {
             if (accounts.recordLogin(userId, now) != 1) {
                 throw AuthenticationFailure.invalid();
             }
-            audit.record(userId, "STAFF_LOGIN", now, correlationId);
+            audit.record(userId, "USER_LOGIN", now, correlationId);
         });
     }
 

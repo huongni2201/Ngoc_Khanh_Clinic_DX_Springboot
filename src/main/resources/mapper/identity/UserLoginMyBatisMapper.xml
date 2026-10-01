@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.ngockhanh.clinic.identity.infrastructure.persistence.mapper.StaffLoginMyBatisMapper">
+<mapper namespace="com.ngockhanh.clinic.identity.infrastructure.persistence.mapper.UserLoginMyBatisMapper">
     <select id="identify" resultType="java.util.UUID">
         SELECT id FROM public.users WHERE username = #{username}
     </select>
-    <select id="find" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.StaffLoginRow">
-        SELECT u.id AS user_id, u.staff_id, u.username, u.password, u.status, u.principal_type,
+    <select id="find" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.UserLoginRow">
+        SELECT u.id AS user_id, u.staff_id, u.patient_id, u.username, u.password, u.status, u.principal_type,
                coalesce(s.is_active, false) AS staff_active
         FROM public.users u LEFT JOIN public.staff s ON s.id = u.staff_id
         WHERE u.username = #{username}
@@ -22,7 +22,9 @@
     </select>
     <update id="lastLogin">
         UPDATE public.users SET last_login_at = #{now}
-        WHERE id = #{userId} AND status = 'ACTIVE' AND principal_type = 'STAFF'
-          AND EXISTS (SELECT 1 FROM public.staff s WHERE s.id = users.staff_id AND s.is_active = true)
+        WHERE id = #{userId} AND status = 'ACTIVE'
+          AND ((principal_type = 'STAFF' AND patient_id IS NULL
+                AND EXISTS (SELECT 1 FROM public.staff s WHERE s.id = users.staff_id AND s.is_active = true))
+            OR (principal_type = 'PATIENT' AND patient_id IS NOT NULL AND staff_id IS NULL))
     </update>
 </mapper>

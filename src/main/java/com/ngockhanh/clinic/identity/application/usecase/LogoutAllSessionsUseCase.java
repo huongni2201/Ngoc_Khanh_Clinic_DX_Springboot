@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.identity.application.command.LogoutAllStaffSessionsCommand;
+import com.ngockhanh.clinic.identity.application.command.LogoutAllSessionsCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionRevocation;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
@@ -16,33 +16,33 @@ import java.util.UUID;
 
 @Service
 @Slf4j
-public class LogoutAllStaffSessionsUseCase implements SessionRevocation {
+public class LogoutAllSessionsUseCase implements SessionRevocation {
     private final SessionStore sessions;
     private final AuthAudit audit;
     private final Clock clock;
     private final TransactionOperations accountWriteTransaction;
 
-    public LogoutAllStaffSessionsUseCase(
+    public LogoutAllSessionsUseCase(
             SessionStore sessions,
             AuthAudit audit,
             Clock clock,
-            @Qualifier("staffAccountWriteTransaction") TransactionOperations accountWriteTransaction) {
+            @Qualifier("accountWriteTransaction") TransactionOperations accountWriteTransaction) {
         this.sessions = sessions;
         this.audit = audit;
         this.clock = clock;
         this.accountWriteTransaction = accountWriteTransaction;
     }
 
-    public void execute(LogoutAllStaffSessionsCommand command) {
+    public void execute(LogoutAllSessionsCommand command) {
         sessionDependency(() -> sessions.revokeAll(command.userId()));
         recordRevocation(command.userId(), command.correlationId());
-        log.info("All staff sessions revoked userId={} correlationId={}",
+        log.info("All user sessions revoked userId={} correlationId={}",
                 command.userId(), command.correlationId());
     }
 
     @Override
     public void revokeAllSessions(UUID userId) {
-        execute(new LogoutAllStaffSessionsCommand(userId, UUID.randomUUID()));
+        execute(new LogoutAllSessionsCommand(userId, UUID.randomUUID()));
     }
 
     private void sessionDependency(Runnable operation) {
@@ -56,8 +56,8 @@ public class LogoutAllStaffSessionsUseCase implements SessionRevocation {
     private void recordRevocation(UUID userId, UUID correlationId) {
         try {
             accountWriteTransaction.executeWithoutResult(status ->
-                    audit.record(userId, "STAFF_SESSIONS_REVOKED", clock.instant(), correlationId));
-            log.info("Staff session revocation recorded userId={} all=true correlationId={}", userId, correlationId);
+                    audit.record(userId, "USER_SESSIONS_REVOKED", clock.instant(), correlationId));
+            log.info("User session revocation recorded userId={} all=true correlationId={}", userId, correlationId);
         } catch (RuntimeException auditFailure) {
             log.error("Session revocation succeeded but audit failed userId={} correlationId={} failureType={}",
                     userId, correlationId, auditFailure.getClass().getSimpleName());

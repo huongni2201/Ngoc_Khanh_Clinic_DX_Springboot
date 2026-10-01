@@ -4,13 +4,13 @@ import java.time.Duration;
 
 import org.springframework.http.ResponseCookie;
 
-public final class StaffSessionCookieFactory {
+public final class SessionCookieFactory {
 
     public static final String SESSION_COOKIE_NAME = "NKC_SESSION";
 
     private final boolean secure;
 
-    public StaffSessionCookieFactory(boolean secure) {
+    public SessionCookieFactory(boolean secure) {
         this.secure = secure;
     }
 

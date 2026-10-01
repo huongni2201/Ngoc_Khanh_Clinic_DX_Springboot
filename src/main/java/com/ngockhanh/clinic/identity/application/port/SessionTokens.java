@@ -8,7 +8,7 @@ import java.util.UUID;
 import java.util.Optional;
 
 public interface SessionTokens {
-    record Claims(UUID userId, UUID staffId, String username, UUID tokenId,
+    record Claims(UUID userId, UUID staffId, UUID patientId, String username, String principalType, UUID tokenId,
                   Instant issuedAt, Instant expiresAt, List<RoleAssignment> roles) {
         public Claims {
             roles = List.copyOf(roles);

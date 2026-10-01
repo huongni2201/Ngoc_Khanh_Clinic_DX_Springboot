@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity;
 
-import com.ngockhanh.clinic.identity.infrastructure.security.StaffPasswordEncoder;
+import com.ngockhanh.clinic.identity.infrastructure.security.UserPasswordEncoder;
 import com.ngockhanh.clinic.identity.application.port.SessionRevocation;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.*;
@@ -46,7 +46,7 @@ class StaffAuthIntegrationTest {
     @Autowired
     JdbcTemplate jdbc;
     @Autowired
-    StaffPasswordEncoder passwords;
+    UserPasswordEncoder passwords;
     @Autowired
     JsonMapper json;
     @Autowired
@@ -83,7 +83,7 @@ class StaffAuthIntegrationTest {
 
     ResultActions login(String name, String password, Cookie... previous) throws Exception {
         var csrf = csrf();
-        var request = post("/api/v1/auth/staff/login").servletPath("/api/v1/auth/staff/login")
+        var request = post("/api/v1/auth/login").servletPath("/api/v1/auth/login")
                 .contentType("application/json").content(json.writeValueAsString(java.util.Map.of("username", name, "password", password)))
                 .cookie(csrf.cookie()).header(csrf.header(), csrf.token());
         if (previous.length > 0) request.cookie(previous);
@@ -108,11 +108,11 @@ class StaffAuthIntegrationTest {
         assertThat(session.getValue()).hasSize(43).doesNotContain(".");
         me(session).andExpect(status().isOk()).andExpect(jsonPath("$.data.staffId").value(staffId.toString()));
         assertThat(jdbc.queryForObject("SELECT last_login_at IS NOT NULL FROM users WHERE id=?", Boolean.class, userId)).isTrue();
-        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_user_id=? AND action='STAFF_LOGIN'", Integer.class, userId)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM audit_logs WHERE actor_user_id=? AND action='USER_LOGIN'", Integer.class, userId)).isEqualTo(1);
     }
 
     @Test
-    void invalidCredentialsInactiveStaffAndMissingRolesAreRejected() throws Exception {
+    void invalidCredentialsAndInactiveAccountsAreRejectedButMissingRolesCanAuthenticate() throws Exception {
         login(username, "wrong")
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.result").value("NG"));
@@ -124,19 +124,19 @@ class StaffAuthIntegrationTest {
         login(username, "test-password").andExpect(status().isUnauthorized());
         jdbc.update("UPDATE users SET status='ACTIVE' WHERE id=?", userId);
         jdbc.update("UPDATE user_roles SET valid_from=CURRENT_TIMESTAMP + interval '1 hour' WHERE id=?", assignmentId);
-        login(username, "test-password").andExpect(status().isUnauthorized());
+        login(username, "test-password").andExpect(status().isOk()).andExpect(jsonPath("$.data.roleAssignments").isEmpty());
         jdbc.update("UPDATE user_roles SET valid_from=CURRENT_TIMESTAMP - interval '1 hour', valid_to=CURRENT_TIMESTAMP - interval '1 minute' WHERE id=?", assignmentId);
-        login(username, "test-password").andExpect(status().isUnauthorized());
+        login(username, "test-password").andExpect(status().isOk()).andExpect(jsonPath("$.data.roleAssignments").isEmpty());
         jdbc.update("UPDATE user_roles SET valid_to=NULL WHERE id=?", assignmentId);
         jdbc.update("UPDATE roles SET is_active=false WHERE id=?", roleId);
-        login(username, "test-password").andExpect(status().isUnauthorized());
+        login(username, "test-password").andExpect(status().isOk()).andExpect(jsonPath("$.data.roleAssignments").isEmpty());
         jdbc.update("DELETE FROM user_roles WHERE user_id=?", userId);
-        login(username, "test-password").andExpect(status().isUnauthorized());
+        login(username, "test-password").andExpect(status().isOk()).andExpect(jsonPath("$.data.roleAssignments").isEmpty());
     }
 
     @Test
     void csrfIsRequiredAndOldSessionCookieDoesNotBlockLogin() throws Exception {
-        mvc.perform(post("/api/v1/auth/staff/login").contentType("application/json")
+        mvc.perform(post("/api/v1/auth/login").contentType("application/json")
                         .content("{\"username\":\"someone\",\"password\":\"something\"}"))
                 .andExpect(status().isForbidden());
         login(username, "test-password", new Cookie("NKC_SESSION", "expired"))
@@ -165,7 +165,7 @@ class StaffAuthIntegrationTest {
     }
 
     @Test
-    void credentialNullAndPatientPrincipalCannotLogin() throws Exception {
+    void credentialsAreRequiredAndPatientCanAuthenticateWithoutStaff() throws Exception {
         jdbc.update("UPDATE users SET password=NULL WHERE id=?", userId);
         login(username, "test-password").andExpect(status().isUnauthorized());
         UUID patient = UUID.randomUUID();
@@ -175,7 +175,30 @@ class StaffAuthIntegrationTest {
                 """, patient, patient.toString().substring(0, 20), patient.toString().substring(0, 20));
         jdbc.update("UPDATE users SET principal_type='PATIENT',staff_id=NULL,patient_id=?,password=? WHERE id=?",
                 patient, passwords.encode("test-password"), userId);
-        login(username, "test-password").andExpect(status().isUnauthorized());
+        var response = login(username, "test-password").andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.principalType").value("PATIENT"))
+                .andExpect(jsonPath("$.data.patientId").value(patient.toString()))
+                .andExpect(jsonPath("$.data.staffId").isEmpty()).andReturn().getResponse();
+        Cookie first = response.getCookie("NKC_SESSION");
+        me(first).andExpect(status().isOk()).andExpect(jsonPath("$.data.patientId").value(patient.toString()));
+        mvc.perform(get("/api/v1/organizations").servletPath("/api/v1/organizations").cookie(first))
+                .andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT last_login_at IS NOT NULL FROM users WHERE id=?", Boolean.class, userId)).isTrue();
+        jdbc.update("DELETE FROM user_roles WHERE user_id=?", userId);
+        Cookie second = login(username, "test-password").andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roleAssignments").isEmpty()).andReturn().getResponse().getCookie("NKC_SESSION");
+        me(second).andExpect(status().isOk());
+        var csrf = csrf();
+        mvc.perform(post("/api/v1/auth/logout").servletPath("/api/v1/auth/logout")
+                        .cookie(first, csrf.cookie()).header(csrf.header(), csrf.token()))
+                .andExpect(status().isNoContent());
+        me(first).andExpect(status().isUnauthorized());
+        me(second).andExpect(status().isOk());
+        csrf = csrf();
+        mvc.perform(post("/api/v1/auth/logout-all").servletPath("/api/v1/auth/logout-all")
+                        .cookie(second, csrf.cookie()).header(csrf.header(), csrf.token()))
+                .andExpect(status().isNoContent());
+        me(second).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -223,7 +246,7 @@ class StaffAuthIntegrationTest {
     void databaseAuditFailureRollsBackLastLoginAndCompensatesRedisWithoutCookie() throws Exception {
         jdbc.execute("""
                 CREATE FUNCTION reject_test_login_audit() RETURNS trigger LANGUAGE plpgsql AS $$
-                BEGIN IF NEW.action = 'STAFF_LOGIN' THEN RAISE EXCEPTION 'test audit failure'; END IF;
+                BEGIN IF NEW.action = 'USER_LOGIN' THEN RAISE EXCEPTION 'test audit failure'; END IF;
                 RETURN NEW; END $$
                 """);
         jdbc.execute("CREATE TRIGGER reject_test_login BEFORE INSERT ON audit_logs FOR EACH ROW EXECUTE FUNCTION reject_test_login_audit()");

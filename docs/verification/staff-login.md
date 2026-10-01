@@ -80,7 +80,7 @@ Supporting baseline fixes needed for executable checks:
 ## Deployment boundaries
 
 Required environment/provisioning steps are documented in
-[staff-login.md](../api/staff-login.md), with the credential/session decision in
+[staff-login.md](../api/login.md), with the credential/session decision in
 [ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md).
 
 Business RBAC and Next.js UI remain separate features. Default/production denies

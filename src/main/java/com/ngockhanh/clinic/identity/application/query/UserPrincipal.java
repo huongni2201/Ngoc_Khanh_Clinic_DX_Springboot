@@ -1,19 +1,19 @@
 package com.ngockhanh.clinic.identity.application.query;
 
-import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record StaffPrincipal(UUID userId, UUID staffId, String username, String principalType,
+@org.springframework.modulith.NamedInterface("access")
+public record UserPrincipal(UUID userId, UUID staffId, UUID patientId, String username, String principalType,
                              List<Assignment> roleAssignments, Instant idleExpiresAt, Instant absoluteExpiresAt) {
-    public StaffPrincipal {
+    public UserPrincipal {
         roleAssignments = List.copyOf(roleAssignments);
     }
 
-    public static StaffPrincipal from(UUID userId, UUID staffId, String username,
+    public static UserPrincipal from(UUID userId, UUID staffId, UUID patientId, String username, String principalType,
                                       List<RoleAssignment> assignments, Instant idleExpiresAt,
                                       Instant absoluteExpiresAt, Instant now) {
         List<Assignment> effectiveAssignments = assignments.stream()
@@ -22,10 +22,7 @@ public record StaffPrincipal(UUID userId, UUID staffId, String username, String 
                         assignment.permissions(), assignment.departmentId(), assignment.roomId(),
                         assignment.validFrom(), assignment.validTo()))
                 .toList();
-        if (effectiveAssignments.isEmpty()) {
-            throw AuthenticationFailure.invalid();
-        }
-        return new StaffPrincipal(userId, staffId, username, "STAFF", effectiveAssignments,
+        return new UserPrincipal(userId, staffId, patientId, username, principalType, effectiveAssignments,
                 idleExpiresAt, absoluteExpiresAt);
     }
 

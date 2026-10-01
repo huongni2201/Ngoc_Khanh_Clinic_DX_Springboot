@@ -1,20 +1,20 @@
 package com.ngockhanh.clinic.identity.application.response;
 
-import com.ngockhanh.clinic.identity.application.query.StaffPrincipal;
+import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-public record StaffSessionResponse(UUID userId, UUID staffId, String username, String principalType,
+public record UserSessionResponse(UUID userId, UUID staffId, UUID patientId, String username, String principalType,
                                    List<RoleAssignmentResponse> roleAssignments,
                                    Instant idleExpiresAt, Instant absoluteExpiresAt) {
-    public StaffSessionResponse {
+    public UserSessionResponse {
         roleAssignments = List.copyOf(roleAssignments);
     }
 
-    public static StaffSessionResponse from(StaffPrincipal principal) {
-        return new StaffSessionResponse(principal.userId(), principal.staffId(), principal.username(),
+    public static UserSessionResponse from(UserPrincipal principal) {
+        return new UserSessionResponse(principal.userId(), principal.staffId(), principal.patientId(), principal.username(),
                 principal.principalType(), principal.roleAssignments().stream()
                 .map(r -> new RoleAssignmentResponse(r.assignmentId(), r.roleCode(), r.permissions(),
                         r.departmentId(), r.roomId(), r.validFrom(), r.validTo())).toList(),

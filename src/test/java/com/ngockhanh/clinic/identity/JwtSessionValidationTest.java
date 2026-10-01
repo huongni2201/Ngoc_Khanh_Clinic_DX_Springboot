@@ -52,11 +52,39 @@ class JwtSessionValidationTest {
                 sign(valid().claim("principalType", "PATIENT"), JWSAlgorithm.HS256),
                 sign(valid().issueTime(Date.from(now.plusSeconds(1))), JWSAlgorithm.HS256),
                 sign(valid().expirationTime(Date.from(now.plusSeconds(28801))), JWSAlgorithm.HS256),
-                sign(valid().expirationTime(Date.from(now)), JWSAlgorithm.HS256),
-                sign(valid().claim("roleAssignments", List.of()), JWSAlgorithm.HS256));
+                sign(valid().expirationTime(Date.from(now)), JWSAlgorithm.HS256));
         for (String token : invalid) {
             assertThat(codec.verify(token)).isEmpty();
         }
         assertThat(codec.verify(sign(valid(), JWSAlgorithm.HS256)).orElseThrow().userId()).isEqualTo(user);
+    }
+
+    @Test
+    void acceptsLegacyStaffTokensAndRolelessStaffAndPatientTokens() throws Exception {
+        var staff = codec.verify(sign(valid().claim("roleAssignments", List.of()), JWSAlgorithm.HS256)).orElseThrow();
+        assertThat(staff.principalType()).isEqualTo("STAFF");
+        assertThat(staff.patientId()).isNull();
+        assertThat(staff.roles()).isEmpty();
+        UUID patientId = UUID.randomUUID();
+        var patient = codec.verify(sign(valid().claim("staffId", null).claim("patientId", patientId.toString())
+                .claim("principalType", "PATIENT").claim("roleAssignments", List.of()), JWSAlgorithm.HS256)).orElseThrow();
+        assertThat(patient.patientId()).isEqualTo(patientId);
+        assertThat(patient.staffId()).isNull();
+        assertThat(patient.principalType()).isEqualTo("PATIENT");
+        assertThat(patient.roles()).isEmpty();
+        assertThat(codec.verify(codec.issue(patient))).contains(patient);
+        assertThat(codec.verify(codec.issue(staff))).contains(staff);
+    }
+
+    @Test
+    void rejectsMissingOrContradictoryIdentityLinksAndUnsupportedTypes() throws Exception {
+        for (var claims : List.of(
+                valid().claim("patientId", UUID.randomUUID().toString()),
+                valid().claim("principalType", "PATIENT").claim("staffId", null),
+                valid().claim("principalType", "PATIENT").claim("patientId", UUID.randomUUID().toString()),
+                valid().claim("principalType", "ADMIN"),
+                valid().claim("patientId", "not-a-uuid"))) {
+            assertThat(codec.verify(sign(claims, JWSAlgorithm.HS256))).isEmpty();
+        }
     }
 }

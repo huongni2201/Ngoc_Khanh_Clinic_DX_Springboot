@@ -101,7 +101,7 @@ by V002 when the staff-credentials feature is present, from
 | Migration | Effect |
 |---|---|
 | `V001__create_final_schema.sql` | Complete PostgreSQL 18 baseline, including typed administrative snapshots, removal of `organizations.organization_code`, and health-examination integrity constraints. |
-| `V002__update_users_credentials.sql` | Replaces the legacy provider/subject login keys with nullable staff username/password-hash columns (ADR-0009). |
+| `V002__update_users_credentials.sql` | Replaces the legacy provider/subject login keys with nullable username/password-hash columns (ADR-0009; shared use in ADR-0011). |
 
 The earlier batch-snapshot and organization-code migrations were consolidated
 into V001; those historical migration files are no longer present in the current

@@ -99,6 +99,8 @@ class ModuleVerificationTest {
                 .isEmpty();
         assertThat(SessionRevocation.class.getAnnotation(org.springframework.modulith.NamedInterface.class).value())
                 .containsExactly("sessions");
+        assertThat(com.ngockhanh.clinic.identity.application.query.UserPrincipal.class
+                .getAnnotation(org.springframework.modulith.NamedInterface.class).value()).containsExactly("access");
     }
 
     @Test

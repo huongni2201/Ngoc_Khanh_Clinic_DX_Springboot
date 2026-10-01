@@ -1,22 +1,22 @@
 package com.ngockhanh.clinic.identity.api.controller;
 
-import com.ngockhanh.clinic.identity.api.http.StaffSessionCookieFactory;
+import com.ngockhanh.clinic.identity.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.identity.api.http.TrustedProxyClientIpResolver;
-import com.ngockhanh.clinic.identity.api.request.StaffLoginRequest;
-import com.ngockhanh.clinic.identity.application.command.LogoutAllStaffSessionsCommand;
-import com.ngockhanh.clinic.identity.application.command.LogoutStaffSessionCommand;
-import com.ngockhanh.clinic.identity.application.command.LoginStaffCommand;
+import com.ngockhanh.clinic.identity.api.request.LoginRequest;
+import com.ngockhanh.clinic.identity.application.command.LogoutAllSessionsCommand;
+import com.ngockhanh.clinic.identity.application.command.LogoutSessionCommand;
+import com.ngockhanh.clinic.identity.application.command.LoginCommand;
 import com.ngockhanh.clinic.identity.application.query.GetCsrfTokenQuery;
-import com.ngockhanh.clinic.identity.application.query.GetStaffSessionQuery;
-import com.ngockhanh.clinic.identity.application.query.StaffPrincipal;
+import com.ngockhanh.clinic.identity.application.query.GetSessionQuery;
+import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.identity.application.response.CsrfResponse;
-import com.ngockhanh.clinic.identity.application.response.StaffLoginResult;
-import com.ngockhanh.clinic.identity.application.response.StaffSessionResponse;
+import com.ngockhanh.clinic.identity.application.response.LoginResult;
+import com.ngockhanh.clinic.identity.application.response.UserSessionResponse;
 import com.ngockhanh.clinic.identity.application.usecase.GetCsrfTokenUseCase;
-import com.ngockhanh.clinic.identity.application.usecase.GetStaffSessionUseCase;
-import com.ngockhanh.clinic.identity.application.usecase.LogoutAllStaffSessionsUseCase;
-import com.ngockhanh.clinic.identity.application.usecase.LogoutStaffSessionUseCase;
-import com.ngockhanh.clinic.identity.application.usecase.LoginStaffUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.GetSessionUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutAllSessionsUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutSessionUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.shared.web.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -46,15 +46,15 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/auth")
-public class StaffAuthController {
-    private static final String SESSION_COOKIE = StaffSessionCookieFactory.SESSION_COOKIE_NAME;
+public class AuthController {
+    private static final String SESSION_COOKIE = SessionCookieFactory.SESSION_COOKIE_NAME;
 
     private final GetCsrfTokenUseCase getCsrfToken;
-    private final LoginStaffUseCase staffLogin;
-    private final GetStaffSessionUseCase getStaffSession;
-    private final LogoutStaffSessionUseCase logoutStaffSession;
-    private final LogoutAllStaffSessionsUseCase logoutAllStaffSessions;
-    private final StaffSessionCookieFactory sessionCookies;
+    private final LoginUseCase loginUser;
+    private final GetSessionUseCase getSession;
+    private final LogoutSessionUseCase logoutSession;
+    private final LogoutAllSessionsUseCase logoutAllSessions;
+    private final SessionCookieFactory sessionCookies;
     private final TrustedProxyClientIpResolver clientIpResolver;
     private final CsrfTokenRepository csrf;
     private final Clock clock;
@@ -76,30 +76,30 @@ public class StaffAuthController {
     }
 
     /**
-     * Authenticates a staff username and password and creates a server-side session.
-     * Requires a current CSRF token; returns the staff session view and sets the opaque session ID in an HttpOnly cookie.
+     * Authenticates a user's username and password and creates a server-side session.
+     * Requires a current CSRF token; returns the user session view and sets the opaque session ID in an HttpOnly cookie.
      * A supplied session cookie is replaced after successful login.
      *
-     * @param body     the submitted staff credentials
+     * @param body     the submitted user credentials
      * @param request  the HTTP request containing cookies and peer address
      * @param response the HTTP response used to clear the CSRF cookie
-     * @return the staff session response and newly issued session cookie
+     * @return the user session response and newly issued session cookie
      */
-    @PostMapping("/staff/login")
-    public ResponseEntity<ApiResponse<StaffSessionResponse>> login(
-            @Valid @RequestBody StaffLoginRequest body,
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<UserSessionResponse>> login(
+            @Valid @RequestBody LoginRequest body,
             HttpServletRequest request,
             HttpServletResponse response) {
         UUID correlationId = UUID.randomUUID();
-        LoginStaffCommand command = new LoginStaffCommand(
+        LoginCommand command = new LoginCommand(
                 body.username(), body.password(), clientIpResolver.resolve(request), sessionIds(request), correlationId);
-        StaffLoginResult login = staffLogin.execute(command);
+        LoginResult login = loginUser.execute(command);
         csrf.saveToken(null, request, response);
         Duration cookieAge = Duration.between(clock.instant(), login.response().absoluteExpiresAt());
         if (cookieAge.isNegative()) {
             cookieAge = Duration.ZERO;
         }
-        log.info("Staff login response prepared correlationId={}", correlationId);
+        log.info("User login response prepared correlationId={}", correlationId);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .header(HttpHeaders.SET_COOKIE, sessionCookies.create(login.sessionId(), cookieAge).toString())
@@ -107,20 +107,20 @@ public class StaffAuthController {
     }
 
     /**
-     * Returns the authenticated staff member and role assignments in the current session snapshot.
+     * Returns the authenticated user and role assignments in the current session snapshot.
      * Requires a valid NKC_SESSION cookie; the response contains the session role snapshot and expiration times.
      *
-     * @param principal the authenticated staff principal
-     * @return the current staff session response
+     * @param principal the authenticated user principal
+     * @return the current user session response
      */
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<StaffSessionResponse>> me(
-            @AuthenticationPrincipal StaffPrincipal principal) {
-        log.debug("Reading authenticated staff userId={}", principal.userId());
-        GetStaffSessionQuery query = new GetStaffSessionQuery(principal);
-        StaffSessionResponse response = getStaffSession.execute(query);
+    public ResponseEntity<ApiResponse<UserSessionResponse>> me(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        log.debug("Reading authenticated userId={}", principal.userId());
+        GetSessionQuery query = new GetSessionQuery(principal);
+        UserSessionResponse response = getSession.execute(query);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(ApiResponse.success(HttpStatus.OK.value(), "Current staff", response));
+                .body(ApiResponse.success(HttpStatus.OK.value(), "Current user", response));
     }
 
     /**
@@ -133,29 +133,29 @@ public class StaffAuthController {
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        LogoutStaffSessionCommand command =
-                new LogoutStaffSessionCommand(sessionIds(request), UUID.randomUUID());
-        logoutStaffSession.execute(command);
+        LogoutSessionCommand command =
+                new LogoutSessionCommand(sessionIds(request), UUID.randomUUID());
+        logoutSession.execute(command);
         return clear(request, response);
     }
 
     /**
-     * Revokes every session belonging to the authenticated staff user and clears this browser's cookies.
+     * Revokes every session belonging to the authenticated user and clears this browser's cookies.
      * Requires an authenticated session and CSRF token; returns 204 after all sessions are revoked.
      *
-     * @param principal the authenticated staff principal
+     * @param principal the authenticated user principal
      * @param request   the HTTP request containing this browser's cookies
      * @param response  the HTTP response used to clear this browser's cookies
      * @return an empty 204 response after all sessions are revoked
      */
     @PostMapping("/logout-all")
     public ResponseEntity<Void> logoutAll(
-            @AuthenticationPrincipal StaffPrincipal principal,
+            @AuthenticationPrincipal UserPrincipal principal,
             HttpServletRequest request,
             HttpServletResponse response) {
-        LogoutAllStaffSessionsCommand command =
-                new LogoutAllStaffSessionsCommand(principal.userId(), UUID.randomUUID());
-        logoutAllStaffSessions.execute(command);
+        LogoutAllSessionsCommand command =
+                new LogoutAllSessionsCommand(principal.userId(), UUID.randomUUID());
+        logoutAllSessions.execute(command);
         return clear(request, response);
     }
 
