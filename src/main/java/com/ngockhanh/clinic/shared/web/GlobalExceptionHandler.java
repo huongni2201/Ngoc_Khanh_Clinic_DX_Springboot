@@ -12,10 +12,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 @RequiredArgsConstructor
@@ -33,7 +33,10 @@ public class GlobalExceptionHandler {
     return builder.body(ApiResponse.error(status.value(), exception.getMessage()));
   }
 
-  @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
+  @ExceptionHandler({
+    HttpMessageNotReadableException.class,
+    MethodArgumentTypeMismatchException.class
+  })
   ResponseEntity<ApiResponse<Void>> malformedRequest(RuntimeException exception) {
     return error(HttpStatus.BAD_REQUEST, "Invalid request");
   }
@@ -81,8 +84,7 @@ public class GlobalExceptionHandler {
 
   private ResponseEntity<ApiResponse<Void>> error(HttpStatus status, String message) {
     return ResponseEntity.status(status)
-      .cacheControl(CacheControl.noStore())
-      .body(ApiResponse.error(status.value(), message));
+        .cacheControl(CacheControl.noStore())
+        .body(ApiResponse.error(status.value(), message));
   }
-
 }

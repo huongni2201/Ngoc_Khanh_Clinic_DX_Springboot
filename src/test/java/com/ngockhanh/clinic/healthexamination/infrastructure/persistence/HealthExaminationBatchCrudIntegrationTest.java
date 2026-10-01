@@ -301,8 +301,8 @@ class HealthExaminationBatchCrudIntegrationTest {
         staff);
     jdbc.update(
         "INSERT INTO"
-            + " public.users(id,principal_type,staff_id,auth_provider,auth_subject,status,created_at)"
-            + " VALUES (?,'STAFF',?,'TEST','actor','ACTIVE',CURRENT_TIMESTAMP)",
+            + " public.users(id,principal_type,staff_id,status,created_at)"
+            + " VALUES (?,'STAFF',?,'ACTIVE',CURRENT_TIMESTAMP)",
         actor,
         staff);
     jdbc.update(

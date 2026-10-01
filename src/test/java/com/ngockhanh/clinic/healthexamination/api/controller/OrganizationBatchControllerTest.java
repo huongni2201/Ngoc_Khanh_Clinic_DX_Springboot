@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
+import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.json.JsonMapper;
 
 class OrganizationBatchControllerTest {
   @Test
@@ -32,7 +34,8 @@ class OrganizationBatchControllerTest {
             env);
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
-            .setControllerAdvice(new GlobalExceptionHandler())
+            .setControllerAdvice(
+                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
             .build();
     String path = "/api/v1/organizations/" + org + "/health-examination-batches";
     String body =
@@ -80,7 +83,8 @@ class OrganizationBatchControllerTest {
             env);
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
-            .setControllerAdvice(new GlobalExceptionHandler())
+            .setControllerAdvice(
+                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
             .build();
     mvc.perform(
             post("/api/v1/organizations/" + UUID.randomUUID() + "/health-examination-batches")
