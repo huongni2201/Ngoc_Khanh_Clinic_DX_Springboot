@@ -82,8 +82,36 @@ Out of scope:
   service projection and bound `IN` parameters.
 - `ModuleVerificationTest` continues to verify the named interface and module
   dependency.
+- The health-examination batch-create PostgreSQL integration path verifies the
+  Document template lookup and Shared audit insert after their SQL moves.
+- The mapper-shape test parses all Catalog, Document, and Shared mapper XML
+  files touched by this change.
 - Run the Maven test and verify lifecycle, then format the changed Java files
   using the project formatter.
+
+## Follow-up scope: Document and Shared
+
+A follow-up audit found the same two patterns elsewhere: the Document module
+publishes `MasterHealthExaminationTemplateQuery` from the `application` root
+and embeds its lookup SQL in `@Select`; the Shared module embeds the
+`AuditLogMapper.insert` statement in `@Insert`. Apply the same package and SQL
+placement rules:
+
+- Move `MasterHealthExaminationTemplateQuery` and its named-interface package
+  annotation into `document.application.query`, preserving the named-interface
+  identifier `master-health-examination-template` and the method contract.
+- Move the Document lookup SQL into
+  `src/main/resources/mapper/document/MasterHealthExaminationTemplateMapper.xml`.
+- Move the Shared audit insert SQL into
+  `src/main/resources/mapper/shared/AuditLogMapper.xml`; leave the distinct,
+  already-XML `AuditMapper` auth-audit path unchanged.
+- Do not add empty API or domain packages to Document; this is still a query-only
+  integration for the current use case.
+
+The existing health-examination batch-create integration path exercises both
+Document template lookup and Shared audit persistence against PostgreSQL 18.
+The mapper-shape test will parse both new XML files and check their bound
+statements.
 
 ## Acceptance criteria
 
@@ -94,3 +122,7 @@ Out of scope:
    preserves the query projection, parameter binding, and behavior.
 4. The module verification and relevant Maven checks pass.
 5. Existing user changes outside this relocation remain intact.
+6. `MasterHealthExaminationTemplateQuery` is in `document.application.query` and
+   remains published as `master-health-examination-template`.
+7. Document and Shared mapper interfaces contain no SQL annotations; their XML
+   statements preserve current filters, columns, and bound parameters.
