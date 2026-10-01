@@ -63,10 +63,11 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     assertThat(restored.name()).isEqualTo(expected.name());
     assertThat(restored.taxCode()).isEqualTo(expected.taxCode());
     assertThat(restored.address()).isEqualTo(expected.address());
-    assertThat(organizations.findByTaxCode(expected.taxCode()))
-        .get()
-        .extracting(Organization::id)
-        .isEqualTo(expected.id());
+    assertThat(organizations.existsByTaxCode(expected.taxCode(), null)).isTrue();
+    assertThat(organizations.existsByTaxCode(expected.taxCode(), expected.id())).isFalse();
+    assertThat(organizations.existsByTaxCode(expected.taxCode(), new AggregateId(id(999))))
+        .isTrue();
+    assertThat(organizations.existsByTaxCode("UNUSED-TAX", null)).isFalse();
   }
 
   @Test

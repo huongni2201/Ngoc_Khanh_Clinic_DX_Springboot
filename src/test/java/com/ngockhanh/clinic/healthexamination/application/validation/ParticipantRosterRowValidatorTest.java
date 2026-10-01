@@ -20,7 +20,7 @@ class ParticipantRosterRowValidatorTest {
     void parsesExcelDateSerialAndKeepsCccdLeadingZero() {
         HealthExaminationImportRow row = validator.validate(id(1), 3,
                 Map.of(1, "Test Person", 2, "Nam", 3, "32874", 5, "012345678901", 15, "Roster note"),
-                mapping(), LocalDate.of(2026, 1, 1));
+                mapping());
 
         assertThat(row.isValid()).isTrue();
         assertThat(row.getDateOfBirth()).isEqualTo(LocalDate.of(1990, 1, 1));
@@ -33,10 +33,18 @@ class ParticipantRosterRowValidatorTest {
     void reportsMultipleRequiredAndFormatErrorsOnOneRow() {
         HealthExaminationImportRow row = validator.validate(id(1), 4,
                 Map.of(1, "Test Person", 2, "Unknown", 3, "31/02/1990", 5, "12A"),
-                mapping(), null);
+                mapping());
 
         assertThat(row.isValid()).isFalse();
         assertThat(row.getErrorCodes()).contains("INVALID_SEX", "INVALID_DATE_OF_BIRTH", "INVALID_IDENTIFICATION_NUMBER");
+    }
+
+    @Test
+    void doesNotRejectRowsByAge() {
+        HealthExaminationImportRow row = validator.validate(id(1), 5,
+                Map.of(1, "Test Person", 2, "Nam", 3, "01/03/2018", 5, "012345678901"), mapping());
+
+        assertThat(row.isValid()).isTrue();
     }
 
     private static ParticipantImportColumnMapping mapping() {

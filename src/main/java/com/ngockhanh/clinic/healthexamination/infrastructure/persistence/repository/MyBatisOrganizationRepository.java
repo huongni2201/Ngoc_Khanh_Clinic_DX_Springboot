@@ -23,9 +23,10 @@ public class MyBatisOrganizationRepository implements OrganizationRepository {
   }
 
   @Override
-  public Optional<Organization> findByTaxCode(String taxCode) {
-    if (taxCode == null || taxCode.isBlank()) return Optional.empty();
-    return Optional.ofNullable(converter.toDomain(mapper.findByTaxCode(taxCode)));
+  public boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId) {
+    if (taxCode == null || taxCode.isBlank()) return false;
+    return mapper.existsByTaxCode(
+        taxCode, excludedOrganizationId == null ? null : excludedOrganizationId.value());
   }
 
   @Override

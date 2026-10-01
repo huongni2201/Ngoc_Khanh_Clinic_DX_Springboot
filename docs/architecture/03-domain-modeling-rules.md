@@ -109,7 +109,7 @@ CCCD format -> IdentificationNumber
 batch lifecycle -> HealthExaminationBatch
 participant assignment price -> HealthExaminationBatchParticipant
 prescription issued immutability -> Prescription
-adult health-examination eligibility -> HealthExaminationRecord
+health-examination record lifecycle -> HealthExaminationRecord
 ```
 
 Cross-aggregate rules belong in application orchestration/domain service if they require multiple repositories.

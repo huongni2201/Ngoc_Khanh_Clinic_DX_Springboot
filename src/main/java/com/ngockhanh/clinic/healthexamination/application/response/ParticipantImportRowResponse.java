@@ -31,7 +31,7 @@ public record ParticipantImportRowResponse(
         String field = switch (code) {
             case "MISSING_FULL_NAME", "VALUE_TOO_LONG_FULL_NAME" -> "fullName";
             case "INVALID_SEX" -> "sex";
-            case "MISSING_DATE_OF_BIRTH", "INVALID_DATE_OF_BIRTH", "UNDER_18_AT_PLANNED_DATE" -> "dateOfBirth";
+            case "MISSING_DATE_OF_BIRTH", "INVALID_DATE_OF_BIRTH" -> "dateOfBirth";
             case "MISSING_IDENTIFICATION_NUMBER", "INVALID_IDENTIFICATION_NUMBER", "DUPLICATE_IN_FILE",
                     "IDENTITY_CONFLICT" -> "identificationNumber";
             default -> fieldFromLengthError(code);
@@ -43,7 +43,6 @@ public record ParticipantImportRowResponse(
             case "INVALID_DATE_OF_BIRTH" -> "Ngày sinh không hợp lệ.";
             case "INVALID_IDENTIFICATION_NUMBER" -> "CCCD không hợp lệ.";
             case "INVALID_SEX" -> "Giới tính không hợp lệ.";
-            case "UNDER_18_AT_PLANNED_DATE" -> "Người khám chưa đủ 18 tuổi tại ngày khám dự kiến.";
             case "DUPLICATE_IN_FILE" -> "CCCD bị trùng trong file.";
             case "IDENTITY_CONFLICT" -> "Thông tin định danh đang xung đột với roster đã có.";
             default -> "Giá trị vượt quá độ dài cho phép.";

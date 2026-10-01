@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,44 +24,46 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class StoreValidatedParticipantImportUseCase {
-    private final HealthExaminationBatchRepository batches;
-    private final HealthExaminationImportJobRepository jobs;
+	private final HealthExaminationBatchRepository batches;
+	private final HealthExaminationImportJobRepository jobs;
 
-    @PreAuthorize("hasAuthority('CLINIC_MANAGER')")
-    @Transactional
-    public ParticipantImportSummaryResponse execute(UUID organizationId, UUID batchId, UUID importId,
-                                                     UUID actorUserId,
-                                                     Map<ParticipantImportField, Integer> columns,
-                                                     List<HealthExaminationImportRow> rows,
-                                                     List<String> headers) {
-        if (organizationId == null || batchId == null || importId == null || actorUserId == null
-                || rows == null || rows.isEmpty()) {
-            throw new IllegalArgumentException("Validated participant import details are required");
-        }
+	@Transactional
+	public ParticipantImportSummaryResponse execute(
+			UUID organizationId, UUID batchId, UUID importId,
+			UUID actorUserId,
+			Map<ParticipantImportField, Integer> columns,
+			List<HealthExaminationImportRow> rows,
+			List<String> headers) {
+		if (organizationId == null || batchId == null || importId == null || actorUserId == null
+				|| rows == null || rows.isEmpty()) {
+			throw new IllegalArgumentException("Validated participant import details are required");
+		}
 
-        var batch = batches.findByIdAndOrganizationIdForUpdate(
-                        AggregateId.of(batchId), AggregateId.of(organizationId))
-                .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-        if (!batch.status().allowsRosterImport()) {
-            throw new BusinessRuleException("Roster import is not allowed for this batch state") { };
-        }
+		var batch = batches.findByIdAndOrganizationIdForUpdate(
+						AggregateId.of(batchId), AggregateId.of(organizationId))
+				.orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+		if (!batch.status().allowsRosterImport()) {
+			throw new BusinessRuleException("Roster import is not allowed for this batch state") {
+			};
+		}
 
-        var job = jobs.findByIdAndBatchIdForUpdate(AggregateId.of(importId), AggregateId.of(batchId))
-                .orElseThrow(() -> new ResourceNotFoundException("Participant import"));
-        if (job.type() != ImportType.PARTICIPANT_LIST
-                || (job.status() != ImportStatus.UPLOADED && job.status() != ImportStatus.VALIDATED)) {
-            throw new BusinessRuleException("Participant import job is not editable") { };
-        }
+		var job = jobs.findByIdAndBatchIdForUpdate(AggregateId.of(importId), AggregateId.of(batchId))
+				.orElseThrow(() -> new ResourceNotFoundException("Participant import"));
+		if (job.type() != ImportType.PARTICIPANT_LIST
+				|| (job.status() != ImportStatus.UPLOADED && job.status() != ImportStatus.VALIDATED)) {
+			throw new BusinessRuleException("Participant import job is not editable") {
+			};
+		}
 
-        ParticipantImportColumnMapping mapping = ParticipantImportColumnMapping.of(columns);
-        if (job.status() == ImportStatus.UPLOADED) {
-            job.mapColumns(mapping);
-            rows.forEach(job::addRow);
-            job.validate();
-        } else {
-            job.replaceValidatedRoster(mapping, rows);
-        }
-        jobs.save(job);
-        return ParticipantImportSummaryResponse.from(job, headers);
-    }
+		ParticipantImportColumnMapping mapping = ParticipantImportColumnMapping.of(columns);
+		if (job.status() == ImportStatus.UPLOADED) {
+			job.mapColumns(mapping);
+			rows.forEach(job::addRow);
+			job.validate();
+		} else {
+			job.replaceValidatedRoster(mapping, rows);
+		}
+		jobs.save(job);
+		return ParticipantImportSummaryResponse.from(job, headers);
+	}
 }

@@ -18,19 +18,18 @@ import org.junit.jupiter.api.Test;
 class CreateOrganizationUseCaseTest {
   @Test
   void createsOrganizationWithApplicationGeneratedIdentityAndAllDocumentedFields() {
-    UUID id = UUID.fromString("00000000-0000-0000-0000-000000000001");
     InMemoryOrganizations organizations = new InMemoryOrganizations();
-    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, () -> id);
+    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
 
     var result =
         useCase.execute(
             new CreateOrganizationCommand(
                 "Clinic Corp", "TAX-1", "Address", "Contact", "0900000000", "Director", "Note"));
 
-    assertThat(result.id()).isEqualTo(id);
+    assertThat(result.id().version()).isEqualTo(7);
     assertThat(result.name()).isEqualTo("Clinic Corp");
     assertThat(result.status()).isEqualTo("ACTIVE");
-    Organization saved = organizations.findById(new AggregateId(id)).orElseThrow();
+    Organization saved = organizations.findById(new AggregateId(result.id())).orElseThrow();
     assertThat(saved.name()).isEqualTo("Clinic Corp");
     assertThat(saved.taxCode()).isEqualTo("TAX-1");
     assertThat(saved.address()).isEqualTo("Address");
@@ -53,8 +52,7 @@ class CreateOrganizationUseCaseTest {
             "0900000000",
             null,
             null));
-    CreateOrganizationUseCase useCase =
-        new CreateOrganizationUseCase(organizations, UUID::randomUUID);
+    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
 
     assertThatThrownBy(
             () ->
@@ -66,15 +64,15 @@ class CreateOrganizationUseCaseTest {
 
   @Test
   void normalizesBlankOptionalFieldsAndTrimsRequiredFieldsBeforeSaving() {
-    UUID id = UUID.fromString("00000000-0000-0000-0000-000000000003");
     InMemoryOrganizations organizations = new InMemoryOrganizations();
-    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations, () -> id);
+    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
 
-    useCase.execute(
-        new CreateOrganizationCommand(
-            " Clinic Corp ", "  ", "  ", " Contact ", " 0900000000 ", " ", "  "));
+    var result =
+        useCase.execute(
+            new CreateOrganizationCommand(
+                " Clinic Corp ", "  ", "  ", " Contact ", " 0900000000 ", " ", "  "));
 
-    Organization saved = organizations.findById(new AggregateId(id)).orElseThrow();
+    Organization saved = organizations.findById(new AggregateId(result.id())).orElseThrow();
     assertThat(saved.name()).isEqualTo("Clinic Corp");
     assertThat(saved.taxCode()).isNull();
     assertThat(saved.address()).isNull();
@@ -87,8 +85,7 @@ class CreateOrganizationUseCaseTest {
   @Test
   void allowsMultipleOrganizationsWithBlankTaxCodes() {
     InMemoryOrganizations organizations = new InMemoryOrganizations();
-    CreateOrganizationUseCase useCase =
-        new CreateOrganizationUseCase(organizations, UUID::randomUUID);
+    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
 
     useCase.execute(
         new CreateOrganizationCommand("First", "", null, "Contact", "0900000000", null, null));
@@ -107,10 +104,12 @@ class CreateOrganizationUseCaseTest {
     }
 
     @Override
-    public Optional<Organization> findByTaxCode(String taxCode) {
+    public boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId) {
       return organizations.values().stream()
-          .filter(organization -> taxCode.equals(organization.taxCode()))
-          .findFirst();
+          .anyMatch(
+              organization ->
+                  taxCode.equals(organization.taxCode())
+                      && !organization.id().equals(excludedOrganizationId));
     }
 
     @Override

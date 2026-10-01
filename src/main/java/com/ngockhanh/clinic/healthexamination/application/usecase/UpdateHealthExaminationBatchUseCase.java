@@ -27,7 +27,6 @@ public class UpdateHealthExaminationBatchUseCase {
     var details =
         batches
             .findDetails(org, id, true)
-            .filter(d -> d.batch().status() != BatchStatus.DELETED)
             .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
     var b = details.batch();
     if (b.status() != BatchStatus.DRAFT) throw new BatchConfigurationLocked();

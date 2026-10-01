@@ -23,7 +23,7 @@ public class DeleteHealthExaminationBatchUseCase {
     if (actor == null) throw new IllegalArgumentException("Actor is required");
     var details =
         batches
-            .findDetails(org, id, true)
+            .findDetailsIncludingDeleted(org, id, true)
             .orElseThrow(() -> new ResourceNotFoundException("Batch not found"));
     var b = details.batch();
     if (b.status() == BatchStatus.DELETED) return;

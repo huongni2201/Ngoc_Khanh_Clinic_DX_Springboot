@@ -8,7 +8,8 @@ import java.util.Optional;
 public interface OrganizationRepository {
   Optional<Organization> findById(AggregateId id);
 
-  Optional<Organization> findByTaxCode(String taxCode);
+  /** Checks whether a tax code is taken, optionally excluding an organization being updated. */
+  boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId);
 
   List<Organization> findPage(
       long offset, long limit, String searchPattern, String status, String sortKey, String sortBy);

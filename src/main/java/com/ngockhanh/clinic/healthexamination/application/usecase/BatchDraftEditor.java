@@ -1,14 +1,12 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.catalog.application.ServiceCatalogQuery;
+import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfigurationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
-
-import java.util.*;
-
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

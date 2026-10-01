@@ -709,7 +709,7 @@ CREATE TABLE public.health_examination_batches (
     created_by_user_id uuid NOT NULL,
     created_at timestamptz(3) NOT NULL,
     updated_at timestamptz(3) NOT NULL,
-    CONSTRAINT ck_health_examination_batches_status CHECK (status IN ('DRAFT', 'READY', 'IN_PROGRESS', 'RESULT_PROCESSING', 'FINALIZED', 'CLOSED', 'CANCELED')),
+    CONSTRAINT ck_health_examination_batches_status CHECK (status IN ('DRAFT', 'READY', 'IN_PROGRESS', 'RESULT_PROCESSING', 'FINALIZED', 'CLOSED', 'CANCELED', 'DELETED')),
     CONSTRAINT ck_health_examination_batches_date_range CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date),
     CONSTRAINT fk_health_examination_batches_organization_id FOREIGN KEY (organization_id) REFERENCES public.organizations(id),
     CONSTRAINT fk_health_examination_batches_master_template_version_id FOREIGN KEY (master_template_version_id) REFERENCES public.document_template_versions(id),
@@ -740,14 +740,12 @@ CREATE TABLE public.health_examination_batch_services (
     document_template_version_id uuid NULL,
     service_code_snapshot varchar(40) NOT NULL,
     service_name_snapshot varchar(300) NOT NULL,
-    base_price_snapshot decimal(18,2) NOT NULL,
     negotiated_unit_price decimal(18,2) NOT NULL,
     currency char(3) NOT NULL DEFAULT 'VND',
     display_order int NOT NULL,
     status varchar(16) NOT NULL DEFAULT 'ACTIVE',
     created_at timestamptz(3) NOT NULL,
     updated_at timestamptz(3) NOT NULL,
-    CONSTRAINT ck_health_examination_batch_services_base_price_nonnegative CHECK (base_price_snapshot >= 0),
     CONSTRAINT ck_health_examination_batch_services_neg_price_nonnegative CHECK (negotiated_unit_price >= 0),
     CONSTRAINT ck_health_examination_batch_services_display_order_positive CHECK (display_order > 0),
     CONSTRAINT ck_health_examination_batch_services_currency_vnd CHECK (currency = 'VND'),
@@ -782,6 +780,7 @@ CREATE TABLE public.health_examination_batch_participants (
     administrative_occupation_snapshot varchar(200) NULL,
     workplace_or_school_snapshot varchar(300) NULL,
     health_examination_reason_snapshot varchar(500) NULL,
+    roster_note_snapshot varchar(1000) NULL,
     status varchar(24) NOT NULL DEFAULT 'REGISTERED',
     created_at timestamptz(3) NOT NULL,
     CONSTRAINT fk_health_examination_batch_participants_health_examine_508052ab FOREIGN KEY (health_examination_batch_id) REFERENCES public.health_examination_batches(id),
@@ -1143,6 +1142,7 @@ CREATE INDEX ix_notifications_status ON public.notifications (status, next_retry
 CREATE INDEX ix_notifications_patient ON public.notifications (patient_id, created_at desc);
 CREATE INDEX ix_external_code_mappings_lookup ON public.external_code_mappings (integration_endpoint_id, mapping_type, external_code, valid_to);
 CREATE INDEX ix_outbox_events_pending ON public.outbox_events (status, created_at);
+
 
 -- Preserve SQL Server row version's automatic version-token behavior.
 CREATE FUNCTION public.bump_row_version() RETURNS trigger

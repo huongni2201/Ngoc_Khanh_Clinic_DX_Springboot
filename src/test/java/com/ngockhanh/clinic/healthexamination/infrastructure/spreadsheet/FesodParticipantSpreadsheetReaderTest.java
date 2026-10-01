@@ -4,10 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader;
 import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader.SpreadsheetFormat;
@@ -34,8 +38,46 @@ class FesodParticipantSpreadsheetReaderTest {
     void rejectsWorkbookAboveCandidateRowLimit() throws Exception {
         ParticipantSpreadsheetReader limitedReader = new FesodParticipantSpreadsheetReader(1);
         try (InputStream input = getClass().getResourceAsStream("/import/roster-fixture.xls")) {
-            assertThatThrownBy(() -> limitedReader.readHeader(input, SpreadsheetFormat.XLS))
+            assertThatThrownBy(() -> limitedReader.readRows(input, SpreadsheetFormat.XLS, ignored -> { }))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void readsSparseRowsWithoutDroppingLaterDataAndLimitsOnlyNonemptyRows() throws Exception {
+        for (SpreadsheetFormat format : SpreadsheetFormat.values()) {
+            byte[] workbook = sparseWorkbook(format);
+            List<Integer> rowNumbers = new ArrayList<>();
+
+            new FesodParticipantSpreadsheetReader(2).readRows(
+                    new java.io.ByteArrayInputStream(workbook), format,
+                    row -> rowNumbers.add(row.rowNumber()));
+
+            assertThat(rowNumbers).containsExactly(3, 8);
+            assertThatThrownBy(() -> new FesodParticipantSpreadsheetReader(1).readRows(
+                    new java.io.ByteArrayInputStream(workbook), format, ignored -> { }))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void readsOnlyTheHeaderEvenWhenTheWorkbookExceedsTheDataRowLimit() throws Exception {
+        var limitedReader = new FesodParticipantSpreadsheetReader(1);
+        try (InputStream input = getClass().getResourceAsStream("/import/roster-fixture.xls")) {
+            assertThat(limitedReader.readHeader(input, SpreadsheetFormat.XLS).rowNumber()).isEqualTo(2);
+        }
+    }
+
+    private static byte[] sparseWorkbook(SpreadsheetFormat format) throws Exception {
+        Workbook workbook = format == SpreadsheetFormat.XLS ? new HSSFWorkbook() : new XSSFWorkbook();
+        try (workbook; ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            var sheet = workbook.createSheet("roster");
+            sheet.createRow(0).createCell(0).setCellValue("Roster");
+            sheet.createRow(1).createCell(0).setCellValue("Full name");
+            sheet.createRow(2).createCell(0).setCellValue("First person");
+            sheet.createRow(7).createCell(0).setCellValue("Last person");
+            workbook.write(output);
+            return output.toByteArray();
         }
     }
 

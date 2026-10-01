@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
-import com.ngockhanh.clinic.healthexamination.domain.exception.AdultEligibilityViolation;
 import com.ngockhanh.clinic.healthexamination.domain.exception.BatchConfigurationLocked;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateParticipantServiceAssignment;
 import com.ngockhanh.clinic.healthexamination.domain.exception.PatientRelinkForbidden;
@@ -189,23 +188,14 @@ class HealthExaminationDomainTest {
     }
 
     @Test
-    void preparedRecordChecksAgeAgainAtActualVisitAndPreservesShs() {
+    void preparedRecordCanBeCheckedInAtAnyAgeAndPreservesShs() {
         HealthExaminationRecord record = preparedRecord(id(30), ShsCode.of("SHS-1"),
-                LocalDate.of(2008, 3, 1), LocalDate.of(2026, 3, 1));
-        assertThatThrownBy(() -> record.checkIn(LocalDate.of(2026, 2, 28))).isInstanceOf(AdultEligibilityViolation.class);
-        record.checkIn(LocalDate.of(2026, 3, 1));
-        record.checkIn(LocalDate.of(2026, 3, 1));
+                LocalDate.of(2018, 3, 1), LocalDate.of(2026, 3, 1));
+        record.checkIn(LocalDate.of(2026, 2, 28));
+        record.checkIn(LocalDate.of(2026, 2, 28));
         assertThat(record.shs().value()).isEqualTo("SHS-1");
-        assertThat(record.actualExaminationDate()).isEqualTo(LocalDate.of(2026, 3, 1));
+        assertThat(record.actualExaminationDate()).isEqualTo(LocalDate.of(2026, 2, 28));
         assertThatThrownBy(() -> record.checkIn(LocalDate.of(2026, 3, 2))).isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
-    }
-
-    @Test
-    void leapDayBirthDoesNotPassOnFebruaryTwentyEightInNonLeapYear() {
-        assertThatThrownBy(() -> preparedRecord(id(30), ShsCode.of("SHS-LEAP"),
-                LocalDate.of(2008, 2, 29), LocalDate.of(2026, 2, 28))).isInstanceOf(AdultEligibilityViolation.class);
-        assertThat(preparedRecord(id(30), ShsCode.of("SHS-LEAP"),
-                LocalDate.of(2008, 2, 29), LocalDate.of(2026, 3, 1))).isNotNull();
     }
 
     @Test

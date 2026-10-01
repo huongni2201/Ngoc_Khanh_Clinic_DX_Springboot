@@ -1,9 +1,11 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import java.util.HashMap;
@@ -80,6 +82,50 @@ class OrganizationCrudUseCaseTest {
     assertThat(updated.note()).isNull();
   }
 
+  @Test
+  void permitsTheCurrentTaxCodeButRejectsAnotherOrganizationsTaxCode() {
+    var organizations = new InMemoryOrganizations();
+    var current =
+        Organization.create(
+            new AggregateId(UUID.randomUUID()),
+            "Current",
+            "OWN-TAX",
+            null,
+            "Contact",
+            "0900000000",
+            null,
+            null);
+    var other =
+        Organization.create(
+            new AggregateId(UUID.randomUUID()),
+            "Other",
+            "OTHER-TAX",
+            null,
+            "Contact",
+            "0900000001",
+            null,
+            null);
+    organizations.save(current);
+    organizations.save(other);
+    var useCase = new UpdateOrganizationUseCase(organizations);
+    assertThat(
+            useCase
+                .execute(
+                    current.id().value(),
+                    new UpdateOrganizationCommand(
+                        "Updated", "OWN-TAX", null, "Contact", "0900000000", null, null))
+                .taxCode())
+        .isEqualTo("OWN-TAX");
+    assertThatThrownBy(
+            () ->
+                useCase.execute(
+                    current.id().value(),
+                    new UpdateOrganizationCommand(
+                        "Updated", "OTHER-TAX", null, "Contact", "0900000000", null, null)))
+        .isInstanceOf(DuplicateOrganizationIdentity.class);
+    assertThat(organizations.findById(current.id()).orElseThrow().taxCode()).isEqualTo("OWN-TAX");
+  }
+
   private static final class InMemoryOrganizations implements OrganizationRepository {
     private final Map<AggregateId, Organization> organizations = new HashMap<>();
 
@@ -89,10 +135,12 @@ class OrganizationCrudUseCaseTest {
     }
 
     @Override
-    public Optional<Organization> findByTaxCode(String taxCode) {
+    public boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId) {
       return organizations.values().stream()
-          .filter(organization -> taxCode.equals(organization.taxCode()))
-          .findFirst();
+          .anyMatch(
+              organization ->
+                  taxCode.equals(organization.taxCode())
+                      && !organization.id().equals(excludedOrganizationId));
     }
 
     @Override

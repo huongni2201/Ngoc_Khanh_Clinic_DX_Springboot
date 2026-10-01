@@ -41,7 +41,7 @@ public final class FesodParticipantSpreadsheetReader implements ParticipantSprea
         AtomicReference<SpreadsheetHeader> header = new AtomicReference<>();
         read(input, format, (rowNumber, cells) -> {
             if (rowNumber == 2) header.set(new SpreadsheetHeader(rowNumber, values(cells)));
-        });
+        }, 2);
         SpreadsheetHeader result = header.get();
         if (result == null) throw new IllegalArgumentException("Roster template header is missing");
         return result;
@@ -52,10 +52,10 @@ public final class FesodParticipantSpreadsheetReader implements ParticipantSprea
         if (consumer == null) throw new IllegalArgumentException("Spreadsheet row consumer is required");
         read(input, format, (rowNumber, cells) -> {
             if (rowNumber >= 3) consumer.accept(new SpreadsheetRow(rowNumber, cells));
-        });
+        }, 0);
     }
 
-    private void read(InputStream input, SpreadsheetFormat format, RowHandler handler) {
+    private void read(InputStream input, SpreadsheetFormat format, RowHandler handler, int rowLimit) {
         if (input == null || format == null || handler == null) {
             throw new IllegalArgumentException("Spreadsheet input is required");
         }
@@ -63,8 +63,8 @@ public final class FesodParticipantSpreadsheetReader implements ParticipantSprea
         boolean[] limitExceeded = {false};
         ExcelReaderBuilder workbook = FesodSheet.read(input)
                 .excelType(format == SpreadsheetFormat.XLS ? ExcelTypeEnum.XLS : ExcelTypeEnum.XLSX)
-                .autoCloseStream(false)
-                .numRows(maxRows + 3);
+                .autoCloseStream(false);
+        if (rowLimit > 0) workbook.numRows(rowLimit);
         try {
             workbook.sheet(0)
                 .headRowNumber(1)

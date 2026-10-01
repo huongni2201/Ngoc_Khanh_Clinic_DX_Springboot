@@ -69,10 +69,12 @@ class CancelParticipantImportUseCaseTest {
 
         assertThat(first.status()).isEqualTo("CANCELED");
         assertThat(retry.status()).isEqualTo("CANCELED");
-        verify(batches).findByIdAndOrganizationId(AggregateId.of(batchId), AggregateId.of(organizationId));
+        verify(batches, org.mockito.Mockito.times(2))
+                .findByIdAndOrganizationId(AggregateId.of(batchId), AggregateId.of(organizationId));
         verify(batches, never()).findByIdAndOrganizationIdForUpdate(
                 AggregateId.of(batchId), AggregateId.of(organizationId));
-        verify(jobs).findByIdAndBatchIdForUpdate(AggregateId.of(importId), AggregateId.of(batchId));
+        verify(jobs, org.mockito.Mockito.times(2))
+                .findByIdAndBatchIdForUpdate(AggregateId.of(importId), AggregateId.of(batchId));
         verify(jobs).save(job);
         verify(audit).record(org.mockito.ArgumentMatchers.any());
         verify(audit).record(org.mockito.ArgumentMatchers.argThat(entry ->

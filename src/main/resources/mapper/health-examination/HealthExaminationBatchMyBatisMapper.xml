@@ -13,7 +13,9 @@
     </select>
     <select id="findScoped" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">
       SELECT <include refid="headerColumns"/> FROM public.health_examination_batches
-      WHERE organization_id=#{organizationId} AND id=#{id} <if test="lock">FOR UPDATE</if>
+      WHERE organization_id=#{organizationId} AND id=#{id}
+      <if test="!includeDeleted">AND status!='DELETED'</if>
+      <if test="lock">FOR UPDATE</if>
     </select>
     <select id="findServices" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchServiceRecord">
       SELECT id,health_examination_batch_id,service_id,document_template_version_id,service_code_snapshot,service_name_snapshot,

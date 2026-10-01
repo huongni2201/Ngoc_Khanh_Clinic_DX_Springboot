@@ -1,7 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.util.UUID;
@@ -23,7 +22,6 @@ public class GetHealthExaminationBatchUseCase {
     return BatchDetailResponse.from(
         batches
             .findDetails(organizationId, batchId, false)
-            .filter(d -> d.batch().status() != BatchStatus.DELETED)
             .orElseThrow(() -> new ResourceNotFoundException("Batch not found")));
   }
 }

@@ -18,6 +18,7 @@ import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportType;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ParticipantImportField;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationImportJobRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationImportJobRepository.ImportJobSummary;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.ParticipantImportColumnMapping;
@@ -33,6 +34,12 @@ public class MyBatisHealthExaminationImportJobRepository implements HealthExamin
     private final JsonMapper objectMapper;
 
     @Override
+    public Optional<ImportJobSummary> findSummaryByIdAndBatchId(AggregateId importId, AggregateId batchId) {
+        return Optional.ofNullable(mapper.findJobSummaryByIdAndBatchId(importId.value(), batchId.value()))
+                .map(record -> new Converter(objectMapper).toSummary(record));
+    }
+
+    @Override
     public Optional<HealthExaminationImportJob> findByIdAndBatchId(AggregateId importId, AggregateId batchId) {
         return Optional.ofNullable(mapper.findJobByIdAndBatchId(importId.value(), batchId.value()))
                 .map(this::toDomain);
@@ -43,6 +50,19 @@ public class MyBatisHealthExaminationImportJobRepository implements HealthExamin
             AggregateId importId, AggregateId batchId) {
         return Optional.ofNullable(mapper.findJobByIdAndBatchIdForUpdate(importId.value(), batchId.value()))
                 .map(this::toDomain);
+    }
+
+    @Override
+    public long countRowsByJobId(AggregateId jobId, String rowFilter) {
+        return mapper.countRowsByJobId(jobId.value(), rowFilter);
+    }
+
+    @Override
+    public List<HealthExaminationImportRow> findRowsByJobId(
+            AggregateId jobId, String rowFilter, long offset, int limit) {
+        Converter converter = new Converter(objectMapper);
+        return mapper.findRowsPage(jobId.value(), rowFilter, offset, limit).stream()
+                .map(converter::toDomain).toList();
     }
 
     @Override
@@ -84,6 +104,17 @@ public class MyBatisHealthExaminationImportJobRepository implements HealthExamin
                     record.createdByUserId() == null ? null : new AggregateId(record.createdByUserId()),
                     record.createdAt(), record.confirmedByUserId() == null ? null : new AggregateId(record.confirmedByUserId()),
                     record.confirmedAt(), mapping, rows);
+        }
+
+        ImportJobSummary toSummary(HealthExaminationImportJobRecord record) {
+            return new ImportJobSummary(new AggregateId(record.id()), ImportType.valueOf(record.importType()),
+                    ImportStatus.valueOf(record.status()), valueId(record.sourceFileAttachmentId()),
+                    record.columnMappingJson() == null ? null : mappingFromJson(record.columnMappingJson()),
+                    record.totalRows(), record.validRows(), record.warningRows(), record.errorRows());
+        }
+
+        private static AggregateId valueId(java.util.UUID value) {
+            return value == null ? null : new AggregateId(value);
         }
 
         private HealthExaminationImportRow toDomain(HealthExaminationImportRowRecord record) {

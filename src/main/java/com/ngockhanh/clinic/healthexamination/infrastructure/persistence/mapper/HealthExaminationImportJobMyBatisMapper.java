@@ -14,9 +14,16 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.
 public interface HealthExaminationImportJobMyBatisMapper {
     HealthExaminationImportJobRecord findJobByIdAndBatchId(
             @Param("id") UUID id, @Param("batchId") UUID batchId);
+    HealthExaminationImportJobRecord findJobSummaryByIdAndBatchId(
+            @Param("id") UUID id, @Param("batchId") UUID batchId);
     HealthExaminationImportJobRecord findJobByIdAndBatchIdForUpdate(
             @Param("id") UUID id, @Param("batchId") UUID batchId);
     List<HealthExaminationImportRowRecord> findRowsByJobId(@Param("jobId") UUID jobId);
+    long countRowsByJobId(@Param("jobId") UUID jobId, @Param("rowFilter") String rowFilter);
+    List<HealthExaminationImportRowRecord> findRowsPage(@Param("jobId") UUID jobId,
+                                                        @Param("rowFilter") String rowFilter,
+                                                        @Param("offset") long offset,
+                                                        @Param("limit") int limit);
     int insertJob(HealthExaminationImportJobRecord job);
     int updateJob(HealthExaminationImportJobRecord job);
     int insertRow(HealthExaminationImportRowRecord row);

@@ -74,6 +74,11 @@ class HealthExaminationBatchCrudIntegrationTest {
   @Autowired HealthExaminationBatchParticipantMyBatisMapper roster;
   @Autowired HealthExaminationImportJobMyBatisMapper importJobs;
 
+  @Autowired
+  com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper
+          .ImportAttachmentMetadataMapper
+      sourceMetadata;
+
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
   com.ngockhanh.clinic.shared.audit.AuditWriter audit;
 
@@ -122,14 +127,19 @@ class HealthExaminationBatchCrudIntegrationTest {
     AggregateId organizationId = AggregateId.of(org);
 
     assertThat(batches.findByIdAndOrganizationId(batchId, organizationId)).isPresent();
-    assertThat(batches.findByIdAndOrganizationId(batchId, AggregateId.of(UUID.randomUUID()))).isEmpty();
+    assertThat(batches.findByIdAndOrganizationId(batchId, AggregateId.of(UUID.randomUUID())))
+        .isEmpty();
     assertThat(batches.findByIdAndOrganizationIdForUpdate(batchId, organizationId)).isPresent();
   }
 
   @Test
   void importJobLookupsAreScopedToBatch() {
-    var batch = create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("JOB-SCOPE", "10")));
-    var otherBatch = create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("OTHER-JOB", "10")));
+    var batch =
+        create.execute(
+            org, new CreateHealthExaminationBatchCommand(actor, config("JOB-SCOPE", "10")));
+    var otherBatch =
+        create.execute(
+            org, new CreateHealthExaminationBatchCommand(actor, config("OTHER-JOB", "10")));
     UUID importId = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO public.health_examination_import_jobs"
@@ -143,6 +153,48 @@ class HealthExaminationBatchCrudIntegrationTest {
     assertThat(importJobs.findJobByIdAndBatchId(importId, batch.id())).isNotNull();
     assertThat(importJobs.findJobByIdAndBatchId(importId, otherBatch.id())).isNull();
     assertThat(importJobs.findJobByIdAndBatchIdForUpdate(importId, batch.id())).isNotNull();
+
+    insertImportRow(importId, 3, "First Person", "012345678901", "CREATE", "[]");
+    insertImportRow(
+        importId, 8, "Second Person", "012345678902", "UPDATE", "[\"OPTIONAL_FIELDS_MISSING\"]");
+
+    assertThat(importJobs.countRowsByJobId(importId, "VALID")).isEqualTo(2);
+    assertThat(importJobs.findRowsPage(importId, "VALID", 1, 1))
+        .extracting(row -> row.rowNumber())
+        .containsExactly(8);
+    assertThat(importJobs.countRowsByJobId(importId, "WARNING")).isEqualTo(1);
+    assertThat(importJobs.findRowsPage(importId, "CREATE", 0, 10))
+        .extracting(row -> row.rowNumber())
+        .containsExactly(3);
+  }
+
+  private void insertImportRow(
+      UUID jobId,
+      int rowNumber,
+      String name,
+      String identificationNumber,
+      String action,
+      String warningsJson) {
+    String payload =
+        "{\"fullName\":\""
+            + name
+            + "\",\"dateOfBirth\":\"1990-01-01\","
+            + "\"sex\":\"MALE\",\"identificationNumber\":\""
+            + identificationNumber
+            + "\","
+            + "\"warningCodes\":"
+            + warningsJson
+            + ",\"appliedAction\":\""
+            + action
+            + "\"}";
+    jdbc.update(
+        "INSERT INTO public.health_examination_import_rows "
+            + "(id,health_examination_import_job_id,row_number,validation_status,error_codes_json,normalized_payload_json) "
+            + "VALUES (?,?,?,'VALID','[]',?)",
+        UUID.randomUUID(),
+        jobId,
+        rowNumber,
+        payload);
   }
 
   @Test
@@ -196,24 +248,32 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void bulkRosterUpdateAcceptsAnAbsentIdentificationIssueDate() {
-    var batch = create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("ROSTER", "10")));
+    var batch =
+        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("ROSTER", "10")));
     UUID participantId = UUID.randomUUID();
     UUID membershipId = UUID.randomUUID();
-    jdbc.update("""
+    jdbc.update(
+        """
         INSERT INTO public.health_examination_participants
           (id, organization_id, participant_code, identification_number, full_name,
            date_of_birth, sex, created_at, updated_at)
         VALUES (?, ?, 'TEST-PARTICIPANT', '012345678901', 'Synthetic Participant',
                 DATE '1990-01-01', 'MALE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        """, participantId, org);
-    jdbc.update("""
+        """,
+        participantId,
+        org);
+    jdbc.update(
+        """
         INSERT INTO public.health_examination_batch_participants
           (id, health_examination_batch_id, health_examination_participant_id,
            participant_code_snapshot, full_name_snapshot, date_of_birth_snapshot,
            sex_snapshot, identification_number_snapshot, created_at)
         VALUES (?, ?, ?, 'TEST-PARTICIPANT', 'Synthetic Participant', DATE '1990-01-01',
                 'MALE', '012345678901', CURRENT_TIMESTAMP)
-        """, membershipId, batch.id(), participantId);
+        """,
+        membershipId,
+        batch.id(),
+        participantId);
     var original = roster.findById(membershipId);
 
     assertThat(roster.updateRosterSnapshots(batch.id(), List.of(original))).isEqualTo(1);
@@ -311,6 +371,11 @@ class HealthExaminationBatchCrudIntegrationTest {
         .isEqualTo(1);
     delete.execute(org, first.id(), actor);
     delete.execute(org, first.id(), actor);
+    assertThat(batches.findDetails(org, first.id(), false)).isEmpty();
+    assertThat(batches.findDetailsIncludingDeleted(org, first.id(), false))
+        .get()
+        .extracting(details -> details.batch().status().name())
+        .isEqualTo("DELETED");
     assertThatThrownBy(() -> get.execute(org, first.id()))
         .isInstanceOf(com.ngockhanh.clinic.shared.exception.ResourceNotFoundException.class);
     assertThatThrownBy(() -> update.execute(org, first.id(), config("B3", "200"), actor))
@@ -336,6 +401,21 @@ class HealthExaminationBatchCrudIntegrationTest {
                 create.execute(
                     org, new CreateHealthExaminationBatchCommand(actor, config("B2", "1"))))
         .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+  }
+
+  @Test
+  void readsAnImportSourceOnlyForItsOwningJob() {
+    UUID source = UUID.randomUUID();
+    UUID job = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO public.file_attachments"
+            + " (id,entity_type,entity_id,document_type,storage_provider,storage_key,file_name,mime_type,size_bytes,created_at)"
+            + " VALUES (?,'HEALTH_EXAMINATION_IMPORT',?,'PARTICIPANT_ROSTER_SOURCE','LOCAL_AES_GCM',"
+            + " 'imports/test.gcm','roster.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',1,CURRENT_TIMESTAMP)",
+        source,
+        job);
+    assertThat(sourceMetadata.findByIdAndImportJobId(source, job).importJobId()).isEqualTo(job);
+    assertThat(sourceMetadata.findByIdAndImportJobId(source, UUID.randomUUID())).isNull();
   }
 
   @Test

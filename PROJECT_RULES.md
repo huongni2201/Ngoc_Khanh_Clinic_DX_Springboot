@@ -4,7 +4,7 @@
 
 ## 1. Product and Business Baseline
 
-The backend supports a real outpatient clinic and adult/corporate health-check workflow.
+The backend supports a real outpatient clinic and corporate health-check workflow.
 
 Current source-of-truth documents:
 
@@ -409,7 +409,8 @@ Rules:
 
 - Imported `HealthExaminationParticipant`/batch participant is not automatically a Patient.
 - Excel import must preserve CCCD as text.
-- Blocking validation includes required fields and current adult health-check rules.
+- Blocking validation includes required fields and current health-check rules.
+- The backend does not enforce age eligibility during roster import or health-examination record preparation or check-in; see ADR-0010.
 - Do not fabricate missing optional data.
 - Patient link/create occurs at check-in or the documented workflow point.
 - One health-check visit/record has exactly one SHS.
@@ -723,7 +724,6 @@ Examples:
 
 ```text
 @NotBlank fullName           transport/basic
-valid adult eligibility      domain/application rule
 subset of batch services     domain invariant
 payment authorization        business rule
 ```

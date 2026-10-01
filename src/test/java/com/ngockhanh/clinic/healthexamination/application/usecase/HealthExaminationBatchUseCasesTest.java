@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.catalog.application.ServiceCatalogQuery;
+import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.document.application.MasterHealthExaminationTemplateQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.*;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
@@ -15,7 +15,6 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDetails;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import com.ngockhanh.clinic.shared.audit.AuditWriter;
-
 import java.math.BigDecimal;
 import java.util.*;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,6 @@ class HealthExaminationBatchUseCasesTest {
   private final OrganizationRepository organizations = mock(OrganizationRepository.class);
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
   private final AuditWriter audit = mock(AuditWriter.class);
-  private final IdGenerator ids = mock(IdGenerator.class);
 
   BatchConfigurationCommand config() {
     return new BatchConfigurationCommand(
@@ -85,7 +83,7 @@ class HealthExaminationBatchUseCasesTest {
         .thenReturn(
             List.of(new ServiceCatalogQuery.Service(service, "NEW", "Renamed", true, true)));
     var result =
-        new UpdateHealthExaminationBatchUseCase(batches, new BatchDraftEditor(catalog, ids), audit)
+        new UpdateHealthExaminationBatchUseCase(batches, new BatchDraftEditor(catalog), audit)
             .execute(org, batchId, config(), actor);
     assertThat(result.services().getFirst().id()).isEqualTo(row.value());
     assertThat(result.services().getFirst().serviceName()).isEqualTo("Original");
@@ -104,15 +102,13 @@ class HealthExaminationBatchUseCasesTest {
         .isEqualByComparingTo("9");
     assertThat(after.getValue().services().getFirst().negotiatedUnitPrice())
         .isEqualByComparingTo("10");
-    verifyNoInteractions(ids);
   }
 
   @Test
   void deletionIsIdempotentAndHiddenFromDetail() {
     var batch = batch();
     var details = new BatchDetails(batch, actor, null, null);
-    when(batches.findDetails(org, batchId, true)).thenReturn(Optional.of(details));
-    when(batches.findDetails(org, batchId, false)).thenReturn(Optional.of(details));
+    when(batches.findDetailsIncludingDeleted(org, batchId, true)).thenReturn(Optional.of(details));
     var delete = new DeleteHealthExaminationBatchUseCase(batches, audit);
     delete.execute(org, batchId, actor);
     delete.execute(org, batchId, actor);
@@ -125,7 +121,7 @@ class HealthExaminationBatchUseCasesTest {
   @Test
   void refusesDeletionOfDependentOrReadyBatch() {
     var batch = batch();
-    when(batches.findDetails(org, batchId, true))
+    when(batches.findDetailsIncludingDeleted(org, batchId, true))
         .thenReturn(Optional.of(new BatchDetails(batch, actor, null, null)));
     when(batches.hasDependents(batchId)).thenReturn(true);
     assertThatThrownBy(
@@ -170,10 +166,10 @@ class HealthExaminationBatchUseCasesTest {
     var templates = mock(MasterHealthExaminationTemplateQuery.class);
     var create =
         new CreateHealthExaminationBatchUseCase(
-            organizations, batches, new BatchDraftEditor(catalog, ids), templates, ids, audit);
+            organizations, batches, new BatchDraftEditor(catalog), templates, audit);
     assertThatThrownBy(
             () -> create.execute(org, new CreateHealthExaminationBatchCommand(actor, config())))
         .isInstanceOf(RuntimeException.class);
-    verifyNoInteractions(batches, catalog, templates, ids, audit);
+    verifyNoInteractions(batches, catalog, templates, audit);
   }
 }

@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.catalog.application;
+package com.ngockhanh.clinic.catalog.application.query;
 
 import java.util.*;
 

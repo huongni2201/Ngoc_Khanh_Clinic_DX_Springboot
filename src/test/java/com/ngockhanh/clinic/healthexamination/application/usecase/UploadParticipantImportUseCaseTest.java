@@ -12,7 +12,6 @@ import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -33,8 +32,6 @@ class UploadParticipantImportUseCaseTest {
     private static final UUID ORGANIZATION_ID = id(1);
     private static final UUID BATCH_ID = id(2);
     private static final UUID ACTOR_ID = id(3);
-    private static final UUID JOB_ID = id(4);
-    private static final UUID ATTACHMENT_ID = id(5);
 
     @Test
     void uploadsXlsAndCreatesAnUnmappedStagingJob() throws Exception {
@@ -46,31 +43,32 @@ class UploadParticipantImportUseCaseTest {
                 .thenReturn(java.util.Optional.of(
                 new HealthExaminationBatchReference(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID),
                         LocalDate.of(2026, 10, 1), BatchStatus.READY)));
-        when(storage.store(eq(JOB_ID), any(), anyLong()))
+        when(storage.store(any(UUID.class), any(), anyLong()))
                 .thenReturn(new ImportFileStorage.StoredFile("health-examination-imports/fixture.gcm", 12, "hash"));
         when(storage.open("health-examination-imports/fixture.gcm"))
                 .thenReturn(new ByteArrayInputStream(new byte[]{1}));
         when(reader.readHeader(any(), eq(SpreadsheetFormat.XLS))).thenReturn(new ParticipantSpreadsheetReader.SpreadsheetHeader(
                 2, List.of("STT", "Họ và tên", "Giới tính", "Ngày sinh", "Điện thoại", "CCCD")));
-        AtomicInteger nextId = new AtomicInteger();
-        IdGenerator ids = () -> nextId.getAndIncrement() == 0 ? JOB_ID : ATTACHMENT_ID;
         UploadParticipantImportUseCase useCase = new UploadParticipantImportUseCase(
-                batches, storage, reader, new ParticipantRosterHeaderMapper(), ids, register);
+                batches, storage, reader, new ParticipantRosterHeaderMapper(), register);
 
         byte[] xlsMagic = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
         var result = useCase.execute(new UploadParticipantImportCommand(ORGANIZATION_ID, BATCH_ID, ACTOR_ID,
                 "roster.xls", "application/vnd.ms-excel", xlsMagic.length, new ByteArrayInputStream(xlsMagic)));
 
-        assertThat(result.importId()).isEqualTo(JOB_ID);
+        assertThat(result.importId()).isNotNull();
         assertThat(result.status()).isEqualTo("UPLOADED");
         assertThat(result.headerRowNumber()).isEqualTo(2);
         assertThat(result.suggestedMapping()).containsEntry(ParticipantImportField.IDENTIFICATION_NUMBER, 5);
         var jobCaptor = org.mockito.ArgumentCaptor.forClass(HealthExaminationImportJob.class);
         var attachmentCaptor = org.mockito.ArgumentCaptor.forClass(ImportAttachmentMetadata.class);
         verify(register).execute(eq(ORGANIZATION_ID), eq(BATCH_ID), jobCaptor.capture(), attachmentCaptor.capture());
+        verify(storage).store(eq(result.importId()), any(), anyLong());
         assertThat(jobCaptor.getValue().status().name()).isEqualTo("UPLOADED");
+        assertThat(jobCaptor.getValue().id().value()).isEqualTo(result.importId());
         assertThat(jobCaptor.getValue().columnMapping()).isNull();
         assertThat(attachmentCaptor.getValue().createdByUserId()).isEqualTo(ACTOR_ID);
+        assertThat(attachmentCaptor.getValue().importJobId()).isEqualTo(result.importId());
     }
 
     private static UUID id(long value) {

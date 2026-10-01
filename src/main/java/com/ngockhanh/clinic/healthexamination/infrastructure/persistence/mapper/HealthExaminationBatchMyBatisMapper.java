@@ -19,7 +19,8 @@ public interface HealthExaminationBatchMyBatisMapper {
   HealthExaminationBatchRecord findScoped(
       @Param("organizationId") UUID organizationId,
       @Param("id") UUID id,
-      @Param("lock") boolean lock);
+      @Param("lock") boolean lock,
+      @Param("includeDeleted") boolean includeDeleted);
 
   List<
           com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record

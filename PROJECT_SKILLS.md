@@ -233,7 +233,7 @@ Use for business rules with clear deterministic behavior, especially:
 
 ```text
 `identification_number` uniqueness (CCCD)
-adult health-check eligibility
+health-examination record lifecycle (age is not a backend eligibility rule; see ADR-0010)
 employee import validation
 doctor-only service selection
 batch-service subset rule

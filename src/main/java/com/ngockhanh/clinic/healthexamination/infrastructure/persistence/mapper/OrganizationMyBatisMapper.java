@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Param;
 public interface OrganizationMyBatisMapper {
   OrganizationRecord findById(@Param("id") UUID id);
 
-  OrganizationRecord findByTaxCode(@Param("taxCode") String taxCode);
+  boolean existsByTaxCode(@Param("taxCode") String taxCode, @Param("excludedId") UUID excludedId);
 
   List<OrganizationRecord> findPage(
       @Param("offset") long offset,

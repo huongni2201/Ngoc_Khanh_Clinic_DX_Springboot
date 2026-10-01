@@ -27,8 +27,7 @@ public final class ParticipantRosterRowValidator {
 
     public HealthExaminationImportRow validate(AggregateId id, int rowNumber,
                                                Map<Integer, String> cells,
-                                               ParticipantImportColumnMapping mapping,
-                                               LocalDate plannedExaminationDate) {
+                                               ParticipantImportColumnMapping mapping) {
         if (cells == null || mapping == null) throw new IllegalArgumentException("Import row and mapping are required");
 
         List<String> errors = new ArrayList<>();
@@ -44,9 +43,6 @@ public final class ParticipantRosterRowValidator {
         String rawDateOfBirth = value(cells, mapping, ParticipantImportField.DATE_OF_BIRTH);
         LocalDate dateOfBirth = parseDate(rawDateOfBirth);
         if (dateOfBirth == null) errors.add(rawDateOfBirth == null ? "MISSING_DATE_OF_BIRTH" : "INVALID_DATE_OF_BIRTH");
-        else if (plannedExaminationDate != null && !isAdult(dateOfBirth, plannedExaminationDate)) {
-            errors.add("UNDER_18_AT_PLANNED_DATE");
-        }
 
         String rawIdentificationNumber = value(cells, mapping, ParticipantImportField.IDENTIFICATION_NUMBER);
         IdentificationNumber identificationNumber = identificationNumber(rawIdentificationNumber);
@@ -91,7 +87,6 @@ public final class ParticipantRosterRowValidator {
                         bloodGroup, phone, null, null, address, null, workplace, null, null, null, occupation);
         row.setRosterNote(rosterNote);
         if (optionalMissing) row.addWarning("OPTIONAL_FIELDS_MISSING");
-        if (plannedExaminationDate == null) row.addWarning("AGE_NOT_CHECKED_NO_PLANNED_DATE");
         return row;
     }
 
@@ -162,9 +157,5 @@ public final class ParticipantRosterRowValidator {
                 return null;
             }
         }
-    }
-
-    private static boolean isAdult(LocalDate birthDate, LocalDate examinationDate) {
-        return !birthDate.plusYears(18).isAfter(examinationDate);
     }
 }

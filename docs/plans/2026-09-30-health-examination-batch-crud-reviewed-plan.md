@@ -6,7 +6,7 @@
 
 Sau khi CRUD `Organization` ổn định, cho Front Desk và Quản lý bệnh viện tạo, xem, tìm, sửa và xóa mềm `HealthExaminationBatch` trong trạng thái `DRAFT`. Mỗi hạng mục trong đợt chỉ lưu một giá do người dùng nhập. Không tạo participant, Patient, Encounter, phiếu hay kết quả trong phase này.
 
-Nguồn nghiệp vụ: `requirement-v2.5_FINAL.docx` FR-HC-009/010, BR-025/026; `use-case-v2.7_FINAL.docx` UC-HC-02/05; `table-design-v2.11_FINAL.docx` mục 4.33/4.34, 5.8, 7.1/7.7. Tên bảng/cột và kiểu PostgreSQL theo `V001__create_final_schema.sql`, ADR-0005/0006 và `docs/architecture/05-persistence-and-database.md`. Quy tắc dự án và ADR được ưu tiên khi tài liệu cũ còn gọi là `Company`/`HealthCheckBatch`. Quyết định mới của chủ dự án chỉ lưu một giá và thêm `DELETED` thay đổi giá tham chiếu/status trong bản FINAL; cập nhật hợp đồng dữ liệu khi triển khai migration.
+Nguồn nghiệp vụ: `requirement-v2.5_FINAL.docx` FR-HC-009/010, BR-025/026; `use-case-v2.7_FINAL.docx` UC-HC-02/05; `table-design-v2.11_FINAL.docx` mục 4.33/4.34, 5.8, 7.1/7.7. Tên bảng/cột và kiểu PostgreSQL theo `V001__create_final_schema.sql`, ADR-0005/0006 và `docs/architecture/05-persistence-and-database.md`. Quy tắc dự án và ADR được ưu tiên khi tài liệu cũ còn gọi là `Company`/`HealthCheckBatch`. Chủ dự án chọn một giá và `DELETED`, ghi trực tiếp schema cuối vào baseline V001 vì các DB cũ chỉ dùng một lần.
 
 ## Kết quả review plan gốc
 
@@ -15,12 +15,12 @@ Nguồn nghiệp vụ: `requirement-v2.5_FINAL.docx` FR-HC-009/010, BR-025/026; 
 | Bắt buộc | Nhận `batchCode` khi tạo và cho sửa trong `DRAFT`; bỏ bộ sinh mã. UC-HC-05 cho người dùng nhập/chỉnh mã đợt, DB ràng buộc unique `(organization_id, batch_code)`. | Plan gốc mục 4.3, 9.3; UC-HC-05; V001 |
 | Bắt buộc | `startDate`/`endDate` có thể trống trong `DRAFT`; chỉ kiểm tra thứ tự khi cả hai có giá trị. Ngày khám dự kiến của từng hồ sơ là một field khác ở phase sau. | Plan gốc mục 4.3, 5.4; mục 4.33; V001 |
 | Bắt buộc | Dùng `CLINIC`/`COMPANY`, không dùng `ORGANIZATION`. Tên địa điểm bắt buộc; địa chỉ tại `COMPANY` phải có trước khi chuẩn bị/in hồ sơ, chưa bắt buộc lúc tạo nháp. | Plan gốc mục 5.4; mục 4.33; `ExaminationSiteType` hiện tại |
-| Bắt buộc | Request chỉ nhận `serviceId` và một `negotiatedUnitPrice`. Backend lấy mã/tên dịch vụ từ catalog; bỏ `base_price_snapshot` bằng migration mới, giữ `displayOrder`, `currency`, trạng thái và template version. | Quyết định của chủ dự án thay FR-HC-010/mục 4.34 về giá tham chiếu |
+| Bắt buộc | Request chỉ nhận `serviceId` và một `negotiatedUnitPrice`. Backend lấy mã/tên dịch vụ từ catalog; baseline V001 không có `base_price_snapshot`, giữ `displayOrder`, `currency`, trạng thái và template version. | Quyết định của chủ dự án thay FR-HC-010/mục 4.34 về giá tham chiếu |
 | Bắt buộc | Danh sách dùng `page` bắt đầu từ **1**, `size` tối đa 100, `searchKey` là từ khóa và `sortKey` là tên field. Không có `searchBy` trong `BasePagination`. | Plan gốc mục 4.1; `BasePagination`, `PaginationConstants` |
-| Bắt buộc | `DELETE` là xóa mềm, không phải nghiệp vụ hủy. Thêm `DELETED` vào status bằng migration mới; không đưa batch về `DRAFT` vì trạng thái đó vẫn cho sửa. | Quyết định của chủ dự án; plan gốc mục 4.5; V001 hiện chưa có `DELETED` |
+| Bắt buộc | `DELETE` là xóa mềm, không phải nghiệp vụ hủy. Baseline V001 có status `DELETED`; không đưa batch về `DRAFT` vì trạng thái đó vẫn cho sửa. | Quyết định của chủ dự án; plan gốc mục 4.5 |
 | Bắt buộc | Java command dùng `createdBy` do controller truyền xuống; persistence map vào cột `created_by_user_id`. UUID mock trong local/test phải trỏ đến `users.id` có thật vì cột có FK. Authentication/phân quyền sẽ làm sau. | Quyết định của chủ dự án; V001 |
 | Nên sửa | Tái sử dụng repository/mapper/record và `ApiResponse` hiện có. Plan gốc đề xuất nhiều port, mapper và file mới chưa cần thiết; `HealthExaminationBatchRepository.findById` hiện là read reference cho participant, không được phá caller này. | Plan gốc mục 8–10, 23; code hiện tại |
-| Nên sửa | Không thêm index theo danh sách giả định. V001 đã có unique code, index `(organization_id,status,start_date)` và index batch-service. Migration mới chỉ thêm `DELETED` và bỏ `base_price_snapshot`. | Plan gốc mục 11; V001 |
+| Nên sửa | Không thêm index theo danh sách giả định. V001 đã có unique code, index `(organization_id,status,start_date)` và index batch-service; baseline chứa luôn status `DELETED` và không có `base_price_snapshot`. | Plan gốc mục 11; V001 |
 
 ## Quyết định đã chốt và giới hạn của phase này
 
@@ -83,7 +83,7 @@ Response service dùng snapshot (`service_code_snapshot`, `service_name_snapshot
 
 ### 4. Xóa mềm đợt khám nháp
 
-- [x] Thêm `V003__simplify_health_examination_batch_price_and_status.sql`: mở rộng status check cho `DELETED`, bỏ check constraint của `base_price_snapshot` rồi bỏ cột đó. Không sửa V001. Ghi cả hai thay đổi vào phiên bản tiếp theo của hợp đồng dữ liệu; xác nhận tác động dữ liệu trước khi áp dụng trên DB đã có batch. Repository chỉ update status `DELETED`, không xóa header/service rows.
+- [x] Gộp schema cuối vào `V001__create_final_schema.sql`: status check có `DELETED`, `base_price_snapshot` và constraint của nó không có trong baseline, roster note snapshot là cột tùy chọn. Chủ repo xác nhận các migration cũ chỉ chạy trên DB dùng một lần. Repository chỉ update status `DELETED`, không xóa header/service rows.
 - [x] `DELETE /{batchId}` chỉ áp dụng cho `DRAFT` chưa có dữ liệu phụ thuộc; audit actor/thời điểm. Delete loader vẫn nhận ra `DELETED` để trả kết quả idempotent, còn list/detail/PUT không thấy batch đã xóa. DELETE lặp không tạo audit mới; batch khác organization trả 404.
 - [x] Test PostgreSQL 18 cho migration, `base_price_snapshot` không còn tồn tại, soft delete giữ rows/FK và mã batch; test API cho DELETE thành công/lặp/sai organization/trạng thái cấm. Cập nhật persistence record/schema contract test để chỉ còn `negotiated_unit_price`.
 
@@ -166,7 +166,7 @@ Các file đã tồn tại có thay đổi của Organization/import trước ta
 - `src/main/java/com/ngockhanh/clinic/healthexamination/infrastructure/persistence/repository/MyBatisHealthExaminationBatchRepository.java`
 - `src/main/java/com/ngockhanh/clinic/healthexamination/infrastructure/persistence/record/HealthExaminationBatchServiceRecord.java`
 - `src/main/resources/mapper/health-examination/HealthExaminationBatchMyBatisMapper.xml`
-- `src/main/resources/db/migration/V003__simplify_health_examination_batch_price_and_status.sql`
+- `src/main/resources/db/migration/V001__create_final_schema.sql`
 - `src/main/resources/db/local/R__batch_mock_actor.sql`
 - `src/main/resources/application-local.yaml`
 - `src/test/java/com/ngockhanh/clinic/healthexamination/domain/HealthExaminationBatchCrudTest.java`

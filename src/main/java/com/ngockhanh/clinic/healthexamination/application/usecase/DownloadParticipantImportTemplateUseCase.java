@@ -2,7 +2,6 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import java.util.UUID;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
@@ -18,7 +17,6 @@ public class DownloadParticipantImportTemplateUseCase {
     private final HealthExaminationBatchRepository batches;
     private final FesodParticipantTemplateWriter templateWriter;
 
-    @PreAuthorize("hasAuthority('CLINIC_MANAGER')")
     public byte[] execute(UUID organizationId, UUID batchId) {
         if (organizationId == null || batchId == null) {
             throw new IllegalArgumentException("Organization and batch identifiers are required");

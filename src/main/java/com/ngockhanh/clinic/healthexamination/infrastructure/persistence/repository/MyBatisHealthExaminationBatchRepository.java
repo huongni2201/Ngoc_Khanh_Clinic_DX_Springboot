@@ -40,7 +40,17 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
 
   @Override
   public Optional<BatchDetails> findDetails(UUID org, UUID id, boolean lock) {
-    return Optional.ofNullable(mapper.findScoped(org, id, lock))
+    return loadDetails(org, id, lock, false);
+  }
+
+  @Override
+  public Optional<BatchDetails> findDetailsIncludingDeleted(UUID org, UUID id, boolean lock) {
+    return loadDetails(org, id, lock, true);
+  }
+
+  private Optional<BatchDetails> loadDetails(
+      UUID org, UUID id, boolean lock, boolean includeDeleted) {
+    return Optional.ofNullable(mapper.findScoped(org, id, lock, includeDeleted))
         .map(
             r ->
                 new BatchDetails(

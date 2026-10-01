@@ -18,6 +18,9 @@ public interface HealthExaminationBatchRepository {
 
   Optional<BatchDetails> findDetails(UUID organizationId, UUID batchId, boolean lock);
 
+  Optional<BatchDetails> findDetailsIncludingDeleted(
+      UUID organizationId, UUID batchId, boolean lock);
+
   void insert(HealthExaminationBatch batch, UUID createdBy);
 
   void update(HealthExaminationBatch batch);

@@ -60,4 +60,4 @@ Outside local/test, mutation requires an authenticated principal whose name is i
 
 ## Schema changes
 
-`V003__simplify_health_examination_batch_price_and_status.sql` adds the `DELETED` status and removes the batch-service reference-price column/constraint. V002 is already used by the roster import change. This records the owner's approved single-price/soft-delete contract, superseding the corresponding reference-price/status parts of the FINAL baseline. Apply the full migration chain; deployed V001 is unchanged.
+The final schema is defined directly in `V001__create_final_schema.sql`: batch services use only the negotiated price, batch deletion uses the `DELETED` status, and participant rows include an optional roster-note snapshot. The previous V002/V003 changes were consolidated into V001 because they had only been applied to disposable databases.

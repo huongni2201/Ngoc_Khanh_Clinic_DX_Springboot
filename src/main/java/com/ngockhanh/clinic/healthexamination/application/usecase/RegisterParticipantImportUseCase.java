@@ -2,7 +2,6 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import java.util.UUID;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,7 +25,6 @@ public class RegisterParticipantImportUseCase {
     private final ImportAttachmentMetadataRepository attachments;
     private final HealthExaminationImportJobRepository jobs;
 
-    @PreAuthorize("hasAuthority('CLINIC_MANAGER')")
     @Transactional
     public void execute(UUID organizationId, UUID batchId,
                         HealthExaminationImportJob job, ImportAttachmentMetadata attachment) {

@@ -2,12 +2,13 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.BatchParticipantSummaryMyBatisMapper">
     <sql id="participantSearchFilter">
-        AND (
-            CAST(#{searchPattern} AS text) IS NULL
-            OR full_name_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
-            OR identification_number_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
-            OR phone_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
-        )
+        <if test="searchPattern != null">
+            AND (
+                full_name_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
+                OR identification_number_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
+                OR phone_snapshot ILIKE #{searchPattern} ESCAPE E'\\'
+            )
+        </if>
     </sql>
     <select id="findByBatch" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
         SELECT id, health_examination_batch_id, health_examination_participant_id,

@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -111,8 +110,7 @@ class ConfirmParticipantImportUseCaseTest {
                 List.of(AggregateId.of(participantId)))).thenReturn(List.of(snapshot));
         when(fixture.batchParticipants.findBatchParticipantIdsWithHealthRecords(List.of(AggregateId.of(batchParticipantId))))
                 .thenReturn(Set.of(AggregateId.of(batchParticipantId)));
-        row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(participant, snapshot, true,
-                LocalDate.of(2026, 10, 1)));
+        row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(participant, snapshot, true));
 
         ParticipantImportConfirmResponse response = fixture.useCase.execute(ORGANIZATION_ID, BATCH_ID, JOB_ID, ACTOR_ID);
 
@@ -177,8 +175,7 @@ class ConfirmParticipantImportUseCaseTest {
         when(fixture.batchParticipants.findBatchParticipantIdsWithHealthRecords(List.of(AggregateId.of(batchParticipantId))))
                 .thenReturn(Set.of());
         row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(participant,
-                snapshot(participantId, batchParticipantId, "Nguyen An", LocalDate.of(1990, 1, 1), null), false,
-                LocalDate.of(2026, 10, 1)));
+                snapshot(participantId, batchParticipantId, "Nguyen An", LocalDate.of(1990, 1, 1), null), false));
 
         ParticipantImportConfirmResponse response = fixture.useCase.execute(ORGANIZATION_ID, BATCH_ID, JOB_ID, ACTOR_ID);
 
@@ -200,7 +197,7 @@ class ConfirmParticipantImportUseCaseTest {
         when(fixture.participants.findByOrganizationAndIdentificationNumbersForUpdate(any(), any()))
                 .thenReturn(List.of(participant));
         fixture.job.rows().getFirst().setPreviewFingerprint(
-                ValidateParticipantImportUseCase.previewFingerprint(participant, null, false, LocalDate.of(2026, 10, 1)));
+                ValidateParticipantImportUseCase.previewFingerprint(participant, null, false));
 
         ParticipantImportConfirmResponse response = fixture.useCase.execute(ORGANIZATION_ID, BATCH_ID, JOB_ID, ACTOR_ID);
 
@@ -232,8 +229,7 @@ class ConfirmParticipantImportUseCaseTest {
         when(fixture.batchParticipants.findRosterSnapshotsForUpdate(any(), any()))
                 .thenReturn(List.of(snapshot(id(20), id(22), "Nguyen An", LocalDate.of(1990, 1, 1), "Accountant")));
         fixture.job.rows().getFirst().setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(participant,
-                snapshot(id(20), id(22), "Nguyen An", LocalDate.of(1990, 1, 1), "Accountant"), false,
-                LocalDate.of(2026, 10, 1)));
+                snapshot(id(20), id(22), "Nguyen An", LocalDate.of(1990, 1, 1), "Accountant"), false));
 
         ParticipantImportConfirmResponse response = fixture.useCase.execute(ORGANIZATION_ID, BATCH_ID, JOB_ID, ACTOR_ID);
 
@@ -251,8 +247,7 @@ class ConfirmParticipantImportUseCaseTest {
                 AggregateId.of(id(20)), AggregateId.of(ORGANIZATION_ID), "internal-code-20",
                 IdentificationNumber.of("012345678901"), "Reviewed Name", LocalDate.of(1990, 1, 1), "Nam");
         fixture.job.rows().getFirst().setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(reviewed,
-                snapshot(id(20), id(22), "Reviewed Name", LocalDate.of(1990, 1, 1), null), false,
-                LocalDate.of(2026, 10, 1)));
+                snapshot(id(20), id(22), "Reviewed Name", LocalDate.of(1990, 1, 1), null), false));
         fixture.stubJob();
         HealthExaminationParticipant current = HealthExaminationParticipant.create(
                 AggregateId.of(id(20)), AggregateId.of(ORGANIZATION_ID), "internal-code-20",
@@ -288,12 +283,12 @@ class ConfirmParticipantImportUseCaseTest {
     }
 
     @Test
-    void changedPlannedDateRequiresAnotherAdultEligibilityValidation() {
+    void changedPlannedDateDoesNotBlockImportConfirmation() {
         Fixture fixture = new Fixture();
         HealthExaminationImportRow row = HealthExaminationImportRow.roster(AggregateId.of(id(105)), 5, null,
                 "Nguyen An", LocalDate.of(2008, 10, 1), "Nam", IdentificationNumber.of("012345678901"));
         row.setAppliedAction(ImportRowAction.CREATE);
-        row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(null, null, false, LocalDate.of(2026, 10, 1)));
+        row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(null, null, false));
         fixture.job = validatedJob(row);
         fixture.stubJob();
         when(fixture.batches.findByIdAndOrganizationIdForUpdate(
@@ -301,12 +296,11 @@ class ConfirmParticipantImportUseCaseTest {
                 new HealthExaminationBatchReference(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID),
                         LocalDate.of(2026, 9, 30), BatchStatus.DRAFT)));
 
-        assertThatThrownBy(() -> fixture.useCase.execute(ORGANIZATION_ID, BATCH_ID, JOB_ID, ACTOR_ID))
-                .isInstanceOfSatisfying(ConcurrentUpdateException.class, error ->
-                        assertThat(error.errorCode()).isEqualTo("IMPORT_PREVIEW_STALE"));
-        verify(fixture.participants, never()).saveAll(any());
-        verify(fixture.batchParticipants, never()).insertRosterSnapshots(any(), any());
-        verify(fixture.jobs, never()).save(any());
+        ParticipantImportConfirmResponse response = fixture.useCase.execute(ORGANIZATION_ID, BATCH_ID, JOB_ID, ACTOR_ID);
+
+        assertThat(response.importedRows()).isEqualTo(1);
+        verify(fixture.participants).saveAll(any());
+        verify(fixture.jobs).save(any());
     }
 
     private static HealthExaminationImportJob validatedJob(HealthExaminationImportRow... rows) {
@@ -334,7 +328,7 @@ class ConfirmParticipantImportUseCaseTest {
                 IdentificationNumber.of(cccd), null, null, null, null, null, null, "0900000000",
                 null, null, "Hà Nội", null, null, null, null, null, null);
         row.setAppliedAction(action);
-        row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(null, null, false, LocalDate.of(2026, 10, 1)));
+        row.setPreviewFingerprint(ValidateParticipantImportUseCase.previewFingerprint(null, null, false));
         return row;
     }
 
@@ -356,11 +350,9 @@ class ConfirmParticipantImportUseCaseTest {
         private final HealthExaminationBatchParticipantRepository batchParticipants =
                 mock(HealthExaminationBatchParticipantRepository.class);
         private final ParticipantImportAuditWriter auditWriter = mock(ParticipantImportAuditWriter.class);
-        private final AtomicLong nextId = new AtomicLong(50);
         private HealthExaminationImportJob job;
         private final ConfirmParticipantImportUseCase useCase = new ConfirmParticipantImportUseCase(
-                batches, jobs, participants, batchParticipants, auditWriter,
-                (IdGenerator) () -> id(nextId.getAndIncrement()));
+                batches, jobs, participants, batchParticipants, auditWriter);
 
         private Fixture() {
             when(batches.findByIdAndOrganizationIdForUpdate(

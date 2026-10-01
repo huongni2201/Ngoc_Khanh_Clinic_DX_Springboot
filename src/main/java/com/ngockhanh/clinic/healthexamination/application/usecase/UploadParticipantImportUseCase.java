@@ -9,7 +9,6 @@ import java.util.UUID;
 
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import com.ngockhanh.clinic.healthexamination.application.command.UploadParticipantImportCommand;
@@ -49,7 +48,6 @@ public class UploadParticipantImportUseCase {
     @Value("${clinic.health-examination.employee-import.max-file-size-bytes:10485760}")
     private long maxFileSizeBytes = DEFAULT_MAX_FILE_BYTES;
 
-    @PreAuthorize("hasAuthority('CLINIC_MANAGER')")
     public ParticipantImportUploadResponse execute(UploadParticipantImportCommand command) {
         if (command == null || command.organizationId() == null || command.batchId() == null
                 || command.actorUserId() == null || command.content() == null) {

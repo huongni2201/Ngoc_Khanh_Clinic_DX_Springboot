@@ -5,7 +5,32 @@
         id, health_examination_batch_id, import_type, source_file_attachment_id, status, column_mapping_json,
         total_rows, valid_rows, warning_rows, error_rows, created_by_user_id, confirmed_by_user_id, created_at, confirmed_at
     </sql>
+    <sql id="rowColumns">
+        id, health_examination_import_job_id, row_number, participant_code_snapshot,
+        identification_number_snapshot, service_code_snapshot, validation_status, error_codes_json,
+        normalized_payload_json, resolved_patient_id, resolved_health_examination_participant_id,
+        resolved_batch_participant_id, resolved_batch_service_id, resolved_service_request_id
+    </sql>
+    <sql id="filteredRows">
+        WHERE health_examination_import_job_id = #{jobId}
+        <if test="rowFilter != null">
+            AND <choose>
+                <when test="rowFilter == 'VALID'">validation_status = 'VALID'</when>
+                <when test="rowFilter == 'INVALID'">validation_status = 'INVALID'</when>
+                <when test="rowFilter == 'WARNING'">
+                    CASE WHEN jsonb_typeof(normalized_payload_json::jsonb -&gt; 'warningCodes') = 'array'
+                         THEN jsonb_array_length(normalized_payload_json::jsonb -&gt; 'warningCodes') &gt; 0
+                         ELSE FALSE END
+                </when>
+                <otherwise>normalized_payload_json::jsonb -&gt;&gt; 'appliedAction' = #{rowFilter}</otherwise>
+            </choose>
+        </if>
+    </sql>
     <select id="findJobByIdAndBatchId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord">
+        SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs
+        WHERE id = #{id} AND health_examination_batch_id = #{batchId}
+    </select>
+    <select id="findJobSummaryByIdAndBatchId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord">
         SELECT <include refid="jobColumns"/> FROM public.health_examination_import_jobs
         WHERE id = #{id} AND health_examination_batch_id = #{batchId}
     </select>
@@ -15,13 +40,16 @@
         FOR UPDATE
     </select>
     <select id="findRowsByJobId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportRowRecord">
-        SELECT id, health_examination_import_job_id, row_number, participant_code_snapshot,
-               identification_number_snapshot, service_code_snapshot, validation_status, error_codes_json,
-               normalized_payload_json, resolved_patient_id, resolved_health_examination_participant_id,
-               resolved_batch_participant_id, resolved_batch_service_id, resolved_service_request_id
-        FROM public.health_examination_import_rows
-        WHERE health_examination_import_job_id = #{jobId}
-        ORDER BY row_number
+        SELECT <include refid="rowColumns"/> FROM public.health_examination_import_rows
+        WHERE health_examination_import_job_id = #{jobId} ORDER BY row_number
+    </select>
+    <select id="countRowsByJobId" resultType="long">
+        SELECT COUNT(*) FROM public.health_examination_import_rows <include refid="filteredRows"/>
+    </select>
+    <select id="findRowsPage" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportRowRecord">
+        SELECT <include refid="rowColumns"/> FROM public.health_examination_import_rows
+        <include refid="filteredRows"/>
+        ORDER BY row_number LIMIT #{limit} OFFSET #{offset}
     </select>
     <insert id="insertJob">
         INSERT INTO public.health_examination_import_jobs (
