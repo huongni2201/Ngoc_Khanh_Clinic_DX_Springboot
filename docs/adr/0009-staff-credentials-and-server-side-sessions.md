@@ -119,4 +119,4 @@ management already in this project. Java 25 compile/runtime and PostgreSQL 18 /
 Redis 7.4 integration tests validate the actual resolved stack. No JPA or alternate
 JWT library is introduced.
 
-See [staff login operations and API](../api/staff-login.md).
+See [staff login operations and API](../api/login.md).

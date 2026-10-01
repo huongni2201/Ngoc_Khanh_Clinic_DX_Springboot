@@ -126,7 +126,7 @@ Map internal failures to controlled API error responses.
 
 [ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md) implements
 staff username/password authentication with an opaque HttpOnly cookie and a signed
-JWT snapshot stored in Redis. See the [API and operations guide](../api/staff-login.md)
+JWT snapshot stored in Redis. See the [API and operations guide](../api/login.md)
 for CSRF, environment settings, provisioning, revocation and failure handling.
 
 Identity publishes the principal via `identity::access` and session revocation
