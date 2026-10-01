@@ -76,7 +76,7 @@ public class AuthController {
     }
 
     /**
-     * Authenticates a user username and password and creates a server-side session.
+     * Authenticates a user's username and password and creates a server-side session.
      * Requires a current CSRF token; returns the user session view and sets the opaque session ID in an HttpOnly cookie.
      * A supplied session cookie is replaced after successful login.
      *

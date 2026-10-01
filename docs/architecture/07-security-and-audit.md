@@ -134,6 +134,7 @@ via `identity::sessions`. Security audit persistence is accessed through
 `shared::audit`. Account and role-management features must revoke sessions after
 committing changes; direct database updates do not refresh existing snapshots.
 
-Business RBAC remains a separate feature. Production/default configuration denies
-business endpoints until explicit policies exist. Local/test configuration still
-requires an authenticated staff session.
+Business RBAC remains a separate feature. [ADR-0011](../adr/0011-shared-user-login.md)
+extends login to STAFF and PATIENT, including accounts without roles. Production/default
+configuration denies business endpoints until explicit policies exist. Local/test
+business access requires a STAFF session with an effective assignment.

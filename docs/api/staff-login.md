@@ -1,8 +1,9 @@
-# Staff login: API and operations
+# User login: API and operations
 
 Branch: `feature/TungTQ/staff-login`. Decision:
 [ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md), with profile
-validation amended by [ADR-0010](../adr/0010-remove-auth-mixed-profile-rejection.md).
+validation amended by [ADR-0010](../adr/0010-remove-auth-mixed-profile-rejection.md)
+and shared user login by [ADR-0011](../adr/0011-shared-user-login.md).
 
 ## Environment
 
@@ -26,7 +27,7 @@ default/prod/production uses Secure cookies and denies every business endpoint
 until RBAC policies are implemented. Identity no longer rejects mixed profiles.
 If `local` or `test` is active, even alongside `prod`/`production`, the existing
 development policy applies: session and CSRF cookies omit Secure, authenticated
-staff can access business endpoints, and the default CORS origin is
+staff with an effective role can access business endpoints, and the default CORS origin is
 `http://localhost:3000`. Normal application profile settings, including datasource
 and file-storage configuration, still apply. Production deployments must omit
 `local` and `test` to retain the production authentication policy.
@@ -66,19 +67,20 @@ All paths are relative to `/api/v1/auth`. Browser fetches must use
 | Method/path | Input / behavior |
 | --- | --- |
 | GET /csrf | Public. Returns token and headerName; sets HttpOnly XSRF-TOKEN cookie. |
-| POST /staff/login | JSON username/password plus CSRF header and cookie. Sets NKC_SESSION and returns staff session view. |
+| POST /login | JSON username/password plus CSRF header and cookie. Sets NKC_SESSION and returns the user session view. |
 | GET /me | NKC_SESSION required. Returns effective assignments from the session snapshot. |
 | POST /logout | CSRF required. Deletes this session and clears cookie; expired/missing session is also 204. |
 | POST /logout-all | Authenticated session and CSRF required. Revokes every session of the current user; 204. |
 
 Success uses the existing ApiResponse envelope:
 `{"result":"OK","code":200,"message":"...","data":{...}}`.
-Login and /me data contains userId, staffId, username, principalType,
-roleAssignments, idleExpiresAt and absoluteExpiresAt.
+Login and /me data contains userId, staffId, patientId, username, principalType,
+roleAssignments, idleExpiresAt and absoluteExpiresAt. STAFF has staffId and a null
+patientId; PATIENT has patientId and a null staffId. Assignments may be empty.
 Each assignment contains assignmentId, roleCode, permissions, departmentId,
 roomId, validFrom, validTo. Permissions remain attached to their scope.
 
-Login request: `{"username":"staff.username","password":"<entered password>"}`.
+Login request: `{"username":"account.username","password":"<entered password>"}`.
 Username is case sensitive and trimmed; password is unchanged, nonempty and at
 most 72 UTF-8 bytes. The API never returns password/hash/JWT/sessionId fields.
 
@@ -96,9 +98,10 @@ returns 401. Session views and auth errors use Cache-Control: no-store.
 Errors use `{"result":"NG","code":401,"message":"..."}`:
 
 - 400: structurally invalid/oversized input.
-- 401: invalid credentials, ineligible staff account, invalid/expired/revoked session.
+- 401: invalid credentials, inactive or unlinked account, invalid/expired/revoked session.
   Eligibility failures intentionally share one message.
-- 403: CSRF/access denied or business endpoint without a production RBAC policy.
+- 403: CSRF/access denied, including a PATIENT or roleless STAFF requesting a
+  local/test business endpoint, or any business endpoint without a production policy.
 - 429: exceeded rate limit, with Retry-After seconds.
 - 503: Redis could not complete authentication/revocation.
 - 500: DB/audit failure during login; no session cookie is issued.
@@ -135,9 +138,11 @@ Migration V002 does not create accounts, usernames, passwords or roles.
    SQL client/JDBC parameter binding. Bind values instead of interpolating SQL.
    The hash, not the plaintext password, is the password parameter. Verify exactly
    one intended row changed and commit credentials/assignment together.
-5. Assign at least one existing active role with a current [valid_from, valid_to)
-   interval and the intended department/room scope. Do not add invented permission
-   codes. Empty credentials and patient accounts cannot use staff login.
+5. Staff and patient users may log in without a role. To access a local/test staff
+   business endpoint, staff need at least one active role in its current
+   [valid_from, valid_to) interval. Assign intended department/room scope and do
+   not invent permission codes. A patient account needs its own user row linked to
+   an existing patient; this guide does not provision or self-register patients.
 6. Credential/status/grant changes on existing accounts require
    `SessionRevocation.revokeAllSessions(userId)` after DB commit. Direct SQL
    changes do not revoke existing snapshots. Future account/RBAC use cases must
@@ -177,5 +182,5 @@ Run `./mvnw test` and `./mvnw verify` with Docker available. Tests use PostgreSQ
 and Redis Testcontainers, application failure injection, actual HTTP security,
 and Modulith/ArchUnit. No production database is needed.
 
-This feature does not implement staff business RBAC, role administration,
-patient login/SMS links, registration, password reset, remember-me or Next.js UI.
+This feature does not implement business RBAC, role administration, patient
+portal/SMS links, registration, password reset or remember-me.

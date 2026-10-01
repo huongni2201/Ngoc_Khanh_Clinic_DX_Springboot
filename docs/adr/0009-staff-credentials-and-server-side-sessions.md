@@ -7,6 +7,8 @@ Accepted — 2026-09-28, implementing the approved staff-login plan on
 
 The mixed-profile startup rejection below is superseded by
 [ADR-0010](0010-remove-auth-mixed-profile-rejection.md); other decisions remain in force.
+STAFF-only eligibility, the required role, JWT identity and login route are
+superseded by [ADR-0011](0011-shared-user-login.md).
 
 ## Context
 

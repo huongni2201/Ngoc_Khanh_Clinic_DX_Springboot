@@ -22,7 +22,7 @@ mybatis:
   map-underscore-to-camel-case: true
 clinic:
   auth:
-    jwt-key: ${NKC_AUTH_JWT_KEY:rgWUUNR6X8P7GV6SGioKc6FvG4Ax2K5IFFr7p1wka2s}
+    jwt-key: ${NKC_AUTH_JWT_KEY:}
   file-storage:
     local-root: ${NKC_LOCAL_FILE_STORAGE_ROOT:var/clinic/file-storage}
     encryption-key: ${NKC_FILE_ENCRYPTION_KEY:}
