@@ -1,7 +1,7 @@
 # Catalog Query Architecture Design
 
 **Date:** 2026-10-01  
-**Status:** Proposed
+**Status:** Approved for implementation
 
 ## Context
 
@@ -10,7 +10,8 @@ The Catalog module currently publishes `ServiceCatalogQuery` from
 interface `batch-services`. `healthexamination` uses this query in
 `BatchDraftEditor` to load service code, name, active state, and health-check
 eligibility. The implementation is already separated into a MyBatis adapter and
-mapper under `catalog.infrastructure.persistence`.
+mapper under `catalog.infrastructure.persistence`, but the mapper SQL is still
+embedded in a Java annotation.
 
 Catalog currently has no REST endpoint or Catalog-owned domain invariant in this
 flow. The service eligibility rule is enforced by the health-examination use
@@ -21,9 +22,11 @@ case. Project architecture documents organize application queries under
 
 Move `ServiceCatalogQuery` and its `package-info.java` into
 `catalog.application.query`. Keep the named-interface value `batch-services`,
-the query method, and its nested `Service` read model unchanged. Update the
-MyBatis adapter, mapper, health-examination consumer, and affected tests to use
-the new Java package.
+the query method, and its nested `Service` read model unchanged. Move the mapper
+SQL into `src/main/resources/mapper/catalog/ServiceCatalogMapper.xml`, including
+this simple query, and leave the Java mapper interface with only its MyBatis
+annotations and method signature. Update the MyBatis adapter, mapper,
+health-examination consumer, and affected tests to use the new Java package.
 
 The query flow remains:
 
@@ -32,12 +35,13 @@ healthexamination BatchDraftEditor
   -> catalog.application.query.ServiceCatalogQuery
   -> catalog.infrastructure.persistence.repository.MyBatisServiceCatalogQuery
   -> catalog.infrastructure.persistence.mapper.ServiceCatalogMapper
+  -> mapper/catalog/ServiceCatalogMapper.xml
   -> services table
 ```
 
 Keep Catalog's current persistence mapper, adapter, and table records in
-`infrastructure.persistence`. Preserve the current SQL projection and all
-existing working-tree edits in `ServiceCatalogMapper` and
+`infrastructure.persistence`. Preserve the current SQL projection and behavior,
+including the user's existing working-tree edits in `ServiceCatalogMapper` and
 `MyBatisServiceCatalogQuery`.
 
 ## Scope
@@ -45,8 +49,11 @@ existing working-tree edits in `ServiceCatalogMapper` and
 In scope:
 
 - Relocate the published query contract and named-interface annotation.
+- Move the query statement into the Catalog XML mapper, even though the SQL is
+  small.
 - Update imports at the existing consumer, adapter, mapper, and test call sites.
 - Verify the Spring Modulith named interface and existing batch-draft behavior.
+- Verify the XML mapper builds a safely parameterized `IN` query.
 
 Out of scope:
 
@@ -71,6 +78,8 @@ Out of scope:
 
 - Existing batch-draft use-case tests continue to cover service eligibility and
   snapshot behavior.
+- The mapper test parses `mapper/catalog/ServiceCatalogMapper.xml` and checks the
+  service projection and bound `IN` parameters.
 - `ModuleVerificationTest` continues to verify the named interface and module
   dependency.
 - Run the Maven test and verify lifecycle, then format the changed Java files
@@ -81,6 +90,7 @@ Out of scope:
 1. `ServiceCatalogQuery` is in `catalog.application.query` and remains published
    as `batch-services`.
 2. The `healthexamination` consumer compiles against the moved contract.
-3. The query signature, SQL projection, and runtime behavior are unchanged.
+3. `ServiceCatalogMapper.java` contains no SQL annotation; the XML statement
+   preserves the query projection, parameter binding, and behavior.
 4. The module verification and relevant Maven checks pass.
 5. Existing user changes outside this relocation remain intact.
