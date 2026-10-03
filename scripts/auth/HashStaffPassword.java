@@ -1,4 +1,4 @@
-import com.ngockhanh.clinic.identity.infrastructure.security.StaffPasswordEncoder;
+import com.ngockhanh.clinic.identity.infrastructure.security.UserPasswordEncoder;
 import java.util.Arrays;
 
 /** Run with the compiled application and Maven dependency classpath; never pass passwords as arguments. */
@@ -10,7 +10,7 @@ class HashStaffPassword {
         char[] password = System.console().readPassword("Staff password: ");
         if (password == null) throw new IllegalStateException("Password input cancelled");
         try {
-            System.out.println(new StaffPasswordEncoder().encode(new String(password)));
+            System.out.println(new UserPasswordEncoder().encode(new String(password)));
         } finally {
             Arrays.fill(password, '\0');
         }

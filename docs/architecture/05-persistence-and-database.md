@@ -100,7 +100,7 @@ Fresh PostgreSQL 18 installations apply the complete migration chain in
 | Migration | Effect |
 |---|---|
 | `V001__create_final_schema.sql` | Complete PostgreSQL 18 baseline, including typed administrative snapshots, removal of `organizations.organization_code`, and health-examination integrity constraints. |
-| `V002__update_users_credentials.sql` | Replaces legacy provider/subject login keys with nullable staff username/password-hash columns. |
+| `V002__update_users_credentials.sql` | Replaces legacy provider/subject login keys with nullable username/password-hash columns for shared STAFF/PATIENT login (ADR-0009 and ADR-0011). |
 | `V003__optimize_health_examination_lookup_indexes.sql` | Add lookup indexes for health-examination record history and imported batch services. |
 The roster-note, DELETED status, and single-price changes were consolidated into V001 while their databases were disposable; the former roster/price migration files are no longer present.
 
@@ -222,6 +222,5 @@ The consolidated V001 baseline includes DELETED in health_examination_batches.st
 negotiated_unit_price is the only batch-service price; retail service_prices is not queried by batch CRUD.
 Retained service IDs/code/name snapshots survive draft updates. Deletion retains rows and reserves the code.
 
-The current chain is V001 (baseline), V002 (staff credentials), and V003 (health-examination lookup indexes).
+The current chain is V001 (baseline), V002 (shared-user credentials), and V003 (health-examination lookup indexes).
 The local-only repeatable actor fixture under db/local is excluded from default/production migration locations.
-See docs/api/health-examination-batches.md for transport and actor behavior.
