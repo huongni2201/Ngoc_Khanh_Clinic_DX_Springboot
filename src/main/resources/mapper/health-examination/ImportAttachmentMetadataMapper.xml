@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.ImportAttachmentMetadataMapper">
+    <select id="findByIdAndImportJobId" resultType="com.ngockhanh.clinic.healthexamination.application.port.out.ImportAttachmentMetadataRepository$ImportAttachmentMetadata">
+        SELECT id, entity_id AS import_job_id, created_by_user_id, storage_key, file_name, mime_type,
+               size_bytes, sha256, created_at
+        FROM public.file_attachments
+        WHERE id = #{id} AND entity_type = 'HEALTH_EXAMINATION_IMPORT'
+          AND entity_id = #{importJobId}
+          AND document_type = 'PARTICIPANT_ROSTER_SOURCE'
+    </select>
     <insert id="insert">
         INSERT INTO public.file_attachments (
             id, entity_type, entity_id, document_type, storage_provider, storage_key,

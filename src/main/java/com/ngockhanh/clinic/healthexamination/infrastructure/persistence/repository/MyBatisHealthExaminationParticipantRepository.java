@@ -14,6 +14,7 @@ import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.converter.HealthExaminationParticipantPersistenceConverter;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantRecord;
+import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 
 @Repository
 @RequiredArgsConstructor
@@ -59,10 +60,33 @@ public class MyBatisHealthExaminationParticipantRepository implements HealthExam
     }
 
     @Override
+    public List<HealthExaminationParticipant> findByOrganizationAndIdentificationNumbersForUpdate(
+            AggregateId organizationId, Collection<IdentificationNumber> identificationNumbers) {
+        if (identificationNumbers.isEmpty()) return List.of();
+        List<String> values = identificationNumbers.stream().map(IdentificationNumber::value).toList();
+        return mapper.findByOrganizationAndIdentificationNumbersForUpdate(organizationId.value(), values).stream()
+                .map(converter::toDomain).toList();
+    }
+
+    @Override
     public void save(HealthExaminationParticipant participant) {
         HealthExaminationParticipantRecord record = converter.toRecord(participant);
         if (mapper.update(record) == 0 && mapper.insert(record) != 1) {
             throw new IllegalStateException("Health examination participant was not saved");
+        }
+    }
+
+    @Override
+    public void saveAll(Collection<HealthExaminationParticipant> participants) {
+        if (participants.isEmpty()) return;
+        List<HealthExaminationParticipantRecord> records = participants.stream()
+                .map(converter::toRecord).toList();
+        for (int start = 0; start < records.size(); start += 400) {
+            List<HealthExaminationParticipantRecord> chunk =
+                    records.subList(start, Math.min(start + 400, records.size()));
+            if (mapper.upsertParticipants(chunk) != chunk.size()) {
+                throw new ConcurrentUpdateException();
+            }
         }
     }
 }

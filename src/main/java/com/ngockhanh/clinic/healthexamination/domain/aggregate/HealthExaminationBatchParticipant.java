@@ -40,6 +40,7 @@ public final class HealthExaminationBatchParticipant {
 	private final String administrativeOccupationSnapshot;
 	private final String workplaceOrSchoolSnapshot;
 	private final String healthExaminationReasonSnapshot;
+	private String rosterNoteSnapshot;
 	private final Map<AggregateId, HealthExaminationBatchParticipantService> assignments = new HashMap<>();
 
 	private HealthExaminationBatchParticipant(
@@ -226,6 +227,10 @@ public final class HealthExaminationBatchParticipant {
 		}
 	}
 
+	public void updateRosterNoteSnapshot(String rosterNoteSnapshot) {
+		this.rosterNoteSnapshot = rosterNoteSnapshot;
+	}
+
 	public HealthExaminationBatchParticipantService assignmentFor(AggregateId batchServiceId) {
 		return assignments.get(batchServiceId);
 	}
@@ -324,6 +329,10 @@ public final class HealthExaminationBatchParticipant {
 
 	public String healthExaminationReasonSnapshot() {
 		return healthExaminationReasonSnapshot;
+	}
+
+	public String rosterNoteSnapshot() {
+		return rosterNoteSnapshot;
 	}
 
 	public List<HealthExaminationBatchParticipantService> assignments() {

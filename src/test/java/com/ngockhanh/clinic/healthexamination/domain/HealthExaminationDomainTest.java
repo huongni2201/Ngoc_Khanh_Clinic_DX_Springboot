@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
-import com.ngockhanh.clinic.healthexamination.domain.exception.AdultEligibilityViolation;
 import com.ngockhanh.clinic.healthexamination.domain.exception.BatchConfigurationLocked;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateParticipantServiceAssignment;
 import com.ngockhanh.clinic.healthexamination.domain.exception.PatientRelinkForbidden;
@@ -24,10 +23,13 @@ import com.ngockhanh.clinic.healthexamination.domain.enums.HealthExaminationReco
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportType;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ParticipantImportField;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.ParticipantImportColumnMapping;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.ShsCode;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -71,7 +73,7 @@ class HealthExaminationDomainTest {
     @Test
     void batchFollowsDocumentedLifecycleAndReopenRequiresReason() {
         HealthExaminationBatch batch = HealthExaminationBatch.create(batchId(7), id(1), "B01", new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        batch.addService(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
+        batch.addService(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("90000"), id(1)));
         assertThatThrownBy(batch::start).isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
         batch.markReady();
         batch.start();
@@ -93,7 +95,7 @@ class HealthExaminationDomainTest {
     void restoredBatchRequiresLifecycleTimestampsToMatchStatus() {
         ExaminationSite site = new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null);
         List<HealthExaminationBatchService> services = List.of(
-                HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
+                HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("90000"), id(1)));
 
         assertThatThrownBy(() -> HealthExaminationBatch.restore(batchId(7), id(1), "B01", site, id(91), null, null,
                 BatchStatus.FINALIZED, services, null, null))
@@ -129,7 +131,7 @@ class HealthExaminationDomainTest {
         HealthExaminationBatch finalized = HealthExaminationBatch.create(batchId(8), id(1), "B02", new ExaminationSite(
                 ExaminationSiteType.CLINIC, "Clinic", null), id(91));
         finalized.addService(HealthExaminationBatchService.create(id(12), id(102), id(8), "S02",
-                Money.vnd("100000"), Money.vnd("90000"), id(1)));
+                Money.vnd("90000"), id(1)));
         finalized.markReady();
         finalized.start();
         finalized.startResultProcessing();
@@ -155,8 +157,8 @@ class HealthExaminationDomainTest {
         assertThatThrownBy(() -> employee.linkPatient(id(11))).isInstanceOf(PatientRelinkForbidden.class);
 
         HealthExaminationBatch batch = HealthExaminationBatch.restore(batchId(7), id(1), "B01", new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null), id(91),
-                null, null, BatchStatus.READY, List.of(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1))));
-        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("100000"), Money.vnd("90000"), id(1))))
+                null, null, BatchStatus.READY, List.of(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("90000"), id(1))));
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("90000"), id(1))))
                 .isInstanceOf(BatchConfigurationLocked.class);
 
         HealthExaminationRecord record = restoredBatchRecord(id(4), ShsCode.of("SHS-4"),
@@ -167,7 +169,7 @@ class HealthExaminationDomainTest {
                 com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus.PARTIAL,
                 List.of(rosterRow(id(102), 2), HealthExaminationImportRow.invalid(id(103), 3, "MISSING_IDENTIFICATION_NUMBER")));
         assertThat(job.confirmableRosterRows()).hasSize(1);
-        assertThat(job.confirmableRosterRows().getFirst().id()).isEqualTo(id(102));
+        assertThat(job.confirmableRosterRows().getFirst().getId()).isEqualTo(id(102));
 
         HealthExaminationBatchParticipantService restoredAssignment = HealthExaminationBatchParticipantService.restore(id(20), id(11), id(101), Money.vnd("90000"), true);
         HealthExaminationBatchParticipant participant = participant(batchParticipantId(3), List.of(restoredAssignment));
@@ -178,31 +180,22 @@ class HealthExaminationDomainTest {
     @Test
     void batchScopeLocksAtReadyAndRejectsDuplicateService() {
         HealthExaminationBatch batch = HealthExaminationBatch.create(batchId(7), id(1), "B01", new ExaminationSite(ExaminationSiteType.COMPANY, "Site", "Address"), id(91));
-        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1));
+        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("90000"), id(1));
         batch.addService(service);
         assertThatThrownBy(() -> batch.addService(service)).isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
         batch.markReady();
-        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("100000"), Money.vnd("90000"), id(2)))).isInstanceOf(BatchConfigurationLocked.class);
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(102), id(7), "S02", Money.vnd("90000"), id(2)))).isInstanceOf(BatchConfigurationLocked.class);
     }
 
     @Test
-    void preparedRecordChecksAgeAgainAtActualVisitAndPreservesShs() {
+    void preparedRecordCanBeCheckedInAtAnyAgeAndPreservesShs() {
         HealthExaminationRecord record = preparedRecord(id(30), ShsCode.of("SHS-1"),
-                LocalDate.of(2008, 3, 1), LocalDate.of(2026, 3, 1));
-        assertThatThrownBy(() -> record.checkIn(LocalDate.of(2026, 2, 28))).isInstanceOf(AdultEligibilityViolation.class);
-        record.checkIn(LocalDate.of(2026, 3, 1));
-        record.checkIn(LocalDate.of(2026, 3, 1));
+                LocalDate.of(2018, 3, 1), LocalDate.of(2026, 3, 1));
+        record.checkIn(LocalDate.of(2026, 2, 28));
+        record.checkIn(LocalDate.of(2026, 2, 28));
         assertThat(record.shs().value()).isEqualTo("SHS-1");
-        assertThat(record.actualExaminationDate()).isEqualTo(LocalDate.of(2026, 3, 1));
+        assertThat(record.actualExaminationDate()).isEqualTo(LocalDate.of(2026, 2, 28));
         assertThatThrownBy(() -> record.checkIn(LocalDate.of(2026, 3, 2))).isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
-    }
-
-    @Test
-    void leapDayBirthDoesNotPassOnFebruaryTwentyEightInNonLeapYear() {
-        assertThatThrownBy(() -> preparedRecord(id(30), ShsCode.of("SHS-LEAP"),
-                LocalDate.of(2008, 2, 29), LocalDate.of(2026, 2, 28))).isInstanceOf(AdultEligibilityViolation.class);
-        assertThat(preparedRecord(id(30), ShsCode.of("SHS-LEAP"),
-                LocalDate.of(2008, 2, 29), LocalDate.of(2026, 3, 1))).isNotNull();
     }
 
     @Test
@@ -222,6 +215,31 @@ class HealthExaminationDomainTest {
     }
 
     @Test
+    void rosterImportIsAllowedOnlyBeforeResultProcessing() {
+        assertThat(BatchStatus.DRAFT.allowsRosterImport()).isTrue();
+        assertThat(BatchStatus.READY.allowsRosterImport()).isTrue();
+        assertThat(BatchStatus.IN_PROGRESS.allowsRosterImport()).isTrue();
+        assertThat(BatchStatus.RESULT_PROCESSING.allowsRosterImport()).isFalse();
+        assertThat(BatchStatus.FINALIZED.allowsRosterImport()).isFalse();
+        assertThat(BatchStatus.CLOSED.allowsRosterImport()).isFalse();
+        assertThat(BatchStatus.CANCELED.allowsRosterImport()).isFalse();
+    }
+
+    @Test
+    void rosterNoteSnapshotUpdatePreservesParticipantIdentityAndAssignments() {
+        HealthExaminationBatchParticipantService assignment = HealthExaminationBatchParticipantService.restore(
+                id(20), id(11), id(301), Money.vnd("90000"), true);
+        HealthExaminationBatchParticipant existing = participant(batchParticipantId(22), List.of(assignment));
+
+        existing.updateRosterNoteSnapshot("Roster note");
+
+        assertThat(existing.id()).isEqualTo(batchParticipantId(22));
+        assertThat(existing.healthExaminationParticipantId()).isEqualTo(id(8));
+        assertThat(existing.assignments()).containsExactly(assignment);
+        assertThat(existing.rosterNoteSnapshot()).isEqualTo("Roster note");
+    }
+
+    @Test
     void participantServiceAssignmentCanBeLinkedToARequestLater() {
         HealthExaminationBatchParticipant participant = participant(batchParticipantId(22), List.of());
 
@@ -235,33 +253,64 @@ class HealthExaminationDomainTest {
                 .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
     }
     @Test
-    void importJobConfirmsValidRowsPartiallyAndRejectsDuplicateLineNumbers() {
+    void rosterImportRejectsTheWholeConfirmationWhenAnyRowIsInvalid() {
         HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.PARTICIPANT_LIST);
         job.addRow(HealthExaminationImportRow.invalid(id(102), 2, "MISSING_IDENTIFICATION_NUMBER"));
         assertThatThrownBy(() -> job.addRow(HealthExaminationImportRow.invalid(id(102), 2, "DUPLICATE_ROW"))).isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
         job.addRow(rosterRow(id(103), 3));
+        job.mapColumns(rosterMapping());
         job.validate();
-        job.confirm();
-        assertThat(job.status().name()).isEqualTo("PARTIAL");
-        assertThat(job.confirmableRosterRows()).hasSize(1);
-        assertThat(job.confirmableRosterRows().getFirst().id()).isEqualTo(id(103));
+        assertThatThrownBy(job::confirm)
+                .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
+        assertThat(job.status().name()).isEqualTo("VALIDATED");
     }
 
     @Test
     void validRosterImportCanBeConfirmedWithoutPatientOrEncounter() {
         HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.PARTICIPANT_LIST);
         HealthExaminationImportRow rosterRow = rosterRow(id(102), 2);
-        assertThat(rosterRow.identificationNumber()).isEqualTo(IdentificationNumber.of("012345678901"));
+        assertThat(rosterRow.getIdentificationNumber()).isEqualTo(IdentificationNumber.of("012345678901"));
         job.addRow(rosterRow);
+        job.mapColumns(rosterMapping());
         job.validate();
         job.confirm();
         assertThat(job.isConfirmed()).isTrue();
     }
 
     @Test
+    void rosterImportRowDoesNotRequireAnEmployeeCode() {
+        HealthExaminationImportRow row = HealthExaminationImportRow.roster(id(102), 3, null, "Nguyen A",
+                LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
+
+        assertThat(row.getParticipantCode()).isNull();
+        assertThat(row.getIdentificationNumber()).isEqualTo(IdentificationNumber.of("012345678901"));
+    }
+
+    @Test
+    void rosterImportMustHaveAColumnMappingBeforeValidation() {
+        HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.PARTICIPANT_LIST);
+        job.addRow(rosterRow(id(102), 3));
+
+        assertThatThrownBy(job::validate)
+                .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
+    }
+
+    @Test
+    void importJobCanBeCanceledBeforeConfirmation() {
+        HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.PARTICIPANT_LIST);
+
+        job.cancel();
+
+        assertThat(job.status().name()).isEqualTo("CANCELED");
+        assertThatThrownBy(job::cancel)
+                .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
+    }
+
+    @Test
     void rosterImportCannotConfirmAValidFlagWithoutRosterData() {
         HealthExaminationImportJob job = HealthExaminationImportJob.create(id(8), id(7), ImportType.PARTICIPANT_LIST);
         job.addRow(HealthExaminationImportRow.invalid(id(102), 2, "DUPLICATE_ROW"));
+        job.mapColumns(rosterMapping());
         job.validate();
         assertThatThrownBy(job::confirm).isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
     }
@@ -275,13 +324,13 @@ class HealthExaminationDomainTest {
         job.validate();
         job.confirm();
         assertThat(job.confirmableResultRows()).hasSize(1);
-        assertThat(job.confirmableResultRows().getFirst().serviceRequestId()).isEqualTo(id(301));
+        assertThat(job.confirmableResultRows().getFirst().getServiceRequestId()).isEqualTo(id(301));
     }
 
     @Test
     void batchPriceChangeIsCommonAndRequiresReason() {
         HealthExaminationBatch batch = HealthExaminationBatch.create(batchId(7), id(1), "B01", new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1));
+        HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("90000"), id(1));
         batch.addService(service);
         batch.markReady();
         HealthExaminationBatchParticipant employee = participant(batchParticipantId(1), List.of());
@@ -306,8 +355,8 @@ class HealthExaminationDomainTest {
     @Test
     void batchRejectsDuplicateCatalogServiceEvenWithDifferentBatchServiceIds() {
         HealthExaminationBatch batch = HealthExaminationBatch.create(batchId(7), id(1), "B01", new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null), id(91));
-        batch.addService(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1)));
-        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(101), id(7), "S01", Money.vnd("100000"), Money.vnd("90000"), id(1))))
+        batch.addService(HealthExaminationBatchService.create(id(11), id(101), id(7), "S01", Money.vnd("90000"), id(1)));
+        assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), id(101), id(7), "S01", Money.vnd("90000"), id(1))))
                 .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
         assertThat(batch.service(id(11)).serviceId()).isEqualTo(id(101));
     }
@@ -356,7 +405,7 @@ class HealthExaminationDomainTest {
         HealthExaminationBatch batch = HealthExaminationBatch.create(batchId(7), id(1), "B01",
                 new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null), id(91));
         HealthExaminationBatchService service = HealthExaminationBatchService.create(id(11), id(101), batch.id(), "S01",
-                Money.vnd("100000"), Money.vnd("90000"), id(1));
+                Money.vnd("90000"), id(1));
 
         batch.addService(service);
 
@@ -368,10 +417,10 @@ class HealthExaminationDomainTest {
         HealthExaminationBatch batch = HealthExaminationBatch.create(batchId(7), id(1), "B01",
                 new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", null), id(91));
         batch.addService(HealthExaminationBatchService.create(id(11), id(101), batch.id(), "S01",
-                Money.vnd("100000"), Money.vnd("90000"), id(1)));
+                Money.vnd("90000"), id(1)));
 
         assertThatThrownBy(() -> batch.addService(HealthExaminationBatchService.create(id(12), sameId(id(101)), batch.id(), "S01",
-                Money.vnd("100000"), Money.vnd("90000"), id(1))))
+                Money.vnd("90000"), id(1))))
                 .isInstanceOf(com.ngockhanh.clinic.healthexamination.domain.exception.DomainException.class);
     }
 
@@ -420,6 +469,15 @@ class HealthExaminationDomainTest {
     private static HealthExaminationImportRow rosterRow(AggregateId id, int rowNumber) {
         return HealthExaminationImportRow.roster(id, rowNumber, "E01", "Nguyen A",
                 LocalDate.of(1990, 1, 1), "MALE", IdentificationNumber.of("012345678901"));
+    }
+
+    private static ParticipantImportColumnMapping rosterMapping() {
+        EnumMap<ParticipantImportField, Integer> columns = new EnumMap<>(ParticipantImportField.class);
+        columns.put(ParticipantImportField.FULL_NAME, 1);
+        columns.put(ParticipantImportField.SEX, 2);
+        columns.put(ParticipantImportField.DATE_OF_BIRTH, 3);
+        columns.put(ParticipantImportField.IDENTIFICATION_NUMBER, 5);
+        return ParticipantImportColumnMapping.of(columns);
     }
     private static HealthExaminationRecord preparedRecord(AggregateId id, ShsCode shs,
                                                            LocalDate birthDate, LocalDate plannedDate) {

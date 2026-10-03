@@ -122,10 +122,10 @@ provider secrets
 
 Map internal failures to controlled API error responses.
 
-## 9. Staff sessions
+## 9. User sessions
 
 [ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md) implements
-staff username/password authentication with an opaque HttpOnly cookie and a signed
+username/password authentication for user accounts with an opaque HttpOnly cookie and a signed
 JWT snapshot stored in Redis. See the [API and operations guide](../api/login.md)
 for CSRF, environment settings, provisioning, revocation and failure handling.
 

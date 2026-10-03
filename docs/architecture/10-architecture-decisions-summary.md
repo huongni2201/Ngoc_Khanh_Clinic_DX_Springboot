@@ -112,6 +112,18 @@ for typed database columns and [ADR-0008](../adr/0008-administrative-snapshot-fi
 for explicit aggregate fields. ADR-0008 supersedes ADR-0007's application/API
 value-object decision, while preserving its database representation.
 
+### 14. Health-examination age eligibility
+
+Status: Accepted
+
+See [ADR-0010](../adr/0010-remove-health-examination-age-eligibility.md). The backend no longer rejects roster rows or health-examination records based on age.
+
+### 15. Health-examination authorization boundary
+
+Status: Accepted
+
+See [ADR-0011](../adr/0011-local-health-examination-authorization.md). The `CLINIC_MANAGER` roster-import rule is enforced at the local access boundary, not with `@PreAuthorize` on use cases.
+
 ## Decisions requiring ADR if changed
 
 Create a new ADR before changing any of:

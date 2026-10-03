@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.shared.exception;
 
-public abstract class BusinessRuleException extends RuntimeException {
-    protected BusinessRuleException(String message) {
+public class BusinessRuleException extends RuntimeException {
+    public BusinessRuleException(String message) {
         super(message);
     }
 }

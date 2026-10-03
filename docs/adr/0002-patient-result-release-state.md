@@ -26,7 +26,3 @@ This decision supersedes requirement v2.5's SMS-gated visibility rule and supple
 - Existing requirement documents still contain the older SMS-gated rule; this ADR takes precedence until those source documents are revised.
 
 ## Related
-
-- `docs/baseline/requirement-v2.5_FINAL.docx`
-- `docs/baseline/table-design-v2.11_FINAL.docx`
-- `C:\Users\PC\Downloads\ngoc-khanh-backend-fix-plan-v2.11.md`

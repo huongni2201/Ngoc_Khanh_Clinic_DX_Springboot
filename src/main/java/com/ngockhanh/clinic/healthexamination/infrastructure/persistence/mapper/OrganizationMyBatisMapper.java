@@ -1,20 +1,30 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper;
 
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.OrganizationRecord;
+import java.util.List;
 import java.util.UUID;
-
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.OrganizationRecord;
-
 @Mapper
 public interface OrganizationMyBatisMapper {
-    OrganizationRecord findById(@Param("id") UUID id);
+  OrganizationRecord findById(@Param("id") UUID id);
 
-    OrganizationRecord findByTaxCode(@Param("taxCode") String taxCode);
+  boolean existsByTaxCode(@Param("taxCode") String taxCode, @Param("excludedId") UUID excludedId);
 
-    int insert(OrganizationRecord organization);
+  List<OrganizationRecord> findPage(
+      @Param("offset") long offset,
+      @Param("limit") long limit,
+      @Param("searchPattern") String searchPattern,
+      @Param("status") String status,
+      @Param("sortKey") String sortKey,
+      @Param("sortBy") String sortBy);
 
-    int update(@Param("organization") OrganizationRecord organization,
-               @Param("expectedRowVersion") long expectedRowVersion);
+  long countAll(@Param("searchPattern") String searchPattern, @Param("status") String status);
+
+  int insert(OrganizationRecord organization);
+
+  int update(
+      @Param("organization") OrganizationRecord organization,
+      @Param("expectedRowVersion") long expectedRowVersion);
 }

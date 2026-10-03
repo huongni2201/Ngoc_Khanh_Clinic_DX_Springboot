@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.catalog.infrastructure.persistence.mapper.ServiceCatalogMapper">
+    <select id="findByIds" resultType="com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery$Service">
+        SELECT id, service_code AS code, service_name AS name, is_active AS active,
+               health_examination_eligible
+        FROM public.services
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+</mapper>

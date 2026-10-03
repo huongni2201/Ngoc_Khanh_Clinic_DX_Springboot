@@ -3,7 +3,6 @@ package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 import java.time.LocalDate;
 
 import com.ngockhanh.clinic.healthexamination.domain.enums.HealthExaminationRecordStatus;
-import com.ngockhanh.clinic.healthexamination.domain.exception.AdultEligibilityViolation;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
@@ -164,7 +163,6 @@ public final class HealthExaminationRecord {
         if (id.equals(replacesHealthExaminationRecordId)) {
             throw new IllegalArgumentException("A record cannot replace itself");
         }
-        requireAdult(dateOfBirthSnapshot, plannedExaminationDate);
         return new HealthExaminationRecord(id, shs, patientId, encounterId, batchParticipantId, fullNameSnapshot,
                 dateOfBirthSnapshot, sexSnapshot, identificationNumberSnapshot, identificationNumberIssueDateSnapshot,
                 identificationNumberIssuePlaceSnapshot, ethnicitySnapshot, subjectTypeSnapshot, payerSourceSnapshot,
@@ -207,8 +205,6 @@ public final class HealthExaminationRecord {
                 || id.equals(replacesHealthExaminationRecordId)) {
             throw new IllegalArgumentException("Invalid persisted health-examination record");
         }
-        requireAdult(dateOfBirthSnapshot, plannedDate);
-        if (actualDate != null) requireAdult(dateOfBirthSnapshot, actualDate);
         return new HealthExaminationRecord(id, shs, patientId, encounterId, batchParticipantId, fullNameSnapshot,
                 dateOfBirthSnapshot, sexSnapshot, identificationNumberSnapshot, identificationNumberIssueDateSnapshot,
                 identificationNumberIssuePlaceSnapshot, ethnicitySnapshot, subjectTypeSnapshot, payerSourceSnapshot,
@@ -235,20 +231,10 @@ public final class HealthExaminationRecord {
         if (status != HealthExaminationRecordStatus.ACTIVE) {
             throw new DomainRuleViolation("Health-examination record is not active");
         }
-        requireAdult(dateOfBirthSnapshot, actualDate);
         if (actualExaminationDate != null && !actualExaminationDate.equals(actualDate)) {
             throw new DomainRuleViolation("Already checked in on another date");
         }
         actualExaminationDate = actualDate;
-    }
-
-    private static void requireAdult(LocalDate birthDate, LocalDate date) {
-        LocalDate eighteenthBirthday = birthDate.plusYears(18);
-        if (birthDate.getMonthValue() == 2 && birthDate.getDayOfMonth() == 29
-                && !eighteenthBirthday.isLeapYear()) {
-            eighteenthBirthday = eighteenthBirthday.plusDays(1);
-        }
-        if (eighteenthBirthday.isAfter(date)) throw new AdultEligibilityViolation();
     }
 
     public void complete() {
