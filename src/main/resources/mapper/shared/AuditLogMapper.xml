@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.shared.infrastructure.persistence.mapper.AuditLogMapper">
+    <insert id="insert">
+        INSERT INTO public.audit_logs(id, occurred_at, actor_user_id, action, entity_type, entity_id, before_json, after_json)
+        VALUES(#{id}, CURRENT_TIMESTAMP, #{actorUserId}, #{action}, #{entityType}, #{entityId}, #{beforeJson}, #{afterJson})
+    </insert>
+</mapper>

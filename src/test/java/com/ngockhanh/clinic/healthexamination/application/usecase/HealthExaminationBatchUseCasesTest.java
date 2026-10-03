@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
-import com.ngockhanh.clinic.document.application.MasterHealthExaminationTemplateQuery;
+import com.ngockhanh.clinic.document.application.query.MasterHealthExaminationTemplateQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.*;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;

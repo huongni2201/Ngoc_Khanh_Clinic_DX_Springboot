@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.document.application.MasterHealthExaminationTemplateQuery;
+import com.ngockhanh.clinic.document.application.query.MasterHealthExaminationTemplateQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
@@ -8,10 +8,8 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.audit.AuditWriter;
 import com.ngockhanh.clinic.shared.exception.*;
-
-import java.util.UUID;
-
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

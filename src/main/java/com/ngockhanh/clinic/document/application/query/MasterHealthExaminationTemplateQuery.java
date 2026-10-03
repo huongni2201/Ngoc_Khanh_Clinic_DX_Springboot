@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.document.application;
+package com.ngockhanh.clinic.document.application.query;
 
 import java.util.Optional;
 import java.util.UUID;

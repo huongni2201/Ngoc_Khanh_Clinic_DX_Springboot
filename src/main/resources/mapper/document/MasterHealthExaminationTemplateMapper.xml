@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.MasterHealthExaminationTemplateMapper">
+    <select id="findEffectiveVersions" resultType="java.util.UUID">
+        SELECT v.id
+        FROM public.document_template_versions v
+        JOIN public.document_templates t ON t.id=v.document_template_id
+        WHERE t.is_active=true
+          AND t.is_master_health_examination_form=true
+          AND v.effective_from&lt;=CURRENT_TIMESTAMP
+          AND (v.retired_at IS NULL OR v.retired_at&gt;CURRENT_TIMESTAMP)
+    </select>
+</mapper>

@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.document.infrastructure.persistence.repository;
 
-import com.ngockhanh.clinic.document.application.MasterHealthExaminationTemplateQuery;
+import com.ngockhanh.clinic.document.application.query.MasterHealthExaminationTemplateQuery;
 import com.ngockhanh.clinic.document.infrastructure.persistence.mapper.MasterHealthExaminationTemplateMapper;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import java.util.*;
