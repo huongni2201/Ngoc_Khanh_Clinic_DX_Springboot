@@ -91,13 +91,18 @@ class OrganizationControllerTest {
   void createBuildsCommandAndReturnsCreatedResponse() {
     OrganizationRequest request =
         OrganizationRequest.builder()
+            .code("C1")
+            .organizationType("COMPANY")
+            .phone("0901")
+            .email("org@example.test")
+            .contactEmail("contact@example.test")
+            .rowVersion(3L)
             .name("Clinic Corp")
             .taxCode("TAX-01")
             .address("123 Street")
-            .contactName("Nguyen Van A")
+            .contactFullName("Nguyen Van A")
             .contactPhone("0901234567")
-            .contactJobTitle("Manager")
-            .note("Sample note")
+            .contactPosition("Manager")
             .build();
 
     UUID orgId = UUID.randomUUID();
@@ -107,10 +112,9 @@ class OrganizationControllerTest {
             .name("Clinic Corp")
             .taxCode("TAX-01")
             .address("123 Street")
-            .contactName("Nguyen Van A")
+            .contactFullName("Nguyen Van A")
             .contactPhone("0901234567")
-            .contactJobTitle("Manager")
-            .note("Sample note")
+            .contactPosition("Manager")
             .status("ACTIVE")
             .build();
 
@@ -132,10 +136,9 @@ class OrganizationControllerTest {
     assertThat(captured.name()).isEqualTo("Clinic Corp");
     assertThat(captured.taxCode()).isEqualTo("TAX-01");
     assertThat(captured.address()).isEqualTo("123 Street");
-    assertThat(captured.contactName()).isEqualTo("Nguyen Van A");
+    assertThat(captured.contactFullName()).isEqualTo("Nguyen Van A");
     assertThat(captured.contactPhone()).isEqualTo("0901234567");
-    assertThat(captured.contactJobTitle()).isEqualTo("Manager");
-    assertThat(captured.note()).isEqualTo("Sample note");
+    assertThat(captured.contactPosition()).isEqualTo("Manager");
   }
 
   @Test
@@ -160,13 +163,18 @@ class OrganizationControllerTest {
     UUID orgId = UUID.randomUUID();
     OrganizationRequest request =
         OrganizationRequest.builder()
+            .code("C1")
+            .organizationType("COMPANY")
+            .phone("0901")
+            .email("org@example.test")
+            .contactEmail("contact@example.test")
+            .rowVersion(3L)
             .name("Clinic Corp New")
             .taxCode("TAX-02")
             .address("456 Avenue")
-            .contactName("Tran Van B")
+            .contactFullName("Tran Van B")
             .contactPhone("0987654321")
-            .contactJobTitle("Director")
-            .note("Updated note")
+            .contactPosition("Director")
             .build();
 
     OrganizationResponse expectedResponse =
@@ -175,10 +183,9 @@ class OrganizationControllerTest {
             .name("Clinic Corp New")
             .taxCode("TAX-02")
             .address("456 Avenue")
-            .contactName("Tran Van B")
+            .contactFullName("Tran Van B")
             .contactPhone("0987654321")
-            .contactJobTitle("Director")
-            .note("Updated note")
+            .contactPosition("Director")
             .status("ACTIVE")
             .build();
 
@@ -199,12 +206,12 @@ class OrganizationControllerTest {
     verify(updateOrganizationUseCase).execute(eq(orgId), captor.capture());
     UpdateOrganizationCommand captured = captor.getValue();
     assertThat(captured.name()).isEqualTo("Clinic Corp New");
+    assertThat(captured.rowVersion()).isEqualTo(3L);
     assertThat(captured.taxCode()).isEqualTo("TAX-02");
     assertThat(captured.address()).isEqualTo("456 Avenue");
-    assertThat(captured.contactName()).isEqualTo("Tran Van B");
+    assertThat(captured.contactFullName()).isEqualTo("Tran Van B");
     assertThat(captured.contactPhone()).isEqualTo("0987654321");
-    assertThat(captured.contactJobTitle()).isEqualTo("Director");
-    assertThat(captured.note()).isEqualTo("Updated note");
+    assertThat(captured.contactPosition()).isEqualTo("Director");
   }
 
   @Test

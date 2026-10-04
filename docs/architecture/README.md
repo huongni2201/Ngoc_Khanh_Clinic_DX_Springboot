@@ -1,47 +1,28 @@
-# Backend Architecture Documentation
+# Current clean-slate architecture
 
-Project: Ngọc Khánh Clinic Digital Transformation  
-Architecture: DDD Modular Monolith + Clean Architecture + Ports/Adapters  
-Runtime: Java 25, Spring Boot 4.x, PostgreSQL 18, MyBatis, Flyway, Spring Modulith
+This is the active backend contract for Ngọc Khánh Clinic. It replaces the old
+architecture documentation and historical decision-record authority.
 
-## Source-of-truth order
+Read the selected clean-slate schema and these documents before changing behavior:
 
-When documents conflict, follow this order:
+1. [Overview and layering](01-overview.md)
+2. [Module ownership and public contracts](02-module-contracts.md)
+3. [Domain model and workflows](03-domain-and-workflows.md)
+4. [PostgreSQL/MyBatis persistence](04-persistence.md)
+5. [API, security and audit](05-api-and-security.md)
+6. [Testing and operations](06-testing-and-operations.md)
 
-1. `PROJECT_RULES.md`
-2. Accepted ADRs
-3. `docs/architecture/*`
-4. Corresponding FINAL DOCX for affected requirements, use cases, and schema contracts
-5. Existing implementation
+Use `PROJECT_RULES.md` and `PROJECT_SKILLS.md` for implementation discipline.
+Physical schema is `src/main/resources/db/migration/V001__create_clean_slate_schema.sql`.
+The owner's clean-slate business contract supersedes earlier schema/workflows;
+retain Participant terminology and public SQL schema. Keep domain, persistence,
+application and HTTP responsibilities separate.
 
-Architecture documents do not override business rules.
-Use FINAL DOCX sources directly when changing business contracts. Architecture-only updates use project rules, accepted ADRs, and the existing implementation.
-For PostgreSQL physical type mappings, follow [ADR-0005](../adr/0005-postgresql-18.md) and `05-persistence-and-database.md`; ADR-0005 carries forward the mappings from [ADR-0004](../adr/0004-postgresql-17.md). The business schema in the baseline remains authoritative for tables and business constraints.
+[API migration](../api/clean-slate-migration.md) and
+[login operations](../api/login.md) describe supported client/deployment contracts.
+No schema representation claims every clinic feature or endpoint is implemented.
 
-## Architecture documents
-
-- `01-system-architecture.md` — overall backend architecture
-- `02-module-boundaries.md` — bounded contexts and dependency rules
-- `03-domain-modeling-rules.md` — Aggregate/Entity/Value Object rules
-- `04-application-and-ports.md` — use cases, ports and transaction boundaries
-- `05-persistence-and-database.md` — PostgreSQL 18, MyBatis, Flyway, UUID, schema rules
-- `06-integration-and-events.md` — integrations, outbox, notifications and external systems
-- `07-security-and-audit.md` — authentication, authorization and audit rules
-- `08-testing-and-quality-gates.md` — unit, integration, module and migration testing
-- `09-runtime-and-deployment.md` — configuration and deployment assumptions
-- `10-architecture-decisions-summary.md` — current architecture decisions
-
-## Core principles
-
-Use `healthexamination` as the reference module for package structure and layer responsibilities. Existing implementation remains subject to project rules and accepted ADRs.
-
-- Package by bounded context, not by technical layer globally.
-- Domain model must not depend on Spring, MyBatis, SQL, HTTP or infrastructure.
-- Application layer owns use-case orchestration and transaction boundaries.
-- Infrastructure implements ports.
-- No direct cross-module access to another module's mapper or persistence record.
-- Persist only business state that cannot be safely derived.
-- Operational progress is derived from Encounter and related records, not stored as a parallel stage model.
-- Schema changes are append-only through Flyway migrations.
-- UUID v7 is the persisted identifier strategy.
-- CCCD is the patient business identity in the current MVP.
+The retained clean-slate decisions are
+[the module inventory](../adr/0012-clean-slate-module-boundaries.md) and
+[the application/database contract](../adr/0013-clean-slate-application-contract.md).
+Older ADR files and architecture documents are removed.

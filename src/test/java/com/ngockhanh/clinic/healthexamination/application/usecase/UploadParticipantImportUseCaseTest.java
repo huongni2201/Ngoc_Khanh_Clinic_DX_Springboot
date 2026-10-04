@@ -1,77 +1,107 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.io.ByteArrayInputStream;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
-
-import org.junit.jupiter.api.Test;
+import static com.ngockhanh.clinic.healthexamination.RosterFixtures.*;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import com.ngockhanh.clinic.healthexamination.application.command.UploadParticipantImportCommand;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ImportAttachmentMetadataRepository.ImportAttachmentMetadata;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ImportFileStorage;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader.SpreadsheetFormat;
-import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantRosterHeaderMapper;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ParticipantImportField;
+import com.ngockhanh.clinic.healthexamination.application.port.out.*;
+import com.ngockhanh.clinic.healthexamination.application.response.*;
+import com.ngockhanh.clinic.healthexamination.application.validation.*;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.HealthExaminationBatchReference;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import java.io.*;
+import java.util.*;
+import org.junit.jupiter.api.Test;
 
 class UploadParticipantImportUseCaseTest {
-    private static final UUID ORGANIZATION_ID = id(1);
-    private static final UUID BATCH_ID = id(2);
-    private static final UUID ACTOR_ID = id(3);
+  final HealthExaminationBatchRepository batches = mock(HealthExaminationBatchRepository.class);
+  final ImportFileStorage storage = mock(ImportFileStorage.class);
+  final ParticipantSpreadsheetReader reader = mock(ParticipantSpreadsheetReader.class);
+  final StoreValidatedParticipantImportUseCase store =
+      mock(StoreValidatedParticipantImportUseCase.class);
+  final UploadParticipantImportUseCase usecase =
+      new UploadParticipantImportUseCase(
+          batches,
+          storage,
+          reader,
+          new ParticipantRosterHeaderMapper(),
+          store,
+          new ParticipantRosterRowValidator());
 
-    @Test
-    void uploadsXlsAndCreatesAnUnmappedStagingJob() throws Exception {
-        HealthExaminationBatchRepository batches = mock(HealthExaminationBatchRepository.class);
-        ImportFileStorage storage = mock(ImportFileStorage.class);
-        ParticipantSpreadsheetReader reader = mock(ParticipantSpreadsheetReader.class);
-        RegisterParticipantImportUseCase register = mock(RegisterParticipantImportUseCase.class);
-        when(batches.findByIdAndOrganizationId(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID)))
-                .thenReturn(java.util.Optional.of(
-                new HealthExaminationBatchReference(AggregateId.of(BATCH_ID), AggregateId.of(ORGANIZATION_ID),
-                        LocalDate.of(2026, 10, 1), BatchStatus.READY)));
-        when(storage.store(any(UUID.class), any(), anyLong()))
-                .thenReturn(new ImportFileStorage.StoredFile("health-examination-imports/fixture.gcm", 12, "hash"));
-        when(storage.open("health-examination-imports/fixture.gcm"))
-                .thenReturn(new ByteArrayInputStream(new byte[]{1}));
-        when(reader.readHeader(any(), eq(SpreadsheetFormat.XLS))).thenReturn(new ParticipantSpreadsheetReader.SpreadsheetHeader(
-                2, List.of("STT", "Họ và tên", "Giới tính", "Ngày sinh", "Điện thoại", "CCCD")));
-        UploadParticipantImportUseCase useCase = new UploadParticipantImportUseCase(
-                batches, storage, reader, new ParticipantRosterHeaderMapper(), register);
+  private UploadParticipantImportCommand command() {
+    return new UploadParticipantImportCommand(
+        id(2).value(),
+        id(1).value(),
+        id(6).value(),
+        "roster.xlsx",
+        "application/octet-stream",
+        4,
+        new ByteArrayInputStream(new byte[] {'P', 'K', 3, 4}),
+        List.of(id(3).value()));
+  }
 
-        byte[] xlsMagic = {(byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0, (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
-        var result = useCase.execute(new UploadParticipantImportCommand(ORGANIZATION_ID, BATCH_ID, ACTOR_ID,
-                "roster.xls", "application/vnd.ms-excel", xlsMagic.length, new ByteArrayInputStream(xlsMagic)));
+  private void setup() throws Exception {
+    when(batches.findByIdAndOrganizationId(id(1), id(2))).thenReturn(Optional.of(batch()));
+    when(storage.store(any(), any(), anyLong()))
+        .thenReturn(new ImportFileStorage.StoredFile("temp", 4, "digest"));
+    when(storage.open("temp"))
+        .thenAnswer(i -> new ByteArrayInputStream(new byte[] {'P', 'K', 3, 4}));
+  }
 
-        assertThat(result.importId()).isNotNull();
-        assertThat(result.status()).isEqualTo("UPLOADED");
-        assertThat(result.headerRowNumber()).isEqualTo(2);
-        assertThat(result.suggestedMapping()).containsEntry(ParticipantImportField.IDENTIFICATION_NUMBER, 5);
-        var jobCaptor = org.mockito.ArgumentCaptor.forClass(HealthExaminationImportJob.class);
-        var attachmentCaptor = org.mockito.ArgumentCaptor.forClass(ImportAttachmentMetadata.class);
-        verify(register).execute(eq(ORGANIZATION_ID), eq(BATCH_ID), jobCaptor.capture(), attachmentCaptor.capture());
-        verify(storage).store(eq(result.importId()), any(), anyLong());
-        assertThat(jobCaptor.getValue().status().name()).isEqualTo("UPLOADED");
-        assertThat(jobCaptor.getValue().id().value()).isEqualTo(result.importId());
-        assertThat(jobCaptor.getValue().columnMapping()).isNull();
-        assertThat(attachmentCaptor.getValue().createdByUserId()).isEqualTo(ACTOR_ID);
-        assertThat(attachmentCaptor.getValue().importJobId()).isEqualTo(result.importId());
-    }
+  @Test
+  void rejectsInvalidHeaderWithoutStagingAndDeletesTemporarySource() throws Exception {
+    setup();
+    when(reader.readHeader(any(), any()))
+        .thenReturn(new ParticipantSpreadsheetReader.SpreadsheetHeader(2, List.of("Bad header")));
+    assertThatThrownBy(() -> usecase.execute(command()))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(store);
+    verify(storage, atLeastOnce()).delete("temp");
+  }
 
-    private static UUID id(long value) {
-        return new UUID(0L, value);
-    }
+  @Test
+  void validatesAllRowsBeforeCallingDurableStagingAndDeletesTemporarySource() throws Exception {
+    setup();
+    when(reader.readHeader(any(), any()))
+        .thenReturn(
+            new ParticipantSpreadsheetReader.SpreadsheetHeader(
+                2, ParticipantRosterHeaderMapper.HEADERS));
+    doAnswer(
+            i -> {
+              java.util.function.Consumer<ParticipantSpreadsheetReader.SpreadsheetRow> consumer =
+                  i.getArgument(2);
+              consumer.accept(
+                  new ParticipantSpreadsheetReader.SpreadsheetRow(
+                      3,
+                      Map.of(
+                          2,
+                          "Synthetic Person",
+                          3,
+                          "01/01/1990",
+                          4,
+                          "Nam",
+                          5,
+                          "000000000001",
+                          8,
+                          "Department",
+                          9,
+                          "Position")));
+              return null;
+            })
+        .when(reader)
+        .readRows(any(), any(), any());
+    when(store.execute(any(), any(), any(), anyList(), anyList()))
+        .thenReturn(
+            new ParticipantImportUploadResponse(
+                id(5).value(), "VALIDATED", 0, 1, List.of(id(3).value()), List.of()));
+    assertThat(usecase.execute(command()).importId()).isEqualTo(id(5).value());
+    verify(store)
+        .execute(
+            eq(id(2).value()),
+            eq(id(1).value()),
+            eq(id(6).value()),
+            eq(List.of(id(3).value())),
+            argThat(rows -> rows.size() == 1 && rows.getFirst().isValid()));
+    verify(storage).delete("temp");
+  }
 }

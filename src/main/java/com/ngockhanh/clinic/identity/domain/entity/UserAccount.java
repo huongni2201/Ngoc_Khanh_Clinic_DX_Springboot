@@ -5,14 +5,14 @@ import java.util.List;
 import java.util.UUID;
 
 public record UserAccount(
-    UUID userId,
-    UUID staffId,
+    UUID accountId,
+    UUID staffMemberId,
     UUID patientId,
     String username,
-    String password,
+    String passwordHash,
     String status,
-    String principalType,
-    boolean staffActive,
+    String accountType,
+    String staffStatus,
     List<RoleAssignment> roles) {
   public UserAccount {
     roles = List.copyOf(roles);
@@ -20,15 +20,16 @@ public record UserAccount(
 
   public boolean eligible() {
     return "ACTIVE".equals(status)
-        && switch (principalType) {
-          case "STAFF" -> staffId != null && patientId == null && staffActive;
-          case "PATIENT" -> patientId != null && staffId == null;
+        && switch (accountType) {
+          case "STAFF" ->
+              staffMemberId != null && patientId == null && "ACTIVE".equals(staffStatus);
+          case "PATIENT" -> patientId != null && staffMemberId == null;
           case null, default -> false;
         };
   }
 
   @Override
   public String toString() {
-    return "UserAccount[userId=" + userId + "]";
+    return "UserAccount[accountId=" + accountId + "]";
   }
 }

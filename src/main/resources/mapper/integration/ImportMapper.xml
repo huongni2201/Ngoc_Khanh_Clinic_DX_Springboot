@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.integration.infrastructure.persistence.mapper.ImportMapper">
+ <select id="find" resultType="com.ngockhanh.clinic.integration.infrastructure.persistence.record.ImportJobRecord">
+ SELECT id,import_type,batch_id,configuration::text AS configuration,source_file_id,status,created_by,confirmed_by,
+ created_at,confirmed_at,cancelled_at,expires_at,confirmed_result::text AS confirmed_result,row_version
+ FROM public.import_jobs WHERE id=#{id} AND batch_id=#{batchId}
+ <if test="forUpdate">FOR UPDATE</if>
+ </select>
+ <select id="rows" resultType="com.ngockhanh.clinic.integration.infrastructure.persistence.record.ImportRowRecord">
+ SELECT id,job_id,row_number,normalized_payload::text AS normalized_payload,preview_metadata::text AS preview_metadata,
+ committed_resource_type,committed_resource_id,created_at FROM public.import_rows WHERE job_id=#{jobId} ORDER BY row_number
+ </select>
+ <insert id="insertJob">
+ INSERT INTO public.import_jobs (id,import_type,batch_id,configuration,source_file_id,status,created_by,created_at,expires_at)
+ VALUES (#{id},#{importType},#{batchId},CAST(#{configuration} AS jsonb),#{sourceFileId},#{status},#{createdBy},#{createdAt},#{expiresAt})
+ </insert>
+ <update id="updateJob">
+ UPDATE public.import_jobs SET row_version=row_version+1,configuration=CAST(#{job.configuration} AS jsonb),status=#{job.status},
+ confirmed_by=#{job.confirmedBy},confirmed_at=#{job.confirmedAt},cancelled_at=#{job.cancelledAt},
+ confirmed_result=CAST(#{job.confirmedResult} AS jsonb)
+ WHERE id=#{job.id} AND batch_id=#{job.batchId} AND row_version=#{expectedVersion}
+ </update>
+ <insert id="saveRows">
+ INSERT INTO public.import_rows (id,job_id,row_number,normalized_payload,preview_metadata,committed_resource_type,committed_resource_id,created_at)
+ VALUES <foreach collection="rows" item="r" separator=",">
+ (#{r.id},#{r.jobId},#{r.rowNumber},CAST(#{r.normalizedPayload} AS jsonb),CAST(#{r.previewMetadata} AS jsonb),
+ #{r.committedResourceType},#{r.committedResourceId},#{r.createdAt})</foreach>
+ </insert>
+ <update id="updateRows">
+ UPDATE public.import_rows r SET preview_metadata=v.preview_metadata,committed_resource_type=v.resource_type,committed_resource_id=v.resource_id
+ FROM (VALUES <foreach collection="rows" item="r" separator=",">
+ (CAST(#{r.id} AS uuid),CAST(#{r.jobId} AS uuid),CAST(#{r.previewMetadata} AS jsonb),CAST(#{r.committedResourceType} AS text),CAST(#{r.committedResourceId} AS uuid))
+ </foreach>) AS v(id,job_id,preview_metadata,resource_type,resource_id)
+ WHERE r.id=v.id AND r.job_id=v.job_id
+ </update>
+
+ <select id="hasBatchDayReferences" resultType="boolean">
+ SELECT EXISTS (SELECT 1 FROM public.import_jobs j WHERE j.batch_id=#{batchId} AND (
+ EXISTS (SELECT 1 FROM jsonb_array_elements_text(j.configuration->'selectedBatchDayIds') selected(id)
+ WHERE selected.id IN <foreach collection="dayIds" item="id" open="(" close=")" separator=",">CAST(#{id} AS text)</foreach>)
+ OR EXISTS (SELECT 1 FROM public.import_rows r WHERE r.job_id=j.id AND r.preview_metadata->>'batchDayId' IN
+ <foreach collection="dayIds" item="id" open="(" close=")" separator=",">CAST(#{id} AS text)</foreach>)))
+ </select>
+</mapper>

@@ -1,21 +1,18 @@
 package com.ngockhanh.clinic.prescription.infrastructure.persistence.record;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
-import java.math.BigDecimal;
-
+/** Persistence row of {@code public.prescription_items}. */
 public record PrescriptionItemRecord(
-        UUID id,
-        UUID prescriptionId,
-        UUID medicationId,
-        String medicationNameSnapshot,
-        String strengthSnapshot,
-        String dose,
-        String route,
-        String frequency,
-        Integer durationDays,
-        BigDecimal quantity,
-        String instructions,
-        Integer displayOrder
-) {
-}
+    UUID id,
+    UUID prescriptionVersionId,
+    UUID medicineId,
+    String medicineNameSnapshot,
+    String strengthSnapshot,
+    String dose,
+    String route,
+    String frequency,
+    String duration,
+    BigDecimal quantity,
+    String instruction) {}

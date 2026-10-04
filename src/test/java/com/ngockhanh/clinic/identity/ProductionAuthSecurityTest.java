@@ -260,10 +260,8 @@ class ProductionAuthSecurityTest {
                 UUID.randomUUID(),
                 "DOCTOR",
                 List.of("READ"),
-                null,
-                null,
-                now.minusSeconds(10),
-                null)),
+                UUID.randomUUID(),
+                now.minusSeconds(10))),
         now.plusSeconds(1800),
         now.plusSeconds(28800));
   }
@@ -286,9 +284,9 @@ class ProductionAuthSecurityTest {
     Cookie session = new Cookie("NKC_SESSION", "A".repeat(43));
     mvc.perform(get("/api/v1/auth/me").servletPath("/api/v1/auth/me").cookie(session))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.principalType").value("PATIENT"))
+        .andExpect(jsonPath("$.data.accountType").value("PATIENT"))
         .andExpect(jsonPath("$.data.patientId").value(patient.patientId().toString()))
-        .andExpect(jsonPath("$.data.staffId").isEmpty())
+        .andExpect(jsonPath("$.data.staffMemberId").isEmpty())
         .andExpect(jsonPath("$.data.roleAssignments").isEmpty());
     mvc.perform(get("/api/v1/organizations").servletPath("/api/v1/organizations").cookie(session))
         .andExpect(status().isForbidden());

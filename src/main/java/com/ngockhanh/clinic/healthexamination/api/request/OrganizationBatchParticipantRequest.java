@@ -11,10 +11,5 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @NoArgsConstructor
 @SuperBuilder
-@AllowedSortKeys({
-    "id", "participantId", "fullName", "createdAt", "departmentName", "jobTitle"
-})
-public class OrganizationBatchParticipantRequest extends BasePagination {
-
-}
-
+@AllowedSortKeys({"id", "fullName", "createdAt", "departmentName", "positionName"})
+public class OrganizationBatchParticipantRequest extends BasePagination {}

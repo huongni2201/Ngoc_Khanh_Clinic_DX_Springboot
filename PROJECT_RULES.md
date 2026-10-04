@@ -8,7 +8,10 @@ The backend supports a real outpatient clinic and corporate health-check workflo
 
 Current source-of-truth documents:
 
-PostgreSQL physical type mappings from ADR-0004 remain in force under ADR-0005 and are documented in `docs/architecture/05-persistence-and-database.md`; the baseline remains the source for business schema and invariants.
+The owner-selected clean-slate design and `V001__create_clean_slate_schema.sql`
+are the current business/schema contract (ADR-0013). Earlier FINAL documents and
+ADRs remain historical references where superseded. Read ADR-0013 for the changed
+identity, roster, pricing, snapshots, release and concurrency contracts.
 
 Do not infer domain behavior from UI mockups when these documents define the rule.
 
@@ -79,8 +82,15 @@ document
 prescription
 notification
 integration
+appointment
+portal
+audit
 shared
 ```
+
+ADR-0012 defines the clean-slate module inventory: fourteen business contexts,
+the supporting audit context, and shared technical code. Keep `healthexamination`
+as the Java module name even though the source design uses `health_examination`.
 
 This is not a Maven multi-module project unless an ADR later changes that decision.
 
@@ -226,13 +236,15 @@ Allowed examples:
 shared/config
 shared/security
 shared/exception
-shared/audit
 shared/idempotency
 shared/web
 shared/time
 ```
 
 Do not put domain concepts in `shared`.
+
+Audit contracts and persistence belong to `audit`; consumers use the published
+`audit::recording` interface rather than a shared audit package (ADR-0012).
 
 Forbidden examples:
 
@@ -315,7 +327,7 @@ Rules:
 
 ## 11. PostgreSQL 18 Rules
 
-Baseline conventions from `table-design-v2.11`:
+Clean-slate conventions (ADR-0013):
 
 ```text
 table names       plural snake_case
@@ -323,10 +335,10 @@ column names      snake_case
 primary key       id
 foreign key       <entity>_id
 time              `timestamptz(3)`; Java `Instant`; values represent UTC instants
-money             decimal(18,2) unless table design says otherwise
+money             numeric(14,2)
 text              text or varchar(n), preserving documented length limits
 public UUID       uuid where specified
-concurrency       trigger-backed bigint `row_version` counter where specified
+concurrency       application-incremented bigint `row_version`, compared on update
 ```
 
 Use database constraints for true invariants.
@@ -366,7 +378,7 @@ Rules:
 - Never use application auto-DDL in production.
 - Never edit an already-applied shared migration.
 - Add a new migration for every subsequent schema change.
-- Apply the full chain in `src/main/resources/db/migration/` for fresh installations; V001 alone is not the current schema.
+- Fresh installations apply `V001__create_clean_slate_schema.sql`. Existing databases with the former V001-V003 history require a separate data-conversion plan; do not reuse that history with this baseline.
 - Include required FK/UK/check/index definitions in migrations.
 - Migration rollback strategy must be considered for destructive changes.
 - Destructive production data changes require explicit review.
@@ -392,49 +404,39 @@ Rules:
 
 ---
 
-## 14. Health Check Rules
+## 14. Health Examination Rules
 
-Organization-first flow:
+Organization owns Batches. Each Batch has at least one BatchDay and a maximum
+service scope. Batch participants are independent roster snapshots; there is no
+organization-level Participant aggregate or table.
 
-```text
-Organization
--> HealthExaminationBatch
--> HealthExaminationBatchService
--> HealthExaminationBatchParticipant
--> HealthExaminationRecord
--> Encounter / Services / Results
-```
-
-Rules:
-
-- Imported `HealthExaminationParticipant`/batch participant is not automatically a Patient.
-- Excel import must preserve CCCD as text.
-- Blocking validation includes required fields and current health-check rules.
-- The backend does not enforce age eligibility during roster import or health-examination record preparation or check-in; see ADR-0010.
-- Do not fabricate missing optional data.
-- Patient link/create occurs at check-in or the documented workflow point.
-- One health-check visit/record has exactly one SHS.
-- SHS is reused across the forms for that health-check record.
-- Mẫu số 03 is the master form and uses the SHS barcode.
-- Reprint reads administrative snapshot from `HealthExaminationRecord`.
-- Updating Patient later must not mutate old health-check snapshots.
-
-Participant service selection:
-
-```text
-Doctor only
-+
-subset of HealthExaminationBatchService only
-```
-
-Front Desk must not choose per-participant examination items.
+- Preserve CCCD as text; a participant is not automatically a Patient.
+- Prepare/link Patient and Encounter only in an authorized preparation use case,
+  using exact CCCD. Import never creates them.
+- Batch states are DRAFT, READY, FINALIZED and CLOSED; sites are CLINIC or
+  ORGANIZATION_SITE. Date bounds derive from BatchDays.
+- Reference price is captured from catalog on service addition; negotiated price
+  is entered for the batch. Later batch price changes preserve performed-item
+  snapshots unless an explicit audited repricing use case changes them.
+- Staff reconciliation records performed items within batch service scope; it
+  is independent of Doctor orders. Attendance and reconciliation have their own
+  states. Preserve historical rows when a performed selection is withdrawn.
+- Import validates the entire file before storing a VALIDATED job or any staging.
+  Duplicates within the file or batch reject it; confirm inserts only new rows
+  atomically and retries return the stored result.
+- Selected BatchDay IDs and approved allocations are captured in staging.
+  Confirmation does not reallocate. Manual day changes preserve prepared links.
+- The record's mrn is shared across its forms. Administrative snapshots and
+  clinical record versions are separate typed models, immutable after issue.
+- The backend does not enforce age eligibility; see `docs/architecture/03-domain-and-workflows.md`.
+- Verify versions and audit sensitive mutations in the application transaction.
 
 ---
 
 ## 15. Encounter and Diagnostic Progress Rules
 
 Encounter, ServiceRequest and Result have their own lifecycles. Diagnostic progress and worklists
-are derived from Encounter, OrderRound, ServiceRequest, PaymentAuthorization, performing location
+are derived from Encounter, OrderRound, ServiceRequest, ServiceAuthorization, performing location
 and Result. Do not create Journey/JourneyStage or a separate CLS state machine.
 
 Do not introduce reception/exam queue tickets or a return queue ticket.

@@ -2,18 +2,13 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.reposi
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.*;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.HealthExaminationBatchReference;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchMyBatisMapper;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchServiceRecord;
-import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
-import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.*;
+import com.ngockhanh.clinic.shared.exception.*;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -24,33 +19,36 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
 
   @Override
   public Optional<HealthExaminationBatchReference> findByIdAndOrganizationId(
-      AggregateId batchId, AggregateId organizationId) {
-    HealthExaminationBatchRecord record =
-        mapper.findByIdAndOrganizationId(batchId.value(), organizationId.value());
-    return Optional.ofNullable(record).map(Converter::toDomain);
+      AggregateId id, AggregateId org) {
+    return Optional.ofNullable(mapper.findByIdAndOrganizationId(id.value(), org.value()))
+        .map(this::reference);
   }
 
   @Override
   public Optional<HealthExaminationBatchReference> findByIdAndOrganizationIdForUpdate(
-      AggregateId batchId, AggregateId organizationId) {
-    HealthExaminationBatchRecord record =
-        mapper.findByIdAndOrganizationIdForUpdate(batchId.value(), organizationId.value());
-    return Optional.ofNullable(record).map(Converter::toDomain);
+      AggregateId id, AggregateId org) {
+    return Optional.ofNullable(mapper.findByIdAndOrganizationIdForUpdate(id.value(), org.value()))
+        .map(this::reference);
+  }
+
+  private List<BatchDay> days(UUID id) {
+    return mapper.findDays(id).stream()
+        .map(r -> new BatchDay(r.id(), r.examinationDate()))
+        .toList();
+  }
+
+  private HealthExaminationBatchReference reference(HealthExaminationBatchRecord r) {
+    return new HealthExaminationBatchReference(
+        new AggregateId(r.id()),
+        new AggregateId(r.organizationId()),
+        days(r.id()),
+        BatchStatus.valueOf(r.status()),
+        r.rowVersion());
   }
 
   @Override
   public Optional<BatchDetails> findDetails(UUID org, UUID id, boolean lock) {
-    return loadDetails(org, id, lock, false);
-  }
-
-  @Override
-  public Optional<BatchDetails> findDetailsIncludingDeleted(UUID org, UUID id, boolean lock) {
-    return loadDetails(org, id, lock, true);
-  }
-
-  private Optional<BatchDetails> loadDetails(
-      UUID org, UUID id, boolean lock, boolean includeDeleted) {
-    return Optional.ofNullable(mapper.findScoped(org, id, lock, includeDeleted))
+    return Optional.ofNullable(mapper.findScoped(org, id, lock))
         .map(
             r ->
                 new BatchDetails(
@@ -58,41 +56,28 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
                         new AggregateId(r.id()),
                         new AggregateId(r.organizationId()),
                         r.batchCode(),
-                        r.batchName(),
-                        r.startDate(),
-                        r.endDate(),
-                        r.reason(),
-                        r.payerType(),
-                        new com.ngockhanh.clinic.healthexamination.domain.valueobject
-                            .ExaminationSite(
-                            com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType
-                                .valueOf(r.examinationSiteType()),
+                        r.name(),
+                        new ExaminationSite(
+                            ExaminationSiteType.valueOf(r.examinationSiteType()),
                             r.examinationSiteName(),
                             r.examinationSiteAddress()),
-                        new AggregateId(r.masterTemplateVersionId()),
-                        BatchStatus.valueOf(r.status()),
+                        days(id),
                         mapper.findServices(id).stream()
                             .map(
-                                v ->
-                                    com.ngockhanh.clinic.healthexamination.domain.entity
-                                        .HealthExaminationBatchService.create(
-                                        new AggregateId(v.id()),
-                                        new AggregateId(v.serviceId()),
-                                        new AggregateId(v.healthExaminationBatchId()),
-                                        v.serviceCodeSnapshot(),
-                                        v.serviceNameSnapshot(),
-                                        new com.ngockhanh.clinic.healthexamination.domain
-                                            .valueobject.Money(
-                                            v.negotiatedUnitPrice(), v.currency()),
-                                        v.documentTemplateVersionId() == null
-                                            ? null
-                                            : new AggregateId(v.documentTemplateVersionId()),
-                                        v.displayOrder(),
-                                        v.status()))
+                                s ->
+                                    new HealthExaminationBatchService(
+                                        new AggregateId(s.id()),
+                                        new AggregateId(s.serviceId()),
+                                        new AggregateId(s.batchId()),
+                                        new Money(s.referencePriceSnapshot(), "VND"),
+                                        new Money(s.negotiatedPrice(), "VND"),
+                                        s.displayOrder(),
+                                        s.active(),
+                                        s.rowVersion()))
                             .toList(),
-                        r.finalizedAt(),
-                        r.closedAt()),
-                    r.createdByUserId(),
+                        BatchStatus.valueOf(r.status()),
+                        r.rowVersion()),
+                    r.createdBy(),
                     r.createdAt(),
                     r.updatedAt()));
   }
@@ -101,25 +86,39 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
   public void insert(HealthExaminationBatch batch, UUID actor) {
     if (mapper.insert(record(batch, actor)) != 1)
       throw new IllegalStateException("Batch was not inserted");
+    saveDays(batch);
     saveServices(batch.services());
   }
 
   @Override
   public void update(HealthExaminationBatch batch) {
-    var retained = batch.services().stream().map(s -> s.id().value()).toList();
-    if (batch.status() != BatchStatus.DELETED
-        && mapper.hasReferencedRemoved(batch.id().value(), retained))
-      throw new BusinessRuleException("Batch service has dependent records");
+    var services = batch.services().stream().map(s -> s.id().value()).toList();
+    var days = batch.days().stream().map(BatchDay::id).toList();
+    if (mapper.hasReferencedRemoved(batch.id().value(), services)
+        || mapper.hasReferencedRemovedDays(batch.id().value(), days))
+      throw new BusinessRuleException("Batch day or service has dependent records");
     if (mapper.update(record(batch, null)) != 1) throw new ConcurrentUpdateException();
-    if (batch.status() != BatchStatus.DELETED) {
-      mapper.deleteRemoved(batch.id().value(), retained);
-      saveServices(batch.services());
-    }
+    mapper.deleteRemoved(batch.id().value(), services);
+    mapper.deleteRemovedDays(batch.id().value(), days);
+    // Move retained orders above the old range so swaps satisfy the immediate unique constraint.
+    mapper.reserveDisplayOrders(batch.id().value(), batch.services().size());
+    saveServices(batch.services());
+    saveDays(batch);
+  }
+
+  private void saveDays(HealthExaminationBatch batch) {
+    var rows =
+        batch.days().stream()
+            .map(
+                d ->
+                    new HealthExaminationBatchDayRecord(
+                        d.id(), batch.id().value(), d.examinationDate()))
+            .toList();
+    mapper.insertDays(rows);
   }
 
   private void saveServices(List<HealthExaminationBatchService> services) {
-    if (services.isEmpty()) return;
-    var records =
+    var rows =
         services.stream()
             .map(
                 s ->
@@ -127,18 +126,17 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
                         s.id().value(),
                         s.batchId().value(),
                         s.serviceId().value(),
-                        s.templateVersionId() == null ? null : s.templateVersionId().value(),
-                        s.serviceCode(),
-                        s.serviceName(),
+                        s.referencePriceSnapshot().amount(),
                         s.negotiatedPrice().amount(),
-                        s.negotiatedPrice().currency(),
                         s.displayOrder(),
-                        s.status(),
+                        s.active(),
                         null,
-                        null))
+                        null,
+                        s.rowVersion()))
             .toList();
-    if (mapper.upsertServices(records) != records.size())
-      throw new IllegalStateException("Batch services were not saved");
+    // Inserts start at zero; an existing row receives a single increment when its final values
+    // change.
+    if (mapper.upsertServices(rows) != rows.size()) throw new ConcurrentUpdateException();
   }
 
   private HealthExaminationBatchRecord record(HealthExaminationBatch b, UUID actor) {
@@ -147,25 +145,14 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
         b.organizationId().value(),
         b.code(),
         b.name(),
-        b.startDate(),
-        b.endDate(),
-        b.reason(),
-        b.payerType(),
         b.site().type().name(),
         b.site().name(),
         b.site().address(),
-        b.masterTemplateVersionId().value(),
         b.status().name(),
-        b.finalizedAt(),
-        b.closedAt(),
         actor,
         null,
-        null);
-  }
-
-  @Override
-  public boolean hasDependents(UUID id) {
-    return mapper.hasDependents(id);
+        null,
+        b.rowVersion());
   }
 
   @Override
@@ -177,15 +164,5 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
   @Override
   public long count(UUID org, String pattern) {
     return mapper.count(org, pattern);
-  }
-
-  private static final class Converter {
-    static HealthExaminationBatchReference toDomain(HealthExaminationBatchRecord record) {
-      return new HealthExaminationBatchReference(
-          new AggregateId(record.id()),
-          new AggregateId(record.organizationId()),
-          record.startDate(),
-          BatchStatus.valueOf(record.status()));
-    }
   }
 }

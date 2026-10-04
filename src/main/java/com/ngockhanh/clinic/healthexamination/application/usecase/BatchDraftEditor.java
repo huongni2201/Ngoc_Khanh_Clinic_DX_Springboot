@@ -3,9 +3,11 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfigurationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
+import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -22,11 +24,9 @@ public class BatchDraftEditor {
     if (items == null || items.isEmpty())
       throw new IllegalArgumentException("Batch services are required");
     Set<UUID> requested = new HashSet<>();
-    for (var item : items) {
+    for (var item : items)
       if (item == null || item.serviceId() == null || !requested.add(item.serviceId()))
         throw new BusinessRuleException("Duplicate or missing service");
-      new Money(item.negotiatedUnitPrice(), "VND");
-    }
     Map<UUID, ServiceCatalogQuery.Service> found = new HashMap<>();
     catalog.findByIds(requested).forEach(s -> found.put(s.id(), s));
     Map<UUID, HealthExaminationBatchService> previous = new HashMap<>();
@@ -35,24 +35,37 @@ public class BatchDraftEditor {
     for (var item : items) {
       var old = previous.get(item.serviceId());
       var service = found.get(item.serviceId());
-      // Existing snapshots survive catalog edits or retirement; only newly selected items need
-      // eligibility.
-      if (old == null
-          && (service == null || !service.active() || !service.healthExaminationEligible()))
-        throw new BusinessRuleException("Service is not eligible for health examination");
+      if (old == null && (service == null || !service.active()))
+        throw new BusinessRuleException("Service is inactive or unavailable");
       result.add(
-          HealthExaminationBatchService.create(
+          new HealthExaminationBatchService(
               old == null ? new AggregateId(UuidV7Generator.generate()) : old.id(),
               new AggregateId(item.serviceId()),
               batchId,
-              old == null ? service.code() : old.serviceCode(),
-              old == null ? service.name() : old.serviceName(),
-              new Money(item.negotiatedUnitPrice(), "VND"),
-              old == null ? null : old.templateVersionId(),
+              old == null ? new Money(service.unitPrice(), "VND") : old.referencePriceSnapshot(),
+              new Money(item.negotiatedPrice(), "VND"),
               result.size() + 1,
-              old == null ? "ACTIVE" : old.status()));
+              old == null || old.active(),
+              old == null ? 0 : old.rowVersion()));
     }
     return List.copyOf(result);
+  }
+
+  public List<BatchDay> days(List<LocalDate> dates, List<BatchDay> existing) {
+    if (dates == null
+        || dates.isEmpty()
+        || dates.stream().anyMatch(Objects::isNull)
+        || new HashSet<>(dates).size() != dates.size())
+      throw new IllegalArgumentException("Distinct examination days are required");
+    Map<LocalDate, BatchDay> previous = new HashMap<>();
+    existing.forEach(d -> previous.put(d.examinationDate(), d));
+    return dates.stream()
+        .map(
+            d ->
+                previous.containsKey(d)
+                    ? previous.get(d)
+                    : new BatchDay(UuidV7Generator.generate(), d))
+        .toList();
   }
 
   static ExaminationSite site(BatchConfigurationCommand c) {

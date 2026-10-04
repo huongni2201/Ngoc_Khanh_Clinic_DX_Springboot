@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.ngockhanh.clinic.audit.application.port.AuthAudit;
 import com.ngockhanh.clinic.identity.application.command.LoginCommand;
 import com.ngockhanh.clinic.identity.application.command.LogoutAllSessionsCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
@@ -28,7 +29,6 @@ import com.ngockhanh.clinic.identity.application.usecase.LogoutAllSessionsUseCas
 import com.ngockhanh.clinic.identity.domain.entity.UserAccount;
 import com.ngockhanh.clinic.identity.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
-import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import java.time.Clock;
 import java.time.Instant;
@@ -87,9 +87,9 @@ class StaffLoginFailureTest {
         .thenReturn(new LoginThrottle.CheckResult(true, 0));
     var role =
         new RoleAssignment(
-            UUID.randomUUID(), "DOCTOR", List.of("READ"), null, null, now.minusSeconds(60), null);
+            UUID.randomUUID(), "DOCTOR", List.of("READ"), UUID.randomUUID(), now.minusSeconds(60));
     when(accounts.identify("staff")).thenReturn(user);
-    when(accounts.recordLogin(user, now)).thenReturn(1);
+    when(accounts.lockEligibleAccount(user)).thenReturn(true);
     when(sessions.generation(user)).thenReturn(7L);
     when(accounts.find("staff", now))
         .thenReturn(
@@ -101,7 +101,7 @@ class StaffLoginFailureTest {
                 "encoded",
                 "ACTIVE",
                 "STAFF",
-                true,
+                "ACTIVE",
                 List.of(role)));
     when(passwords.matches("password", "encoded")).thenReturn(true);
     when(tokens.issue(any())).thenReturn("signed-token");
@@ -110,9 +110,24 @@ class StaffLoginFailureTest {
   }
 
   @Test
+  void rejectsUsernameBeyondCleanSlateAccountLimitBeforeReadingCredentials() {
+    var oversized =
+        new LoginCommand("x".repeat(151), "password", "127.0.0.1", List.of(), UUID.randomUUID());
+    assertThatThrownBy(() -> login.execute(oversized))
+        .isInstanceOfSatisfying(
+            AuthenticationFailure.class,
+            failure ->
+                assertThat(failure.type())
+                    .isEqualTo(
+                        com.ngockhanh.clinic.shared.exception.ApplicationException.Type
+                            .INVALID_INPUT));
+    verifyNoInteractions(accounts, passwords, tokens, sessions);
+  }
+
+  @Test
   void databaseFailureCompensatesAndNeverReturnsSession() {
     var failure = new IllegalStateException("database unavailable");
-    doThrow(failure).when(audit).record(user, "USER_LOGIN", now, command.correlationId());
+    doThrow(failure).when(audit).record(user, "ACCOUNT_LOGIN", now, command.correlationId());
     assertThatThrownBy(() -> login.execute(command)).isSameAs(failure);
     verify(sessions).delete(id);
     verify(sessions, never()).touch(any(), any(), any(), any());
@@ -165,7 +180,7 @@ class StaffLoginFailureTest {
   @Test
   void failedCompensationKeepsOriginalFailureAndDoesNotReturnSession() {
     var failure = new IllegalStateException("audit commit failure");
-    doThrow(failure).when(audit).record(user, "USER_LOGIN", now, command.correlationId());
+    doThrow(failure).when(audit).record(user, "ACCOUNT_LOGIN", now, command.correlationId());
     doThrow(
             new DependencyUnavailableException(
                 "Redis unavailable", new IllegalStateException("offline")))
@@ -182,7 +197,7 @@ class StaffLoginFailureTest {
     ordered.verify(accounts).identify("staff");
     ordered.verify(sessions).generation(user);
     ordered.verify(accounts).find("staff", now);
-    verify(accounts, never()).recordLogin(any(), any());
+    verify(accounts, never()).lockEligibleAccount(any());
   }
 
   @Test
@@ -213,7 +228,7 @@ class StaffLoginFailureTest {
   void auditFailureCannotUndoSuccessfulRevocation() {
     doThrow(new IllegalStateException("audit unavailable"))
         .when(audit)
-        .record(user, "USER_SESSIONS_REVOKED", now, command.correlationId());
+        .record(user, "ACCOUNT_SESSIONS_REVOKED", now, command.correlationId());
     assertThatCode(
             () -> logoutAll.execute(new LogoutAllSessionsCommand(user, command.correlationId())))
         .doesNotThrowAnyException();
@@ -240,13 +255,8 @@ class StaffLoginFailureTest {
   }
 
   @Test
-  void expiredAssignmentsAreRemovedWithoutRevokingAuthentication() {
-    var active =
-        new RoleAssignment(
-            UUID.randomUUID(), "ACTIVE_ROLE", List.of(), null, null, now, now.plusSeconds(5));
-    var expired =
-        new RoleAssignment(
-            UUID.randomUUID(), "EXPIRED_ROLE", List.of(), null, null, now.minusSeconds(60), now);
+  void accountRoleGrantsRemainInTheSessionSnapshotWithoutLegacyExpiry() {
+    var role = new RoleAssignment(UUID.randomUUID(), "DOCTOR", List.of("READ"), user, now);
     var claims =
         new SessionTokens.Claims(
             user,
@@ -257,13 +267,10 @@ class StaffLoginFailureTest {
             UUID.randomUUID(),
             now,
             now.plusSeconds(28800),
-            List.of(active, expired));
+            List.of(role));
     var stored = new SessionStore.Stored(user, "signed-token", 7, claims.expiresAt());
     when(sessions.find(id)).thenReturn(stored);
     when(tokens.verify("signed-token")).thenReturn(Optional.of(claims));
-    assertThat(authenticate.execute(new AuthenticateSessionQuery(List.of(id))).roleAssignments())
-        .extracting(r -> r.roleCode())
-        .containsExactly("ACTIVE_ROLE");
     var later =
         new AuthenticateSessionUseCase(
             sessions,
@@ -273,8 +280,16 @@ class StaffLoginFailureTest {
     when(sessions.touch(eq(id), any(), any(), eq(now.plusSeconds(5))))
         .thenReturn(now.plusSeconds(1805));
     assertThat(later.execute(new AuthenticateSessionQuery(List.of(id))).roleAssignments())
-        .isEmpty();
-    verify(sessions, never()).delete(id);
+        .extracting(r -> r.roleCode())
+        .containsExactly("DOCTOR");
+  }
+
+  @Test
+  void eligibilityChangeBeforeAuditPreventsSessionIssuance() {
+    when(accounts.lockEligibleAccount(user)).thenReturn(false);
+    assertThatThrownBy(() -> login.execute(command)).isInstanceOf(AuthenticationFailure.class);
+    verify(audit, never()).record(any(), anyString(), any(), any());
+    verify(sessions).delete(id);
   }
 
   @Test
@@ -283,11 +298,11 @@ class StaffLoginFailureTest {
     when(accounts.find("staff", now))
         .thenReturn(
             new UserAccount(
-                user, null, patient, "patient", "encoded", "ACTIVE", "PATIENT", false, List.of()));
+                user, null, patient, "patient", "encoded", "ACTIVE", "PATIENT", null, List.of()));
     var result = login.execute(command).response();
-    assertThat(result.principalType()).isEqualTo("PATIENT");
+    assertThat(result.accountType()).isEqualTo("PATIENT");
     assertThat(result.patientId()).isEqualTo(patient);
-    assertThat(result.staffId()).isNull();
+    assertThat(result.staffMemberId()).isNull();
     assertThat(result.roleAssignments()).isEmpty();
     verify(tokens)
         .issue(
@@ -311,7 +326,7 @@ class StaffLoginFailureTest {
                 "encoded",
                 "ACTIVE",
                 "STAFF",
-                true,
+                "ACTIVE",
                 List.of()));
     assertThat(login.execute(command).response().roleAssignments()).isEmpty();
   }

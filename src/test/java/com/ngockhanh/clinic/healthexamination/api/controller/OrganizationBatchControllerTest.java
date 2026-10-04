@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.api.controller;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -11,6 +12,7 @@ import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.env.MockEnvironment;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -30,7 +32,6 @@ class OrganizationBatchControllerTest {
             mock(GetHealthExaminationBatchUseCase.class),
             mock(ListHealthExaminationBatchUseCase.class),
             mock(UpdateHealthExaminationBatchUseCase.class),
-            mock(DeleteHealthExaminationBatchUseCase.class),
             env);
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
@@ -40,8 +41,8 @@ class OrganizationBatchControllerTest {
     String path = "/api/v1/organizations/" + org + "/health-examination-batches";
     String body =
         """
-        {"batchCode":"B1","batchName":"Campaign","examinationSiteType":"CLINIC","examinationSiteName":"Clinic",
-         "services":[{"serviceId":"%s","negotiatedUnitPrice":12.34}]}
+        {"batchCode":"B1","batchName":"Campaign","examinationSiteType":"CLINIC","examinationSiteName":"Clinic","examinationSiteAddress":"Address","examinationDates":["2026-10-04"],
+         "services":[{"serviceId":"%s","negotiatedPrice":12.34}]}
         """
             .formatted(service);
     mvc.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(body))
@@ -52,7 +53,7 @@ class OrganizationBatchControllerTest {
                 .CreateHealthExaminationBatchCommand.class);
     verify(create).execute(eq(org), command.capture());
     assertThat(command.getValue().createdBy()).isEqualTo(actor);
-    assertThat(command.getValue().configuration().services().getFirst().negotiatedUnitPrice())
+    assertThat(command.getValue().configuration().services().getFirst().negotiatedPrice())
         .isEqualByComparingTo("12.34");
     mvc.perform(
             post(path).contentType(MediaType.APPLICATION_JSON).content(body.replace("12.34", "-1")))
@@ -63,6 +64,19 @@ class OrganizationBatchControllerTest {
     mvc.perform(get(path).param("page", "0")).andExpect(status().isBadRequest());
     mvc.perform(get(path).param("sortKey", "id; drop table services"))
         .andExpect(status().isBadRequest());
+    mvc.perform(
+            post(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body.replace("[\"2026-10-04\"]", "[]")))
+        .andExpect(status().isBadRequest());
+    mvc.perform(
+            post(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body.replace("CLINIC", "COMPANY")))
+        .andExpect(status().isBadRequest());
+    mvc.perform(delete(path + "/" + UUID.randomUUID()))
+        .andExpect(status().isMethodNotAllowed())
+        .andExpect(header().string(HttpHeaders.ALLOW, containsString("GET")));
     verify(create, times(1)).execute(any(), any());
   }
 
@@ -79,7 +93,6 @@ class OrganizationBatchControllerTest {
             mock(GetHealthExaminationBatchUseCase.class),
             mock(ListHealthExaminationBatchUseCase.class),
             mock(UpdateHealthExaminationBatchUseCase.class),
-            mock(DeleteHealthExaminationBatchUseCase.class),
             env);
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
@@ -109,9 +122,25 @@ class OrganizationBatchControllerTest {
             mock(GetHealthExaminationBatchUseCase.class),
             mock(ListHealthExaminationBatchUseCase.class),
             mock(UpdateHealthExaminationBatchUseCase.class),
-            mock(DeleteHealthExaminationBatchUseCase.class),
             env);
-    assertThatThrownBy(() -> controller.delete(UUID.randomUUID(), UUID.randomUUID(), null))
+    assertThatThrownBy(
+            () ->
+                controller.create(
+                    UUID.randomUUID(),
+                    new com.ngockhanh.clinic.healthexamination.api.request
+                        .HealthExaminationBatchRequest(
+                        "B1",
+                        "Batch",
+                        java.util.List.of(java.time.LocalDate.of(2026, 10, 4)),
+                        "CLINIC",
+                        "Clinic",
+                        "Address",
+                        java.util.List.of(
+                            new com.ngockhanh.clinic.healthexamination.api.request
+                                .HealthExaminationBatchRequest.ServicePriceRequest(
+                                UUID.randomUUID(), java.math.BigDecimal.ONE)),
+                        null),
+                    null))
         .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
     verifyNoInteractions(create);
   }

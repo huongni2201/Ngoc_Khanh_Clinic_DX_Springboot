@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
+import com.ngockhanh.clinic.audit.application.port.AuthAudit;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
 import com.ngockhanh.clinic.identity.application.port.Passwords;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
@@ -14,7 +15,6 @@ import com.ngockhanh.clinic.identity.application.usecase.LogoutSessionUseCase;
 import com.ngockhanh.clinic.identity.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
 import com.ngockhanh.clinic.identity.infrastructure.security.JwtSettings;
-import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.function.Supplier;

@@ -3,7 +3,6 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 import com.ngockhanh.clinic.healthexamination.application.query.OrganizationBatchParticipantQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationBatchParticipantResponse;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository.BatchParticipantSummary;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
@@ -58,7 +57,7 @@ public class ListBatchParticipantUseCase {
         batchParticipantRepository
             .findByBatch(batch, requestedOffset, size, searchPattern, sortKey, sortBy)
             .stream()
-            .map(ListBatchParticipantUseCase::toResponse)
+            .map(OrganizationBatchParticipantResponse::from)
             .toList();
 
     log.info(
@@ -88,35 +87,5 @@ public class ListBatchParticipantUseCase {
             .replace("%", "\\%")
             .replace("_", "\\_");
     return "%" + escapedValue + "%";
-  }
-
-  private static OrganizationBatchParticipantResponse toResponse(
-      BatchParticipantSummary participant) {
-    return new OrganizationBatchParticipantResponse(
-        participant.batchParticipantId().value(),
-        participant.participantId().value(),
-        participant.participantCode(),
-        participant.departmentName(),
-        participant.jobTitle(),
-        participant.occupation(),
-        participant.fullName(),
-        participant.dateOfBirth(),
-        participant.sex(),
-        participant.identificationNumber(),
-        participant.identificationNumberIssueDate(),
-        participant.identificationNumberIssuePlace(),
-        participant.ethnicity(),
-        participant.subjectType(),
-        participant.payerSource(),
-        participant.bloodGroup(),
-        participant.phone(),
-        participant.province(),
-        participant.ward(),
-        participant.addressDetail(),
-        participant.administrativeOccupation(),
-        participant.workplaceOrSchool(),
-        participant.healthExaminationReason(),
-        participant.status(),
-        participant.createdAt());
   }
 }

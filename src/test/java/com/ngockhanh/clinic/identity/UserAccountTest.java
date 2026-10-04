@@ -19,7 +19,7 @@ class UserAccountTest {
             "hash",
             "ACTIVE",
             "STAFF",
-            true,
+            "ACTIVE",
             List.of());
 
     assertThat(account.eligible()).isTrue();
@@ -36,7 +36,7 @@ class UserAccountTest {
             "hash",
             "ACTIVE",
             "PATIENT",
-            false,
+            null,
             List.of());
 
     assertThat(account.eligible()).isTrue();
@@ -46,30 +46,45 @@ class UserAccountTest {
   void inactiveAccountsAndInconsistentIdentitiesCannotAuthenticate() {
     UUID id = UUID.randomUUID();
     assertThat(
-            new UserAccount(id, id, null, "staff", "hash", "INACTIVE", "STAFF", true, List.of())
+            new UserAccount(id, id, null, "staff", "hash", "DISABLED", "STAFF", "ACTIVE", List.of())
                 .eligible())
         .isFalse();
     assertThat(
-            new UserAccount(id, id, null, "staff", "hash", "ACTIVE", "STAFF", false, List.of())
+            new UserAccount(id, id, null, "staff", "hash", "ACTIVE", "STAFF", null, List.of())
                 .eligible())
         .isFalse();
     assertThat(
-            new UserAccount(
-                    id, null, null, "patient", "hash", "ACTIVE", "PATIENT", false, List.of())
+            new UserAccount(id, null, null, "patient", "hash", "ACTIVE", "PATIENT", null, List.of())
                 .eligible())
         .isFalse();
     assertThat(
-            new UserAccount(id, id, id, "patient", "hash", "ACTIVE", "PATIENT", true, List.of())
+            new UserAccount(id, id, id, "patient", "hash", "ACTIVE", "PATIENT", "ACTIVE", List.of())
                 .eligible())
         .isFalse();
     assertThat(
-            new UserAccount(
-                    id, null, id, "patient", "hash", "INACTIVE", "PATIENT", false, List.of())
+            new UserAccount(id, null, id, "patient", "hash", "LOCKED", "PATIENT", null, List.of())
                 .eligible())
         .isFalse();
     assertThat(
-            new UserAccount(id, id, null, "user", "hash", "ACTIVE", "UNKNOWN", true, List.of())
+            new UserAccount(id, id, null, "user", "hash", "ACTIVE", "UNKNOWN", "ACTIVE", List.of())
                 .eligible())
         .isFalse();
+  }
+
+  @Test
+  void lockedDisabledAccountsAndInactiveSuspendedStaffCannotAuthenticate() {
+    UUID id = UUID.randomUUID();
+    for (String status : List.of("LOCKED", "DISABLED")) {
+      assertThat(
+              new UserAccount(id, id, null, "staff", "hash", status, "STAFF", "ACTIVE", List.of())
+                  .eligible())
+          .isFalse();
+    }
+    for (String status : List.of("INACTIVE", "SUSPENDED")) {
+      assertThat(
+              new UserAccount(id, id, null, "staff", "hash", "ACTIVE", "STAFF", status, List.of())
+                  .eligible())
+          .isFalse();
+    }
   }
 }

@@ -44,7 +44,7 @@ class LocalAuthSecurityTest {
     Instant now = Instant.now();
     var assignment =
         new UserPrincipal.Assignment(
-            UUID.randomUUID(), "DOCTOR", List.of(), null, null, now.minusSeconds(60), null);
+            UUID.randomUUID(), "DOCTOR", List.of(), UUID.randomUUID(), now.minusSeconds(60));
     for (String type : List.of("STAFF", "PATIENT")) {
       for (boolean hasRoles : List.of(true, false)) {
         var principal =

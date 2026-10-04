@@ -7,19 +7,16 @@ import java.util.*;
 public record BatchConfigurationCommand(
     String batchCode,
     String batchName,
-    LocalDate startDate,
-    LocalDate endDate,
-    String reason,
-    String payerType,
+    List<LocalDate> examinationDates,
     String examinationSiteType,
     String examinationSiteName,
     String examinationSiteAddress,
-    List<ServicePrice> services) {
+    List<ServicePrice> services,
+    Long rowVersion) {
   public BatchConfigurationCommand {
-    if (services != null && services.stream().anyMatch(Objects::isNull))
-      throw new IllegalArgumentException("Missing service");
+    examinationDates = examinationDates == null ? null : List.copyOf(examinationDates);
     services = services == null ? null : List.copyOf(services);
   }
 
-  public record ServicePrice(UUID serviceId, BigDecimal negotiatedUnitPrice) {}
+  public record ServicePrice(UUID serviceId, BigDecimal negotiatedPrice) {}
 }

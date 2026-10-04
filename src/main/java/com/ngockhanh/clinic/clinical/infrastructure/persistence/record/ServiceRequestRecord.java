@@ -4,20 +4,24 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+/** Persistence row of {@code public.service_requests}. */
 public record ServiceRequestRecord(
-        UUID id,
-        UUID orderRoundId,
-        UUID serviceId,
-        String status,
-        String priority,
-        UUID performingDepartmentId,
-        UUID performingRoomId,
-        String performingLocationLabel,
-        String serviceNameSnapshot,
-        BigDecimal unitPriceSnapshot,
-        String preparationInstructionsSnapshot,
-        Instant orderedAt,
-        Instant startedAt,
-        Instant completedAt
-) {
-}
+    UUID id,
+    UUID orderRoundId,
+    UUID serviceId,
+    String status,
+    UUID requestedBy,
+    Instant requestedAt,
+    UUID assignedDepartmentId,
+    UUID assignedRoomId,
+    UUID assignedStaffId,
+    BigDecimal referencePriceSnapshot,
+    BigDecimal unitPriceSnapshot,
+    String pricingSource,
+    Instant startedAt,
+    Instant completedAt,
+    Instant cancelledAt,
+    String cancelReason,
+    Instant createdAt,
+    Instant updatedAt,
+    long rowVersion) {}

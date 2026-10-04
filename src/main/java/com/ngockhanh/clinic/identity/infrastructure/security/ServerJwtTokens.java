@@ -72,15 +72,11 @@ public final class ServerJwtTokens implements SessionTokens {
             .map(
                 role -> {
                   Map<String, Object> data = new LinkedHashMap<>();
-                  data.put("assignmentId", role.assignmentId().toString());
+                  data.put("roleId", role.roleId().toString());
                   data.put("roleCode", role.roleCode());
                   data.put("permissions", role.permissions());
-                  data.put(
-                      "departmentId",
-                      role.departmentId() == null ? null : role.departmentId().toString());
-                  data.put("roomId", role.roomId() == null ? null : role.roomId().toString());
-                  data.put("validFrom", role.validFrom().toString());
-                  data.put("validTo", role.validTo() == null ? null : role.validTo().toString());
+                  data.put("grantedBy", role.grantedBy().toString());
+                  data.put("grantedAt", role.grantedAt().toString());
                   return data;
                 })
             .toList();
@@ -137,7 +133,7 @@ public final class ServerJwtTokens implements SessionTokens {
           || !validIdentity
           || username == null
           || username.isBlank()
-          || username.length() > 200
+          || username.length() > 150
           || issued == null
           || expires == null
           || issued.isAfter(now)
@@ -158,13 +154,11 @@ public final class ServerJwtTokens implements SessionTokens {
         }
         roles.add(
             new RoleAssignment(
-                UUID.fromString((String) map.get("assignmentId")),
+                UUID.fromString((String) map.get("roleId")),
                 (String) map.get("roleCode"),
                 permissions.stream().map(String.class::cast).toList(),
-                uuid(map.get("departmentId")),
-                uuid(map.get("roomId")),
-                Instant.parse((String) map.get("validFrom")),
-                map.get("validTo") == null ? null : Instant.parse((String) map.get("validTo"))));
+                UUID.fromString((String) map.get("grantedBy")),
+                Instant.parse((String) map.get("grantedAt"))));
       }
       return Optional.of(
           new Claims(

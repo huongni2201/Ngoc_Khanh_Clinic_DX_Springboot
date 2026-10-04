@@ -1,232 +1,167 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
-import lombok.RequiredArgsConstructor;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import org.springframework.stereotype.Repository;
-
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
-
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ImportRowAction;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ImportType;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ParticipantImportField;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationImportJobRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationImportJobRepository.ImportJobSummary;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.ParticipantImportColumnMapping;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationImportJobMyBatisMapper;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportJobRecord;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationImportRowRecord;
+import com.ngockhanh.clinic.integration.application.imports.ImportStore;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
+import tools.jackson.databind.json.JsonMapper;
 
 @Repository
 @RequiredArgsConstructor
-public class MyBatisHealthExaminationImportJobRepository implements HealthExaminationImportJobRepository {
+public class MyBatisHealthExaminationImportJobRepository
+    implements HealthExaminationImportJobRepository {
+  private final ImportStore store;
+  private final JsonMapper json;
 
-    private final HealthExaminationImportJobMyBatisMapper mapper;
-    private final JsonMapper objectMapper;
+  public Optional<HealthExaminationImportJob> findByIdAndBatchId(
+      AggregateId id, AggregateId batch) {
+    return find(id, batch, false);
+  }
 
-    @Override
-    public Optional<ImportJobSummary> findSummaryByIdAndBatchId(AggregateId importId, AggregateId batchId) {
-        return Optional.ofNullable(mapper.findJobSummaryByIdAndBatchId(importId.value(), batchId.value()))
-                .map(record -> new Converter(objectMapper).toSummary(record));
-    }
+  public Optional<HealthExaminationImportJob> findByIdAndBatchIdForUpdate(
+      AggregateId id, AggregateId batch) {
+    return find(id, batch, true);
+  }
 
-    @Override
-    public Optional<HealthExaminationImportJob> findByIdAndBatchId(AggregateId importId, AggregateId batchId) {
-        return Optional.ofNullable(mapper.findJobByIdAndBatchId(importId.value(), batchId.value()))
-                .map(this::toDomain);
-    }
+  private Optional<HealthExaminationImportJob> find(
+      AggregateId id, AggregateId batch, boolean lock) {
+    return store
+        .find(id.value(), batch.value(), lock)
+        .filter(j -> "ORGANIZATION_PARTICIPANT".equals(j.importType()))
+        .map(
+            j -> {
+              var cfg = json.readValue(j.configuration(), Configuration.class);
+              var rows = store.rows(id.value()).stream().map(this::row).toList();
+              return new HealthExaminationImportJob(
+                  id,
+                  batch,
+                  AggregateId.of(j.createdBy()),
+                  j.createdAt(),
+                  cfg.selectedBatchDayIds().stream().map(AggregateId::of).toList(),
+                  rows,
+                  ImportStatus.valueOf(j.status()),
+                  j.confirmedBy() == null ? null : AggregateId.of(j.confirmedBy()),
+                  j.confirmedAt(),
+                  j.cancelledAt(),
+                  j.expiresAt(),
+                  j.rowVersion(),
+                  true,
+                  j.confirmedResult() == null
+                      ? null
+                      : json.readValue(
+                          j.confirmedResult(),
+                          HealthExaminationImportJob.ConfirmationResult.class));
+            });
+  }
 
-    @Override
-    public Optional<HealthExaminationImportJob> findByIdAndBatchIdForUpdate(
-            AggregateId importId, AggregateId batchId) {
-        return Optional.ofNullable(mapper.findJobByIdAndBatchIdForUpdate(importId.value(), batchId.value()))
-                .map(this::toDomain);
-    }
+  private HealthExaminationImportRow row(ImportStore.Row r) {
+    Payload p = json.readValue(r.normalizedPayload(), Payload.class);
+    var row =
+        new HealthExaminationImportRow(
+            AggregateId.of(r.id()),
+            r.rowNumber(),
+            p.participantCode(),
+            p.fullName(),
+            p.dateOfBirth(),
+            p.sex(),
+            IdentificationNumber.of(p.identificationNumber()),
+            p.phone(),
+            p.email(),
+            p.departmentName(),
+            p.positionName(),
+            List.of());
+    row.assignDay(AggregateId.of(json.readValue(r.previewMetadata(), Preview.class).batchDayId()));
+    if (r.committedResourceId() != null) row.resolve(AggregateId.of(r.committedResourceId()));
+    return row;
+  }
 
-    @Override
-    public long countRowsByJobId(AggregateId jobId, String rowFilter) {
-        return mapper.countRowsByJobId(jobId.value(), rowFilter);
-    }
+  public long countRowsByJobId(AggregateId id, String filter) {
+    return filtered(id, filter).size();
+  }
 
-    @Override
-    public List<HealthExaminationImportRow> findRowsByJobId(
-            AggregateId jobId, String rowFilter, long offset, int limit) {
-        Converter converter = new Converter(objectMapper);
-        return mapper.findRowsPage(jobId.value(), rowFilter, offset, limit).stream()
-                .map(converter::toDomain).toList();
-    }
+  public List<HealthExaminationImportRow> findRowsByJobId(
+      AggregateId id, String filter, long offset, int limit) {
+    return filtered(id, filter).stream().skip(offset).limit(limit).toList();
+  }
 
-    @Override
-    public void save(HealthExaminationImportJob job) {
-        Converter converter = new Converter(objectMapper);
-        HealthExaminationImportJobRecord record = converter.toRecord(job);
-        if (mapper.updateJob(record) == 0 && mapper.insertJob(record) != 1) {
-            throw new IllegalStateException("Import job was not saved");
-        }
-        List<HealthExaminationImportRowRecord> rows = job.rows().stream()
-                .map(row -> converter.toRecord(job.id(), row)).toList();
-        for (int start = 0; start < rows.size(); start += 500) {
-            List<HealthExaminationImportRowRecord> chunk = rows.subList(start, Math.min(start + 500, rows.size()));
-            if (mapper.upsertRows(chunk) != chunk.size()) {
-                throw new IllegalStateException("Import rows were not saved");
-            }
-        }
-    }
+  private List<HealthExaminationImportRow> filtered(AggregateId id, String filter) {
+    if (filter != null && !List.of("VALID", "CREATE").contains(filter)) return List.of();
+    return store.rows(id.value()).stream().map(this::row).toList();
+  }
 
-    private HealthExaminationImportJob toDomain(HealthExaminationImportJobRecord record) {
-        return new Converter(objectMapper).toDomain(record, mapper.findRowsByJobId(record.id()));
-    }
+  public void save(HealthExaminationImportJob j) {
+    var job =
+        new ImportStore.Job(
+            j.id().value(),
+            j.type().name(),
+            j.batchId().value(),
+            json.writeValueAsString(
+                new Configuration(
+                    j.selectedBatchDayIds().stream().map(AggregateId::value).toList())),
+            null,
+            j.status().name(),
+            j.createdByUserId().value(),
+            j.confirmedByUserId() == null ? null : j.confirmedByUserId().value(),
+            j.createdAt(),
+            j.confirmedAt(),
+            j.cancelledAt(),
+            j.expiresAt(),
+            j.confirmedResult() == null ? null : json.writeValueAsString(j.confirmedResult()),
+            j.rowVersion());
+    var rows =
+        j.rows().stream()
+            .map(
+                r ->
+                    new ImportStore.Row(
+                        r.getId().value(),
+                        j.id().value(),
+                        r.getRowNumber(),
+                        json.writeValueAsString(
+                            new Payload(
+                                r.getParticipantCode(),
+                                r.getFullName(),
+                                r.getDateOfBirth(),
+                                r.getSex(),
+                                r.getIdentificationNumber().value(),
+                                r.getPhone(),
+                                r.getEmail(),
+                                r.getDepartmentName(),
+                                r.getPositionName())),
+                        json.writeValueAsString(new Preview(r.getBatchDayId().value())),
+                        r.getResolvedBatchParticipantId() == null
+                            ? null
+                            : "HEALTH_EXAMINATION_BATCH_PARTICIPANT",
+                        r.getResolvedBatchParticipantId() == null
+                            ? null
+                            : r.getResolvedBatchParticipantId().value(),
+                        j.createdAt()))
+            .toList();
+    if (j.persisted()) store.update(job, rows, j.rowVersion());
+    else store.insert(job, rows);
+    j.markStored();
+  }
 
-    @RequiredArgsConstructor
-    private static final class Converter {
-        private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() { };
-        private static final TypeReference<Map<ParticipantImportField, Integer>> COLUMN_MAPPING = new TypeReference<>() { };
-        private final JsonMapper objectMapper;
+  public record Configuration(List<UUID> selectedBatchDayIds) {}
 
-        HealthExaminationImportJob toDomain(HealthExaminationImportJobRecord record, List<HealthExaminationImportRowRecord> rowRecords) {
-            List<HealthExaminationImportRow> rows = rowRecords.stream()
-                    .map(this::toDomain).toList();
-            ParticipantImportColumnMapping mapping = record.columnMappingJson() == null
-                    ? null : mappingFromJson(record.columnMappingJson());
-            return HealthExaminationImportJob.restore(new AggregateId(record.id()),
-                    new AggregateId(record.healthExaminationBatchId()), ImportType.valueOf(record.importType()),
-                    ImportStatus.valueOf(record.status()),
-                    record.sourceFileAttachmentId() == null ? null : new AggregateId(record.sourceFileAttachmentId()),
-                    record.createdByUserId() == null ? null : new AggregateId(record.createdByUserId()),
-                    record.createdAt(), record.confirmedByUserId() == null ? null : new AggregateId(record.confirmedByUserId()),
-                    record.confirmedAt(), mapping, rows);
-        }
+  public record Preview(UUID batchDayId) {}
 
-        ImportJobSummary toSummary(HealthExaminationImportJobRecord record) {
-            return new ImportJobSummary(new AggregateId(record.id()), ImportType.valueOf(record.importType()),
-                    ImportStatus.valueOf(record.status()), valueId(record.sourceFileAttachmentId()),
-                    record.columnMappingJson() == null ? null : mappingFromJson(record.columnMappingJson()),
-                    record.totalRows(), record.validRows(), record.warningRows(), record.errorRows());
-        }
-
-        private static AggregateId valueId(java.util.UUID value) {
-            return value == null ? null : new AggregateId(value);
-        }
-
-        private HealthExaminationImportRow toDomain(HealthExaminationImportRowRecord record) {
-            try {
-                NormalizedPayload payload = objectMapper.readValue(record.normalizedPayloadJson(), NormalizedPayload.class);
-                List<String> errorCodes = record.errorCodesJson() == null ? List.of()
-                        : objectMapper.readValue(record.errorCodesJson(), STRING_LIST);
-                String identificationValue = payload.identificationNumber() == null
-                        ? record.identificationNumberSnapshot() : payload.identificationNumber();
-                IdentificationNumber identificationNumber = identificationValue == null
-                        ? null : IdentificationNumber.of(identificationValue);
-                HealthExaminationImportRow row = HealthExaminationImportRow.restore(new AggregateId(record.id()), record.rowNumber(),
-                        "VALID".equals(record.validationStatus()), errorCodes, record.participantCodeSnapshot(),
-                        payload.fullName(), payload.dateOfBirth(), payload.sex(), identificationNumber,
-                        payload.identificationNumberIssueDate(), payload.identificationNumberIssuePlace(),
-                        payload.ethnicity(), payload.subjectType(), payload.payerSource(), payload.bloodGroup(),
-                        payload.phone(), payload.province(), payload.ward(), payload.addressDetail(),
-                        payload.administrativeOccupation(), payload.workplaceOrSchool(),
-                        payload.healthExaminationReason(), payload.departmentName(), payload.jobTitle(),
-                        payload.occupation(), record.serviceCodeSnapshot(), toId(record.resolvedServiceRequestId()),
-                        toId(record.resolvedPatientId()), toId(record.resolvedHealthExaminationParticipantId()),
-                        toId(record.resolvedBatchParticipantId()), toId(record.resolvedBatchServiceId()));
-                if (payload.rosterNote() != null) row.setRosterNote(payload.rosterNote());
-                if (payload.warningCodes() != null) payload.warningCodes().forEach(row::addWarning);
-                if (payload.appliedAction() != null) row.setAppliedAction(payload.appliedAction());
-                row.setPreviewFingerprint(payload.previewFingerprint());
-                return row;
-            } catch (RuntimeException failure) {
-                throw new IllegalStateException("Unable to read stored import row", failure);
-            }
-        }
-
-        private HealthExaminationImportJobRecord toRecord(HealthExaminationImportJob job) {
-            List<HealthExaminationImportRow> rows = job.rows();
-            int totalRows = rows.size();
-            int validRows = (int) rows.stream().filter(HealthExaminationImportRow::isValid).count();
-            int warningRows = (int) rows.stream().filter(row -> !row.getWarningCodes().isEmpty()).count();
-            try {
-                String mappingJson = job.columnMapping() == null ? null
-                        : objectMapper.writeValueAsString(job.columnMapping().columns());
-                return new HealthExaminationImportJobRecord(job.id().value(), job.batchId().value(), job.type().name(),
-                        value(job.sourceFileAttachmentId()), job.status().name(), mappingJson, totalRows, validRows, warningRows,
-                        totalRows - validRows, value(job.createdByUserId()), value(job.confirmedByUserId()),
-                        job.createdAt(), job.confirmedAt());
-            } catch (RuntimeException failure) {
-                throw new IllegalStateException("Unable to serialize import column mapping", failure);
-            }
-        }
-
-        private HealthExaminationImportRowRecord toRecord(AggregateId jobId, HealthExaminationImportRow row) {
-            try {
-                String normalizedPayload = objectMapper.writeValueAsString(new NormalizedPayload(
-                        row.getFullName(), row.getDateOfBirth(), row.getSex(),
-                        row.getIdentificationNumber() == null ? null : row.getIdentificationNumber().value(),
-                        row.getIdentificationNumberIssueDate(), row.getIdentificationNumberIssuePlace(), row.getEthnicity(),
-                        row.getSubjectType(), row.getPayerSource(), row.getBloodGroup(), row.getPhone(), row.getProvince(), row.getWard(),
-                        row.getAddressDetail(), row.getAdministrativeOccupation(), row.getWorkplaceOrSchool(),
-                        row.getHealthExaminationReason(), row.getDepartmentName(), row.getJobTitle(), row.getOccupation(),
-                        row.getRosterNote(), row.getWarningCodes(), row.getAppliedAction(), row.getPreviewFingerprint()));
-                return new HealthExaminationImportRowRecord(row.getId().value(), jobId.value(), row.getRowNumber(),
-                        row.getParticipantCode(), row.getIdentificationNumber() == null ? null : row.getIdentificationNumber().value(),
-                        row.getServiceCode(), row.isValid() ? "VALID" : "INVALID",
-                        objectMapper.writeValueAsString(row.getErrorCodes()), normalizedPayload,
-                        value(row.getResolvedPatientId()), value(row.getResolvedParticipantId()),
-                        value(row.getResolvedBatchParticipantId()), value(row.getResolvedBatchServiceId()),
-                        value(row.getServiceRequestId()));
-            } catch (RuntimeException failure) {
-                throw new IllegalStateException("Unable to serialize import row", failure);
-            }
-        }
-
-        private static AggregateId toId(java.util.UUID value) {
-            return value == null ? null : new AggregateId(value);
-        }
-
-        private static java.util.UUID value(AggregateId id) {
-            return id == null ? null : id.value();
-        }
-
-        private ParticipantImportColumnMapping mappingFromJson(String json) {
-            try {
-                return ParticipantImportColumnMapping.of(objectMapper.readValue(json, COLUMN_MAPPING));
-            } catch (RuntimeException failure) {
-                throw new IllegalStateException("Unable to read stored import column mapping", failure);
-            }
-        }
-
-        private record NormalizedPayload(
-                String fullName,
-                LocalDate dateOfBirth,
-                String sex,
-                String identificationNumber,
-                LocalDate identificationNumberIssueDate,
-                String identificationNumberIssuePlace,
-                String ethnicity,
-                String subjectType,
-                String payerSource,
-                String bloodGroup,
-                String phone,
-                String province,
-                String ward,
-                String addressDetail,
-                String administrativeOccupation,
-                String workplaceOrSchool,
-                String healthExaminationReason,
-                String departmentName,
-                String jobTitle,
-                String occupation,
-                String rosterNote,
-                List<String> warningCodes,
-                ImportRowAction appliedAction,
-                String previewFingerprint) {
-        }
-    }
+  public record Payload(
+      String participantCode,
+      String fullName,
+      LocalDate dateOfBirth,
+      String sex,
+      String identificationNumber,
+      String phone,
+      String email,
+      String departmentName,
+      String positionName) {}
 }

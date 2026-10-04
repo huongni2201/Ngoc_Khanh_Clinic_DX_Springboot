@@ -1,69 +1,70 @@
 package com.ngockhanh.clinic.healthexamination.domain.entity;
 
-import java.util.Objects;
-
+import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
-import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
+import java.time.Instant;
 
-public final class HealthExaminationBatchParticipantService {
-    private final AggregateId id;
-    private final AggregateId batchServiceId;
-    private final AggregateId serviceRequestId;
-    private final Money unitPrice;
-    private final boolean billable;
+/** Staff reconciliation of a performed batch service, with its original price snapshot. */
+public record HealthExaminationBatchParticipantService(
+    AggregateId id,
+    AggregateId batchId,
+    AggregateId batchParticipantId,
+    AggregateId batchServiceId,
+    boolean performed,
+    AggregateId serviceRequestId,
+    Money unitPriceSnapshot,
+    AggregateId recordedBy,
+    Instant recordedAt,
+    Instant createdAt,
+    Instant updatedAt,
+    long rowVersion) {
+  public HealthExaminationBatchParticipantService {
+    if (id == null
+        || batchId == null
+        || batchParticipantId == null
+        || batchServiceId == null
+        || unitPriceSnapshot == null
+        || recordedBy == null
+        || recordedAt == null
+        || createdAt == null
+        || updatedAt == null
+        || rowVersion < 0) throw new IllegalArgumentException("Invalid reconciled service");
+  }
 
-    private HealthExaminationBatchParticipantService(AggregateId id, AggregateId batchServiceId,
-                                                    AggregateId serviceRequestId, Money unitPrice,
-                                                    boolean billable) {
-        if (id == null || batchServiceId == null || unitPrice == null) {
-            throw new IllegalArgumentException("Invalid participant assignment");
-        }
-        this.id = id;
-        this.batchServiceId = batchServiceId;
-        this.serviceRequestId = serviceRequestId;
-        this.unitPrice = unitPrice;
-        this.billable = billable;
-    }
+  public HealthExaminationBatchParticipantService recordPerformed(
+      boolean performed, AggregateId actor, Instant at) {
+    return new HealthExaminationBatchParticipantService(
+        id,
+        batchId,
+        batchParticipantId,
+        batchServiceId,
+        performed,
+        serviceRequestId,
+        unitPriceSnapshot,
+        actor,
+        at,
+        createdAt,
+        at,
+        rowVersion);
+  }
 
-    public static HealthExaminationBatchParticipantService create(AggregateId id, AggregateId batchServiceId,
-                                                                   Money unitPrice) {
-        return new HealthExaminationBatchParticipantService(id, batchServiceId, null, unitPrice, false);
-    }
-
-    public static HealthExaminationBatchParticipantService create(AggregateId id, AggregateId batchServiceId,
-                                                                   AggregateId serviceRequestId, Money unitPrice) {
-        return new HealthExaminationBatchParticipantService(id, batchServiceId, serviceRequestId, unitPrice, false);
-    }
-
-    public static HealthExaminationBatchParticipantService restore(AggregateId id, AggregateId batchServiceId,
-                                                                    AggregateId serviceRequestId, Money unitPrice,
-                                                                    boolean billable) {
-        return new HealthExaminationBatchParticipantService(id, batchServiceId, serviceRequestId, unitPrice, billable);
-    }
-
-    public HealthExaminationBatchParticipantService markedBillable() {
-        return billable ? this : new HealthExaminationBatchParticipantService(
-                id, batchServiceId, serviceRequestId, unitPrice, true);
-    }
-
-    public HealthExaminationBatchParticipantService withUnitPrice(Money price) {
-        if (price == null) throw new IllegalArgumentException("Missing price");
-        return new HealthExaminationBatchParticipantService(id, batchServiceId, serviceRequestId, price, billable);
-    }
-
-    public HealthExaminationBatchParticipantService linkServiceRequest(AggregateId requestId) {
-        if (requestId == null) throw new IllegalArgumentException("Missing Service Request");
-        if (serviceRequestId != null && !Objects.equals(serviceRequestId, requestId)) {
-            throw new DomainRuleViolation("Service Request relink forbidden");
-        }
-        if (Objects.equals(serviceRequestId, requestId)) return this;
-        return new HealthExaminationBatchParticipantService(id, batchServiceId, requestId, unitPrice, billable);
-    }
-
-    public AggregateId id() { return id; }
-    public AggregateId batchServiceId() { return batchServiceId; }
-    public AggregateId serviceRequestId() { return serviceRequestId; }
-    public Money unitPrice() { return unitPrice; }
-    public boolean billable() { return billable; }
+  public HealthExaminationBatchParticipantService linkServiceRequest(AggregateId request) {
+    if (request == null) throw new IllegalArgumentException("Service request is required");
+    if (serviceRequestId != null && !serviceRequestId.equals(request))
+      throw new DomainRuleViolation("Service Request relink forbidden");
+    return new HealthExaminationBatchParticipantService(
+        id,
+        batchId,
+        batchParticipantId,
+        batchServiceId,
+        performed,
+        request,
+        unitPriceSnapshot,
+        recordedBy,
+        recordedAt,
+        createdAt,
+        updatedAt,
+        rowVersion);
+  }
 }

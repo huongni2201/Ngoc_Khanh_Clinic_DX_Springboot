@@ -1,208 +1,147 @@
 package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportType;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.ParticipantImportColumnMapping;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import java.time.Instant;
+import java.util.List;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 
+@Getter
+@Accessors(fluent = true)
 public final class HealthExaminationImportJob {
-    private final AggregateId id;
-    private final AggregateId batchId;
-    private final ImportType type;
-    private final AggregateId sourceFileAttachmentId;
-    private final AggregateId createdByUserId;
-    private final Instant createdAt;
-    private final Map<Integer, HealthExaminationImportRow> rows = new HashMap<>();
-    private ParticipantImportColumnMapping columnMapping;
-    private ImportStatus status;
-    private AggregateId confirmedByUserId;
-    private Instant confirmedAt;
+  private final AggregateId id;
+  private final AggregateId batchId;
+  private final AggregateId createdByUserId;
+  private final Instant createdAt;
+  private List<AggregateId> selectedBatchDayIds;
+  private final List<HealthExaminationImportRow> rows;
+  private ImportStatus status;
+  private AggregateId confirmedByUserId;
+  private Instant confirmedAt;
+  private Instant cancelledAt;
+  private final Instant expiresAt;
+  private long rowVersion;
+  private boolean persisted;
+  private ConfirmationResult confirmedResult;
 
-    private HealthExaminationImportJob(AggregateId id, AggregateId batchId, ImportType type,
-                                       ImportStatus status, AggregateId sourceFileAttachmentId,
-                                       AggregateId createdByUserId, Instant createdAt,
-                                       AggregateId confirmedByUserId, Instant confirmedAt) {
-        if (id == null || batchId == null || type == null || status == null) {
-            throw new IllegalArgumentException("Invalid import job");
-        }
-        this.id = id;
-        this.batchId = batchId;
-        this.type = type;
-        this.status = status;
-        this.sourceFileAttachmentId = sourceFileAttachmentId;
-        this.createdByUserId = createdByUserId;
-        this.createdAt = createdAt;
-        this.confirmedByUserId = confirmedByUserId;
-        this.confirmedAt = confirmedAt;
+  public record ConfirmationResult(int importedRows) {
+    public ConfirmationResult {
+      if (importedRows < 1)
+        throw new IllegalArgumentException("Confirmation requires imported rows");
     }
+  }
 
-    public static HealthExaminationImportJob create(AggregateId id, AggregateId batchId, ImportType type) {
-        return new HealthExaminationImportJob(id, batchId, type, ImportStatus.UPLOADED,
-                null, null, null, null, null);
-    }
+  public HealthExaminationImportJob(
+      AggregateId id,
+      AggregateId batchId,
+      AggregateId createdByUserId,
+      Instant createdAt,
+      List<AggregateId> selectedBatchDayIds,
+      List<HealthExaminationImportRow> rows,
+      ImportStatus status,
+      AggregateId confirmedByUserId,
+      Instant confirmedAt,
+      Instant cancelledAt,
+      Instant expiresAt,
+      long rowVersion,
+      boolean persisted,
+      ConfirmationResult confirmedResult) {
+    if (id == null
+        || batchId == null
+        || createdByUserId == null
+        || createdAt == null
+        || status == null
+        || rowVersion < 0
+        || rows == null
+        || rows.isEmpty()
+        || selectedBatchDayIds == null
+        || selectedBatchDayIds.isEmpty()
+        || selectedBatchDayIds.stream().distinct().count() != selectedBatchDayIds.size()
+        || rows.stream()
+            .anyMatch(
+                row ->
+                    !row.isValid()
+                        || row.getBatchDayId() == null
+                        || !selectedBatchDayIds.contains(row.getBatchDayId()))
+        || rows.stream().map(HealthExaminationImportRow::getRowNumber).distinct().count()
+            != rows.size()
+        || rows.stream().map(HealthExaminationImportRow::getIdentificationNumber).distinct().count()
+            != rows.size())
+      throw new IllegalArgumentException("Only fully valid assigned rows can form an import job");
+    this.id = id;
+    this.batchId = batchId;
+    this.createdByUserId = createdByUserId;
+    this.createdAt = createdAt;
+    this.selectedBatchDayIds = List.copyOf(selectedBatchDayIds);
+    this.rows =
+        rows.stream()
+            .sorted(java.util.Comparator.comparingInt(HealthExaminationImportRow::getRowNumber))
+            .toList();
+    this.status = status;
+    this.confirmedByUserId = confirmedByUserId;
+    this.confirmedAt = confirmedAt;
+    this.cancelledAt = cancelledAt;
+    this.expiresAt = expiresAt;
+    this.rowVersion = rowVersion;
+    this.persisted = persisted;
+    this.confirmedResult = confirmedResult;
+    if (status == ImportStatus.CONFIRMED
+        ? confirmedByUserId == null
+            || confirmedAt == null
+            || confirmedResult == null
+            || confirmedResult.importedRows() != rows.size()
+        : confirmedByUserId != null || confirmedAt != null || confirmedResult != null)
+      throw new IllegalArgumentException("Invalid confirmation audit");
+    if (status == ImportStatus.CANCELLED && cancelledAt == null)
+      throw new IllegalArgumentException("Cancellation time is required");
+  }
 
-    public static HealthExaminationImportJob create(AggregateId id, AggregateId batchId, ImportType type,
-                                                    AggregateId sourceFileAttachmentId,
-                                                    AggregateId createdByUserId, Instant createdAt) {
-        if (sourceFileAttachmentId == null || createdByUserId == null || createdAt == null) {
-            throw new IllegalArgumentException("Import job audit and source metadata are required");
-        }
-        return new HealthExaminationImportJob(id, batchId, type, ImportStatus.UPLOADED,
-                sourceFileAttachmentId, createdByUserId, createdAt, null, null);
-    }
+  public void markStored() {
+    if (persisted) rowVersion++;
+    else persisted = true;
+  }
 
-    public static HealthExaminationImportJob restore(AggregateId id, AggregateId batchId, ImportType type,
-                                                     ImportStatus status, List<HealthExaminationImportRow> rows) {
-        if (rows == null) throw new IllegalArgumentException("Invalid persisted import job");
-        HealthExaminationImportJob job = new HealthExaminationImportJob(id, batchId, type, status,
-                null, null, null, null, null);
-        addRows(job, rows);
-        return job;
-    }
+  public ImportType type() {
+    return ImportType.ORGANIZATION_PARTICIPANT;
+  }
 
-    public static HealthExaminationImportJob restore(AggregateId id, AggregateId batchId, ImportType type,
-                                                     ImportStatus status, AggregateId sourceFileAttachmentId,
-                                                     AggregateId createdByUserId, Instant createdAt,
-                                                     AggregateId confirmedByUserId, Instant confirmedAt,
-                                                     List<HealthExaminationImportRow> rows) {
-        return restore(id, batchId, type, status, sourceFileAttachmentId, createdByUserId, createdAt,
-                confirmedByUserId, confirmedAt, null, rows);
-    }
+  public boolean isConfirmed() {
+    return status == ImportStatus.CONFIRMED;
+  }
 
-    public static HealthExaminationImportJob restore(AggregateId id, AggregateId batchId, ImportType type,
-                                                     ImportStatus status, AggregateId sourceFileAttachmentId,
-                                                     AggregateId createdByUserId, Instant createdAt,
-                                                     AggregateId confirmedByUserId, Instant confirmedAt,
-                                                     ParticipantImportColumnMapping columnMapping,
-                                                     List<HealthExaminationImportRow> rows) {
-        if (rows == null) throw new IllegalArgumentException("Invalid persisted import job");
-        HealthExaminationImportJob job = new HealthExaminationImportJob(id, batchId, type, status,
-                sourceFileAttachmentId, createdByUserId, createdAt, confirmedByUserId, confirmedAt);
-        job.columnMapping = columnMapping;
-        addRows(job, rows);
-        return job;
-    }
+  public void requireEditable(Instant now) {
+    if (now == null) throw new IllegalArgumentException("Import lifecycle time is required");
+    if (status != ImportStatus.VALIDATED || (expiresAt != null && !expiresAt.isAfter(now)))
+      throw new DomainRuleViolation("Import is no longer editable");
+  }
 
-    private static void addRows(HealthExaminationImportJob job, List<HealthExaminationImportRow> rows) {
-        for (HealthExaminationImportRow row : rows) {
-            if (row == null || job.rows.putIfAbsent(row.getRowNumber(), row) != null) {
-                throw new IllegalArgumentException("Invalid persisted import row list");
-            }
-        }
-    }
+  public void reviseDays(List<AggregateId> days, Instant now) {
+    requireEditable(now);
+    if (days == null
+        || days.isEmpty()
+        || days.stream().distinct().count() != days.size()
+        || rows.stream().anyMatch(row -> !days.contains(row.getBatchDayId())))
+      throw new DomainRuleViolation("Import assignments must belong to the selected days");
+    selectedBatchDayIds = List.copyOf(days);
+  }
 
-    public void addRow(HealthExaminationImportRow row) {
-        if (status != ImportStatus.UPLOADED) throw new DomainRuleViolation("Import rows locked");
-        if (row == null) throw new IllegalArgumentException("Missing import row");
-        if (rows.putIfAbsent(row.getRowNumber(), row) != null) throw new DomainRuleViolation("Duplicate import row");
-    }
+  public void confirm(AggregateId actor, Instant at) {
+    requireEditable(at);
+    if (actor == null || rows.stream().anyMatch(row -> row.getResolvedBatchParticipantId() == null))
+      throw new DomainRuleViolation("Import rows must be committed before confirmation");
+    status = ImportStatus.CONFIRMED;
+    confirmedByUserId = actor;
+    confirmedAt = at;
+    confirmedResult = new ConfirmationResult(rows.size());
+  }
 
-    public void mapColumns(ParticipantImportColumnMapping mapping) {
-        if (type != ImportType.PARTICIPANT_LIST || status != ImportStatus.UPLOADED || mapping == null) {
-            throw new DomainRuleViolation("Import columns cannot be mapped");
-        }
-        columnMapping = mapping;
-    }
-
-    public void validate() {
-        if (status != ImportStatus.UPLOADED || rows.isEmpty()
-                || (type == ImportType.PARTICIPANT_LIST && columnMapping == null)) {
-            throw new DomainRuleViolation("Import cannot be validated");
-        }
-        status = ImportStatus.VALIDATED;
-    }
-
-    public void replaceValidatedRoster(ParticipantImportColumnMapping mapping,
-                                       List<HealthExaminationImportRow> validatedRows) {
-        if (type != ImportType.PARTICIPANT_LIST || status != ImportStatus.VALIDATED
-                || mapping == null || validatedRows == null || validatedRows.isEmpty()) {
-            throw new DomainRuleViolation("Validated roster cannot be refreshed");
-        }
-        Map<Integer, HealthExaminationImportRow> replacement = new HashMap<>();
-        for (HealthExaminationImportRow row : validatedRows) {
-            if (row == null || replacement.putIfAbsent(row.getRowNumber(), row) != null) {
-                throw new DomainRuleViolation("Validated roster contains duplicate rows");
-            }
-        }
-        rows.clear();
-        rows.putAll(replacement);
-        columnMapping = mapping;
-    }
-
-    public void cancel() {
-        if (status == ImportStatus.CONFIRMED || status == ImportStatus.PARTIAL
-                || status == ImportStatus.FAILED || status == ImportStatus.CANCELED) {
-            throw new DomainRuleViolation("Import job cannot be canceled in its current state");
-        }
-        status = ImportStatus.CANCELED;
-    }
-
-    public void confirm() {
-        if (status != ImportStatus.VALIDATED || rows.values().stream().noneMatch(HealthExaminationImportRow::isValid)
-                || (type == ImportType.PARTICIPANT_LIST && rows.values().stream()
-                .anyMatch(row -> !row.isValid()))
-                || (type == ImportType.PARTICIPANT_LIST && rows.values().stream()
-                .anyMatch(row -> row.isValid() && !row.hasAdministrativeIdentity()))
-                || (type == ImportType.RESULTS && rows.values().stream()
-                .anyMatch(row -> row.isValid() && row.getServiceRequestId() == null))) {
-            throw new DomainRuleViolation("Import has blocking errors");
-        }
-        status = rows.values().stream().anyMatch(row -> !row.isValid())
-                ? ImportStatus.PARTIAL : ImportStatus.CONFIRMED;
-    }
-
-    public void confirm(AggregateId actorUserId, Instant confirmedAt) {
-        if (actorUserId == null || confirmedAt == null) {
-            throw new IllegalArgumentException("Confirmation audit is required");
-        }
-        confirm();
-        this.confirmedByUserId = actorUserId;
-        this.confirmedAt = confirmedAt;
-    }
-
-    public List<HealthExaminationImportRow> confirmableRosterRows() {
-        if (type != ImportType.PARTICIPANT_LIST || !isImportReviewed()) {
-            throw new DomainRuleViolation("Roster rows are not validated");
-        }
-        return rows.values().stream().filter(row -> row.isValid() && row.hasAdministrativeIdentity())
-                .sorted((left, right) -> Integer.compare(left.getRowNumber(), right.getRowNumber())).toList();
-    }
-
-    public List<HealthExaminationImportRow> confirmableResultRows() {
-        if (type != ImportType.RESULTS || !isImportReviewed()) {
-            throw new DomainRuleViolation("Result rows are not validated");
-        }
-        return rows.values().stream().filter(row -> row.isValid() && row.getServiceRequestId() != null)
-                .sorted((left, right) -> Integer.compare(left.getRowNumber(), right.getRowNumber())).toList();
-    }
-
-    private boolean isImportReviewed() {
-        return status == ImportStatus.VALIDATED || status == ImportStatus.PARTIAL || status == ImportStatus.CONFIRMED;
-    }
-
-    public AggregateId id() { return id; }
-    public AggregateId batchId() { return batchId; }
-    public ImportType type() { return type; }
-    public ImportStatus status() { return status; }
-    public ParticipantImportColumnMapping columnMapping() { return columnMapping; }
-    public AggregateId sourceFileAttachmentId() { return sourceFileAttachmentId; }
-    public AggregateId createdByUserId() { return createdByUserId; }
-    public AggregateId confirmedByUserId() { return confirmedByUserId; }
-    public Instant createdAt() { return createdAt; }
-    public Instant confirmedAt() { return confirmedAt; }
-    public boolean isConfirmed() { return status == ImportStatus.CONFIRMED || status == ImportStatus.PARTIAL; }
-
-    public List<HealthExaminationImportRow> rows() {
-        List<HealthExaminationImportRow> orderedRows = new ArrayList<>(rows.values());
-        orderedRows.sort((left, right) -> Integer.compare(left.getRowNumber(), right.getRowNumber()));
-        return List.copyOf(orderedRows);
-    }
+  public void cancel(Instant now) {
+    requireEditable(now);
+    status = ImportStatus.CANCELLED;
+    cancelledAt = now;
+  }
 }

@@ -6,6 +6,10 @@ This repository contains the production backend for **Ngọc Khánh Clinic Digit
 
 This is not a demo/prototype repository.
 
+Current business/schema authority: the owner-selected clean-slate design and
+`V001__create_clean_slate_schema.sql`, as recorded in ADR-0013. Follow ADR-0013
+where earlier FINAL documents or rules below conflict; retain Participant terminology.
+
 Before making any non-trivial change, read in this order:
 
 1. `PROJECT_RULES.md`
@@ -13,7 +17,7 @@ Before making any non-trivial change, read in this order:
 3. Relevant ADRs in `docs/adr/`
 4. Backend architecture docs in `docs/architecture/`
 
-Use the FINAL DOCX sources directly for business-contract changes. Architecture-only documentation updates use project rules, accepted ADRs, and the existing implementation. If a required business source document is unavailable, do not invent business rules. State the missing contract and stop at a safe boundary.
+Use the owner-selected clean-slate design, current architecture documents and SQL migration for business-contract changes. Keep the two current clean-slate ADRs as decision records. Earlier FINAL copies and retired ADRs do not override this contract. If a required business rule is unavailable, state it and stop at a safe boundary.
 
 Accepted ADRs and project rules override generic skill examples.
 
@@ -83,8 +87,15 @@ document
 prescription
 notification
 integration
+appointment
+portal
+audit
 shared
 ```
+
+`shared` is technical support; `audit` owns audit contracts and persistence.
+See ADR-0012 for the clean-slate module inventory. SQL schema names do not change
+Java package naming; keep `healthexamination` without an underscore.
 
 Create only modules required by the current task. Do not generate empty folder trees speculatively.
 
@@ -176,8 +187,8 @@ All SQL and Flyway migrations must be PostgreSQL 18 compatible.
 
 ## 6. Database Source of Truth
 
-`table-design-v2.11` is the MVP database baseline unless superseded by a later accepted document/ADR.
-PostgreSQL physical type mappings are carried forward from ADR-0004 by ADR-0005 and documented in `docs/architecture/05-persistence-and-database.md`; use the baseline for its business tables and invariants.
+The clean-slate V001 is the fresh-database baseline (ADR-0013), superseding table-design-v2.11.
+PostgreSQL physical types and application-managed versions follow `docs/architecture/04-persistence.md` and the clean-slate schema.
 
 Important baseline rules:
 
@@ -185,7 +196,7 @@ Important baseline rules:
 - Plural table names.
 - Primary key: `id`.
 - Foreign key: `<entity>_id`.
-- PostgreSQL types such as `uuid`, `timestamptz(3)` (Java `Instant`, per ADR-0006), `numeric(18,2)`, `text`/`varchar`, `boolean`, and trigger-backed `bigint` version counters.
+- PostgreSQL types such as `uuid`, `timestamptz(3)` (Java `Instant`), `numeric(14,2)`, `text`/`varchar`, `boolean`, and application-incremented `bigint` version counters.
 - Clinical and financial history is never hard-deleted.
 - Final clinical results and issued prescriptions are versioned, not overwritten.
 - Database schema changes must use Flyway migrations.
@@ -206,33 +217,22 @@ Do not silently change these rules:
 - No fuzzy duplicate/merge workflow by name or phone in MVP.
 - Do not create separate identity-type/passport abstractions unless requirements change.
 
-### Corporate Health Check
+### Corporate Health Examination
 
-```text
-Organization
-  -> HealthExaminationParticipant
-  -> HealthExaminationBatch
-      -> HealthExaminationBatchService
-      -> HealthExaminationBatchParticipant
-          -> prepared Patient + Encounter + HealthExaminationRecord/SHS
-          -> HealthExaminationBatchParticipantService
-```
-
-- `HealthExaminationParticipant` is not automatically a `Patient`.
-- Importing a participant roster must not create Patient records.
-- Patient linking/creation occurs during authorized visit preparation by exact CCCD lookup, before check-in when the record is prepared in advance.
-- Only Doctor may select the per-participant subset of examination services.
-- Selected participant services must be a subset of `HealthExaminationBatchService`.
-- Front Desk must not add/select examination items for a participant.
-- No service outside batch scope may be added by that selection flow.
-- One health-check record has one SHS/health-check record code used across its forms.
-- Mẫu số 03 is the master health-check form and carries the SHS barcode.
-- Administrative print data comes from the `HealthExaminationRecord` snapshot, not the mutable current Patient record.
+- Organization owns Batch, BatchDay and batch-scoped Participant snapshots.
+- Import never creates Patient records; authorized preparation links by exact CCCD.
+- Batch has at least one day; DRAFT, READY, FINALIZED and CLOSED are its states.
+- Staff reconcile actual performed services within batch scope independently of
+  Doctor orders. Keep attendance, roster and reconciliation state independent.
+- Validate an entire import before storing staging. Reject duplicates; confirm
+  inserts new participants atomically and preserves approved day assignments.
+- Each record has one mrn/SHS across its forms. Issued snapshots/versions are
+  immutable and administrative print data comes from the issued snapshot.
 
 ### Encounter and diagnostic progress
 
 - Encounter and ServiceRequest retain their own lifecycles.
-- Diagnostic progress is derived from Encounter, OrderRound, ServiceRequest, PaymentAuthorization, location and Result.
+- Diagnostic progress is derived from Encounter, OrderRound, ServiceRequest, ServiceAuthorization, location and Result.
 - Derive operational progress from Encounter and its related records; do not persist a parallel queue-stage model.
 - Doctor worklists are driven by Encounter and required ServiceRequest/Result state.
 - Multiple `OrderRound`s may exist in one Encounter.
@@ -459,9 +459,9 @@ Critical business rules include:
 
 ```text
 CCCD / `identification_number` uniqueness
-under-18 rejection for adult health checks
+health-examination lifecycle (no backend age eligibility rule)
 participant import validation
-doctor-only participant service selection
+authorized participant service reconciliation
 subset-of-batch-service enforcement
 health-check snapshot/reprint behavior
 payment gate
@@ -486,7 +486,7 @@ V<version>__<description>.sql
 
 Migrations must include constraints and indexes required by the documented model.
 
-Apply the full migration chain in `src/main/resources/db/migration/` for a fresh database; see `docs/architecture/05-persistence-and-database.md`.
+Apply the full migration chain in `src/main/resources/db/migration/` for a fresh database; see `docs/architecture/04-persistence.md`.
 
 Do not rely only on application validation for database invariants such as a unique `patients.identification_number`.
 

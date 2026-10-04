@@ -2,7 +2,6 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.mapper;
 
 import com.ngockhanh.clinic.identity.infrastructure.persistence.projection.RoleGrantRow;
 import com.ngockhanh.clinic.identity.infrastructure.persistence.projection.UserLoginRow;
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
@@ -14,7 +13,7 @@ public interface UserLoginMyBatisMapper {
 
   UserLoginRow find(String username);
 
-  List<RoleGrantRow> grants(@Param("userId") UUID userId, @Param("now") Instant now);
+  List<RoleGrantRow> grants(@Param("accountId") UUID accountId);
 
-  int lastLogin(@Param("userId") UUID userId, @Param("now") Instant now);
+  UUID lockEligibleAccount(@Param("accountId") UUID accountId);
 }

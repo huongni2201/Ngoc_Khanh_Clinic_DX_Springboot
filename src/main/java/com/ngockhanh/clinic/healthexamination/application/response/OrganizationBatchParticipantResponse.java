@@ -1,35 +1,51 @@
 package com.ngockhanh.clinic.healthexamination.application.response;
 
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
-import lombok.Builder;
 
-@Builder
 public record OrganizationBatchParticipantResponse(
-        UUID batchParticipantId,
-        UUID participantId,
-        String participantCode,
-        String departmentName,
-        String jobTitle,
-        String occupation,
-        String fullName,
-        LocalDate dateOfBirth,
-        String sex,
-        String identificationNumber,
-        LocalDate identificationNumberIssueDate,
-        String identificationNumberIssuePlace,
-        String ethnicity,
-        String subjectType,
-        String payerSource,
-        String bloodGroup,
-        String phone,
-        String province,
-        String ward,
-        String addressDetail,
-        String administrativeOccupation,
-        String workplaceOrSchool,
-        String healthExaminationReason,
-        String status,
-        Instant createdAt) {
+    UUID id,
+    UUID batchDayId,
+    String participantCode,
+    String fullName,
+    LocalDate dateOfBirth,
+    String sex,
+    String identificationNumber,
+    String phone,
+    String email,
+    String departmentName,
+    String positionName,
+    UUID patientId,
+    String rosterStatus,
+    String attendanceStatus,
+    LocalDate actualExaminationDate,
+    String serviceReconciliationStatus,
+    Instant preparedAt,
+    Instant createdAt,
+    long rowVersion) {
+  public static OrganizationBatchParticipantResponse from(HealthExaminationBatchParticipant p) {
+    var r = p.roster();
+    return new OrganizationBatchParticipantResponse(
+        p.id().value(),
+        p.batchDayId().value(),
+        r.participantCode(),
+        r.fullName(),
+        r.dateOfBirth(),
+        r.sex(),
+        r.identificationNumber().value(),
+        r.phone(),
+        r.email(),
+        r.departmentName(),
+        r.positionName(),
+        p.patientId() == null ? null : p.patientId().value(),
+        p.rosterStatus().name(),
+        p.attendanceStatus().name(),
+        p.actualExaminationDate(),
+        p.reconciliationStatus().name(),
+        p.preparedAt(),
+        p.createdAt(),
+        p.rowVersion());
+  }
 }

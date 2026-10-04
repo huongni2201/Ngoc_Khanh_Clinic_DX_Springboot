@@ -1,20 +1,18 @@
 package com.ngockhanh.clinic.notification.infrastructure.persistence.record;
 
+import java.time.Instant;
 import java.util.UUID;
 
-import java.time.Instant;
-
+/** Persistence row of {@code public.notification_attempts}. */
 public record NotificationAttemptRecord(
-        UUID id,
-        UUID notificationId,
-        Integer attemptNumber,
-        String providerCode,
-        String providerMessageId,
-        String status,
-        String requestReference,
-        String responseReference,
-        String errorCode,
-        String errorMessage,
-        Instant attemptedAt
-) {
-}
+    UUID id,
+    UUID notificationId,
+    int attemptNo,
+    String provider,
+    String providerMessageId,
+    String status,
+    String errorCode,
+    String errorMessage,
+    Instant attemptedAt,
+    UUID claimToken,
+    Instant completedAt) {}

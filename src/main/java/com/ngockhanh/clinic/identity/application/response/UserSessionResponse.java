@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.UUID;
 
 public record UserSessionResponse(
-    UUID userId,
-    UUID staffId,
+    UUID accountId,
+    UUID staffMemberId,
     UUID patientId,
     String username,
-    String principalType,
+    String accountType,
     List<RoleAssignmentResponse> roleAssignments,
     Instant idleExpiresAt,
     Instant absoluteExpiresAt) {
@@ -29,26 +29,14 @@ public record UserSessionResponse(
             .map(
                 r ->
                     new RoleAssignmentResponse(
-                        r.assignmentId(),
-                        r.roleCode(),
-                        r.permissions(),
-                        r.departmentId(),
-                        r.roomId(),
-                        r.validFrom(),
-                        r.validTo()))
+                        r.roleId(), r.roleCode(), r.permissions(), r.grantedBy(), r.grantedAt()))
             .toList(),
         principal.idleExpiresAt(),
         principal.absoluteExpiresAt());
   }
 
   public record RoleAssignmentResponse(
-      UUID assignmentId,
-      String roleCode,
-      List<String> permissions,
-      UUID departmentId,
-      UUID roomId,
-      Instant validFrom,
-      Instant validTo) {
+      UUID roleId, String roleCode, List<String> permissions, UUID grantedBy, Instant grantedAt) {
     public RoleAssignmentResponse {
       permissions = List.copyOf(permissions);
     }

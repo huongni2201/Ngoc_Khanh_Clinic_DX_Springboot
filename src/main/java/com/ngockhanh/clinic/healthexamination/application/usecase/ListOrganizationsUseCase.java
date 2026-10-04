@@ -40,10 +40,21 @@ public class ListOrganizationsUseCase {
     }
 
     String sortKey = normalizeOrDefault(query.sortKey(), PaginationConstants.DEFAULT_SORTED_KEY);
-    if (!Set.of("id", "name", "taxCode", "contactName", "contactPhone", "status", "createdAt").contains(sortKey)) {
+    if (!Set.of(
+            "id",
+            "code",
+            "name",
+            "taxCode",
+            "contactFullName",
+            "contactPhone",
+            "status",
+            "createdAt")
+        .contains(sortKey)) {
       throw new IllegalArgumentException("Invalid sort key");
     }
-    String sortBy = normalizeOrDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY).toUpperCase(Locale.ROOT);
+    String sortBy =
+        normalizeOrDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY)
+            .toUpperCase(Locale.ROOT);
     if (!sortBy.equals("ASC") && !sortBy.equals("DESC")) {
       throw new IllegalArgumentException("Invalid sort direction");
     }

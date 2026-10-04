@@ -1,9 +1,10 @@
-# User login: API and operations
+# Account login: API and operations
 
-Branch: `feature/TungTQ/staff-login`. Decision:
-[ADR-0009](../adr/0009-staff-credentials-and-server-side-sessions.md), with profile
-validation amended by [ADR-0010](../adr/0010-remove-auth-mixed-profile-rejection.md)
-and shared user login by [ADR-0011](../adr/0011-shared-user-login.md).
+The clean-slate account contract follows
+[ADR-0013](../adr/0013-clean-slate-application-contract.md) and the current
+[API/security architecture](../architecture/05-api-and-security.md).
+The supported server-side session mechanism and clean-slate role grants are
+specified directly below; retired user-table ADRs are not required to operate it.
 
 ## Environment
 
@@ -27,7 +28,7 @@ default/prod/production uses Secure cookies and denies every business endpoint
 until RBAC policies are implemented. Identity no longer rejects mixed profiles.
 If `local` or `test` is active, even alongside `prod`/`production`, the existing
 development policy applies: session and CSRF cookies omit Secure, authenticated
-staff with an effective role can access business endpoints, and the default CORS origin is
+staff with an active role can access business endpoints, and the default CORS origin is
 `http://localhost:3000`. Normal application profile settings, including datasource
 and file-storage configuration, still apply. Production deployments must omit
 `local` and `test` to retain the production authentication policy.
@@ -67,22 +68,24 @@ All paths are relative to `/api/v1/auth`. Browser fetches must use
 | Method/path | Input / behavior |
 | --- | --- |
 | GET /csrf | Public. Returns token and headerName; sets HttpOnly XSRF-TOKEN cookie. |
-| POST /login | JSON username/password plus CSRF header and cookie. Sets NKC_SESSION and returns the user session view. |
-| GET /me | NKC_SESSION required. Returns effective assignments from the session snapshot. |
+| POST /login | JSON username/password plus CSRF header and cookie. Sets NKC_SESSION and returns the account session view. |
+| GET /me | NKC_SESSION required. Returns role grants from the session snapshot. |
 | POST /logout | CSRF required. Deletes this session and clears cookie; expired/missing session is also 204. |
-| POST /logout-all | Authenticated session and CSRF required. Revokes every session of the current user; 204. |
+| POST /logout-all | Authenticated session and CSRF required. Revokes every session of the current account; 204. |
 
 Success uses the existing ApiResponse envelope:
 `{"result":"OK","code":200,"message":"...","data":{...}}`.
-Login and /me data contains userId, staffId, patientId, username, principalType,
-roleAssignments, idleExpiresAt and absoluteExpiresAt. STAFF has staffId and a null
-patientId; PATIENT has patientId and a null staffId. Assignments may be empty.
-Each assignment contains assignmentId, roleCode, permissions, departmentId,
-roomId, validFrom, validTo. Permissions remain attached to their scope.
+Login and /me data contains accountId, staffMemberId, patientId, username,
+accountType, roleAssignments, idleExpiresAt and absoluteExpiresAt. STAFF has
+staffMemberId and a null patientId; PATIENT has patientId and a null staffMemberId.
+Assignments may be empty. Each grant contains roleId, roleCode, permissions,
+grantedBy and grantedAt. Account roles have no assignment ID, department/room
+scope or validity interval. Only active roles are loaded at login.
 
 Login request: `{"username":"account.username","password":"<entered password>"}`.
-Username is case sensitive and trimmed; password is unchanged, nonempty and at
-most 72 UTF-8 bytes. The API never returns password/hash/JWT/sessionId fields.
+Username is case sensitive, trimmed and limited to 150 characters; password is
+unchanged, nonempty and at most 72 UTF-8 bytes. The API never returns
+password/hash/JWT/sessionId fields.
 
 Fetch /csrf before login, then send data.token in the header named by
 data.headerName (normally X-XSRF-TOKEN). The token in JSON is masked by Spring
@@ -98,7 +101,7 @@ returns 401. Session views and auth errors use Cache-Control: no-store.
 Errors use `{"result":"NG","code":401,"message":"..."}`:
 
 - 400: structurally invalid/oversized input.
-- 401: invalid credentials, inactive or unlinked account, invalid/expired/revoked session.
+- 401: invalid credentials, locked/disabled account, inactive/suspended staff, unlinked account, invalid/expired/revoked session.
   Eligibility failures intentionally share one message.
 - 403: CSRF/access denied, including a PATIENT or roleless STAFF requesting a
   local/test business endpoint, or any business endpoint without a production policy.
@@ -113,14 +116,14 @@ permission string is present in a session.
 
 ## Provision credentials
 
-Migration V002 does not create accounts, usernames, passwords or roles.
+The clean-slate V001 is for a fresh database and does not create accounts,
+credentials or roles. It does not upgrade a populated legacy database.
 
-1. Back up the database and provider/subject mappings before V002 on any populated
-   database. Validate the backup restore procedure. This branch only tests migration
-   in disposable containers; deployment migration is a separate operator action.
-2. Use existing active staff and role records. Keep the user ID of an existing STAFF
-   account wherever one exists. For new rows, allocate IDs using the existing
-   application UUIDv7 generator.
+1. Apply V001 to the intended empty database using the approved deployment step.
+   Existing data migration requires a separately reviewed migration/restore plan.
+2. Use existing ACTIVE staff_members and active roles. Update the existing STAFF
+   account where one exists; staff_member_id is unique. For new rows, allocate
+   IDs using the application UUIDv7 generator.
 3. Build and generate a hash with the same encoder as the application:
 
    PowerShell:
@@ -136,26 +139,34 @@ Migration V002 does not create accounts, usernames, passwords or roles.
 4. Use the prepared statements in
    [provision-staff.sql](../../scripts/auth/provision-staff.sql) through an approved
    SQL client/JDBC parameter binding. Bind values instead of interpolating SQL.
-   The hash, not the plaintext password, is the password parameter. Verify exactly
-   one intended row changed and commit credentials/assignment together.
-5. Staff and patient users may log in without a role. To access a local/test staff
-   business endpoint, staff need at least one active role in its current
-   [valid_from, valid_to) interval. Assign intended department/room scope and do
-   not invent permission codes. A patient account needs its own user row linked to
-   an existing patient; this guide does not provision or self-register patients.
-6. Credential/status/grant changes on existing accounts require
-   `SessionRevocation.revokeAllSessions(userId)` after DB commit. Direct SQL
-   changes do not revoke existing snapshots. Future account/RBAC use cases must
-   invoke this public contract and report/retry any Redis failure.
+   The hash, not the plaintext password, is the password_hash parameter. Verify exactly
+   one intended row changed and commit credentials/grant together.
+5. Staff and patient accounts may log in without a role. To access a local/test
+   staff business endpoint, staff need at least one active role in the login
+   snapshot. Grant roles through account_roles(account_id, role_id, granted_by,
+   granted_at); do not invent permission codes. A patient account needs an
+   existing patient and no staff_member_id. This guide does not register patients.
+6. Credential/status/grant changes require
+   `SessionRevocation.revokeAllSessions(accountId)` after DB commit. Direct SQL
+   changes do not refresh or revoke existing snapshots. Account/RBAC use cases
+   must invoke this contract and report/retry any Redis failure.
+
+The exported internal UserPrincipal access boundary retains userId/staffId/
+principalType accessor names for existing module consumers; their values are the
+account ID, staff member ID and account type. HTTP responses use the new names.
+The nullable refresh-token hash fields are unused by this session mechanism;
+they do not add a refresh-token endpoint.
 
 ## Failure handling and maintenance
 
-PostgreSQL and Redis are not one transaction. Successful login audit and
-last_login_at commit before a cookie is emitted. A failed commit deletes the
+PostgreSQL and Redis are not one transaction. Login rechecks and locks an eligible account, then commits its ACCOUNT_LOGIN
+audit event before emitting a cookie. The account schema has no last_login_at;
+login does not change account updated_at or row_version. A failed commit deletes the
 unissued Redis session; failed compensation logs an operational error and leaves
 only an unreachable TTL-bound session.
 
-Logout/revocation first changes Redis. Audit failure afterwards logs an operational
+Logout/revocation first changes Redis and records ACCOUNT_LOGOUT or
+ACCOUNT_SESSIONS_REVOKED. Audit failure afterwards logs an operational
 error but cannot undo revocation. A request already authenticated may finish;
 requests checked after revocation are rejected. Monitor those error logs.
 
@@ -172,9 +183,9 @@ Changing the JWT signing key invalidates existing sessions; there is no overlapp
 key rotation in this feature. JWT verification and Redis are both mandatory;
 outages do not fall back to trusting cookie content or a bearer token.
 
-Dropping/recreating provider/subject columns cannot restore lost values. A rollback
-needs the pre-migration backup and an approved restore/migration procedure, with
-credential and session invalidation coordinated. Do not edit V001/V002 checksums.
+Fresh-baseline rollback requires an approved restore/migration plan and
+coordinated credential/session invalidation. Do not replay old Redis snapshots
+after replacing the database.
 
 ## Verification and boundaries
 

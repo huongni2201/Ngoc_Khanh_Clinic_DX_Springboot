@@ -1,69 +1,148 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
+import com.ngockhanh.clinic.healthexamination.application.response.*;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
+import com.ngockhanh.clinic.healthexamination.domain.repository.*;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDay;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
+import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
+import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportSummaryResponse;
-import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ImportType;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ParticipantImportField;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationImportJobRepository;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.ParticipantImportColumnMapping;
-import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
-import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
-
-import lombok.RequiredArgsConstructor;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StoreValidatedParticipantImportUseCase {
-	private final HealthExaminationBatchRepository batches;
-	private final HealthExaminationImportJobRepository jobs;
+  private final java.time.Clock clock;
+  private final HealthExaminationBatchRepository batches;
+  private final HealthExaminationImportJobRepository jobs;
+  private final HealthExaminationBatchParticipantRepository participants;
+  private final ParticipantImportAuditWriter audit;
 
-	@Transactional
-	public ParticipantImportSummaryResponse execute(
-			UUID organizationId, UUID batchId, UUID importId,
-			UUID actorUserId,
-			Map<ParticipantImportField, Integer> columns,
-			List<HealthExaminationImportRow> rows,
-			List<String> headers) {
-		if (organizationId == null || batchId == null || importId == null || actorUserId == null
-				|| rows == null || rows.isEmpty()) {
-			throw new IllegalArgumentException("Validated participant import details are required");
-		}
+  @Transactional
+  public ParticipantImportUploadResponse execute(
+      UUID organizationId,
+      UUID batchId,
+      UUID actorId,
+      List<UUID> selectedDays,
+      List<HealthExaminationImportRow> rows) {
+    var batch =
+        batches
+            .findByIdAndOrganizationIdForUpdate(
+                AggregateId.of(batchId), AggregateId.of(organizationId))
+            .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+    if (!batch.status().allowsRosterImport())
+      throw new BusinessRuleException("Roster import is not allowed for this batch state") {};
+    var days = selectedDays(batch.days(), selectedDays);
+    var counts = new HashMap<String, Integer>();
+    rows.stream()
+        .filter(r -> r.getIdentificationNumber() != null)
+        .forEach(r -> counts.merge(r.getIdentificationNumber().value(), 1, Integer::sum));
+    var existing =
+        participants.existingIdentificationNumbers(
+            batch.id(),
+            rows.stream()
+                .filter(HealthExaminationImportRow::isValid)
+                .map(HealthExaminationImportRow::getIdentificationNumber)
+                .distinct()
+                .toList());
+    rows.forEach(
+        r -> {
+          if (r.getIdentificationNumber() != null
+              && counts.get(r.getIdentificationNumber().value()) > 1) r.reject("DUPLICATE_IN_FILE");
+          if (r.getIdentificationNumber() != null && existing.contains(r.getIdentificationNumber()))
+            r.reject("DUPLICATE_IN_BATCH");
+        });
+    if (rows.stream().anyMatch(r -> !r.isValid()))
+      return new ParticipantImportUploadResponse(
+          null,
+          "REJECTED",
+          0,
+          rows.size(),
+          selectedDays,
+          rows.stream().map(ParticipantImportRowResponse::from).toList());
+    assignDays(rows, days, participants.activeCountsByDay(batch.id()));
+    Instant now = clock.instant();
+    var job =
+        new HealthExaminationImportJob(
+            AggregateId.of(UuidV7Generator.generate()),
+            batch.id(),
+            AggregateId.of(actorId),
+            now,
+            selectedDays.stream().map(AggregateId::of).toList(),
+            rows,
+            ImportStatus.VALIDATED,
+            null,
+            null,
+            null,
+            null,
+            0,
+            false,
+            null);
+    jobs.save(job);
+    audit.record(
+        new AuditEntry(
+            UuidV7Generator.generate(),
+            actorId,
+            now,
+            "PARTICIPANT_ROSTER_IMPORT_VALIDATED",
+            job.id().value(),
+            new ParticipantImportAuditWriter.Snapshot(null, 0, 0),
+            new ParticipantImportAuditWriter.Snapshot(
+                job.status(), job.rowVersion(), rows.size())));
+    log.info(
+        "Participant import validated: importId={}, batchId={}, rows={}",
+        job.id().value(),
+        batchId,
+        rows.size());
+    return new ParticipantImportUploadResponse(
+        job.id().value(),
+        job.status().name(),
+        0,
+        rows.size(),
+        selectedDays,
+        rows.stream().map(ParticipantImportRowResponse::from).toList());
+  }
 
-		var batch = batches.findByIdAndOrganizationIdForUpdate(
-						AggregateId.of(batchId), AggregateId.of(organizationId))
-				.orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-		if (!batch.status().allowsRosterImport()) {
-			throw new BusinessRuleException("Roster import is not allowed for this batch state") {
-			};
-		}
+  static List<BatchDay> selectedDays(List<BatchDay> available, List<UUID> selected) {
+    if (selected == null
+        || selected.isEmpty()
+        || selected.stream().distinct().count() != selected.size())
+      throw new IllegalArgumentException("Select distinct examination days for this import");
+    var days = available.stream().filter(d -> selected.contains(d.id())).toList();
+    if (days.size() != selected.size())
+      throw new BusinessRuleException("Selected examination day is outside this batch") {};
+    return days;
+  }
 
-		var job = jobs.findByIdAndBatchIdForUpdate(AggregateId.of(importId), AggregateId.of(batchId))
-				.orElseThrow(() -> new ResourceNotFoundException("Participant import"));
-		if (job.type() != ImportType.PARTICIPANT_LIST
-				|| (job.status() != ImportStatus.UPLOADED && job.status() != ImportStatus.VALIDATED)) {
-			throw new BusinessRuleException("Participant import job is not editable") {
-			};
-		}
-
-		ParticipantImportColumnMapping mapping = ParticipantImportColumnMapping.of(columns);
-		if (job.status() == ImportStatus.UPLOADED) {
-			job.mapColumns(mapping);
-			rows.forEach(job::addRow);
-			job.validate();
-		} else {
-			job.replaceValidatedRoster(mapping, rows);
-		}
-		jobs.save(job);
-		return ParticipantImportSummaryResponse.from(job, headers);
-	}
+  static void assignDays(
+      List<HealthExaminationImportRow> rows, List<BatchDay> days, Map<UUID, Long> existingCounts) {
+    var counts = new HashMap<>(existingCounts);
+    var order =
+        Comparator.comparingLong((BatchDay d) -> counts.getOrDefault(d.id(), 0L))
+            .thenComparing(BatchDay::examinationDate)
+            .thenComparing(d -> d.id().toString());
+    for (var row :
+        rows.stream()
+            .sorted(Comparator.comparingInt(HealthExaminationImportRow::getRowNumber))
+            .toList()) {
+      var day = days.stream().min(order).orElseThrow();
+      row.assignDay(AggregateId.of(day.id()));
+      counts.merge(day.id(), 1L, Long::sum);
+    }
+  }
 }

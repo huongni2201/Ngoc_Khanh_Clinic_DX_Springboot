@@ -6,6 +6,7 @@ import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import com.ngockhanh.clinic.shared.exception.*;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,32 +22,25 @@ public class CreateOrganizationUseCase {
   @Transactional
   public OrganizationResponse execute(CreateOrganizationCommand command) {
     if (command == null) throw new IllegalArgumentException("Missing organization command");
-    String taxCode = trimOptional(command.taxCode());
-    if (taxCode != null && organizations.existsByTaxCode(taxCode, null)) {
-      throw new DuplicateOrganizationIdentity();
-    }
-    String name = trimRequired(command.name());
-    String address = trimOptional(command.address());
-    String contactName = trimRequired(command.contactName());
-    String contactPhone = trimRequired(command.contactPhone());
-    String contactJobTitle = trimOptional(command.contactJobTitle());
-    String note = trimOptional(command.note());
-    AggregateId id = new AggregateId(UuidV7Generator.generate());
-    Organization organization =
+
+    var organization =
         Organization.create(
-            id, name, taxCode, address, contactName, contactPhone, contactJobTitle, note);
+            new AggregateId(UuidV7Generator.generate()),
+            command.code(),
+            command.name(),
+            command.organizationType(),
+            command.taxCode(),
+            command.phone(),
+            command.email(),
+            command.address(),
+            command.contactFullName(),
+            command.contactPosition(),
+            command.contactPhone(),
+            command.contactEmail());
+    if (organizations.existsByCode(organization.code(), null))
+      throw new DuplicateOrganizationIdentity();
     organizations.save(organization);
     log.info("Organization creation persisted: organizationId={}", organization.id().value());
     return OrganizationResponse.from(organization);
-  }
-
-  private static String trimRequired(String value) {
-    return value == null ? null : value.trim();
-  }
-
-  private static String trimOptional(String value) {
-    if (value == null) return null;
-    String trimmed = value.trim();
-    return trimmed.isEmpty() ? null : trimmed;
   }
 }

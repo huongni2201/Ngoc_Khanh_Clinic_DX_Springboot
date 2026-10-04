@@ -4,11 +4,14 @@ import lombok.Builder;
 
 @Builder
 public record CreateOrganizationCommand(
-        String name,
-        String taxCode,
-        String address,
-        String contactName,
-        String contactPhone,
-        String contactJobTitle,
-        String note) {
-}
+    String code,
+    String name,
+    String organizationType,
+    String taxCode,
+    String phone,
+    String email,
+    String address,
+    String contactFullName,
+    String contactPosition,
+    String contactPhone,
+    String contactEmail) {}

@@ -1,23 +1,24 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
-import org.springframework.stereotype.Repository;
-
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationImportJobMyBatisMapper;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.ImportAuditLogRecord;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
 public class MyBatisParticipantImportAuditWriter implements ParticipantImportAuditWriter {
-    private final HealthExaminationImportJobMyBatisMapper mapper;
+  private final AuditWriter auditWriter;
 
-    @Override
-    public void record(AuditEntry entry) {
-        ImportAuditLogRecord record = new ImportAuditLogRecord(entry.id(), entry.occurredAt(), entry.actorUserId(),
-                entry.action(), entry.importJobId().toString(), entry.beforeJson(), entry.afterJson());
-        if (mapper.insertImportAudit(record) != 1) throw new IllegalStateException("Import audit was not saved");
-    }
+  @Override
+  public void record(AuditEntry entry) {
+    auditWriter.record(
+        entry.actorUserId(),
+        entry.action(),
+        "HEALTH_EXAMINATION_IMPORT_JOB",
+        entry.importJobId(),
+        entry.before(),
+        entry.after());
+  }
 }

@@ -53,13 +53,17 @@ public class OrganizationController {
     log.debug("Create organization request received");
     CreateOrganizationCommand command =
         CreateOrganizationCommand.builder()
+            .code(request.code())
             .name(request.name())
+            .organizationType(request.organizationType())
             .taxCode(request.taxCode())
+            .phone(request.phone())
+            .email(request.email())
             .address(request.address())
-            .contactName(request.contactName())
+            .contactFullName(request.contactFullName())
+            .contactPosition(request.contactPosition())
             .contactPhone(request.contactPhone())
-            .contactJobTitle(request.contactJobTitle())
-            .note(request.note())
+            .contactEmail(request.contactEmail())
             .build();
 
     OrganizationResponse response = createOrganizationUseCase.execute(command);
@@ -110,7 +114,7 @@ public class OrganizationController {
    * Updates an existing organization.
    *
    * @param organizationId organization identifier
-   * @param request updated organization data submitted by the client
+   * @param request updated organization data and expected row version submitted by the client
    * @return the updated organization
    */
   @PutMapping("/{organizationId}")
@@ -120,13 +124,18 @@ public class OrganizationController {
 
     UpdateOrganizationCommand command =
         UpdateOrganizationCommand.builder()
+            .code(request.code())
             .name(request.name())
+            .organizationType(request.organizationType())
             .taxCode(request.taxCode())
+            .phone(request.phone())
+            .email(request.email())
             .address(request.address())
-            .contactName(request.contactName())
+            .contactFullName(request.contactFullName())
+            .contactPosition(request.contactPosition())
             .contactPhone(request.contactPhone())
-            .contactJobTitle(request.contactJobTitle())
-            .note(request.note())
+            .contactEmail(request.contactEmail())
+            .rowVersion(request.rowVersion())
             .build();
 
     OrganizationResponse response = updateOrganizationUseCase.execute(organizationId, command);

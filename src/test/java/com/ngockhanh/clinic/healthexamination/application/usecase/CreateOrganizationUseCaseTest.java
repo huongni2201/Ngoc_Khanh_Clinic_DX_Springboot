@@ -1,141 +1,50 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class CreateOrganizationUseCaseTest {
-  @Test
-  void createsOrganizationWithApplicationGeneratedIdentityAndAllDocumentedFields() {
-    InMemoryOrganizations organizations = new InMemoryOrganizations();
-    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
-
-    var result =
-        useCase.execute(
-            new CreateOrganizationCommand(
-                "Clinic Corp", "TAX-1", "Address", "Contact", "0900000000", "Director", "Note"));
-
-    assertThat(result.id().version()).isEqualTo(7);
-    assertThat(result.name()).isEqualTo("Clinic Corp");
-    assertThat(result.status()).isEqualTo("ACTIVE");
-    Organization saved = organizations.findById(new AggregateId(result.id())).orElseThrow();
-    assertThat(saved.name()).isEqualTo("Clinic Corp");
-    assertThat(saved.taxCode()).isEqualTo("TAX-1");
-    assertThat(saved.address()).isEqualTo("Address");
-    assertThat(saved.contactJobTitle()).isEqualTo("Director");
-    assertThat(saved.note()).isEqualTo("Note");
-    assertThat(saved.status()).isEqualTo("ACTIVE");
+  private CreateOrganizationCommand command(String code) {
+    return new CreateOrganizationCommand(
+        code,
+        "School",
+        "SCHOOL",
+        null,
+        "0901",
+        "school@example.test",
+        "Address",
+        "Contact",
+        null,
+        "0902",
+        "contact@example.test");
   }
 
   @Test
-  void rejectsDuplicateOrganizationTaxCodeBeforeInsert() {
-    UUID existingId = UUID.fromString("00000000-0000-0000-0000-000000000002");
-    InMemoryOrganizations organizations = new InMemoryOrganizations();
-    organizations.save(
-        Organization.create(
-            new AggregateId(existingId),
-            "Clinic Corp",
-            "TAX-1",
-            null,
-            "Contact",
-            "0900000000",
-            null,
-            null));
-    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
+  void persistsSeparateOrganizationAndContactChannelsWithoutTaxCode() {
+    var repo = mock(OrganizationRepository.class);
+    var result = new CreateOrganizationUseCase(repo).execute(command("S1"));
+    var captured = ArgumentCaptor.forClass(Organization.class);
+    verify(repo).save(captured.capture());
+    assertThat(result.code()).isEqualTo("S1");
+    assertThat(result.organizationType()).isEqualTo("SCHOOL");
+    assertThat(result.phone()).isEqualTo("0901");
+    assertThat(result.contactPhone()).isEqualTo("0902");
+    assertThat(result.taxCode()).isNull();
+  }
 
-    assertThatThrownBy(
-            () ->
-                useCase.execute(
-                    new CreateOrganizationCommand(
-                        "Other Org", "TAX-1", null, "Contact", "0900000000", null, null)))
+  @Test
+  void rejectsDuplicateOrganizationCode() {
+    var repo = mock(OrganizationRepository.class);
+    when(repo.existsByCode("S1", null)).thenReturn(true);
+    assertThatThrownBy(() -> new CreateOrganizationUseCase(repo).execute(command("S1")))
         .isInstanceOf(DuplicateOrganizationIdentity.class);
-  }
-
-  @Test
-  void normalizesBlankOptionalFieldsAndTrimsRequiredFieldsBeforeSaving() {
-    InMemoryOrganizations organizations = new InMemoryOrganizations();
-    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
-
-    var result =
-        useCase.execute(
-            new CreateOrganizationCommand(
-                " Clinic Corp ", "  ", "  ", " Contact ", " 0900000000 ", " ", "  "));
-
-    Organization saved = organizations.findById(new AggregateId(result.id())).orElseThrow();
-    assertThat(saved.name()).isEqualTo("Clinic Corp");
-    assertThat(saved.taxCode()).isNull();
-    assertThat(saved.address()).isNull();
-    assertThat(saved.contactName()).isEqualTo("Contact");
-    assertThat(saved.contactPhone()).isEqualTo("0900000000");
-    assertThat(saved.contactJobTitle()).isNull();
-    assertThat(saved.note()).isNull();
-  }
-
-  @Test
-  void allowsMultipleOrganizationsWithBlankTaxCodes() {
-    InMemoryOrganizations organizations = new InMemoryOrganizations();
-    CreateOrganizationUseCase useCase = new CreateOrganizationUseCase(organizations);
-
-    useCase.execute(
-        new CreateOrganizationCommand("First", "", null, "Contact", "0900000000", null, null));
-    useCase.execute(
-        new CreateOrganizationCommand("Second", " ", null, "Contact", "0900000001", null, null));
-
-    assertThat(organizations.organizations).hasSize(2);
-  }
-
-  private static final class InMemoryOrganizations implements OrganizationRepository {
-    private final Map<AggregateId, Organization> organizations = new HashMap<>();
-
-    @Override
-    public Optional<Organization> findById(AggregateId id) {
-      return Optional.ofNullable(organizations.get(id));
-    }
-
-    @Override
-    public boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId) {
-      return organizations.values().stream()
-          .anyMatch(
-              organization ->
-                  taxCode.equals(organization.taxCode())
-                      && !organization.id().equals(excludedOrganizationId));
-    }
-
-    @Override
-    public List<Organization> findPage(
-        long offset,
-        long limit,
-        String searchPattern,
-        String status,
-        String sortKey,
-        String sortBy) {
-      return List.of();
-    }
-
-    @Override
-    public long countAll(String searchPattern, String status) {
-      return 0;
-    }
-
-    @Override
-    public void save(Organization organization) {
-      organizations.put(organization.id(), organization);
-    }
-
-    @Override
-    public void update(Organization organization, long expectedRowVersion) {
-      organizations.put(organization.id(), organization);
-    }
+    verify(repo, never()).save(any());
   }
 }

@@ -10,31 +10,28 @@ public record BatchDetailResponse(
     UUID organizationId,
     String batchCode,
     String batchName,
+    List<DayResponse> days,
     LocalDate startDate,
     LocalDate endDate,
-    String reason,
-    String payerType,
     String examinationSiteType,
     String examinationSiteName,
     String examinationSiteAddress,
-    UUID masterTemplateVersionId,
     String status,
-    Instant finalizedAt,
-    Instant closedAt,
     UUID createdBy,
     Instant createdAt,
     Instant updatedAt,
+    long rowVersion,
     List<ServiceResponse> services) {
+  public record DayResponse(UUID id, LocalDate examinationDate) {}
+
   public record ServiceResponse(
       UUID id,
       UUID serviceId,
-      String serviceCode,
-      String serviceName,
-      BigDecimal negotiatedUnitPrice,
-      String currency,
+      BigDecimal referencePriceSnapshot,
+      BigDecimal negotiatedPrice,
       int displayOrder,
-      String status,
-      UUID documentTemplateVersionId) {}
+      boolean active,
+      long rowVersion) {}
 
   public static BatchDetailResponse from(BatchDetails d) {
     var b = d.batch();
@@ -43,43 +40,35 @@ public record BatchDetailResponse(
         b.organizationId().value(),
         b.code(),
         b.name(),
+        b.days().stream().map(dy -> new DayResponse(dy.id(), dy.examinationDate())).toList(),
         b.startDate(),
         b.endDate(),
-        b.reason(),
-        b.payerType(),
         b.site().type().name(),
         b.site().name(),
         b.site().address(),
-        b.masterTemplateVersionId().value(),
         b.status().name(),
-        b.finalizedAt(),
-        b.closedAt(),
         d.createdBy(),
         d.createdAt(),
         d.updatedAt(),
+        b.rowVersion(),
         b.services().stream()
             .map(
                 s ->
                     new ServiceResponse(
                         s.id().value(),
                         s.serviceId().value(),
-                        s.serviceCode(),
-                        s.serviceName(),
+                        s.referencePriceSnapshot().amount(),
                         s.negotiatedPrice().amount(),
-                        s.negotiatedPrice().currency(),
                         s.displayOrder(),
-                        s.status(),
-                        s.templateVersionId() == null ? null : s.templateVersionId().value()))
+                        s.active(),
+                        s.rowVersion()))
             .toList());
   }
 
   public record AuditSnapshot(
       String batchCode,
       String batchName,
-      LocalDate startDate,
-      LocalDate endDate,
-      String reason,
-      String payerType,
+      List<DayResponse> days,
       String siteType,
       String siteName,
       String siteAddress,
@@ -90,10 +79,7 @@ public record BatchDetailResponse(
     return new AuditSnapshot(
         batchCode,
         batchName,
-        startDate,
-        endDate,
-        reason,
-        payerType,
+        days,
         examinationSiteType,
         examinationSiteName,
         examinationSiteAddress,

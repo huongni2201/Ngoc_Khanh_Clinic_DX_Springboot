@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -44,6 +45,17 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(MethodArgumentNotValidException.class)
   ResponseEntity<ApiResponse<Void>> validation(MethodArgumentNotValidException exception) {
     return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  }
+
+  @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+  ResponseEntity<ApiResponse<Void>> methodNotAllowed(
+      HttpRequestMethodNotSupportedException exception) {
+    return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+        .headers(exception.getHeaders())
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.error(
+                HttpStatus.METHOD_NOT_ALLOWED.value(), "HTTP method is not supported"));
   }
 
   @ExceptionHandler(AccessDeniedException.class)

@@ -12,12 +12,18 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @NoArgsConstructor
 @SuperBuilder
-@AllowedSortKeys({"id", "name", "taxCode", "contactName", "contactPhone", "status", "createdAt"})
+@AllowedSortKeys({
+  "id",
+  "code",
+  "name",
+  "taxCode",
+  "contactFullName",
+  "contactPhone",
+  "status",
+  "createdAt"
+})
 public class OrganizationListRequest extends BasePagination {
 
-	@Pattern(
-      regexp = "(?i)^(ACTIVE|INACTIVE)$",
-      message = "Status must be ACTIVE or INACTIVE"
-  )
-	private String status;
+  @Pattern(regexp = "(?i)^(ACTIVE|INACTIVE)$", message = "Status must be ACTIVE or INACTIVE")
+  private String status;
 }

@@ -1,16 +1,19 @@
 package com.ngockhanh.clinic.healthexamination.api.request;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.Builder;
 
 @Builder
 public record OrganizationRequest(
-        @NotBlank @Size(max = 300) String name,
-        @Size(max = 40) String taxCode,
-        @Size(max = 500) String address,
-        @NotBlank @Size(max = 200) String contactName,
-        @NotBlank @Size(max = 30) String contactPhone,
-        @Size(max = 150) String contactJobTitle,
-        @Size(max = 1000) String note) {
-}
+    @NotBlank @Size(max = 50) String code,
+    @NotBlank @Size(max = 300) String name,
+    @NotNull @Pattern(regexp = "COMPANY|SCHOOL|GOVERNMENT|OTHER") String organizationType,
+    @Size(max = 50) String taxCode,
+    @NotBlank String phone,
+    @NotBlank @Email String email,
+    @NotBlank String address,
+    @NotBlank @Size(max = 200) String contactFullName,
+    @Size(max = 200) String contactPosition,
+    @NotBlank String contactPhone,
+    @NotBlank @Email String contactEmail,
+    @PositiveOrZero Long rowVersion) {}

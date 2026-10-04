@@ -1,3 +1,8 @@
 package com.ngockhanh.clinic.healthexamination.domain.enums;
 
-public enum ImportStatus { UPLOADED, VALIDATED, CONFIRMED, PARTIAL, FAILED, CANCELED }
+public enum ImportStatus {
+  VALIDATED,
+  CONFIRMED,
+  CANCELLED,
+  EXPIRED
+}

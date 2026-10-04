@@ -1,9 +1,12 @@
 package com.ngockhanh.clinic.healthexamination.domain.enums;
 
 public enum BatchStatus {
-    DRAFT, READY, IN_PROGRESS, RESULT_PROCESSING, FINALIZED, CLOSED, CANCELED, DELETED;
+  DRAFT,
+  READY,
+  FINALIZED,
+  CLOSED;
 
-    public boolean allowsRosterImport() {
-        return this == DRAFT || this == READY || this == IN_PROGRESS;
-    }
+  public boolean allowsRosterImport() {
+    return this == DRAFT || this == READY;
+  }
 }

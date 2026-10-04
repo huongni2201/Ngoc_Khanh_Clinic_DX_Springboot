@@ -2,29 +2,30 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.identity.infrastructure.persistence.mapper.UserLoginMyBatisMapper">
     <select id="identify" resultType="java.util.UUID">
-        SELECT id FROM public.users WHERE username = #{username}
+        SELECT id FROM public.accounts WHERE username = #{username}
     </select>
     <select id="find" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.UserLoginRow">
-        SELECT u.id AS user_id, u.staff_id, u.patient_id, u.username, u.password, u.status, u.principal_type,
-               coalesce(s.is_active, false) AS staff_active
-        FROM public.users u LEFT JOIN public.staff s ON s.id = u.staff_id
-        WHERE u.username = #{username}
+        SELECT a.id AS account_id, a.staff_member_id, a.patient_id, a.username,
+               a.password_hash, a.status, a.account_type, s.status AS staff_status
+        FROM public.accounts a LEFT JOIN public.staff_members s ON s.id = a.staff_member_id
+        WHERE a.username = #{username}
     </select>
     <select id="grants" resultType="com.ngockhanh.clinic.identity.infrastructure.persistence.projection.RoleGrantRow">
-        SELECT ur.id AS assignment_id, r.role_code, ur.department_id, ur.room_id,
-               ur.valid_from, ur.valid_to, p.permission_code
-        FROM public.user_roles ur JOIN public.roles r ON r.id = ur.role_id
+        SELECT r.id AS role_id, r.code AS role_code, ar.granted_by, ar.granted_at,
+               p.code AS permission_code
+        FROM public.account_roles ar JOIN public.roles r ON r.id = ar.role_id
         LEFT JOIN public.role_permissions rp ON rp.role_id = r.id
         LEFT JOIN public.permissions p ON p.id = rp.permission_id
-        WHERE ur.user_id = #{userId} AND r.is_active = true
-          AND ur.valid_from &lt;= #{now} AND (ur.valid_to IS NULL OR #{now} &lt; ur.valid_to)
-        ORDER BY ur.id, p.permission_code
+        WHERE ar.account_id = #{accountId} AND r.active = true
+        ORDER BY r.id, p.code
     </select>
-    <update id="lastLogin">
-        UPDATE public.users SET last_login_at = #{now}
-        WHERE id = #{userId} AND status = 'ACTIVE'
-          AND ((principal_type = 'STAFF' AND patient_id IS NULL
-                AND EXISTS (SELECT 1 FROM public.staff s WHERE s.id = users.staff_id AND s.is_active = true))
-            OR (principal_type = 'PATIENT' AND patient_id IS NOT NULL AND staff_id IS NULL))
-    </update>
+    <select id="lockEligibleAccount" resultType="java.util.UUID">
+        SELECT a.id FROM public.accounts a
+        WHERE a.id = #{accountId} AND a.status = 'ACTIVE'
+          AND ((a.account_type = 'STAFF' AND a.patient_id IS NULL
+                AND EXISTS (SELECT 1 FROM public.staff_members s
+                            WHERE s.id = a.staff_member_id AND s.status = 'ACTIVE'))
+            OR (a.account_type = 'PATIENT' AND a.patient_id IS NOT NULL AND a.staff_member_id IS NULL))
+        FOR UPDATE OF a
+    </select>
 </mapper>

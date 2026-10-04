@@ -21,13 +21,17 @@ class ListOrganizationsUseCaseTest {
     Organization organization =
         Organization.create(
             new AggregateId(UUID.randomUUID()),
+            "CLINIC-NORTH",
             "Clinic North",
+            "COMPANY",
             "TAX-01",
+            "0901",
+            "organization@example.test",
             "Address",
             "Contact",
-            "0900000000",
             null,
-            null);
+            "0902",
+            "contact@example.test");
     when(organizations.countAll("%clinic%", "ACTIVE")).thenReturn(11L);
     when(organizations.findPage(5, 5, "%clinic%", "ACTIVE", "name", "DESC"))
         .thenReturn(List.of(organization));

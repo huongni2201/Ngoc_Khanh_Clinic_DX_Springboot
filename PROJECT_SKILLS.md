@@ -43,7 +43,7 @@ skill supports this stack. Apply these compatibility restrictions:
 - `code-review` is a diff review workflow requiring a base and a specification;
   it is not an unconditional whole-repository architecture audit.
 
-See [the architecture review](docs/reviews/2026-09-22-backend-review.md) for the
+See [the architecture review](docs/reviews/2026-10-04-clean-slate-migration-review.md) for the
 current implementation gaps and verification results.
 
 ---
@@ -233,9 +233,9 @@ Use for business rules with clear deterministic behavior, especially:
 
 ```text
 `identification_number` uniqueness (CCCD)
-health-examination record lifecycle (age is not a backend eligibility rule; see ADR-0010)
+health-examination record lifecycle (age is not a backend eligibility rule; see docs/architecture/03-domain-and-workflows.md)
 employee import validation
-doctor-only service selection
+authorized performed-service reconciliation
 batch-service subset rule
 payment gate
 ServiceRequest lifecycle

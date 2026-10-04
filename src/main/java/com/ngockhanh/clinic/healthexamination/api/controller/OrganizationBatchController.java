@@ -25,11 +25,10 @@ public class OrganizationBatchController {
   private final GetHealthExaminationBatchUseCase get;
   private final ListHealthExaminationBatchUseCase list;
   private final UpdateHealthExaminationBatchUseCase update;
-  private final DeleteHealthExaminationBatchUseCase delete;
   private final Environment environment;
 
   /**
-   * Creates a draft campaign with its service scope and entered prices.
+   * Creates a draft campaign with at least one examination day and contracted service prices.
    *
    * @param organizationId parent organization identifier
    * @param request campaign configuration
@@ -41,7 +40,9 @@ public class OrganizationBatchController {
       @PathVariable UUID organizationId,
       @Valid @RequestBody HealthExaminationBatchRequest request,
       Authentication authentication) {
+
     log.debug("Create batch request: organizationId={}", organizationId);
+
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(
             ApiResponse.success(
@@ -83,7 +84,7 @@ public class OrganizationBatchController {
   }
 
   /**
-   * Retrieves a visible campaign and its frozen service metadata.
+   * Retrieves a visible campaign and its service prices.
    *
    * @param organizationId parent organization identifier
    * @param batchId campaign identifier
@@ -101,7 +102,7 @@ public class OrganizationBatchController {
    *
    * @param organizationId parent organization identifier
    * @param batchId campaign identifier
-   * @param request desired draft configuration
+   * @param request desired draft configuration and expected row version
    * @param authentication authenticated actor, or the configured local/test mock actor
    * @return updated campaign details
    */
@@ -117,24 +118,6 @@ public class OrganizationBatchController {
             200,
             "Batch updated",
             update.execute(organizationId, batchId, request.toCommand(), actor(authentication))));
-  }
-
-  /**
-   * Soft deletes a draft without dependent records. Repeated deletion is idempotent.
-   *
-   * @param organizationId parent organization identifier
-   * @param batchId campaign identifier
-   * @param authentication authenticated actor, or the configured local/test mock actor
-   * @return an empty successful response
-   */
-  @DeleteMapping("/{batchId}")
-  public ResponseEntity<ApiResponse<Void>> delete(
-      @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
-      Authentication authentication) {
-    log.debug("Delete batch request: organizationId={}, batchId={}", organizationId, batchId);
-    delete.execute(organizationId, batchId, actor(authentication));
-    return ResponseEntity.ok(new ApiResponse<>(200, "Batch deleted"));
   }
 
   private UUID actor(Authentication authentication) {

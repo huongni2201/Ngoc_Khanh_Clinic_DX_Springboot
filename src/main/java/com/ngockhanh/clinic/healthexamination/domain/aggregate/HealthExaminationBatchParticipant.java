@@ -1,341 +1,302 @@
 package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
+import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
+import com.ngockhanh.clinic.healthexamination.domain.exception.ServiceOutsideBatchScope;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import lombok.Getter;
+import lombok.experimental.Accessors;
 
-import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
-import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
-import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateParticipantServiceAssignment;
-import com.ngockhanh.clinic.healthexamination.domain.exception.ServiceOutsideBatchScope;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.BatchPriceRevision;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
-
+@Getter
+@Accessors(fluent = true)
 public final class HealthExaminationBatchParticipant {
-	private final AggregateId id;
-	private final AggregateId batchId;
-	private final AggregateId healthExaminationParticipantId;
-	private final String participantCodeSnapshot;
-	private final String departmentSnapshot;
-	private final String jobTitleSnapshot;
-	private final String occupationSnapshot;
-	private final String fullNameSnapshot;
-	private final LocalDate dateOfBirthSnapshot;
-	private final String sexSnapshot;
-	private final IdentificationNumber identificationNumberSnapshot;
-	private final LocalDate identificationNumberIssueDateSnapshot;
-	private final String identificationNumberIssuePlaceSnapshot;
-	private final String ethnicitySnapshot;
-	private final String subjectTypeSnapshot;
-	private final String payerSourceSnapshot;
-	private final String bloodGroupSnapshot;
-	private final String phoneSnapshot;
-	private final String provinceSnapshot;
-	private final String wardSnapshot;
-	private final String addressDetailSnapshot;
-	private final String administrativeOccupationSnapshot;
-	private final String workplaceOrSchoolSnapshot;
-	private final String healthExaminationReasonSnapshot;
-	private String rosterNoteSnapshot;
-	private final Map<AggregateId, HealthExaminationBatchParticipantService> assignments = new HashMap<>();
+  public enum RosterStatus {
+    ACTIVE,
+    CANCELLED
+  }
 
-	private HealthExaminationBatchParticipant(
-			AggregateId id, AggregateId batchId,
-			AggregateId healthExaminationParticipantId,
-			String participantCodeSnapshot, String departmentSnapshot,
-			String jobTitleSnapshot, String occupationSnapshot,
-			String fullNameSnapshot, LocalDate dateOfBirthSnapshot,
-			String sexSnapshot, IdentificationNumber identificationNumberSnapshot,
-			LocalDate identificationNumberIssueDateSnapshot,
-			String identificationNumberIssuePlaceSnapshot, String ethnicitySnapshot,
-			String subjectTypeSnapshot, String payerSourceSnapshot,
-			String bloodGroupSnapshot, String phoneSnapshot, String provinceSnapshot,
-			String wardSnapshot, String addressDetailSnapshot,
-			String administrativeOccupationSnapshot, String workplaceOrSchoolSnapshot,
-			String healthExaminationReasonSnapshot) {
-		if (id == null || batchId == null || healthExaminationParticipantId == null
-				|| fullNameSnapshot == null || fullNameSnapshot.isBlank() || dateOfBirthSnapshot == null
-				|| sexSnapshot == null || sexSnapshot.isBlank() || identificationNumberSnapshot == null) {
-			throw new IllegalArgumentException("Invalid health-examination batch participant");
-		}
-		this.id = id;
-		this.batchId = batchId;
-		this.healthExaminationParticipantId = healthExaminationParticipantId;
-		this.participantCodeSnapshot = participantCodeSnapshot;
-		this.departmentSnapshot = departmentSnapshot;
-		this.jobTitleSnapshot = jobTitleSnapshot;
-		this.occupationSnapshot = occupationSnapshot;
-		this.fullNameSnapshot = fullNameSnapshot;
-		this.dateOfBirthSnapshot = dateOfBirthSnapshot;
-		this.sexSnapshot = sexSnapshot;
-		this.identificationNumberSnapshot = identificationNumberSnapshot;
-		this.identificationNumberIssueDateSnapshot = identificationNumberIssueDateSnapshot;
-		this.identificationNumberIssuePlaceSnapshot = identificationNumberIssuePlaceSnapshot;
-		this.ethnicitySnapshot = ethnicitySnapshot;
-		this.subjectTypeSnapshot = subjectTypeSnapshot;
-		this.payerSourceSnapshot = payerSourceSnapshot;
-		this.bloodGroupSnapshot = bloodGroupSnapshot;
-		this.phoneSnapshot = phoneSnapshot;
-		this.provinceSnapshot = provinceSnapshot;
-		this.wardSnapshot = wardSnapshot;
-		this.addressDetailSnapshot = addressDetailSnapshot;
-		this.administrativeOccupationSnapshot = administrativeOccupationSnapshot;
-		this.workplaceOrSchoolSnapshot = workplaceOrSchoolSnapshot;
-		this.healthExaminationReasonSnapshot = healthExaminationReasonSnapshot;
-	}
+  public enum AttendanceStatus {
+    UNCONFIRMED,
+    ATTENDED,
+    ABSENT
+  }
 
-	public static HealthExaminationBatchParticipant create(
-			AggregateId id, AggregateId batchId,
-			AggregateId healthExaminationParticipantId,
-			String fullNameSnapshot, LocalDate dateOfBirthSnapshot,
-			String sexSnapshot,
-			IdentificationNumber identificationNumberSnapshot) {
-		return create(id, batchId, healthExaminationParticipantId, null, null, null, null,
-				fullNameSnapshot, dateOfBirthSnapshot, sexSnapshot, identificationNumberSnapshot,
-				null, null, null, null, null, null, null, null, null, null, null, null, null);
-	}
+  public enum ReconciliationStatus {
+    PENDING,
+    RECONCILED
+  }
 
-	public static HealthExaminationBatchParticipant create(
-			AggregateId id, AggregateId batchId,
-			AggregateId healthExaminationParticipantId,
-			String participantCodeSnapshot, String departmentSnapshot,
-			String jobTitleSnapshot, String occupationSnapshot,
-			String fullNameSnapshot, LocalDate dateOfBirthSnapshot,
-			String sexSnapshot, IdentificationNumber identificationNumberSnapshot,
-			LocalDate identificationNumberIssueDateSnapshot,
-			String identificationNumberIssuePlaceSnapshot,
-			String ethnicitySnapshot, String subjectTypeSnapshot,
-			String payerSourceSnapshot, String bloodGroupSnapshot,
-			String phoneSnapshot, String provinceSnapshot,
-			String wardSnapshot, String addressDetailSnapshot,
-			String administrativeOccupationSnapshot,
-			String workplaceOrSchoolSnapshot,
-			String healthExaminationReasonSnapshot) {
-		return new HealthExaminationBatchParticipant(id, batchId, healthExaminationParticipantId,
-				participantCodeSnapshot, departmentSnapshot, jobTitleSnapshot, occupationSnapshot,
-				fullNameSnapshot, dateOfBirthSnapshot, sexSnapshot, identificationNumberSnapshot,
-				identificationNumberIssueDateSnapshot, identificationNumberIssuePlaceSnapshot, ethnicitySnapshot,
-				subjectTypeSnapshot, payerSourceSnapshot, bloodGroupSnapshot, phoneSnapshot, provinceSnapshot,
-				wardSnapshot, addressDetailSnapshot, administrativeOccupationSnapshot, workplaceOrSchoolSnapshot,
-				healthExaminationReasonSnapshot);
-	}
+  public record Roster(
+      String participantCode,
+      String fullName,
+      LocalDate dateOfBirth,
+      String sex,
+      IdentificationNumber identificationNumber,
+      String phone,
+      String email,
+      String departmentName,
+      String positionName) {
+    public Roster {
+      if (fullName == null
+          || fullName.isBlank()
+          || fullName.length() > 200
+          || dateOfBirth == null
+          || sex == null
+          || !List.of("MALE", "FEMALE", "OTHER", "UNKNOWN").contains(sex)
+          || identificationNumber == null
+          || departmentName == null
+          || departmentName.isBlank()
+          || positionName == null
+          || positionName.isBlank())
+        throw new IllegalArgumentException(
+            "Participant identity, department and position are required");
+    }
+  }
 
-	public static HealthExaminationBatchParticipant restore(
-			AggregateId id, AggregateId batchId,
-			AggregateId healthExaminationParticipantId,
-			String fullNameSnapshot, LocalDate dateOfBirthSnapshot,
-			String sexSnapshot,
-			IdentificationNumber identificationNumberSnapshot,
-			List<HealthExaminationBatchParticipantService> assignments) {
-		return restore(id, batchId, healthExaminationParticipantId, null, null, null, null,
-				fullNameSnapshot, dateOfBirthSnapshot, sexSnapshot, identificationNumberSnapshot,
-				null, null, null, null, null, null, null, null, null, null, null, null, null, assignments);
-	}
+  public record Progress(
+      AggregateId patientId,
+      RosterStatus rosterStatus,
+      AttendanceStatus attendanceStatus,
+      LocalDate actualExaminationDate,
+      AggregateId attendanceRecordedBy,
+      Instant attendanceRecordedAt,
+      String attendanceNote,
+      ReconciliationStatus reconciliationStatus,
+      AggregateId reconciledBy,
+      Instant reconciledAt,
+      Instant preparedAt) {}
 
-	public static HealthExaminationBatchParticipant restore(
-			AggregateId id, AggregateId batchId,
-			AggregateId healthExaminationParticipantId,
-			String participantCodeSnapshot, String departmentSnapshot,
-			String jobTitleSnapshot, String occupationSnapshot,
-			String fullNameSnapshot, LocalDate dateOfBirthSnapshot,
-			String sexSnapshot, IdentificationNumber identificationNumberSnapshot,
-			LocalDate identificationNumberIssueDateSnapshot,
-			String identificationNumberIssuePlaceSnapshot,
-			String ethnicitySnapshot, String subjectTypeSnapshot,
-			String payerSourceSnapshot, String bloodGroupSnapshot,
-			String phoneSnapshot, String provinceSnapshot,
-			String wardSnapshot, String addressDetailSnapshot,
-			String administrativeOccupationSnapshot,
-			String workplaceOrSchoolSnapshot,
-			String healthExaminationReasonSnapshot,
-			List<HealthExaminationBatchParticipantService> assignments) {
-		if (assignments == null) throw new IllegalArgumentException("Invalid persisted batch participant");
-		HealthExaminationBatchParticipant participant = create(id, batchId, healthExaminationParticipantId,
-				participantCodeSnapshot, departmentSnapshot, jobTitleSnapshot, occupationSnapshot,
-				fullNameSnapshot, dateOfBirthSnapshot, sexSnapshot, identificationNumberSnapshot,
-				identificationNumberIssueDateSnapshot, identificationNumberIssuePlaceSnapshot, ethnicitySnapshot,
-				subjectTypeSnapshot, payerSourceSnapshot, bloodGroupSnapshot, phoneSnapshot, provinceSnapshot,
-				wardSnapshot, addressDetailSnapshot, administrativeOccupationSnapshot, workplaceOrSchoolSnapshot,
-				healthExaminationReasonSnapshot);
-		for (HealthExaminationBatchParticipantService assignment : assignments) {
-			if (assignment == null || participant.assignments.putIfAbsent(assignment.batchServiceId(), assignment) != null) {
-				throw new IllegalArgumentException("Invalid persisted assignment list");
-			}
-		}
-		return participant;
-	}
+  private final AggregateId id;
+  private final AggregateId batchId;
+  private AggregateId batchDayId;
+  private final Roster roster;
+  private AggregateId patientId;
+  private RosterStatus rosterStatus;
+  private AttendanceStatus attendanceStatus;
+  private LocalDate actualExaminationDate;
+  private AggregateId attendanceRecordedBy;
+  private Instant attendanceRecordedAt;
+  private String attendanceNote;
+  private ReconciliationStatus reconciliationStatus;
+  private AggregateId reconciledBy;
+  private Instant reconciledAt;
+  private final AggregateId importJobId;
+  private final Integer sourceRowNumber;
+  private Instant preparedAt;
+  private final Instant createdAt;
+  private final Instant updatedAt;
+  private final long rowVersion;
+  private final Map<AggregateId, HealthExaminationBatchParticipantService> services =
+      new HashMap<>();
 
-	public void assignService(AggregateId assignmentId, AggregateId batchServiceId,
-	                          AggregateId serviceRequestId, Money negotiatedPrice) {
-		assignService(assignmentId, batchServiceId, negotiatedPrice,
-				HealthExaminationBatchParticipantService.create(assignmentId, batchServiceId,
-						serviceRequestId, negotiatedPrice));
-	}
+  private HealthExaminationBatchParticipant(
+      AggregateId id,
+      AggregateId batch,
+      AggregateId day,
+      Roster roster,
+      Progress p,
+      AggregateId importJob,
+      Integer sourceRow,
+      Instant createdAt,
+      Instant updatedAt,
+      long version,
+      List<HealthExaminationBatchParticipantService> services) {
+    if (id == null
+        || batch == null
+        || day == null
+        || roster == null
+        || p == null
+        || createdAt == null
+        || updatedAt == null
+        || version < 0
+        || (importJob == null) != (sourceRow == null)
+        || (sourceRow != null && sourceRow < 1)
+        || p.rosterStatus() == null
+        || p.attendanceStatus() == null
+        || p.reconciliationStatus() == null
+        || (p.attendanceStatus() == AttendanceStatus.ATTENDED)
+            != (p.actualExaminationDate() != null)
+        || (p.attendanceRecordedBy() == null) != (p.attendanceRecordedAt() == null)
+        || (p.reconciliationStatus() == ReconciliationStatus.RECONCILED
+            && (p.reconciledBy() == null || p.reconciledAt() == null)))
+      throw new IllegalArgumentException("Invalid batch participant state");
+    this.id = id;
+    this.batchId = batch;
+    this.batchDayId = day;
+    this.roster = roster;
+    this.patientId = p.patientId();
+    this.rosterStatus = p.rosterStatus();
+    this.attendanceStatus = p.attendanceStatus();
+    this.actualExaminationDate = p.actualExaminationDate();
+    this.attendanceRecordedBy = p.attendanceRecordedBy();
+    this.attendanceRecordedAt = p.attendanceRecordedAt();
+    this.attendanceNote = p.attendanceNote();
+    this.reconciliationStatus = p.reconciliationStatus();
+    this.reconciledBy = p.reconciledBy();
+    this.reconciledAt = p.reconciledAt();
+    this.preparedAt = p.preparedAt();
+    this.importJobId = importJob;
+    this.sourceRowNumber = sourceRow;
+    this.createdAt = createdAt;
+    this.updatedAt = updatedAt;
+    this.rowVersion = version;
+    for (var service : services) {
+      if (!batch.equals(service.batchId())
+          || !id.equals(service.batchParticipantId())
+          || this.services.putIfAbsent(service.batchServiceId(), service) != null)
+        throw new IllegalArgumentException("Invalid participant service scope");
+    }
+  }
 
-	public void assignService(AggregateId assignmentId, AggregateId batchServiceId, Money negotiatedPrice) {
-		assignService(assignmentId, batchServiceId, negotiatedPrice,
-				HealthExaminationBatchParticipantService.create(assignmentId, batchServiceId, negotiatedPrice));
-	}
+  public static HealthExaminationBatchParticipant create(
+      AggregateId id,
+      AggregateId batch,
+      AggregateId day,
+      Roster roster,
+      AggregateId importJob,
+      Integer sourceRow,
+      Instant now) {
+    return restore(
+        id,
+        batch,
+        day,
+        roster,
+        new Progress(
+            null,
+            RosterStatus.ACTIVE,
+            AttendanceStatus.UNCONFIRMED,
+            null,
+            null,
+            null,
+            null,
+            ReconciliationStatus.PENDING,
+            null,
+            null,
+            null),
+        importJob,
+        sourceRow,
+        now,
+        now,
+        0,
+        List.of());
+  }
 
-	private void assignService(AggregateId assignmentId, AggregateId batchServiceId, Money negotiatedPrice,
-	                           HealthExaminationBatchParticipantService assignment) {
-		if (assignmentId == null || batchServiceId == null || negotiatedPrice == null) {
-			throw new IllegalArgumentException("Incomplete participant service assignment");
-		}
-		if (assignments.putIfAbsent(batchServiceId, assignment) != null) {
-			throw new DuplicateParticipantServiceAssignment();
-		}
-	}
+  public static HealthExaminationBatchParticipant restore(
+      AggregateId id,
+      AggregateId batch,
+      AggregateId day,
+      Roster roster,
+      Progress progress,
+      AggregateId importJob,
+      Integer sourceRow,
+      Instant createdAt,
+      Instant updatedAt,
+      long version,
+      List<HealthExaminationBatchParticipantService> services) {
+    return new HealthExaminationBatchParticipant(
+        id, batch, day, roster, progress, importJob, sourceRow, createdAt, updatedAt, version,
+        services);
+  }
 
-	public void linkServiceRequest(AggregateId batchServiceId, AggregateId serviceRequestId) {
-		if (batchServiceId == null || serviceRequestId == null) {
-			throw new IllegalArgumentException("Incomplete Service Request link");
-		}
-		HealthExaminationBatchParticipantService assignment = assignments.get(batchServiceId);
-		if (assignment == null) throw new ServiceOutsideBatchScope();
-		if (assignments.values().stream()
-				.anyMatch(existing -> !Objects.equals(existing.batchServiceId(), batchServiceId)
-						&& Objects.equals(existing.serviceRequestId(), serviceRequestId))) {
-			throw new DomainRuleViolation("Service Request already linked");
-		}
-		assignments.put(batchServiceId, assignment.linkServiceRequest(serviceRequestId));
-	}
+  public void prepare(AggregateId patient, Instant at) {
+    requireActive();
+    if (patient == null || at == null)
+      throw new IllegalArgumentException("Preparation identity and time are required");
+    if (patientId != null && !patientId.equals(patient))
+      throw new DomainRuleViolation("Patient relink forbidden");
+    patientId = patient;
+    if (preparedAt == null) preparedAt = at;
+  }
 
-	public void markServiceBillable(AggregateId serviceRequestId) {
-		if (serviceRequestId == null) throw new IllegalArgumentException("Missing Service Request");
-		Map.Entry<AggregateId, HealthExaminationBatchParticipantService> entry = assignments.entrySet().stream()
-				.filter(item -> Objects.equals(item.getValue().serviceRequestId(), serviceRequestId))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Unknown Service Request"));
-		assignments.put(entry.getKey(), entry.getValue().markedBillable());
-	}
+  public void recordAttendance(
+      AttendanceStatus status, LocalDate actualDate, AggregateId actor, Instant at, String note) {
+    requireActive();
+    if (status == null
+        || actor == null
+        || at == null
+        || (status == AttendanceStatus.ATTENDED) != (actualDate != null))
+      throw new IllegalArgumentException(
+          "Attended participants require an actual examination date");
+    attendanceStatus = status;
+    actualExaminationDate = actualDate;
+    attendanceRecordedBy = actor;
+    attendanceRecordedAt = at;
+    attendanceNote = note;
+  }
 
-	public void applyPriceRevision(BatchPriceRevision revision) {
-		if (revision == null || !Objects.equals(revision.batchId(), batchId)) {
-			throw new IllegalArgumentException("Price revision for another batch");
-		}
-		HealthExaminationBatchParticipantService assignment = assignments.get(revision.batchServiceId());
-		if (assignment != null) {
-			if (assignment.unitPrice().amount().compareTo(revision.oldPrice().amount()) != 0) {
-				throw new DomainRuleViolation("Stale batch price revision");
-			}
-			assignments.put(revision.batchServiceId(), assignment.withUnitPrice(revision.newPrice()));
-		}
-	}
+  public void moveToDay(AggregateId day) {
+    requireActive();
+    if (day == null) throw new IllegalArgumentException("Examination day is required");
+    batchDayId = day;
+  }
 
-	public void updateRosterNoteSnapshot(String rosterNoteSnapshot) {
-		this.rosterNoteSnapshot = rosterNoteSnapshot;
-	}
+  public void reconcileServices(
+      List<HealthExaminationBatchParticipantService> actualServices,
+      java.util.Collection<
+              com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService>
+          scope,
+      AggregateId actor,
+      Instant at) {
+    requireActive();
+    if (actualServices == null || scope == null || actor == null || at == null)
+      throw new IllegalArgumentException("Reconciliation details are required");
+    var allowed =
+        scope.stream()
+            .collect(
+                java.util.stream.Collectors.toMap(service -> service.id(), service -> service));
+    Map<AggregateId, HealthExaminationBatchParticipantService> reviewed = new HashMap<>();
+    for (var s : actualServices) {
+      if (!batchId.equals(s.batchId())
+          || !id.equals(s.batchParticipantId())
+          || !allowed.containsKey(s.batchServiceId())
+          || !batchId.equals(allowed.get(s.batchServiceId()).batchId()))
+        throw new ServiceOutsideBatchScope();
+      var existing = services.get(s.batchServiceId());
+      var batchService = allowed.get(s.batchServiceId());
+      if (existing == null
+          && (!batchService.active()
+              || !s.performed()
+              || s.unitPriceSnapshot().amount().compareTo(batchService.negotiatedPrice().amount())
+                  != 0))
+        throw new DomainRuleViolation(
+            "New performed services must use an active batch service and its negotiated price");
+      if (existing != null
+          && (!existing.id().equals(s.id())
+              || existing.unitPriceSnapshot().amount().compareTo(s.unitPriceSnapshot().amount())
+                  != 0
+              || (existing.serviceRequestId() != null
+                  && !existing.serviceRequestId().equals(s.serviceRequestId()))))
+        throw new DomainRuleViolation(
+            "Original service identity and price snapshot must be retained");
+      if (!actor.equals(s.recordedBy()) || !at.equals(s.recordedAt()))
+        throw new IllegalArgumentException(
+            "Service reconciliation audit must match the participant");
+      if (reviewed.putIfAbsent(s.batchServiceId(), s) != null)
+        throw new DomainRuleViolation("Duplicate reconciled service");
+    }
+    if (!reviewed.keySet().containsAll(services.keySet()))
+      throw new DomainRuleViolation("Existing service rows must be retained when unchecked");
+    services.clear();
+    services.putAll(reviewed);
+    reconciliationStatus = ReconciliationStatus.RECONCILED;
+    reconciledBy = actor;
+    reconciledAt = at;
+  }
 
-	public HealthExaminationBatchParticipantService assignmentFor(AggregateId batchServiceId) {
-		return assignments.get(batchServiceId);
-	}
+  public List<HealthExaminationBatchParticipantService> services() {
+    return services.values().stream()
+        .sorted(java.util.Comparator.comparing(s -> s.id().value().toString()))
+        .toList();
+  }
 
-	public AggregateId id() {
-		return id;
-	}
-
-	public AggregateId batchId() {
-		return batchId;
-	}
-
-	public AggregateId healthExaminationParticipantId() {
-		return healthExaminationParticipantId;
-	}
-
-	public String participantCodeSnapshot() {
-		return participantCodeSnapshot;
-	}
-
-	public String departmentSnapshot() {
-		return departmentSnapshot;
-	}
-
-	public String jobTitleSnapshot() {
-		return jobTitleSnapshot;
-	}
-
-	public String occupationSnapshot() {
-		return occupationSnapshot;
-	}
-
-	public String fullNameSnapshot() {
-		return fullNameSnapshot;
-	}
-
-	public LocalDate dateOfBirthSnapshot() {
-		return dateOfBirthSnapshot;
-	}
-
-	public String sexSnapshot() {
-		return sexSnapshot;
-	}
-
-	public IdentificationNumber identificationNumberSnapshot() {
-		return identificationNumberSnapshot;
-	}
-
-	public LocalDate identificationNumberIssueDateSnapshot() {
-		return identificationNumberIssueDateSnapshot;
-	}
-
-	public String identificationNumberIssuePlaceSnapshot() {
-		return identificationNumberIssuePlaceSnapshot;
-	}
-
-	public String ethnicitySnapshot() {
-		return ethnicitySnapshot;
-	}
-
-	public String subjectTypeSnapshot() {
-		return subjectTypeSnapshot;
-	}
-
-	public String payerSourceSnapshot() {
-		return payerSourceSnapshot;
-	}
-
-	public String bloodGroupSnapshot() {
-		return bloodGroupSnapshot;
-	}
-
-	public String phoneSnapshot() {
-		return phoneSnapshot;
-	}
-
-	public String provinceSnapshot() {
-		return provinceSnapshot;
-	}
-
-	public String wardSnapshot() {
-		return wardSnapshot;
-	}
-
-	public String addressDetailSnapshot() {
-		return addressDetailSnapshot;
-	}
-
-	public String administrativeOccupationSnapshot() {
-		return administrativeOccupationSnapshot;
-	}
-
-	public String workplaceOrSchoolSnapshot() {
-		return workplaceOrSchoolSnapshot;
-	}
-
-	public String healthExaminationReasonSnapshot() {
-		return healthExaminationReasonSnapshot;
-	}
-
-	public String rosterNoteSnapshot() {
-		return rosterNoteSnapshot;
-	}
-
-	public List<HealthExaminationBatchParticipantService> assignments() {
-		return List.copyOf(assignments.values());
-	}
+  private void requireActive() {
+    if (rosterStatus != RosterStatus.ACTIVE)
+      throw new DomainRuleViolation("Participant is cancelled");
+  }
 }
