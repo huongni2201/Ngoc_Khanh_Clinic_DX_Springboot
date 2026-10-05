@@ -14,8 +14,7 @@ public record HealthExaminationBatchRequest(
     @NotNull @Pattern(regexp = "CLINIC|ORGANIZATION_SITE") String examinationSiteType,
     @NotBlank String examinationSiteName,
     @NotBlank String examinationSiteAddress,
-    @NotEmpty List<@NotNull @Valid ServicePriceRequest> services,
-    @PositiveOrZero Long rowVersion) {
+    @NotEmpty List<@NotNull @Valid ServicePriceRequest> services) {
   public record ServicePriceRequest(
       @NotNull UUID serviceId,
       @NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal negotiatedPrice) {}
@@ -31,7 +30,6 @@ public record HealthExaminationBatchRequest(
         services.stream()
             .map(
                 s -> new BatchConfigurationCommand.ServicePrice(s.serviceId(), s.negotiatedPrice()))
-            .toList(),
-        rowVersion);
+            .toList());
   }
 }

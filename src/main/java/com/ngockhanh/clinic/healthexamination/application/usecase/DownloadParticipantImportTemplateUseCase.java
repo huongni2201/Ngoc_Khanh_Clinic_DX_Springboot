@@ -1,6 +1,5 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportTemplateWriter;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;

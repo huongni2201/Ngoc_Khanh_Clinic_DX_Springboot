@@ -60,6 +60,29 @@ class UploadParticipantImportUseCaseTest {
   }
 
   @Test
+  void rejectsWorkbookBytesThatDoNotMatchTheExcelExtensionBeforeStorage() throws Exception {
+    setup();
+    var invalid = command();
+    var invalidFile =
+        new UploadParticipantImportCommand(
+            invalid.organizationId(),
+            invalid.batchId(),
+            invalid.actorUserId(),
+            invalid.fileName(),
+            invalid.contentType(),
+            invalid.sizeBytes(),
+            new ByteArrayInputStream(
+                "not an Excel workbook".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+            invalid.selectedBatchDayIds());
+
+    assertThatThrownBy(() -> usecase.execute(invalidFile))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("does not match");
+
+    verifyNoInteractions(storage, reader, store);
+  }
+
+  @Test
   void validatesAllRowsBeforeCallingDurableStagingAndDeletesTemporarySource() throws Exception {
     setup();
     when(reader.readHeader(any(), any()))

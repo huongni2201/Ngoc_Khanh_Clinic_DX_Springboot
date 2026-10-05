@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
@@ -8,6 +9,8 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepo
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.*;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
+import java.util.Map;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,10 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CreateOrganizationUseCase {
   private final OrganizationRepository organizations;
+  private final AuditWriter audit;
 
   @Transactional
-  public OrganizationResponse execute(CreateOrganizationCommand command) {
-    if (command == null) throw new IllegalArgumentException("Missing organization command");
+  public OrganizationResponse execute(CreateOrganizationCommand command, UUID actor) {
+    if (command == null || actor == null)
+      throw new IllegalArgumentException("Organization command and creator are required");
 
     var organization =
         Organization.create(
@@ -40,6 +45,13 @@ public class CreateOrganizationUseCase {
     if (organizations.existsByCode(organization.code(), null))
       throw new DuplicateOrganizationIdentity();
     organizations.save(organization);
+    audit.record(
+        actor,
+        "CREATE_ORGANIZATION",
+        "ORGANIZATION",
+        organization.id().value(),
+        null,
+        Map.of("code", organization.code()));
     log.info("Organization creation persisted: organizationId={}", organization.id().value());
     return OrganizationResponse.from(organization);
   }

@@ -16,7 +16,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -33,8 +32,12 @@ class HealthExaminationImportWorkflowIntegrationTest {
       })
   @org.springframework.context.annotation.Import({
     StoreValidatedParticipantImportUseCase.class,
-    ValidateParticipantImportUseCase.class,
+    UpdateParticipantImportPreviewUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator.class,
     ConfirmParticipantImportUseCase.class,
+    CancelParticipantImportUseCase.class,
+    GetParticipantImportUseCase.class,
+    ListParticipantImportRowsUseCase.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisHealthExaminationBatchRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
@@ -64,8 +67,11 @@ class HealthExaminationImportWorkflowIntegrationTest {
 
   @Autowired JdbcTemplate jdbc;
   @Autowired StoreValidatedParticipantImportUseCase stage;
-  @Autowired ValidateParticipantImportUseCase preview;
+  @Autowired UpdateParticipantImportPreviewUseCase preview;
   @Autowired ConfirmParticipantImportUseCase confirm;
+  @Autowired CancelParticipantImportUseCase cancel;
+  @Autowired GetParticipantImportUseCase getImport;
+  @Autowired ListParticipantImportRowsUseCase listRows;
   @Autowired HealthExaminationBatchParticipantRepository participants;
   @Autowired org.springframework.transaction.PlatformTransactionManager tx;
 
@@ -240,46 +246,111 @@ class HealthExaminationImportWorkflowIntegrationTest {
   }
 
   @Test
-  void reconciliationRoundTripRetainsUncheckedRowsAndHeaderConflictsRollbackServices() {
+  void largeStagedRosterSummaryAndLastPageStayBounded() {
+    int rowLimit = 10_000;
+    var rows = java.util.stream.IntStream.rangeClosed(1, rowLimit).mapToObj(this::row).toList();
+    var staged = stage.execute(org, batch, actor, List.of(day1, day2), rows);
+
+    var summary = getImport.execute(org, batch, staged.importId());
+    var page = listRows.execute(org, batch, staged.importId(), 200, 50, null);
+
+    assertThat(summary.totalRows()).isEqualTo(rowLimit);
+    assertThat(page.totalRows()).isEqualTo(rowLimit);
+    assertThat(page.rows()).hasSize(50);
+    assertThat(page.rows().getFirst().rowNumber()).isEqualTo(9_951);
+    assertThat(page.rows().getLast().rowNumber()).isEqualTo(10_000);
+    assertThat(page.rows())
+        .allSatisfy(row -> assertThat(row.maskedIdentificationNumber()).startsWith("••••••"));
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.patients", Integer.class)).isZero();
+  }
+
+  @Test
+  void concurrentOverlappingImportsCommitOnlyOneRoster() throws Exception {
     var first = stage.execute(org, batch, actor, List.of(day1), List.of(row(1)));
-    confirm.execute(org, batch, first.importId(), actor, 0);
-    var p = participants.findByBatch(AggregateId.of(batch), 0, 10, null, "id", "ASC").getFirst();
-    var now = Instant.parse("2026-10-04T00:00:00Z");
-    var s =
-        new HealthExaminationBatchParticipantService(
-            AggregateId.of(UUID.randomUUID()),
-            p.batchId(),
-            p.id(),
-            AggregateId.of(batchService),
-            true,
-            null,
-            Money.vnd("100"),
-            AggregateId.of(actor),
-            now,
-            now,
-            now,
-            0);
-    p.reconcileServices(List.of(s), scope(), AggregateId.of(actor), now);
-    var transaction = new TransactionTemplate(tx);
-    transaction.executeWithoutResult(status -> participants.save(p, 0));
-    var restored = participants.findById(p.id()).orElseThrow();
-    assertThat(restored.rowVersion()).isEqualTo(1);
-    assertThat(restored.services()).hasSize(1);
-    var retained =
-        restored
-            .services()
-            .getFirst()
-            .recordPerformed(false, AggregateId.of(actor), now.plusSeconds(1));
-    restored.reconcileServices(
-        List.of(retained), scope(), AggregateId.of(actor), now.plusSeconds(1));
-    transaction.executeWithoutResult(status -> participants.save(restored, 1));
-    var reread = participants.findById(p.id()).orElseThrow();
-    assertThat(reread.services().getFirst().performed()).isFalse();
-    assertThat(reread.services().getFirst().rowVersion()).isEqualTo(1);
-    assertThat(reread.services().getFirst().unitPriceSnapshot().amount())
-        .isEqualByComparingTo("100");
-    assertThatThrownBy(
-            () -> transaction.executeWithoutResult(status -> participants.save(restored, 1)))
-        .isInstanceOf(ConcurrentUpdateException.class);
+    var second = stage.execute(org, batch, actor, List.of(day2), List.of(row(1)));
+    var ready = new java.util.concurrent.CountDownLatch(2);
+    var start = new java.util.concurrent.CountDownLatch(1);
+    var executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+    try {
+      var confirmations =
+          List.of(first.importId(), second.importId()).stream()
+              .map(
+                  importId ->
+                      executor.submit(
+                          () -> {
+                            ready.countDown();
+                            start.await();
+                            try {
+                              confirm.execute(org, batch, importId, actor, 0);
+                              return null;
+                            } catch (RuntimeException conflict) {
+                              return conflict;
+                            }
+                          }))
+              .toList();
+      assertThat(ready.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+      start.countDown();
+      var outcomes =
+          confirmations.stream()
+              .map(
+                  future -> {
+                    try {
+                      return future.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                    } catch (Exception failure) {
+                      throw new AssertionError("Concurrent confirmation did not finish", failure);
+                    }
+                  })
+              .toList();
+
+      assertThat(outcomes.stream().filter(java.util.Objects::isNull)).hasSize(1);
+      assertThat(outcomes.stream().filter(java.util.Objects::nonNull).toList())
+          .singleElement()
+          .isInstanceOf(ConcurrentUpdateException.class);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT COUNT(*) FROM public.health_examination_batch_participants",
+                  Integer.class))
+          .isEqualTo(1);
+      assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.patients", Integer.class))
+          .isZero();
+    } finally {
+      executor.shutdownNow();
+    }
+  }
+
+  @Test
+  void cancellationPersistsItsVersionAndAuditWithoutCreatingParticipants() {
+    var staged = stage.execute(org, batch, actor, List.of(day1), List.of(row(1)));
+
+    var cancelled = cancel.execute(org, batch, staged.importId(), actor, 0);
+    var retry = cancel.execute(org, batch, staged.importId(), actor, 999);
+
+    assertThat(cancelled.status()).isEqualTo("CANCELLED");
+    assertThat(cancelled.rowVersion()).isEqualTo(1);
+    assertThat(retry).isEqualTo(cancelled);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT status FROM public.import_jobs WHERE id=?",
+                String.class,
+                staged.importId()))
+        .isEqualTo("CANCELLED");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT row_version FROM public.import_jobs WHERE id=?",
+                Long.class,
+                staged.importId()))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.audit_events WHERE action=? AND resource_id=?",
+                Integer.class,
+                "PARTICIPANT_ROSTER_IMPORT_CANCELLED",
+                staged.importId()))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batch_participants", Integer.class))
+        .isZero();
+    assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM public.patients", Integer.class)).isZero();
   }
 }

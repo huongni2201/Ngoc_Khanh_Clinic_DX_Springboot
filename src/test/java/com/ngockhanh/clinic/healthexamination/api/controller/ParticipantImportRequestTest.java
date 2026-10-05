@@ -32,4 +32,14 @@ class ParticipantImportRequestTest {
       assertThat(validator.validate(new ParticipantImportConfirmRequest(0L))).isEmpty();
     }
   }
+
+  @Test
+  void cancellationCannotOmitExpectedVersion() {
+    try (var factory = Validation.buildDefaultValidatorFactory()) {
+      var validator = factory.getValidator();
+      assertThat(validator.validate(new ParticipantImportCancelRequest(null))).isNotEmpty();
+      assertThat(validator.validate(new ParticipantImportCancelRequest(-1L))).isNotEmpty();
+      assertThat(validator.validate(new ParticipantImportCancelRequest(0L))).isEmpty();
+    }
+  }
 }

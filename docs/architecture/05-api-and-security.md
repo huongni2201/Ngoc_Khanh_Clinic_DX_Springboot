@@ -46,9 +46,11 @@ account actor, action, resource type/ID, occurredAt and concise safe metadata.
 Business mutations and required audit commit together; audit failure rolls back.
 Authentication's Redis/database compensation remains documented in login operations.
 
-Controllers/use cases use parameterized logs: DEBUG for reads, INFO for meaningful
-mutations. Log identifiers/counts, never request/response payloads, CCCD, credentials,
-clinical content or full search strings. Logs do not replace audit or prove commit.
+Application owns operational use-case events; controllers add useful HTTP context.
+Follow [the logging policy](../../PROJECT_RULES.md#27-logging) for levels, safe
+fields, exception ownership and transaction-aware wording. Logs do not replace
+audit or prove commit. Public use-case contracts follow
+[application Javadoc rules](../../PROJECT_RULES.md#application-comments-and-javadoc).
 
 Store secrets in environment/approved storage. Backend authorization is authoritative.
 Preserve exact-version patient releases independently of notification delivery.

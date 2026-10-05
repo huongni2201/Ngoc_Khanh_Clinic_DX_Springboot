@@ -2,7 +2,6 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper">
  <sql id="columns">id,batch_id,batch_day_id,participant_code,full_name,date_of_birth,sex,identification_number,phone,email,department_name,position_name,patient_id,roster_status,attendance_status,actual_examination_date,attendance_recorded_by,attendance_recorded_at,attendance_note,service_reconciliation_status,services_reconciled_by,services_reconciled_at,import_job_id,source_row_number,prepared_at,created_at,updated_at,row_version</sql>
- <sql id="search"><if test="searchPattern != null">AND (full_name ILIKE #{searchPattern} ESCAPE E'\\' OR identification_number ILIKE #{searchPattern} ESCAPE E'\\' OR phone ILIKE #{searchPattern} ESCAPE E'\\')</if></sql>
  <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
  SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE id=#{id}
  </select>
@@ -11,16 +10,6 @@
  FROM public.health_examination_participant_services WHERE batch_participant_id IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
  ORDER BY id
  </select>
- <select id="findByBatch" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
- SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} <include refid="search"/>
- ORDER BY <choose>
- <when test="sortKey == 'fullName'">full_name</when><when test="sortKey == 'departmentName'">department_name</when>
- <when test="sortKey == 'positionName'">position_name</when><when test="sortKey == 'createdAt'">created_at</when>
- <otherwise>id</otherwise></choose>
- <choose><when test="sortBy == 'DESC'">DESC</when><otherwise>ASC</otherwise></choose>,id ASC
- LIMIT #{limit} OFFSET #{offset}
- </select>
- <select id="countByBatch" resultType="long">SELECT count(*) FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} <include refid="search"/></select>
  <select id="existingIdentificationNumbers" resultType="String">
  SELECT identification_number FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} AND identification_number IN
  <foreach collection="numbers" item="n" open="(" close=")" separator=",">#{n}</foreach>

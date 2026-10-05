@@ -24,21 +24,9 @@ public interface HealthExaminationBatchMyBatisMapper {
 
   int insert(HealthExaminationBatchRecord record);
 
-  int update(HealthExaminationBatchRecord record);
-
-  int upsertServices(@Param("items") List<HealthExaminationBatchServiceRecord> items);
-
-  int reserveDisplayOrders(@Param("id") UUID id, @Param("itemCount") int itemCount);
-
   int insertDays(@Param("items") List<HealthExaminationBatchDayRecord> items);
 
-  int deleteRemoved(@Param("id") UUID id, @Param("retained") List<UUID> retained);
-
-  int deleteRemovedDays(@Param("id") UUID id, @Param("retained") List<UUID> retained);
-
-  boolean hasReferencedRemoved(@Param("id") UUID id, @Param("retained") List<UUID> retained);
-
-  boolean hasReferencedRemovedDays(@Param("id") UUID id, @Param("retained") List<UUID> retained);
+  int insertServices(@Param("items") List<HealthExaminationBatchServiceRecord> items);
 
   List<BatchSummary> findPage(
       @Param("organizationId") UUID organizationId,

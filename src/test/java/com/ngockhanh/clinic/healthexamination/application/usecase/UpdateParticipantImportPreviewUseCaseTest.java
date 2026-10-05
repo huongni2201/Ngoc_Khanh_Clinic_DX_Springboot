@@ -4,13 +4,13 @@ import static com.ngockhanh.clinic.healthexamination.RosterFixtures.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
+import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import java.util.*;
 import org.junit.jupiter.api.*;
 
-class ValidateParticipantImportUseCaseTest {
+class UpdateParticipantImportPreviewUseCaseTest {
   @Test
   void reorderedSelectionPreservesPreviouslyReviewedAssignment() {
     var job = job(0);
@@ -37,8 +37,9 @@ class ValidateParticipantImportUseCaseTest {
   final HealthExaminationBatchParticipantRepository participants =
       mock(HealthExaminationBatchParticipantRepository.class);
   final ParticipantImportAuditWriter audit = mock(ParticipantImportAuditWriter.class);
-  final ValidateParticipantImportUseCase usecase =
-      new ValidateParticipantImportUseCase(CLOCK, batches, jobs, participants, audit);
+  final UpdateParticipantImportPreviewUseCase usecase =
+      new UpdateParticipantImportPreviewUseCase(
+          CLOCK, batches, jobs, participants, audit, new ParticipantDayAllocator());
 
   @BeforeEach
   void setup() {

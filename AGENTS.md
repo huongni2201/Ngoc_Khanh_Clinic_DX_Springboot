@@ -194,7 +194,7 @@ Important baseline rules:
 
 - English `snake_case` database identifiers.
 - Plural table names.
-- Primary key: `id`.
+- Primary key: `id` where defined; preserve schema-defined composite keys (ADR-0013).
 - Foreign key: `<entity>_id`.
 - PostgreSQL types such as `uuid`, `timestamptz(3)` (Java `Instant`), `numeric(14,2)`, `text`/`varchar`, `boolean`, and application-incremented `bigint` version counters.
 - Clinical and financial history is never hard-deleted.
@@ -257,7 +257,7 @@ Controllers:
 
 - validate transport input;
 - call application use cases;
-- map responses;
+- add HTTP status/envelope to application responses; keep domain-to-response mapping in application;
 - do not contain business logic;
 - do not call MyBatis mappers directly;
 - do not open manual JDBC connections;
@@ -377,12 +377,28 @@ unless the name accurately describes a technical abstraction.
 
 Prefer domain language from requirements.
 
+Java types and collections:
+
+- Use wrapper types (`Integer`, `Long`, `Short`, `Byte`, `Double`, `Float`, `Boolean`, `Character`) instead of primitive declarations in new or changed code, including required persistence fields.
+- Declare ordered collections as `List<T>`; use `ArrayList<T>` when mutation is needed. Do not represent business lists with arrays or use single-element arrays as mutable scalar holders.
+- Preserve required-value validation and compare wrapper values with `equals`/`Objects.equals`, never reference equality. A wrapper does not make a required value optional.
+- Follow [PROJECT_RULES.md, Java types and collections](PROJECT_RULES.md#java-types-and-collections) for null handling, immutable lists, technical exceptions and migration checks.
+
 Controller comments:
 
 - Write concise English Javadoc for every public endpoint method.
 - Describe the endpoint behavior and document each parameter with `@param` and each non-void result with `@return`.
 - Document externally visible behavior only; do not narrate annotations, logging, or obvious implementation details.
 - Update the Javadoc when the endpoint contract, parameters, response, or authorization behavior changes.
+
+Application comments and logging:
+
+- When adding or changing use cases or published application contracts, follow
+  [application Javadoc](PROJECT_RULES.md#application-comments-and-javadoc).
+- Follow [logging](PROJECT_RULES.md#27-logging) for event ownership, levels,
+  safe fields, exception handling and transaction-aware wording.
+- Follow [code quality and agent workflow](PROJECT_RULES.md#34-code-quality)
+  to keep changes cohesive, readable and verifiable.
 
 ---
 

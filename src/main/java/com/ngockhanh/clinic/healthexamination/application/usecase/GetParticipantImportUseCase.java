@@ -23,9 +23,10 @@ public class GetParticipantImportUseCase {
     batches
         .findByIdAndOrganizationId(AggregateId.of(batchId), AggregateId.of(organizationId))
         .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-    var job =
-        jobs.findByIdAndBatchId(AggregateId.of(importId), AggregateId.of(batchId))
+    var summary =
+        jobs.findSummaryByIdAndBatchId(AggregateId.of(importId), AggregateId.of(batchId))
             .orElseThrow(() -> new ResourceNotFoundException("Participant import"));
-    return ParticipantImportSummaryResponse.from(job, clock.instant());
+    return ParticipantImportSummaryResponse.from(
+        summary, jobs.countRowsByJobId(summary.id()), clock.instant());
   }
 }

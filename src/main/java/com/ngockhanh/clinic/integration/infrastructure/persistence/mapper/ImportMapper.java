@@ -9,12 +9,15 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface ImportMapper {
-  boolean hasBatchDayReferences(@Param("batchId") UUID batchId, @Param("dayIds") List<UUID> dayIds);
-
   ImportJobRecord find(
       @Param("id") UUID id, @Param("batchId") UUID batchId, @Param("forUpdate") boolean forUpdate);
 
   List<ImportRowRecord> rows(UUID jobId);
+
+  long countRows(@Param("jobId") UUID jobId);
+
+  List<ImportRowRecord> pageRows(
+      @Param("jobId") UUID jobId, @Param("offset") long offset, @Param("limit") int limit);
 
   int insertJob(ImportJobRecord job);
 

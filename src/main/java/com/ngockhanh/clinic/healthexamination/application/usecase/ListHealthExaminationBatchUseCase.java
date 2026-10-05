@@ -4,8 +4,8 @@ import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminatio
 import com.ngockhanh.clinic.healthexamination.application.response.BatchSummaryResponse;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
+import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,10 @@ public class ListHealthExaminationBatchUseCase {
     if (!Set.of("id", "batchCode", "batchName", "startDate", "status", "createdAt").contains(key)) {
       throw new IllegalArgumentException("Invalid sort key");
     }
-    String direction = q.sortBy() == null || q.sortBy().isBlank() ? "ASC" : q.sortBy().trim().toUpperCase(Locale.ROOT);
+    String direction =
+        q.sortBy() == null || q.sortBy().isBlank()
+            ? "ASC"
+            : q.sortBy().trim().toUpperCase(Locale.ROOT);
     if (!direction.equals("ASC") && !direction.equals("DESC")) {
       throw new IllegalArgumentException("Invalid sort direction");
     }

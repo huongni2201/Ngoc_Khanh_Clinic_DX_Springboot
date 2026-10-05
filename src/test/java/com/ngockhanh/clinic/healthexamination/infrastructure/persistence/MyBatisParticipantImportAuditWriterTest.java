@@ -4,8 +4,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.Snapshot;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository.MyBatisParticipantImportAuditWriter;
 import java.time.Instant;

@@ -13,9 +13,6 @@ import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader.SpreadsheetFormat;
-
 class FesodParticipantSpreadsheetReaderTest {
     private static final List<String> HEADERS = List.of(
             "STT", "Họ và tên", "Giới tính", "Ngày/tháng/năm sinh", "Số điện thoại",

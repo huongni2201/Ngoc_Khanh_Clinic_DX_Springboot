@@ -16,7 +16,10 @@ follow [login operations](login.md).
 
 ## Organizations
 
-`POST /organizations` and `PUT /organizations/{organizationId}` use:
+`GET /organizations/{organizationId}` retrieves one organization. `POST /organizations`
+creates one, and `PUT /organizations/{organizationId}` updates it with the expected
+`rowVersion`. The update request uses this shape; the create request omits
+`rowVersion`.
 
 ```json
 {
@@ -43,8 +46,8 @@ Responses include these fields, status, timestamps and the current version.
 ## Batch configuration
 
 Base: `/organizations/{organizationId}/health-examination-batches`.
-POST creates a batch and its days/services atomically; PUT `/{batchId}` updates
-a draft using the expected `rowVersion`.
+GET returns a bounded, paginated list scoped to the organization. POST creates
+a batch and its initial days/services atomically.
 
 ```json
 {
@@ -54,22 +57,16 @@ a draft using the expected `rowVersion`.
   "examinationSiteType": "ORGANIZATION_SITE",
   "examinationSiteName": "Examination site",
   "examinationSiteAddress": "Site address",
-  "services": [{"serviceId": "<uuid>", "negotiatedPrice": 100000.00}],
-  "rowVersion": 0
+  "services": [{"serviceId": "<uuid>", "negotiatedPrice": 100000.00}]
 }
 ```
 
 At least one unique date and service are required. Site is `CLINIC` or
-`ORGANIZATION_SITE`. The server captures reference price from current service
-catalog when adding a service. Amounts fit numeric(14,2). Retained day/service
-IDs and reference snapshots are preserved; referenced days/services cannot be removed.
-
-Detail responses include `days` (`id`, `examinationDate`), derived `startDate`/
-`endDate`, header `rowVersion`, and each service's `referencePriceSnapshot`,
-`negotiatedPrice`, `displayOrder`, `active`, `rowVersion`. Batch lifecycle is
-`DRAFT`, `READY`, `FINALIZED`, `CLOSED`. The old DELETE batch endpoint and
-`reason`, `payerType`, batch template association and entered date range are removed.
-Normal price edits preserve previously recorded performed-service snapshots.
+`ORGANIZATION_SITE`. The server captures the current catalog reference price;
+amounts fit `numeric(14,2)`. The create response contains the initial days,
+derived date range, status and batch version, plus each service's reference-price
+snapshot, negotiated price, display order, active flag and version. Batch status
+values are `DRAFT`, `READY`, `FINALIZED` and `CLOSED`.
 
 ## Participant roster and import
 
@@ -77,14 +74,13 @@ All paths below are relative to the batch base plus `/{batchId}`:
 
 | Method | Path | Contract |
 |---|---|---|
-| GET | `/participants` | Authorized, bounded batch roster query. |
-| GET | `/participants/import-template` | Standard XLSX roster template. |
+| GET | `/participants/export-template` | Standard XLSX roster template. |
 | POST | `/participant-imports` | Multipart `file` and JSON `configuration.selectedBatchDayIds`; validates the complete file before staging. |
 | GET | `/participant-imports/{importId}` | Current job summary/version. |
 | GET | `/participant-imports/{importId}/rows` | Paginated preview rows with masked CCCD. |
 | PUT | `/participant-imports/{importId}/preview` | JSON `selectedBatchDayIds`, required `expectedRowVersion`, optional `rowAssignments` keyed by source row number. |
 | POST | `/participant-imports/{importId}/confirm` | JSON `expectedRowVersion`; commits the approved preview atomically. |
-| DELETE | `/participant-imports/{importId}` | JSON `expectedRowVersion`; cancels a validated job. |
+| POST | `/participant-imports/{importId}/cancel` | JSON `expectedRowVersion`; cancels a validated job. |
 
 The old `/employee-imports`, `/employees/import-template`, singular `/participant`
 and column-mapping action paths are removed.

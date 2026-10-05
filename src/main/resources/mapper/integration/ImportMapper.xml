@@ -11,6 +11,12 @@
  SELECT id,job_id,row_number,normalized_payload::text AS normalized_payload,preview_metadata::text AS preview_metadata,
  committed_resource_type,committed_resource_id,created_at FROM public.import_rows WHERE job_id=#{jobId} ORDER BY row_number
  </select>
+ <select id="countRows" resultType="long">SELECT COUNT(*) FROM public.import_rows WHERE job_id=#{jobId}</select>
+ <select id="pageRows" resultType="com.ngockhanh.clinic.integration.infrastructure.persistence.record.ImportRowRecord">
+ SELECT id,job_id,row_number,normalized_payload::text AS normalized_payload,preview_metadata::text AS preview_metadata,
+ committed_resource_type,committed_resource_id,created_at FROM public.import_rows WHERE job_id=#{jobId}
+ ORDER BY row_number LIMIT #{limit} OFFSET #{offset}
+ </select>
  <insert id="insertJob">
  INSERT INTO public.import_jobs (id,import_type,batch_id,configuration,source_file_id,status,created_by,created_at,expires_at)
  VALUES (#{id},#{importType},#{batchId},CAST(#{configuration} AS jsonb),#{sourceFileId},#{status},#{createdBy},#{createdAt},#{expiresAt})
@@ -35,11 +41,4 @@
  WHERE r.id=v.id AND r.job_id=v.job_id
  </update>
 
- <select id="hasBatchDayReferences" resultType="boolean">
- SELECT EXISTS (SELECT 1 FROM public.import_jobs j WHERE j.batch_id=#{batchId} AND (
- EXISTS (SELECT 1 FROM jsonb_array_elements_text(j.configuration->'selectedBatchDayIds') selected(id)
- WHERE selected.id IN <foreach collection="dayIds" item="id" open="(" close=")" separator=",">CAST(#{id} AS text)</foreach>)
- OR EXISTS (SELECT 1 FROM public.import_rows r WHERE r.job_id=j.id AND r.preview_metadata->>'batchDayId' IN
- <foreach collection="dayIds" item="id" open="(" close=")" separator=",">CAST(#{id} AS text)</foreach>)))
- </select>
 </mapper>

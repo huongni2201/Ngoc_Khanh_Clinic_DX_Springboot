@@ -332,7 +332,7 @@ Clean-slate conventions (ADR-0013):
 ```text
 table names       plural snake_case
 column names      snake_case
-primary key       id
+primary key       id where defined; retain schema-defined composite keys
 foreign key       <entity>_id
 time              `timestamptz(3)`; Java `Instant`; values represent UTC instants
 money             numeric(14,2)
@@ -547,6 +547,32 @@ format print HTML
 parse arbitrary HTTP concerns
 ```
 
+### Application comments and Javadoc
+
+For new or changed application use cases, write concise English class Javadoc
+stating the business operation. Document each public use-case entry point and
+published application contract with its behavior, `@param` for every parameter,
+`@return` for a non-void result, and `@throws` for caller-actionable failures.
+When implementing a documented interface, inherit its contract and document only
+implementation-specific guarantees; do not copy the same Javadoc twice.
+
+Describe relevant guarantees: required caller authorization, resource scope,
+atomic writes/audit, expected-version conflicts, retry/idempotency behavior and
+external side effects. Document only guarantees actually enforced by the current
+flow. A caller-provided actor ID alone is not proof of authorization. A method
+return inside an enclosing transaction does not guarantee that transaction committed.
+
+Use short inline comments for non-obvious reasons, such as why confirmed retries
+precede version checks, why reviewed day assignments stay frozen, or why an audit
+failure must roll back writes. Link the relevant ADR/contract when it explains a
+decision; keep the essential reason beside the code. Improve names/control flow
+before adding a comment that merely paraphrases the next statement.
+
+Private methods, trivial accessors, and command/query/response fields need comments
+only for semantics not evident from their names/types. Update comments with behavior;
+remove obsolete or commented-out code. TODOs must name a concrete missing contract
+or tracked follow-up and must never disguise successful fake behavior.
+
 ---
 
 ## 21. Transaction Rules
@@ -661,33 +687,48 @@ Do not put secret/token material or unnecessarily complete clinical payloads in 
 
 ## 27. Logging
 
-Use structured, concise logs.
+Controllers and application use cases use `@Slf4j` and parameterized logs with
+stable English event descriptions and named fields. Application owns meaningful
+use-case events; controllers add only useful HTTP context. Keep domain objects,
+DTOs and pure converters free of operational logging. A logger annotation does
+not require entry/exit logs on every method.
 
-Controllers and application use cases must use `@Slf4j` and parameterized logs.
-Use DEBUG for request/read handling and INFO for meaningful mutations. Log only
-identifiers/counts, not request, response, command/query objects or search text.
-Logs inside a transaction must not claim it has committed. Logs do not replace audit.
+| Level | Use |
+|---|---|
+| DEBUG | Useful read/request diagnostics, expected validation/conflicts and idempotent replays; omit routine noise. |
+| INFO | Meaningful mutation milestones, summarized once per operation. |
+| WARN | Recoverable dependency/degraded behavior or security signals that need attention. |
+| ERROR | Unexpected failure requiring investigation, at the boundary that handles it. |
 
-Outside domain, prefer Lombok `@RequiredArgsConstructor` for final dependencies and
-Lombok for useful DTO boilerplate. Existing Java records do not need redundant
-constructors. Avoid generated `toString()` on sensitive DTOs. Domain may use Lombok
-but must preserve invariant-enforcing constructors, factories, and business methods.
+Log only allowlisted operational fields needed for diagnosis: internal resource
+IDs, existing correlation ID, counts, durations, versions, and safe outcome/error
+codes. IDs are still sensitive metadata; log only those needed. Never serialize
+request/response/command/query/domain objects, raw search text, uploaded rows,
+filenames, names, contact details, CCCD, clinical content, credentials, session
+cookies, tokens or payment secrets. Parameterized placeholders do not sanitize
+values. Reuse validated correlation context when available rather than generating
+a new ID per layer or passing logging-only parameters through domain contracts.
 
-Never log full:
+Inside a transaction, describe a completed step explicitly as pending commit,
+for example `Organization insert executed; commit pending: organizationId={}`.
+Do not report committed/succeeded merely because a repository call returned.
+If committed-outcome logging is required, emit it only after confirmed commit;
+do not add an event/outbox framework solely for a log statement. Logs are not
+the audit trail; required business audit still commits with business writes.
 
-```text
-patient object
-clinical note
-lab result payload
-CCCD
-credentials
-tokens
-payment secret
-```
+Unexpected failures are logged once by the handling HTTP/job/integration boundary.
+Intermediate methods propagate or translate while preserving the cause; do not
+catch, log and rethrow at every layer. Expected validation/conflict outcomes do
+not need ERROR stack traces. Raw exception messages, SQL-driver details and nested
+causes can contain healthcare data: use safe codes/context in operational logs
+and only include diagnostics whose redaction and access controls are established.
+Preserve the original cause internally even when it cannot safely be logged.
 
-Use identifiers/correlation IDs where possible.
-
-Log enough for operations without leaking healthcare information.
+For bulk imports, log a bounded summary such as job ID, accepted/rejected counts
+and elapsed time, not one INFO line per participant. Use existing logging and
+correlation facilities; avoid generic logging wrappers or timing AOP without a
+demonstrated need. Test redaction or event behavior when it is a requirement;
+do not snapshot ordinary log wording or require a logger test for every use case.
 
 ---
 
@@ -836,7 +877,91 @@ massive switch statements for domain workflows when a clearer model exists
 
 Prefer cohesive, explicit code.
 
-Do not abstract until there is a real repeated concept.
+Extract shared implementation for a real repeated concept; introduce boundary
+ports when the architecture requires them, even with one current implementation.
+
+### Readability and change scope
+
+- Keep a use case readable as orchestration: load/check, invoke domain behavior,
+  persist/audit, map its result. Preserve business-required ordering and transaction
+  scope; extract a method only when its name captures a cohesive operation.
+- Prefer guard clauses, descriptive names and straightforward loops when they
+  clarify branching or mutation. Use streams for clear transformations, not hidden
+  persistence calls or state changes. Line count alone is not a quality target.
+- Introduce abstractions for a real responsibility or boundary. Domain repository
+  ports and external-system ports remain valid with one implementation; generic
+  service interfaces, base classes and pass-through layers need a concrete benefit.
+- Keep validation at its owning boundary; required database constraints and
+  authorization checks are not redundant merely because the frontend also checks.
+- Use the existing formatter/import conventions. Remove dead code introduced by
+  the current change; keep unrelated cleanup and broad type migrations separate.
+- Make tests assert observable outcomes, invariants and meaningful failure paths.
+  A unit test with mocks cannot prove commit/rollback, SQL or concurrency behavior;
+  use the documented integration tests for those guarantees.
+
+Outside domain, prefer Lombok `@RequiredArgsConstructor` for final dependencies and
+Lombok for useful DTO boilerplate. Existing Java records do not need redundant
+constructors. Avoid generated `toString()` on sensitive DTOs. Domain may use Lombok
+but must preserve invariant-enforcing constructors, factories, and business methods.
+
+### Agent workflow
+
+Before editing, identify the owning module, active contract, supported callers and
+observable acceptance criteria. Read the relevant architecture sections instead
+of loading unrelated documents or invoking every available skill. Reuse current
+capabilities before proposing dependencies, frameworks or new files; the file
+creation restriction in section 9 still applies.
+
+Preserve existing worktree changes. Keep each diff tied to the requested outcome,
+including comments and documentation. Treat existing code as evidence, not authority
+over accepted contracts. Report conflicts with exact sources and stop only the
+dependent business change; continue independent authorized work.
+
+Review the final diff against the acceptance criteria, use the verification rules
+in section 36, and report commands actually run plus failures/skips. Record lasting
+rules in their owning document and link to them elsewhere instead of copying whole
+policies. Plans/reviews describe work and evidence; they do not silently supersede
+accepted ADRs or current business contracts.
+
+### Java types and collections
+
+Use wrapper types rather than primitive declarations in new or changed Java code:
+`Integer` for `int`, `Long` for `long`, `Short` for `short`, `Byte` for `byte`,
+`Double` for `double`, `Float` for `float`, `Boolean` for `boolean`, and
+`Character` for `char`. This applies to fields, record components, parameters,
+return values and local variables in production code and corresponding tests.
+Keep domain-specific value objects and `BigDecimal` for money.
+
+Required values remain required, including SQL `NOT NULL` columns. Use `@NotNull`
+on required HTTP wrapper fields; numeric bounds alone do not reject null. Keep
+domain/application preconditions at their existing owning boundary. Resolve null
+before unboxing, arithmetic, ordering or boolean conditions. Use `equals` or
+`Objects.equals` for wrapper value comparisons; never use `==`/`!=` between
+wrappers. Use `Boolean.TRUE.equals(value)` only when null legitimately means false.
+
+Declare ordered business collections as `List<T>` and use `new ArrayList<>()`
+for mutable storage, for example `List<Integer> rowNumbers = new ArrayList<>();`.
+Do not use `int[]`, `long[]`, `Integer[]`, `String[]` or other arrays to represent
+business lists. Use `List.of`, `List.copyOf` or `Stream.toList` for immutable
+results; copy into an `ArrayList` before mutation. Preserve defensive copies and
+existing mutability contracts. Keep `Set` for uniqueness and `Map` for keyed lookup.
+Do not replace single-element scalar arrays with single-element lists: use
+wrapper fields on the owning listener/state object instead. Atomic types require
+an actual concurrency need, not merely a lambda capture workaround.
+
+Technical exceptions are limited to Java/JDK/library contracts that require a
+primitive or array: overridden signatures, annotation elements and their
+compile-time primitive constants, the JVM entry point, and binary/crypto/I/O
+buffers or PostgreSQL `bytea` (`byte[]`). Confine unavoidable arrays such as
+`String.split` results to the adapter operation; expose business lists as `List<T>`.
+Primitive literals, casts and unavoidable unboxing at these boundaries are valid.
+Explain non-obvious exceptions locally; do not blanket-exempt infrastructure or tests.
+
+Apply this rule when adding or changing declarations. Existing primitive/list-array
+declarations are migration debt, not approved examples. A type migration must
+update callers, equality/null behavior, MyBatis contracts and affected tests
+together, including schema-record type assertions. Do not perform an unrelated
+repository-wide replacement as part of a focused change.
 
 ---
 

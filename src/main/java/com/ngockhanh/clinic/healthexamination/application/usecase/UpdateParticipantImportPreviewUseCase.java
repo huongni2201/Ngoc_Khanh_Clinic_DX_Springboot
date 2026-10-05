@@ -1,8 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportSummaryResponse;
+import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.*;
@@ -18,12 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ValidateParticipantImportUseCase {
+public class UpdateParticipantImportPreviewUseCase {
   private final java.time.Clock clock;
   private final HealthExaminationBatchRepository batches;
   private final HealthExaminationImportJobRepository jobs;
   private final HealthExaminationBatchParticipantRepository participants;
   private final ParticipantImportAuditWriter audit;
+  private final ParticipantDayAllocator dayAllocator;
 
   @Transactional
   public ParticipantImportSummaryResponse execute(
@@ -47,14 +47,13 @@ public class ValidateParticipantImportUseCase {
             .orElseThrow(() -> new ResourceNotFoundException("Participant import"));
     if (job.rowVersion() != expectedVersion) throw new ConcurrentUpdateException();
     job.requireEditable(clock.instant());
-    var days = StoreValidatedParticipantImportUseCase.selectedDays(batch.days(), selectedDays);
+    var days = dayAllocator.selectedDays(batch.days(), selectedDays);
     if (!new java.util.HashSet<>(job.selectedBatchDayIds())
         .equals(
             selectedDays.stream()
                 .map(AggregateId::of)
                 .collect(java.util.stream.Collectors.toSet())))
-      StoreValidatedParticipantImportUseCase.assignDays(
-          job.rows(), days, participants.activeCountsByDay(batch.id()));
+      dayAllocator.assignDays(job.rows(), days, participants.activeCountsByDay(batch.id()));
     var rows =
         job.rows().stream()
             .collect(java.util.stream.Collectors.toMap(r -> r.getRowNumber(), r -> r));

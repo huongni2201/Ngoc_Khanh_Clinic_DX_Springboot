@@ -1,7 +1,5 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportSummaryResponse;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;

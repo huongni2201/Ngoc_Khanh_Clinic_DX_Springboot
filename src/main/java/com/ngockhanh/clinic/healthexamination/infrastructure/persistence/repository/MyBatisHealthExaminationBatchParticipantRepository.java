@@ -32,24 +32,6 @@ public class MyBatisHealthExaminationBatchParticipantRepository
         .map(r -> domain(r, mapper.findServices(List.of(r.id()))));
   }
 
-  public List<HealthExaminationBatchParticipant> findByBatch(
-      AggregateId id, long offset, long limit, String search, String sort, String direction) {
-    var rows = mapper.findByBatch(id.value(), offset, limit, search, sort, direction);
-    if (rows.isEmpty()) return List.of();
-    var services =
-        mapper
-            .findServices(rows.stream().map(HealthExaminationBatchParticipantRecord::id).toList())
-            .stream()
-            .collect(
-                Collectors.groupingBy(
-                    HealthExaminationParticipantServiceRecord::batchParticipantId));
-    return rows.stream().map(r -> domain(r, services.getOrDefault(r.id(), List.of()))).toList();
-  }
-
-  public long countByBatch(AggregateId id, String search) {
-    return mapper.countByBatch(id.value(), search);
-  }
-
   public Set<IdentificationNumber> existingIdentificationNumbers(
       AggregateId id, Collection<IdentificationNumber> numbers) {
     if (numbers.isEmpty()) return Set.of();

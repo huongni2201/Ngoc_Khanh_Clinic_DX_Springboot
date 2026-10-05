@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.domain.repository;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import java.time.*;
@@ -16,8 +17,6 @@ public interface HealthExaminationBatchRepository {
   Optional<BatchDetails> findDetails(UUID organizationId, UUID batchId, boolean lock);
 
   void insert(HealthExaminationBatch batch, UUID createdBy);
-
-  void update(HealthExaminationBatch batch);
 
   List<BatchSummary> findPage(
       UUID organizationId, long offset, int limit, String pattern, String sortKey, String sortBy);
@@ -37,17 +36,10 @@ public interface HealthExaminationBatchRepository {
       Instant createdAt,
       Instant updatedAt) {}
 
-  record BatchDay(UUID id, LocalDate examinationDate) {
-    public BatchDay {
-      if (id == null || examinationDate == null)
-        throw new IllegalArgumentException("Invalid batch day");
-    }
-  }
-
   record HealthExaminationBatchReference(
       AggregateId id,
       AggregateId organizationId,
-      List<BatchDay> days,
+      List<HealthExaminationBatchDay> days,
       BatchStatus status,
       long rowVersion) {
     public HealthExaminationBatchReference {

@@ -2,8 +2,6 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.spreadsheet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader.SpreadsheetFormat;
 import java.io.ByteArrayInputStream;
 import org.junit.jupiter.api.Test;
 

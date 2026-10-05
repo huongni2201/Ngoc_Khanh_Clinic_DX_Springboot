@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
 import com.ngockhanh.clinic.healthexamination.domain.enums.*;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.*;
@@ -46,8 +47,8 @@ public final class RosterFixtures {
         id(1),
         id(2),
         List.of(
-            new BatchDay(id(3).value(), LocalDate.of(2026, 10, 4)),
-            new BatchDay(id(4).value(), LocalDate.of(2026, 10, 5))),
+            new HealthExaminationBatchDay(id(3).value(), LocalDate.of(2026, 10, 4)),
+            new HealthExaminationBatchDay(id(4).value(), LocalDate.of(2026, 10, 5))),
         BatchStatus.READY,
         0);
   }

@@ -18,9 +18,6 @@ import org.apache.fesod.sheet.read.builder.ExcelReaderBuilder;
 import org.apache.fesod.sheet.support.ExcelTypeEnum;
 import org.springframework.stereotype.Component;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader.SpreadsheetFormat;
-
 @Component
 public final class FesodParticipantSpreadsheetReader implements ParticipantSpreadsheetReader {
     private final int maxRows;

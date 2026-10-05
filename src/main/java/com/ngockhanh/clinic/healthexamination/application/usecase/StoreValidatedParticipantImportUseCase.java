@@ -1,22 +1,18 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
 import com.ngockhanh.clinic.healthexamination.application.response.*;
+import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationImportJob;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ImportStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +28,7 @@ public class StoreValidatedParticipantImportUseCase {
   private final HealthExaminationImportJobRepository jobs;
   private final HealthExaminationBatchParticipantRepository participants;
   private final ParticipantImportAuditWriter audit;
+  private final ParticipantDayAllocator dayAllocator;
 
   @Transactional
   public ParticipantImportUploadResponse execute(
@@ -47,7 +44,7 @@ public class StoreValidatedParticipantImportUseCase {
             .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
     if (!batch.status().allowsRosterImport())
       throw new BusinessRuleException("Roster import is not allowed for this batch state") {};
-    var days = selectedDays(batch.days(), selectedDays);
+    var days = dayAllocator.selectedDays(batch.days(), selectedDays);
     var counts = new HashMap<String, Integer>();
     rows.stream()
         .filter(r -> r.getIdentificationNumber() != null)
@@ -75,7 +72,7 @@ public class StoreValidatedParticipantImportUseCase {
           rows.size(),
           selectedDays,
           rows.stream().map(ParticipantImportRowResponse::from).toList());
-    assignDays(rows, days, participants.activeCountsByDay(batch.id()));
+    dayAllocator.assignDays(rows, days, participants.activeCountsByDay(batch.id()));
     Instant now = clock.instant();
     var job =
         new HealthExaminationImportJob(
@@ -116,33 +113,5 @@ public class StoreValidatedParticipantImportUseCase {
         rows.size(),
         selectedDays,
         rows.stream().map(ParticipantImportRowResponse::from).toList());
-  }
-
-  static List<BatchDay> selectedDays(List<BatchDay> available, List<UUID> selected) {
-    if (selected == null
-        || selected.isEmpty()
-        || selected.stream().distinct().count() != selected.size())
-      throw new IllegalArgumentException("Select distinct examination days for this import");
-    var days = available.stream().filter(d -> selected.contains(d.id())).toList();
-    if (days.size() != selected.size())
-      throw new BusinessRuleException("Selected examination day is outside this batch") {};
-    return days;
-  }
-
-  static void assignDays(
-      List<HealthExaminationImportRow> rows, List<BatchDay> days, Map<UUID, Long> existingCounts) {
-    var counts = new HashMap<>(existingCounts);
-    var order =
-        Comparator.comparingLong((BatchDay d) -> counts.getOrDefault(d.id(), 0L))
-            .thenComparing(BatchDay::examinationDate)
-            .thenComparing(d -> d.id().toString());
-    for (var row :
-        rows.stream()
-            .sorted(Comparator.comparingInt(HealthExaminationImportRow::getRowNumber))
-            .toList()) {
-      var day = days.stream().min(order).orElseThrow();
-      row.assignDay(AggregateId.of(day.id()));
-      counts.merge(day.id(), 1L, Long::sum);
-    }
   }
 }

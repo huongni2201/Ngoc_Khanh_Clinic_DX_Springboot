@@ -1,8 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportConfirmResponse;
+import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
@@ -26,6 +25,7 @@ public class ConfirmParticipantImportUseCase {
   private final HealthExaminationImportJobRepository jobs;
   private final HealthExaminationBatchParticipantRepository participants;
   private final ParticipantImportAuditWriter audit;
+  private final ParticipantDayAllocator dayAllocator;
 
   @Transactional
   public ParticipantImportConfirmResponse execute(
@@ -44,7 +44,7 @@ public class ConfirmParticipantImportUseCase {
       throw new BusinessRuleException("Roster import is not allowed for this batch state") {};
     Instant now = clock.instant();
     job.requireEditable(now);
-    StoreValidatedParticipantImportUseCase.selectedDays(
+    dayAllocator.selectedDays(
         batch.days(), job.selectedBatchDayIds().stream().map(AggregateId::value).toList());
     var duplicates =
         participants.existingIdentificationNumbers(

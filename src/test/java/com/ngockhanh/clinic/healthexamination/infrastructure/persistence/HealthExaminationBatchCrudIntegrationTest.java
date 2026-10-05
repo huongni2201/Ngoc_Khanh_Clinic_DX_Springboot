@@ -7,8 +7,6 @@ import static org.mockito.Mockito.doThrow;
 import com.ngockhanh.clinic.healthexamination.application.command.*;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
-import com.ngockhanh.clinic.shared.exception.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
@@ -35,8 +33,8 @@ class HealthExaminationBatchCrudIntegrationTest {
       })
   @org.springframework.context.annotation.Import({
     CreateHealthExaminationBatchUseCase.class,
-    UpdateHealthExaminationBatchUseCase.class,
-    GetHealthExaminationBatchUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase.class,
     ListHealthExaminationBatchUseCase.class,
     BatchDraftEditor.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
@@ -45,8 +43,7 @@ class HealthExaminationBatchCrudIntegrationTest {
         .MyBatisOrganizationRepository.class,
     com.ngockhanh.clinic.catalog.infrastructure.persistence.repository.MyBatisServiceCatalogQuery
         .class,
-    com.ngockhanh.clinic.audit.infrastructure.persistence.repository.MyBatisAuditWriter.class,
-    com.ngockhanh.clinic.integration.infrastructure.persistence.repository.MyBatisImportStore.class
+    com.ngockhanh.clinic.audit.infrastructure.persistence.repository.MyBatisAuditWriter.class
   })
   static class BatchTestConfiguration {}
 
@@ -61,15 +58,12 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Autowired JdbcTemplate jdbc;
   @Autowired CreateHealthExaminationBatchUseCase create;
-  @Autowired UpdateHealthExaminationBatchUseCase update;
-  @Autowired GetHealthExaminationBatchUseCase get;
   @Autowired ListHealthExaminationBatchUseCase list;
-  @Autowired HealthExaminationBatchRepository batches;
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
   com.ngockhanh.clinic.audit.application.port.AuditWriter audit;
 
-  UUID org, actor, service, secondService;
+  UUID org, actor, service;
 
   @BeforeEach
   void fixture() {
@@ -78,7 +72,6 @@ class HealthExaminationBatchCrudIntegrationTest {
     org = UUID.randomUUID();
     actor = UUID.randomUUID();
     service = UUID.randomUUID();
-    secondService = UUID.randomUUID();
     var staff = UUID.randomUUID();
     var department = UUID.randomUUID();
     jdbc.update(
@@ -95,14 +88,12 @@ class HealthExaminationBatchCrudIntegrationTest {
         "INSERT INTO public.departments(id,code,name,department_type) VALUES (?,'D1','Exam','CLINICAL')",
         department);
     jdbc.update(
-        "INSERT INTO public.services(id,code,name,service_type,performing_department_id,unit_price) VALUES (?,'S1','Exam','CONSULTATION',?,200),(?,'S2','Other','OTHER',?,300)",
+        "INSERT INTO public.services(id,code,name,service_type,performing_department_id,unit_price) VALUES (?,'S1','Exam','CONSULTATION',?,200)",
         service,
-        department,
-        secondService,
         department);
   }
 
-  private BatchConfigurationCommand config(String code, Long version, UUID... services) {
+  private BatchConfigurationCommand config(String code, UUID... services) {
     return new BatchConfigurationCommand(
         code,
         "Campaign%_",
@@ -112,37 +103,66 @@ class HealthExaminationBatchCrudIntegrationTest {
         "Address",
         Arrays.stream(services)
             .map(s -> new BatchConfigurationCommand.ServicePrice(s, new BigDecimal("100")))
-            .toList(),
-        version);
+            .toList());
   }
 
   @Test
-  void atomicallyPersistsDaysPricesAndSupportsReorderingWithOptimisticLocking() {
+  void atomicallyPersistsInitialDaysAndCapturesPriceSnapshots() {
     var first =
-        create.execute(
-            org,
-            new CreateHealthExaminationBatchCommand(
-                actor, config("B1", null, service, secondService)));
+        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B1", service)));
     assertThat(first.days()).hasSize(2);
     assertThat(first.startDate()).isEqualTo(LocalDate.of(2026, 10, 4));
     assertThat(first.endDate()).isEqualTo(LocalDate.of(2026, 10, 8));
     assertThat(first.rowVersion()).isZero();
     var initialService = first.services().getFirst();
     assertThat(initialService.referencePriceSnapshot()).isEqualByComparingTo("200");
-    jdbc.update("UPDATE public.services SET unit_price=999 WHERE id=?", service);
-    var changed = update.execute(org, first.id(), config("B2", 0L, secondService, service), actor);
-    assertThat(changed.days()).isEqualTo(first.days());
-    assertThat(changed.rowVersion()).isEqualTo(1);
-    assertThat(changed.services().getLast().id()).isEqualTo(initialService.id());
-    assertThat(changed.services().getLast().referencePriceSnapshot()).isEqualByComparingTo("200");
-    assertThat(changed.services().getLast().rowVersion()).isEqualTo(1);
-    assertThatThrownBy(() -> update.execute(org, first.id(), config("STALE", 0L, service), actor))
-        .isInstanceOf(ConcurrentUpdateException.class);
-    assertThat(get.execute(org, first.id()).batchCode()).isEqualTo("B2");
-    assertThat(batches.findDetails(UUID.randomUUID(), first.id(), false)).isEmpty();
+    create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B2", service)));
+    UUID otherOrganization = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO public.organizations(id,code,name,organization_type,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES (?,'ORG-2','Other Organization','COMPANY','0901','other@example.test','Address','Contact','0902','other-contact@example.test','ACTIVE')",
+        otherOrganization);
+    create.execute(
+        otherOrganization, new CreateHealthExaminationBatchCommand(actor, config("B3", service)));
+    var firstPage =
+        list.execute(org, new HealthExaminationBatchListQuery(1, 1, null, "batchCode", "ASC"));
+    var secondPage =
+        list.execute(org, new HealthExaminationBatchListQuery(2, 1, null, "batchCode", "ASC"));
+    var otherOrganizationPage =
+        list.execute(
+            otherOrganization, new HealthExaminationBatchListQuery(1, 10, null, null, null));
+    assertThat(firstPage.totalElements()).isEqualTo(2);
+    assertThat(firstPage.items()).extracting(item -> item.batchCode()).containsExactly("B1");
+    assertThat(secondPage.items()).extracting(item -> item.batchCode()).containsExactly("B2");
+    assertThat(otherOrganizationPage.totalElements()).isEqualTo(1);
+    assertThat(otherOrganizationPage.items())
+        .extracting(item -> item.batchCode())
+        .containsExactly("B3");
     assertThat(
             list.execute(org, new HealthExaminationBatchListQuery(1, 10, "%_", "startDate", "ASC"))
                 .totalElements())
+        .isEqualTo(2);
+  }
+
+  @Test
+  void duplicateBatchCodeIsRejectedWithoutPartialChildren() {
+    create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B1", service)));
+
+    assertThatThrownBy(
+            () ->
+                create.execute(
+                    org, new CreateHealthExaminationBatchCommand(actor, config("B1", service))))
+        .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batches", Integer.class))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batch_days", Integer.class))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batch_services", Integer.class))
         .isEqualTo(1);
   }
 
@@ -154,8 +174,7 @@ class HealthExaminationBatchCrudIntegrationTest {
     assertThatThrownBy(
             () ->
                 create.execute(
-                    org,
-                    new CreateHealthExaminationBatchCommand(actor, config("BAD", null, service))))
+                    org, new CreateHealthExaminationBatchCommand(actor, config("BAD", service))))
         .isInstanceOf(IllegalStateException.class);
     assertThat(
             jdbc.queryForObject(
@@ -172,40 +191,13 @@ class HealthExaminationBatchCrudIntegrationTest {
   }
 
   @Test
-  void stagedImportPreventsRemovingItsChosenDay() {
-    var first =
-        create.execute(
-            org, new CreateHealthExaminationBatchCommand(actor, config("B1", null, service)));
-    var day = first.days().getLast();
-    jdbc.update(
-        "INSERT INTO public.import_jobs(id,import_type,batch_id,configuration,status,created_by) VALUES (?,'ORGANIZATION_PARTICIPANT',?,?::jsonb,'VALIDATED',?)",
-        UUID.randomUUID(),
-        first.id(),
-        "{\"selectedBatchDayIds\":[\"" + day.id() + "\"]}",
-        actor);
-    var desired =
-        new BatchConfigurationCommand(
-            "B1",
-            "Batch",
-            List.of(first.days().getFirst().examinationDate()),
-            "CLINIC",
-            "Clinic",
-            "Address",
-            List.of(new BatchConfigurationCommand.ServicePrice(service, BigDecimal.TEN)),
-            0L);
-    assertThatThrownBy(() -> update.execute(org, first.id(), desired, actor))
-        .isInstanceOf(BusinessRuleException.class);
-    assertThat(get.execute(org, first.id()).days()).isEqualTo(first.days());
-  }
-
-  @Test
   void unknownActorForeignKeyRollsBackCreation() {
     assertThatThrownBy(
             () ->
                 create.execute(
                     org,
                     new CreateHealthExaminationBatchCommand(
-                        UUID.randomUUID(), config("BAD", null, service))))
+                        UUID.randomUUID(), config("BAD", service))))
         .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     assertThat(
             jdbc.queryForObject(

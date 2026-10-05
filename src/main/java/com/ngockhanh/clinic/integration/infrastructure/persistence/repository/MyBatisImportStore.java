@@ -16,10 +16,6 @@ import org.springframework.stereotype.Repository;
 public class MyBatisImportStore implements ImportStore {
   private final ImportMapper mapper;
 
-  public boolean hasBatchDayReferences(UUID batchId, List<UUID> dayIds) {
-    return !dayIds.isEmpty() && mapper.hasBatchDayReferences(batchId, dayIds);
-  }
-
   public Optional<Job> find(UUID id, UUID batchId, boolean forUpdate) {
     return Optional.ofNullable(mapper.find(id, batchId, forUpdate))
         .map(
@@ -42,19 +38,27 @@ public class MyBatisImportStore implements ImportStore {
   }
 
   public List<Row> rows(UUID jobId) {
-    return mapper.rows(jobId).stream()
-        .map(
-            r ->
-                new Row(
-                    r.id(),
-                    r.jobId(),
-                    r.rowNumber(),
-                    r.normalizedPayload(),
-                    r.previewMetadata(),
-                    r.committedResourceType(),
-                    r.committedResourceId(),
-                    r.createdAt()))
-        .toList();
+    return mapper.rows(jobId).stream().map(this::row).toList();
+  }
+
+  public long countRows(UUID jobId) {
+    return mapper.countRows(jobId);
+  }
+
+  public List<Row> pageRows(UUID jobId, long offset, int limit) {
+    return mapper.pageRows(jobId, offset, limit).stream().map(this::row).toList();
+  }
+
+  private Row row(ImportRowRecord r) {
+    return new Row(
+        r.id(),
+        r.jobId(),
+        r.rowNumber(),
+        r.normalizedPayload(),
+        r.previewMetadata(),
+        r.committedResourceType(),
+        r.committedResourceId(),
+        r.createdAt());
   }
 
   public void insert(Job job, List<Row> rows) {

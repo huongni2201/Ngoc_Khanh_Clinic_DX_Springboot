@@ -22,20 +22,27 @@ public class MyBatisHealthExaminationImportJobRepository
   private final ImportStore store;
   private final JsonMapper json;
 
-  public Optional<HealthExaminationImportJob> findByIdAndBatchId(
+  public Optional<HealthExaminationImportJobRepository.Summary> findSummaryByIdAndBatchId(
       AggregateId id, AggregateId batch) {
-    return find(id, batch, false);
+    return store
+        .find(id.value(), batch.value(), false)
+        .filter(j -> "ORGANIZATION_PARTICIPANT".equals(j.importType()))
+        .map(
+            j -> {
+              var cfg = json.readValue(j.configuration(), Configuration.class);
+              return new HealthExaminationImportJobRepository.Summary(
+                  id,
+                  cfg.selectedBatchDayIds().stream().map(AggregateId::of).toList(),
+                  ImportStatus.valueOf(j.status()),
+                  j.expiresAt(),
+                  j.rowVersion());
+            });
   }
 
   public Optional<HealthExaminationImportJob> findByIdAndBatchIdForUpdate(
       AggregateId id, AggregateId batch) {
-    return find(id, batch, true);
-  }
-
-  private Optional<HealthExaminationImportJob> find(
-      AggregateId id, AggregateId batch, boolean lock) {
     return store
-        .find(id.value(), batch.value(), lock)
+        .find(id.value(), batch.value(), true)
         .filter(j -> "ORGANIZATION_PARTICIPANT".equals(j.importType()))
         .map(
             j -> {
@@ -84,18 +91,12 @@ public class MyBatisHealthExaminationImportJobRepository
     return row;
   }
 
-  public long countRowsByJobId(AggregateId id, String filter) {
-    return filtered(id, filter).size();
+  public long countRowsByJobId(AggregateId id) {
+    return store.countRows(id.value());
   }
 
-  public List<HealthExaminationImportRow> findRowsByJobId(
-      AggregateId id, String filter, long offset, int limit) {
-    return filtered(id, filter).stream().skip(offset).limit(limit).toList();
-  }
-
-  private List<HealthExaminationImportRow> filtered(AggregateId id, String filter) {
-    if (filter != null && !List.of("VALID", "CREATE").contains(filter)) return List.of();
-    return store.rows(id.value()).stream().map(this::row).toList();
+  public List<HealthExaminationImportRow> findRowsByJobId(AggregateId id, long offset, int limit) {
+    return store.pageRows(id.value(), offset, limit).stream().map(this::row).toList();
   }
 
   public void save(HealthExaminationImportJob j) {

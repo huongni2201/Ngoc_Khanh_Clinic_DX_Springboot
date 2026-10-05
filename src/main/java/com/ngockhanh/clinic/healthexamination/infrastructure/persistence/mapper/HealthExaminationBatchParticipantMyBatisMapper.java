@@ -14,16 +14,6 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
 
   List<HealthExaminationParticipantServiceRecord> findServices(@Param("ids") Collection<UUID> ids);
 
-  List<HealthExaminationBatchParticipantRecord> findByBatch(
-      @Param("batchId") UUID batchId,
-      @Param("offset") long offset,
-      @Param("limit") long limit,
-      @Param("searchPattern") String searchPattern,
-      @Param("sortKey") String sortKey,
-      @Param("sortBy") String sortBy);
-
-  long countByBatch(@Param("batchId") UUID batchId, @Param("searchPattern") String searchPattern);
-
   List<String> existingIdentificationNumbers(
       @Param("batchId") UUID batchId, @Param("numbers") Collection<String> numbers);
 

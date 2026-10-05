@@ -3,9 +3,9 @@ package com.ngockhanh.clinic.healthexamination.domain;
 import static org.assertj.core.api.Assertions.*;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
 import com.ngockhanh.clinic.healthexamination.domain.enums.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import java.time.LocalDate;
 import java.util.*;
@@ -26,8 +26,8 @@ class HealthExaminationBatchCrudTest {
     var service =
         new HealthExaminationBatchService(
             id(), id(), id, Money.vnd("200"), Money.vnd("100"), 1, true, 0);
-    var late = new BatchDay(UUID.randomUUID(), LocalDate.of(2026, 10, 8));
-    var early = new BatchDay(UUID.randomUUID(), LocalDate.of(2026, 10, 4));
+    var late = new HealthExaminationBatchDay(UUID.randomUUID(), LocalDate.of(2026, 10, 8));
+    var early = new HealthExaminationBatchDay(UUID.randomUUID(), LocalDate.of(2026, 10, 4));
     assertThatThrownBy(
             () ->
                 HealthExaminationBatch.createDraft(
@@ -38,6 +38,24 @@ class HealthExaminationBatchCrudTest {
                 HealthExaminationBatch.createDraft(
                     id, org, "B", "Batch", site, List.of(early, early), List.of(service)))
         .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                HealthExaminationBatch.createDraft(
+                    id,
+                    org,
+                    "B",
+                    "Batch",
+                    site,
+                    List.of(
+                        early,
+                        new HealthExaminationBatchDay(UUID.randomUUID(), early.examinationDate())),
+                    List.of(service)))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(
+            () ->
+                HealthExaminationBatch.createDraft(
+                    id, org, "B", "Batch", site, List.of(early), List.of()))
+        .isInstanceOf(RuntimeException.class);
     var b =
         HealthExaminationBatch.createDraft(
             id, org, "B", "Batch", site, List.of(late, early), List.of(service));
@@ -47,12 +65,12 @@ class HealthExaminationBatchCrudTest {
   }
 
   @Test
-  void onlyFourStatesRemainAndFinalizationLocksConfiguration() {
+  void batchTransitionsThroughTheFourSupportedStates() {
     var id = id();
     var service =
         new HealthExaminationBatchService(
             id(), id(), id, Money.vnd("200"), Money.vnd("100"), 1, true, 0);
-    var day = new BatchDay(UUID.randomUUID(), LocalDate.of(2026, 10, 4));
+    var day = new HealthExaminationBatchDay(UUID.randomUUID(), LocalDate.of(2026, 10, 4));
     var b =
         HealthExaminationBatch.createDraft(
             id, id(), "B", "Batch", site, List.of(day), List.of(service));
@@ -63,8 +81,14 @@ class HealthExaminationBatchCrudTest {
     assertThat(BatchStatus.values())
         .containsExactly(
             BatchStatus.DRAFT, BatchStatus.READY, BatchStatus.FINALIZED, BatchStatus.CLOSED);
-    assertThatThrownBy(() -> b.updateDraft("B2", "Changed", site, List.of(day), List.of(service)))
-        .isInstanceOf(RuntimeException.class);
+  }
+
+  @Test
+  void batchDayRequiresIdAndDate() {
+    assertThatThrownBy(() -> new HealthExaminationBatchDay(null, LocalDate.of(2026, 10, 4)))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new HealthExaminationBatchDay(UUID.randomUUID(), null))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

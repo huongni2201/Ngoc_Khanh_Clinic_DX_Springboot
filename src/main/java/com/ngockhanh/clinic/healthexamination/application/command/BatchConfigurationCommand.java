@@ -11,8 +11,7 @@ public record BatchConfigurationCommand(
     String examinationSiteType,
     String examinationSiteName,
     String examinationSiteAddress,
-    List<ServicePrice> services,
-    Long rowVersion) {
+    List<ServicePrice> services) {
   public BatchConfigurationCommand {
     examinationDates = examinationDates == null ? null : List.copyOf(examinationDates);
     services = services == null ? null : List.copyOf(services);

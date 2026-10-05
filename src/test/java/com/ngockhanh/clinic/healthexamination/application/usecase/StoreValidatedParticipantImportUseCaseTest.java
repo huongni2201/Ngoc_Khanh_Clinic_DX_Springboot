@@ -4,10 +4,10 @@ import static com.ngockhanh.clinic.healthexamination.RosterFixtures.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
+import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationImportRow;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDay;
 import java.time.*;
 import java.util.*;
 import org.junit.jupiter.api.*;
@@ -20,7 +20,8 @@ class StoreValidatedParticipantImportUseCaseTest {
       mock(HealthExaminationBatchParticipantRepository.class);
   final ParticipantImportAuditWriter audit = mock(ParticipantImportAuditWriter.class);
   final StoreValidatedParticipantImportUseCase usecase =
-      new StoreValidatedParticipantImportUseCase(CLOCK, batches, jobs, participants, audit);
+      new StoreValidatedParticipantImportUseCase(
+          CLOCK, batches, jobs, participants, audit, new ParticipantDayAllocator());
 
   @BeforeEach
   void setup() {
@@ -36,6 +37,32 @@ class StoreValidatedParticipantImportUseCaseTest {
             id(2).value(), id(1).value(), id(6).value(), List.of(id(3).value()), List.of(row));
     assertThat(result.importId()).isNull();
     assertThat(result.rows().getFirst().errors()).contains("MISSING_POSITION_NAME");
+    verifyNoInteractions(jobs, audit);
+  }
+
+  @Test
+  void organizationBatchAndBatchDayScopeAreCheckedBeforeStaging() {
+    when(batches.findByIdAndOrganizationIdForUpdate(id(1), id(9))).thenReturn(Optional.empty());
+    assertThatThrownBy(
+            () ->
+                usecase.execute(
+                    id(9).value(),
+                    id(1).value(),
+                    id(6).value(),
+                    List.of(id(3).value()),
+                    List.of(row(1))))
+        .isInstanceOf(com.ngockhanh.clinic.shared.exception.ResourceNotFoundException.class);
+
+    assertThatThrownBy(
+            () ->
+                usecase.execute(
+                    id(2).value(),
+                    id(1).value(),
+                    id(6).value(),
+                    List.of(id(7).value()),
+                    List.of(row(1))))
+        .isInstanceOf(com.ngockhanh.clinic.shared.exception.BusinessRuleException.class);
+
     verifyNoInteractions(jobs, audit);
   }
 
@@ -70,12 +97,12 @@ class StoreValidatedParticipantImportUseCaseTest {
   void allocationAddsOnlyNewPeopleToLeastPopulatedDays() {
     var days =
         List.of(
-            new BatchDay(id(3).value(), LocalDate.of(2026, 10, 4)),
-            new BatchDay(id(4).value(), LocalDate.of(2026, 10, 5)),
-            new BatchDay(id(7).value(), LocalDate.of(2026, 10, 6)));
+            new HealthExaminationBatchDay(id(3).value(), LocalDate.of(2026, 10, 4)),
+            new HealthExaminationBatchDay(id(4).value(), LocalDate.of(2026, 10, 5)),
+            new HealthExaminationBatchDay(id(7).value(), LocalDate.of(2026, 10, 6)));
     var rows = java.util.stream.IntStream.rangeClosed(1, 30).mapToObj(n -> row(n)).toList();
-    StoreValidatedParticipantImportUseCase.assignDays(
-        rows, days, Map.of(id(3).value(), 60L, id(4).value(), 40L, id(7).value(), 40L));
+    new ParticipantDayAllocator()
+        .assignDays(rows, days, Map.of(id(3).value(), 60L, id(4).value(), 40L, id(7).value(), 40L));
     assertThat(rows.stream().filter(r -> r.getBatchDayId().equals(id(3))).count()).isZero();
     assertThat(rows.stream().filter(r -> r.getBatchDayId().equals(id(4))).count()).isEqualTo(15);
     assertThat(rows.stream().filter(r -> r.getBatchDayId().equals(id(7))).count()).isEqualTo(15);
@@ -86,9 +113,9 @@ class StoreValidatedParticipantImportUseCaseTest {
     var rows = List.of(row(1), row(2));
     var days =
         List.of(
-            new BatchDay(id(4).value(), LocalDate.of(2026, 10, 4)),
-            new BatchDay(id(3).value(), LocalDate.of(2026, 10, 4)));
-    StoreValidatedParticipantImportUseCase.assignDays(rows, days, Map.of());
+            new HealthExaminationBatchDay(id(4).value(), LocalDate.of(2026, 10, 4)),
+            new HealthExaminationBatchDay(id(3).value(), LocalDate.of(2026, 10, 4)));
+    new ParticipantDayAllocator().assignDays(rows, days, Map.of());
     assertThat(rows.getFirst().getBatchDayId()).isEqualTo(id(3));
     assertThat(rows.getLast().getBatchDayId()).isEqualTo(id(4));
   }

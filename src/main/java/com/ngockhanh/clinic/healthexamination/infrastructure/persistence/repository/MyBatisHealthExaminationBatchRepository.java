@@ -1,13 +1,13 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
 import com.ngockhanh.clinic.healthexamination.domain.enums.*;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchMyBatisMapper;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.*;
-import com.ngockhanh.clinic.shared.exception.*;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -31,9 +31,9 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
         .map(this::reference);
   }
 
-  private List<BatchDay> days(UUID id) {
+  private List<HealthExaminationBatchDay> days(UUID id) {
     return mapper.findDays(id).stream()
-        .map(r -> new BatchDay(r.id(), r.examinationDate()))
+        .map(r -> new HealthExaminationBatchDay(r.id(), r.examinationDate()))
         .toList();
   }
 
@@ -87,23 +87,7 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
     if (mapper.insert(record(batch, actor)) != 1)
       throw new IllegalStateException("Batch was not inserted");
     saveDays(batch);
-    saveServices(batch.services());
-  }
-
-  @Override
-  public void update(HealthExaminationBatch batch) {
-    var services = batch.services().stream().map(s -> s.id().value()).toList();
-    var days = batch.days().stream().map(BatchDay::id).toList();
-    if (mapper.hasReferencedRemoved(batch.id().value(), services)
-        || mapper.hasReferencedRemovedDays(batch.id().value(), days))
-      throw new BusinessRuleException("Batch day or service has dependent records");
-    if (mapper.update(record(batch, null)) != 1) throw new ConcurrentUpdateException();
-    mapper.deleteRemoved(batch.id().value(), services);
-    mapper.deleteRemovedDays(batch.id().value(), days);
-    // Move retained orders above the old range so swaps satisfy the immediate unique constraint.
-    mapper.reserveDisplayOrders(batch.id().value(), batch.services().size());
-    saveServices(batch.services());
-    saveDays(batch);
+    insertServices(batch.services());
   }
 
   private void saveDays(HealthExaminationBatch batch) {
@@ -114,10 +98,11 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
                     new HealthExaminationBatchDayRecord(
                         d.id(), batch.id().value(), d.examinationDate()))
             .toList();
-    mapper.insertDays(rows);
+    if (mapper.insertDays(rows) != rows.size())
+      throw new IllegalStateException("Batch days were not inserted");
   }
 
-  private void saveServices(List<HealthExaminationBatchService> services) {
+  private void insertServices(List<HealthExaminationBatchService> services) {
     var rows =
         services.stream()
             .map(
@@ -134,9 +119,8 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
                         null,
                         s.rowVersion()))
             .toList();
-    // Inserts start at zero; an existing row receives a single increment when its final values
-    // change.
-    if (mapper.upsertServices(rows) != rows.size()) throw new ConcurrentUpdateException();
+    if (mapper.insertServices(rows) != rows.size())
+      throw new IllegalStateException("Batch services were not inserted");
   }
 
   private HealthExaminationBatchRecord record(HealthExaminationBatch b, UUID actor) {

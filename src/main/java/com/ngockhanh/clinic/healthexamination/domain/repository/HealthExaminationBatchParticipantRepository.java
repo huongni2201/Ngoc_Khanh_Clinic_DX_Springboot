@@ -4,7 +4,6 @@ import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExamination
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -12,16 +11,6 @@ import java.util.UUID;
 
 public interface HealthExaminationBatchParticipantRepository {
   Optional<HealthExaminationBatchParticipant> findById(AggregateId id);
-
-  List<HealthExaminationBatchParticipant> findByBatch(
-      AggregateId batchId,
-      long offset,
-      long limit,
-      String searchPattern,
-      String sortKey,
-      String sortBy);
-
-  long countByBatch(AggregateId batchId, String searchPattern);
 
   Set<IdentificationNumber> existingIdentificationNumbers(
       AggregateId batchId, Collection<IdentificationNumber> numbers);

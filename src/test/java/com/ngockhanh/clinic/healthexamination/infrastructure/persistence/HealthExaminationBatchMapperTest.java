@@ -27,23 +27,19 @@ class HealthExaminationBatchMapperTest {
     params.put("limit", 10);
     var sql = config.getMappedStatement(namespace + "findPage").getBoundSql(params).getSql();
     assertThat(sql)
-        .contains("ESCAPE chr(92)", "public.health_examination_batch_days")
+        .contains(
+            "organization_id=?",
+            "ESCAPE chr(92)",
+            "public.health_examination_batch_days",
+            "LIMIT ? OFFSET ?",
+            "id ASC")
         .doesNotContain("DROP TABLE", "evil_%");
-    params.put("retained", List.of(UUID.randomUUID()));
-    assertThat(
-            config
-                .getMappedStatement(namespace + "hasReferencedRemoved")
-                .getBoundSql(params)
-                .getSql())
-        .contains("public.health_examination_participant_services", "batch_service_id")
-        .doesNotContain("public.health_examination_batch_participant_services");
-    assertThat(
-            config
-                .getMappedStatement(namespace + "hasReferencedRemovedDays")
-                .getBoundSql(params)
-                .getSql())
-        .contains("public.health_examination_batch_participants", "batch_day_id")
-        .doesNotContain("public.import_jobs", "public.import_rows");
+    assertThat(config.getMappedStatement(namespace + "count").getBoundSql(params).getSql())
+        .contains("organization_id=?");
+    params.put("sortKey", "batchCode");
+    params.put("sortBy", "ASC");
+    assertThat(config.getMappedStatement(namespace + "findPage").getBoundSql(params).getSql())
+        .contains("batch_code", "ASC", "id ASC");
   }
 
   @Test
@@ -101,6 +97,28 @@ class HealthExaminationBatchMapperTest {
             "departmentId",
             "correlationId",
             "metadata");
+  }
+
+  @Test
+  void countsAndPagesImportRowsInSql() throws Exception {
+    var config = mapperConfiguration("integration", "ImportMapper");
+    UUID jobId = UUID.randomUUID();
+    var countSql =
+        config
+            .getMappedStatement(
+                "com.ngockhanh.clinic.integration.infrastructure.persistence.mapper.ImportMapper.countRows")
+            .getBoundSql(Map.of("jobId", jobId))
+            .getSql();
+    var pageSql =
+        config
+            .getMappedStatement(
+                "com.ngockhanh.clinic.integration.infrastructure.persistence.mapper.ImportMapper.pageRows")
+            .getBoundSql(Map.of("jobId", jobId, "offset", 100, "limit", 50))
+            .getSql();
+
+    assertThat(countSql).contains("COUNT(*)", "public.import_rows", "job_id=?");
+    assertThat(pageSql)
+        .contains("public.import_rows", "job_id=?", "ORDER BY row_number", "LIMIT ? OFFSET ?");
   }
 
   private Configuration mapperConfiguration(String module, String mapper) throws Exception {

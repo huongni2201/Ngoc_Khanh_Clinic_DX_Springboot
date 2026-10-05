@@ -1,9 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.healthexamination.application.command.UploadParticipantImportCommand;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ImportFileStorage;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantSpreadsheetReader.SpreadsheetFormat;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportUploadResponse;
 import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantRosterHeaderMapper;
 import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantRosterRowValidator;

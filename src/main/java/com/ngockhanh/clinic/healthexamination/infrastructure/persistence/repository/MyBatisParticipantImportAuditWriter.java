@@ -1,8 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter.AuditEntry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 

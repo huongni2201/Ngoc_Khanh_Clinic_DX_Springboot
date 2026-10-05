@@ -87,3 +87,71 @@ Organization CRUD's absence of a dedicated actor/business-audit flow predates th
 review baseline and was not classified as an introduced migration defect. Do not
 claim complete organization mutation traceability until that separate contract is
 implemented. No new requirement conflict was left unresolved in the migrated paths.
+
+## Follow-up source and documentation review — 2026-10-05
+
+This follow-up reviews the current working tree against ADR-0012/0013 and the
+owner's wrapper/list convention. The verification above describes the earlier
+review snapshot; it is not evidence that the current working tree builds.
+Inspection covered current architecture/rules, scalar/array declarations,
+schema-type assertions and the batch/import flow. It is not a claim that every
+unsupported clinic workflow has been audited or executed.
+
+### Findings
+
+1. **P1 — Deleted import ports leave the application uncompilable.**
+   `application/port/out/ImportFileStorage`, `ParticipantImportAuditWriter`,
+   `ParticipantImportTemplateWriter` and `ParticipantSpreadsheetReader` are
+   staged deletions with no replacement declarations under `src/main/java`.
+   Callers still use these types. For example,
+   `FesodParticipantTemplateWriter.java:15` implements the removed fully qualified
+   template port, and `FesodParticipantSpreadsheetReader.java:22` implements the
+   absent spreadsheet port. Restore the required contracts or finish a coherent
+   relocation with all consumers/tests and published boundaries updated.
+
+2. **P2 — Schema type assertions still enforce the former primitive convention.**
+   `PersistenceRecordContractTest.java:149`–`152` requires primitive Boolean/integer
+   representations for required SQL columns. A wrapper migration would fail those
+   exact-type assertions even though SQL types/nullability are unchanged. Migrate
+   affected records and assertions together, keeping separate required-value
+   checks. This follow-up updates the documentation convention, not those records.
+
+3. **Migration debt — Scalar contracts still use primitives.**
+   Examples include `PageResponse.java:7`–`10`,
+   `HealthExaminationImportJob.java:27`, response records and repository/version
+   parameters. Apply the new convention when changing these declarations, with
+   their callers and tests. In particular, the version comparisons in
+   `ConfirmParticipantImportUseCase.java:42` and
+   `UpdateParticipantImportPreviewUseCase.java:48` must become value comparisons
+   if both operands become wrappers; merely changing declarations is unsafe.
+
+4. **Migration debt — Single-element arrays hide listener state.**
+   `FesodParticipantSpreadsheetReader.java:59`–`60` uses `int[]` and `boolean[]`
+   as mutable scalar holders. Move this state to wrapper fields on the listener
+   or its owning state object when refactoring this seam; these values are not
+   lists and should not become single-element `ArrayList`s. Actual ordered
+   spreadsheet values already use `List<String>` with `ArrayList` storage.
+
+The prior persistence documentation prescribed primitives for required columns;
+that conflict with the new owner instruction is corrected in this follow-up.
+Binary `byte[]`, annotation arrays and required library signatures remain valid
+technical exceptions, not business-list violations.
+
+### Changes and verification
+
+- Updated existing `AGENTS.md`, `PROJECT_RULES.md`, `PROJECT_SKILLS.md`,
+  `docs/architecture/04-persistence.md` and this review. Rules require wrappers,
+  `List<T>`/mutable `ArrayList<T>`, null safety, value equality and explicit narrow
+  technical exceptions. The rule applies to new or changed declarations;
+  existing declarations remain documented migration debt.
+- No Java/SQL source, public API, migration, dependency or test was changed.
+  Reviewed seams belong mainly to `healthexamination`, shared pagination and
+  schema-record contracts across modules. Existing staged/unstaged work is retained.
+- `mvnw.cmd test`: failed during compilation, 26 compiler errors, before tests.
+  The sandbox attempt also reported Maven-cache access failure; the rerun with
+  dependency access reproduced the missing-port compilation errors.
+- `mvnw.cmd verify`: failed during compilation with the same missing-port errors.
+  PostgreSQL/Redis integration and module checks did not execute; this result
+  does not establish whether Docker is available.
+- `git diff --check` passed for this follow-up's changed documentation files.
+  No completion or passing-test claim is made for the current application.

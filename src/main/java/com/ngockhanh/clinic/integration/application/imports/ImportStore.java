@@ -7,11 +7,13 @@ import java.util.UUID;
 
 /** Durable, type-neutral staging. Import handlers own validation and payload contracts. */
 public interface ImportStore {
-  boolean hasBatchDayReferences(UUID batchId, List<UUID> dayIds);
-
   Optional<Job> find(UUID id, UUID batchId, boolean forUpdate);
 
   List<Row> rows(UUID jobId);
+
+  long countRows(UUID jobId);
+
+  List<Row> pageRows(UUID jobId, long offset, int limit);
 
   void insert(Job job, List<Row> rows);
 

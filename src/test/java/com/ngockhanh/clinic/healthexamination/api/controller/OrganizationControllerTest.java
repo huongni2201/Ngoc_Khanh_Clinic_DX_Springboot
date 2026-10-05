@@ -6,106 +6,59 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.ngockhanh.clinic.healthexamination.api.request.OrganizationListRequest;
-import com.ngockhanh.clinic.healthexamination.api.request.OrganizationRequest;
+import com.ngockhanh.clinic.healthexamination.api.request.UpdateOrganizationRequest;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
-import com.ngockhanh.clinic.healthexamination.application.query.OrganizationListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase;
-import com.ngockhanh.clinic.healthexamination.application.usecase.DeactivateOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationUseCase;
-import com.ngockhanh.clinic.healthexamination.application.usecase.ListOrganizationsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
-import com.ngockhanh.clinic.shared.web.ApiResponse;
-import com.ngockhanh.clinic.shared.web.PageResponse;
+import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
+import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
+import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
+import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import tools.jackson.databind.json.JsonMapper;
 
 class OrganizationControllerTest {
 
   private CreateOrganizationUseCase createOrganizationUseCase;
   private GetOrganizationUseCase getOrganizationUseCase;
-  private ListOrganizationsUseCase listOrganizationsUseCase;
   private UpdateOrganizationUseCase updateOrganizationUseCase;
-  private DeactivateOrganizationUseCase deactivateOrganizationUseCase;
   private OrganizationController controller;
 
   @BeforeEach
   void setUp() {
     createOrganizationUseCase = mock(CreateOrganizationUseCase.class);
     getOrganizationUseCase = mock(GetOrganizationUseCase.class);
-    listOrganizationsUseCase = mock(ListOrganizationsUseCase.class);
     updateOrganizationUseCase = mock(UpdateOrganizationUseCase.class);
-    deactivateOrganizationUseCase = mock(DeactivateOrganizationUseCase.class);
     controller =
         new OrganizationController(
-            createOrganizationUseCase,
-            getOrganizationUseCase,
-            listOrganizationsUseCase,
-            updateOrganizationUseCase,
-            deactivateOrganizationUseCase);
+            createOrganizationUseCase, getOrganizationUseCase, updateOrganizationUseCase);
   }
 
   @Test
-  void listBuildsQueryAndReturnsPagedOrganizations() {
-    OrganizationListRequest request =
-        OrganizationListRequest.builder()
-            .page(2)
-            .size(5)
-            .searchKey("Clinic")
-            .status("ACTIVE")
-            .sortKey("name")
-            .sortBy("DESC")
-            .build();
-    OrganizationResponse item =
-        OrganizationResponse.builder()
-            .id(UUID.randomUUID())
-            .name("Clinic North")
-            .status("ACTIVE")
-            .build();
-    PageResponse<OrganizationResponse> page = new PageResponse<>(List.of(item), 2, 5, 11, 3);
-    when(listOrganizationsUseCase.execute(any(OrganizationListQuery.class))).thenReturn(page);
-
-    ResponseEntity<ApiResponse<PageResponse<OrganizationResponse>>> response =
-        controller.list(request);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isNotNull();
-    assertThat(response.getBody().message()).isEqualTo("Organizations retrieved");
-    assertThat(response.getBody().data()).isEqualTo(page);
-    ArgumentCaptor<OrganizationListQuery> captor =
-        ArgumentCaptor.forClass(OrganizationListQuery.class);
-    verify(listOrganizationsUseCase).execute(captor.capture());
-    assertThat(captor.getValue())
-        .isEqualTo(new OrganizationListQuery(2, 5, "Clinic", "ACTIVE", "DESC", "name"));
-  }
-
-  @Test
-  void createBuildsCommandAndReturnsCreatedResponse() {
-    OrganizationRequest request =
-        OrganizationRequest.builder()
-            .code("C1")
-            .organizationType("COMPANY")
-            .phone("0901")
-            .email("org@example.test")
-            .contactEmail("contact@example.test")
-            .rowVersion(3L)
-            .name("Clinic Corp")
-            .taxCode("TAX-01")
-            .address("123 Street")
-            .contactFullName("Nguyen Van A")
-            .contactPhone("0901234567")
-            .contactPosition("Manager")
-            .build();
-
+  void createBuildsCommandAndReturnsCreatedResponse() throws Exception {
     UUID orgId = UUID.randomUUID();
+    UUID actorId = UUID.randomUUID();
     OrganizationResponse expectedResponse =
         OrganizationResponse.builder()
             .id(orgId)
@@ -118,20 +71,41 @@ class OrganizationControllerTest {
             .status("ACTIVE")
             .build();
 
-    when(createOrganizationUseCase.execute(any(CreateOrganizationCommand.class)))
+    UserPrincipal principal =
+        new UserPrincipal(
+            actorId,
+            UUID.randomUUID(),
+            null,
+            "staff",
+            "STAFF",
+            List.of(),
+            Instant.now(),
+            Instant.now().plusSeconds(3600));
+    when(createOrganizationUseCase.execute(any(CreateOrganizationCommand.class), eq(actorId)))
         .thenReturn(expectedResponse);
 
-    ResponseEntity<ApiResponse<OrganizationResponse>> responseEntity = controller.create(request);
-
-    assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-    assertThat(responseEntity.getBody()).isNotNull();
-    assertThat(responseEntity.getBody().code()).isEqualTo(HttpStatus.CREATED.value());
-    assertThat(responseEntity.getBody().message()).isEqualTo("Organization created");
-    assertThat(responseEntity.getBody().data()).isEqualTo(expectedResponse);
+    SecurityContextHolder.getContext()
+        .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
+    try {
+      mvc()
+          .perform(
+              post("/api/v1/organizations")
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
+                      {"code":"C1","name":"Clinic Corp","organizationType":"COMPANY","taxCode":"TAX-01","phone":"0901","email":"org@example.test","address":"123 Street","contactFullName":"Nguyen Van A","contactPosition":"Manager","contactPhone":"0901234567","contactEmail":"contact@example.test"}
+                      """))
+          .andExpect(status().isCreated())
+          .andExpect(jsonPath("$.code").value(HttpStatus.CREATED.value()))
+          .andExpect(jsonPath("$.message").value("Organization created"))
+          .andExpect(jsonPath("$.data.id").value(orgId.toString()));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
 
     ArgumentCaptor<CreateOrganizationCommand> captor =
         ArgumentCaptor.forClass(CreateOrganizationCommand.class);
-    verify(createOrganizationUseCase).execute(captor.capture());
+    verify(createOrganizationUseCase).execute(captor.capture(), eq(actorId));
     CreateOrganizationCommand captured = captor.getValue();
     assertThat(captured.name()).isEqualTo("Clinic Corp");
     assertThat(captured.taxCode()).isEqualTo("TAX-01");
@@ -142,27 +116,66 @@ class OrganizationControllerTest {
   }
 
   @Test
-  void getReturnsOrganizationResponse() {
+  void invalidCreateTransportIsRejectedBeforeTheUseCase() throws Exception {
+    UserPrincipal principal =
+        new UserPrincipal(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            null,
+            "staff",
+            "STAFF",
+            List.of(),
+            Instant.now(),
+            Instant.now().plusSeconds(3600));
+    SecurityContextHolder.getContext()
+        .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
+    try {
+      mvc()
+          .perform(
+              post("/api/v1/organizations").contentType(MediaType.APPLICATION_JSON).content("{}"))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.result").value("NG"));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+    org.mockito.Mockito.verifyNoInteractions(createOrganizationUseCase);
+  }
+
+  @Test
+  void getBindsOrganizationIdAndReturnsEnvelope() throws Exception {
     UUID orgId = UUID.randomUUID();
     OrganizationResponse expectedResponse =
         OrganizationResponse.builder().id(orgId).name("Clinic Corp").status("ACTIVE").build();
 
     when(getOrganizationUseCase.execute(orgId)).thenReturn(expectedResponse);
 
-    ResponseEntity<ApiResponse<OrganizationResponse>> responseEntity = controller.get(orgId);
-
-    assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(responseEntity.getBody()).isNotNull();
-    assertThat(responseEntity.getBody().code()).isEqualTo(HttpStatus.OK.value());
-    assertThat(responseEntity.getBody().data()).isEqualTo(expectedResponse);
+    mvc()
+        .perform(get("/api/v1/organizations/{organizationId}", orgId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value(HttpStatus.OK.value()))
+        .andExpect(jsonPath("$.data.id").value(orgId.toString()))
+        .andExpect(jsonPath("$.data.name").value("Clinic Corp"));
     verify(getOrganizationUseCase).execute(orgId);
   }
 
   @Test
-  void updateBuildsCommandAndReturnsUpdatedResponse() {
+  void missingOrganizationUsesCentralNotFoundResponse() throws Exception {
     UUID orgId = UUID.randomUUID();
-    OrganizationRequest request =
-        OrganizationRequest.builder()
+    when(getOrganizationUseCase.execute(orgId))
+        .thenThrow(new ResourceNotFoundException("Organization"));
+
+    mvc()
+        .perform(get("/api/v1/organizations/{organizationId}", orgId))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.result").value("NG"))
+        .andExpect(jsonPath("$.code").value(HttpStatus.NOT_FOUND.value()));
+  }
+
+  @Test
+  void updateBindsPrincipalAndReturnsUpdatedResponse() throws Exception {
+    UUID orgId = UUID.randomUUID();
+    UpdateOrganizationRequest request =
+        UpdateOrganizationRequest.builder()
             .code("C1")
             .organizationType("COMPANY")
             .phone("0901")
@@ -189,21 +202,34 @@ class OrganizationControllerTest {
             .status("ACTIVE")
             .build();
 
-    when(updateOrganizationUseCase.execute(eq(orgId), any(UpdateOrganizationCommand.class)))
+    UUID actorId = UUID.randomUUID();
+    UserPrincipal principal = principal(actorId);
+    when(updateOrganizationUseCase.execute(
+            eq(orgId), any(UpdateOrganizationCommand.class), eq(actorId)))
         .thenReturn(expectedResponse);
 
-    ResponseEntity<ApiResponse<OrganizationResponse>> responseEntity =
-        controller.update(orgId, request);
-
-    assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(responseEntity.getBody()).isNotNull();
-    assertThat(responseEntity.getBody().code()).isEqualTo(HttpStatus.OK.value());
-    assertThat(responseEntity.getBody().message()).isEqualTo("Organization updated");
-    assertThat(responseEntity.getBody().data()).isEqualTo(expectedResponse);
+    SecurityContextHolder.getContext()
+        .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
+    try {
+      mvc()
+          .perform(
+              put("/api/v1/organizations/{organizationId}", orgId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
+                      {"code":"C1","name":"Clinic Corp New","organizationType":"COMPANY","taxCode":"TAX-02","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPosition":"Director","contactPhone":"0987654321","contactEmail":"contact@example.test","rowVersion":3}
+                      """))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.code").value(HttpStatus.OK.value()))
+          .andExpect(jsonPath("$.message").value("Organization updated"))
+          .andExpect(jsonPath("$.data.id").value(orgId.toString()));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
 
     ArgumentCaptor<UpdateOrganizationCommand> captor =
         ArgumentCaptor.forClass(UpdateOrganizationCommand.class);
-    verify(updateOrganizationUseCase).execute(eq(orgId), captor.capture());
+    verify(updateOrganizationUseCase).execute(eq(orgId), captor.capture(), eq(actorId));
     UpdateOrganizationCommand captured = captor.getValue();
     assertThat(captured.name()).isEqualTo("Clinic Corp New");
     assertThat(captured.rowVersion()).isEqualTo(3L);
@@ -215,15 +241,45 @@ class OrganizationControllerTest {
   }
 
   @Test
-  void deleteDeactivatesOrganizationAndReturnsOk() {
+  void updateRequiresExpectedRowVersion() throws Exception {
     UUID orgId = UUID.randomUUID();
+    UserPrincipal principal = principal(UUID.randomUUID());
+    SecurityContextHolder.getContext()
+        .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
+    try {
+      mvc()
+          .perform(
+              put("/api/v1/organizations/{organizationId}", orgId)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      """
+                      {"code":"C1","name":"Clinic Corp New","organizationType":"COMPANY","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPhone":"0987654321","contactEmail":"contact@example.test"}
+                      """))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.result").value("NG"));
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+    org.mockito.Mockito.verifyNoInteractions(updateOrganizationUseCase);
+  }
 
-    ResponseEntity<ApiResponse<Void>> responseEntity = controller.delete(orgId);
+  private UserPrincipal principal(UUID userId) {
+    return new UserPrincipal(
+        userId,
+        UUID.randomUUID(),
+        null,
+        "staff",
+        "STAFF",
+        List.of(),
+        Instant.now(),
+        Instant.now().plusSeconds(3600));
+  }
 
-    assertThat(responseEntity.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(responseEntity.getBody()).isNotNull();
-    assertThat(responseEntity.getBody().code()).isEqualTo(HttpStatus.OK.value());
-    assertThat(responseEntity.getBody().message()).isEqualTo("Organization deactivated");
-    verify(deactivateOrganizationUseCase).execute(orgId);
+  private MockMvc mvc() {
+    return MockMvcBuilders.standaloneSetup(controller)
+        .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
+        .setControllerAdvice(
+            new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+        .build();
   }
 }

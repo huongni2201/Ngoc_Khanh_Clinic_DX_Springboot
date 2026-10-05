@@ -45,8 +45,14 @@ when a use case needs IDs before insertion. Composite tables retain composite ke
 
 System timestamps use `timestamptz(3)` and Java `Instant`; calendar days use `date`
 and `LocalDate`. The existing MyBatis Instant handler binds UTC values. Money uses
-`numeric(14,2)` and `BigDecimal`. Integers and booleans use primitive types only
-for non-null columns; nullable values use wrappers. JSONB is confined to storage
+`numeric(14,2)` and `BigDecimal`. Integer and boolean scalar declarations use
+wrappers (`Long`, `Integer`, `Short`, `Boolean`) for both required and nullable
+columns in new or changed code. SQL nullability remains authoritative: a wrapper
+does not make a `NOT NULL` field optional. Preserve required-value validation and
+null-safe value comparisons. Existing primitive records and their exact-type
+assertions must be migrated together; see
+[Java types and collections](../../PROJECT_RULES.md#java-types-and-collections).
+PostgreSQL `bytea` remains `byte[]` as a binary contract. JSONB is confined to storage
 contracts and serialized with typed application/domain data, with explicit casts
 in MyBatis writes. CCCD stays text and exact matching remains authoritative.
 

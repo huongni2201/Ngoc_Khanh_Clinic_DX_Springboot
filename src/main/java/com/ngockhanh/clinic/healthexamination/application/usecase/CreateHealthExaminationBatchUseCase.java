@@ -43,8 +43,8 @@ public class CreateHealthExaminationBatchUseCase {
             c.batchCode(),
             c.batchName(),
             site,
-            editor.days(c.examinationDates(), java.util.List.of()),
-            editor.services(id, c.services(), java.util.List.of()));
+            editor.days(c.examinationDates()),
+            editor.services(id, c.services()));
     batches.insert(batch, command.createdBy());
     var result =
         BatchDetailResponse.from(

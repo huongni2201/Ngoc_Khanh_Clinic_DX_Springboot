@@ -1,9 +1,9 @@
 package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
-import com.ngockhanh.clinic.healthexamination.domain.exception.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDay;
+import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import java.time.LocalDate;
 import java.util.*;
@@ -14,7 +14,7 @@ public final class HealthExaminationBatch {
   private String code;
   private String name;
   private ExaminationSite site;
-  private List<BatchDay> days;
+  private List<HealthExaminationBatchDay> days;
   private List<HealthExaminationBatchService> services;
   private BatchStatus status;
   private final long rowVersion;
@@ -25,7 +25,7 @@ public final class HealthExaminationBatch {
       String code,
       String name,
       ExaminationSite site,
-      List<BatchDay> days,
+      List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services,
       BatchStatus status,
       long rowVersion) {
@@ -44,7 +44,7 @@ public final class HealthExaminationBatch {
       String code,
       String name,
       ExaminationSite site,
-      List<BatchDay> days,
+      List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services) {
     return new HealthExaminationBatch(
         id, organizationId, code, name, site, days, services, BatchStatus.DRAFT, 0);
@@ -56,7 +56,7 @@ public final class HealthExaminationBatch {
       String code,
       String name,
       ExaminationSite site,
-      List<BatchDay> days,
+      List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services,
       BatchStatus status,
       long rowVersion) {
@@ -64,21 +64,11 @@ public final class HealthExaminationBatch {
         id, organizationId, code, name, site, days, services, status, rowVersion);
   }
 
-  public void updateDraft(
-      String code,
-      String name,
-      ExaminationSite site,
-      List<BatchDay> days,
-      List<HealthExaminationBatchService> services) {
-    if (status != BatchStatus.DRAFT) throw new BatchConfigurationLocked();
-    configure(code, name, site, days, services);
-  }
-
   private void configure(
       String code,
       String name,
       ExaminationSite site,
-      List<BatchDay> days,
+      List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services) {
     if (code == null
         || code.isBlank()
@@ -111,7 +101,9 @@ public final class HealthExaminationBatch {
     this.site = site;
     this.days =
         days.stream()
-            .sorted(Comparator.comparing(BatchDay::examinationDate).thenComparing(BatchDay::id))
+            .sorted(
+                Comparator.comparing(HealthExaminationBatchDay::examinationDate)
+                    .thenComparing(HealthExaminationBatchDay::id))
             .toList();
     this.services =
         services.stream()
@@ -158,7 +150,7 @@ public final class HealthExaminationBatch {
     return site;
   }
 
-  public List<BatchDay> days() {
+  public List<HealthExaminationBatchDay> days() {
     return days;
   }
 

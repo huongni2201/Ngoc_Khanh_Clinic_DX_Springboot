@@ -26,8 +26,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ImportFileStorage;
-
 @Component
 public final class EncryptedLocalImportFileStorage implements ImportFileStorage {
     private static final byte[] MAGIC = {'N', 'K', 'C', '1'};

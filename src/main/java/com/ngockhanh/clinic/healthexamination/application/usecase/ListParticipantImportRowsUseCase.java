@@ -2,7 +2,6 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportRowResponse;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportRowsPageResponse;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ImportType;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationImportJobRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -38,29 +37,25 @@ public class ListParticipantImportRowsUseCase {
     batches
         .findByIdAndOrganizationId(batch, organization)
         .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-    var job =
-        jobs.findByIdAndBatchId(importJobId, batch)
+    var summary =
+        jobs.findSummaryByIdAndBatchId(importJobId, batch)
             .orElseThrow(() -> new ResourceNotFoundException("Participant import"));
-    if (job.type() != ImportType.ORGANIZATION_PARTICIPANT) {
-      throw new ResourceNotFoundException("Participant import");
-    }
-
-    String rowFilter = rowFilter(status);
+    validateRowFilter(status);
     long offset = (long) (page - 1) * size;
-    long totalRows = jobs.countRowsByJobId(job.id(), rowFilter);
+    long totalRows = jobs.countRowsByJobId(summary.id());
     List<ParticipantImportRowResponse> rows =
-        jobs.findRowsByJobId(job.id(), rowFilter, offset, size).stream()
+        jobs.findRowsByJobId(summary.id(), offset, size).stream()
             .map(ParticipantImportRowResponse::from)
             .toList();
-    return new ParticipantImportRowsPageResponse(job.id().value(), page, size, totalRows, rows);
+    return new ParticipantImportRowsPageResponse(summary.id().value(), page, size, totalRows, rows);
   }
 
-  private static String rowFilter(String status) {
-    if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) return null;
+  private static void validateRowFilter(String status) {
+    if (status == null || status.isBlank() || "ALL".equalsIgnoreCase(status)) return;
     String normalized = status.strip().toUpperCase(Locale.ROOT);
-    return switch (normalized) {
-      case "VALID", "CREATE" -> normalized;
+    switch (normalized) {
+      case "VALID", "CREATE" -> {}
       default -> throw new IllegalArgumentException("Import row filter is invalid");
-    };
+    }
   }
 }

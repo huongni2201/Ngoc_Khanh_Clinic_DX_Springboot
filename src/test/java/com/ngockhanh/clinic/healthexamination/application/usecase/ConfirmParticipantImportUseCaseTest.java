@@ -4,7 +4,7 @@ import static com.ngockhanh.clinic.healthexamination.RosterFixtures.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantImportAuditWriter;
+import com.ngockhanh.clinic.healthexamination.application.validation.ParticipantDayAllocator;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
@@ -19,7 +19,8 @@ class ConfirmParticipantImportUseCaseTest {
       mock(HealthExaminationBatchParticipantRepository.class);
   final ParticipantImportAuditWriter audit = mock(ParticipantImportAuditWriter.class);
   final ConfirmParticipantImportUseCase usecase =
-      new ConfirmParticipantImportUseCase(CLOCK, batches, jobs, participants, audit);
+      new ConfirmParticipantImportUseCase(
+          CLOCK, batches, jobs, participants, audit, new ParticipantDayAllocator());
 
   @BeforeEach
   void setup() {
