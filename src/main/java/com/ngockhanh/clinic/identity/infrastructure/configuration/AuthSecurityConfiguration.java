@@ -74,13 +74,6 @@ public class AuthSecurityConfiguration {
                   .authenticated();
               if (settings.businessAccess()) {
                 authorize
-                    .requestMatchers(
-                        "/api/v1/organizations/*/health-examination-batches/*/participants/export-template",
-                        "/api/v1/organizations/*/health-examination-batches/*/participant-imports/**")
-                    .access(
-                        (authentication, context) ->
-                            new AuthorizationDecision(
-                                hasStaffRole(authentication.get(), "CLINIC_MANAGER")))
                     .requestMatchers("/api/v1/**")
                     .access(
                         (authentication, context) ->
@@ -97,13 +90,6 @@ public class AuthSecurityConfiguration {
   private static boolean hasAnyStaffRole(Authentication authentication) {
     var principal = staffPrincipal(authentication);
     return principal != null && !principal.roleAssignments().isEmpty();
-  }
-
-  private static boolean hasStaffRole(Authentication authentication, String roleCode) {
-    var principal = staffPrincipal(authentication);
-    return principal != null
-        && principal.roleAssignments().stream()
-            .anyMatch(assignment -> roleCode.equals(assignment.roleCode()));
   }
 
   private static UserPrincipal staffPrincipal(Authentication authentication) {

@@ -64,9 +64,7 @@ Application use cases own transactions, audit and supported cross-module contrac
 
 Mutable updates use `WHERE id = #{id} AND row_version = #{expectedVersion}` and
 `SET row_version = row_version + 1`; zero affected rows is a concurrency conflict.
-The clean-slate schema has no row-version increment trigger. Use scoped batch locks
-for consistent import day allocation and confirmation; a lock does not replace
-client expected-version checks. Serialize concurrent schedule/roster mutations on
+The clean-slate schema has no row-version increment trigger. A database lock does not replace client expected-version checks. Serialize concurrent schedule/roster mutations on
 the same batch consistency boundary.
 
 ## Historical state

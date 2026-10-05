@@ -78,6 +78,13 @@ contract supersedes their conflicting business/schema decisions.
 
 ### Import ownership and behavior
 
+Implementation update — 2026-10-05: the owner requested removal of the backend
+Excel roster import workflow. The import-specific runtime contracts and adapters
+below have been retired; the schema and historical data remain unchanged. See
+[the current API removal contract](../api/clean-slate-migration.md#removed-excel-roster-import).
+The original design decision below remains a historical record.
+
+
 - Integration owns generic import staging, exposed through a published contract;
   healthexamination owns roster interpretation and business validation.
 - Invalid files create neither an import job nor staging rows. Validate the whole

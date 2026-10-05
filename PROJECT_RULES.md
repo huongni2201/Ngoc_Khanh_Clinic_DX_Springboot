@@ -904,6 +904,20 @@ Lombok for useful DTO boilerplate. Existing Java records do not need redundant
 constructors. Avoid generated `toString()` on sensitive DTOs. Domain may use Lombok
 but must preserve invariant-enforcing constructors, factories, and business methods.
 
+### DTO construction
+
+For new or changed DTOs, prefer Lombok `@Builder` and construct instances with
+`DtoType.builder().field(value).build()` rather than direct `new DtoType(...)`
+calls. Apply this preference to request, response, command/query and integration
+DTOs, including test fixtures. Preserve required-value validation, defaults,
+defensive copies and serialization/deserialization contracts.
+
+Keep an existing constructor or factory when it is required by a framework or
+enforces validation/invariants that a builder would bypass. Existing Java records
+may remain records; apply `@Builder` when changing their construction without
+converting them to classes solely for this rule. Migrate affected construction
+sites within the current change; keep unrelated DTO migrations separate.
+
 ### Agent workflow
 
 Before editing, identify the owning module, active contract, supported callers and

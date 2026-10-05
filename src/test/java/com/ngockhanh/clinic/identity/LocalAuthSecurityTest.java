@@ -72,48 +72,10 @@ class LocalAuthSecurityTest {
     }
   }
 
-  @Test
-  void rosterImportRoutesRequireTheClinicManagerRole() throws Exception {
-    Instant now = Instant.now();
-    String path =
-        "/api/v1/organizations/org/health-examination-batches/batch/participant-imports/job";
-    for (String roleCode : List.of("DOCTOR", "CLINIC_MANAGER")) {
-      var assignment =
-          new UserPrincipal.Assignment(
-              UUID.randomUUID(), roleCode, List.of(), UUID.randomUUID(), now.minusSeconds(60));
-      var principal =
-          new UserPrincipal(
-              UUID.randomUUID(),
-              UUID.randomUUID(),
-              null,
-              "staff",
-              "STAFF",
-              List.of(assignment),
-              now.plusSeconds(1800),
-              now.plusSeconds(28800));
-      when(authenticate.execute(any())).thenReturn(principal);
-
-      var response =
-          mvc.perform(
-              get(path).servletPath(path).cookie(new Cookie("NKC_SESSION", "B".repeat(43))));
-      if (roleCode.equals("CLINIC_MANAGER")) {
-        response.andExpect(status().isOk());
-      } else {
-        response.andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value(403));
-      }
-    }
-  }
-
   @RestController
   static class BusinessEndpoint {
     @GetMapping("/api/v1/test-business")
     String read() {
-      return "allowed";
-    }
-
-    @GetMapping(
-        "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}")
-    String readParticipantImport() {
       return "allowed";
     }
   }

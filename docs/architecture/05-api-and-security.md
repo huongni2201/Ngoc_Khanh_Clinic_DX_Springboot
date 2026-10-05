@@ -14,8 +14,7 @@ validation, not found, business rules, conflicts, concurrency, authentication,
 access denial, dependencies and unexpected errors without leaking SQL/stack traces.
 
 Breaking clean-slate fields/routes are listed in [the API migration](../api/clean-slate-migration.md).
-Use explicit expected versions on preview/confirmation/cancellation and mutable
-configuration updates. A stale update rolls back instead of overwriting data.
+Use explicit expected versions on mutable configuration updates. A stale update rolls back instead of overwriting data.
 
 ## Authentication and authorization
 
@@ -27,8 +26,8 @@ Credentials/tokens are never returned or logged.
 
 Default/production currently denies business endpoints until explicit RBAC
 policies are implemented. Local/test requires authenticated STAFF with an active
-role for business access, including CLINIC_MANAGER at the local roster-import
-boundary. Patients and roleless staff do not gain business access merely by login.
+role for business access. The removed roster-import routes have no HTTP handlers
+or import-specific role policy. Patients and roleless staff do not gain business access merely by login.
 No method-level @PreAuthorize is added to health-examination use cases.
 
 Existing profile selection remains: local/test settings apply if those profiles

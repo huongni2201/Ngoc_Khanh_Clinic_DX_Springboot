@@ -68,42 +68,26 @@ derived date range, status and batch version, plus each service's reference-pric
 snapshot, negotiated price, display order, active flag and version. Batch status
 values are `DRAFT`, `READY`, `FINALIZED` and `CLOSED`.
 
-## Participant roster and import
+## Removed Excel roster import
 
-All paths below are relative to the batch base plus `/{batchId}`:
+At the owner's request on 2026-10-05, the backend Excel roster import workflow
+has been removed. The following batch-scoped routes are no longer registered:
 
-| Method | Path | Contract |
-|---|---|---|
-| GET | `/participants/export-template` | Standard XLSX roster template. |
-| POST | `/participant-imports` | Multipart `file` and JSON `configuration.selectedBatchDayIds`; validates the complete file before staging. |
-| GET | `/participant-imports/{importId}` | Current job summary/version. |
-| GET | `/participant-imports/{importId}/rows` | Paginated preview rows with masked CCCD. |
-| PUT | `/participant-imports/{importId}/preview` | JSON `selectedBatchDayIds`, required `expectedRowVersion`, optional `rowAssignments` keyed by source row number. |
-| POST | `/participant-imports/{importId}/confirm` | JSON `expectedRowVersion`; commits the approved preview atomically. |
-| POST | `/participant-imports/{importId}/cancel` | JSON `expectedRowVersion`; cancels a validated job. |
+- `GET /participants/export-template`;
+- `POST /participant-imports`;
+- `GET /participant-imports/{importId}`;
+- `GET /participant-imports/{importId}/rows`;
+- `PUT /participant-imports/{importId}/preview`;
+- `POST /participant-imports/{importId}/confirm`;
+- `POST /participant-imports/{importId}/cancel`.
 
-The old `/employee-imports`, `/employees/import-template`, singular `/participant`
-and column-mapping action paths are removed.
+Template generation, workbook upload/parsing, preview allocation, confirmation,
+cancellation and their staging adapters are removed. No replacement roster API
+is introduced. Frontend integration is outside this backend-only change and
+existing clients must stop calling these routes.
 
-The template columns are STT, Mã nhân viên, Họ và tên, Ngày sinh, Giới tính, CCCD,
-Điện thoại, Email, Phòng ban, Chức danh. Name, birth date, sex, CCCD, department
-and position are required; participant code, phone and email are optional.
-CCCD remains text. Do not substitute the previous 16-column workbook.
-
-A valid upload returns 201 with import ID, `VALIDATED`, row version, selected days
-and preview rows. An invalid roster returns 422 with row errors and `importId = null`;
-no job, staging, Patient or Encounter rows are persisted. Invalid workbook structure
-uses the safe validation error contract. Duplicate CCCD within file or batch rejects
-the complete file; import does not update existing participants.
-
-New rows are allocated by lowest active count, then date, then day ID. Preview may
-revise assignments. Confirmation uses approved assignments without reallocating,
-checks the job version and stores its result. Retry of a confirmed job returns that
-result rather than inserting again. Existing roster members never move during import.
-Job states are `VALIDATED`, `CONFIRMED`, `CANCELLED`, `EXPIRED`.
-
-Use the newest response version on subsequent writes. Stale versions return the
-centralized concurrency conflict, with no partial business rows or audit commits.
+The schema and historical import/participant provenance remain intact. No Flyway
+migration or deployed data deletion is part of this removal.
 
 ## Database deployment boundary
 

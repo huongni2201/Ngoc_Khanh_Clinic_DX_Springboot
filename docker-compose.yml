@@ -9,7 +9,6 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-nkclinic}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
       REDIS_HOST: redis
-      NKC_LOCAL_FILE_STORAGE_ROOT: /app/var/clinic/file-storage
     depends_on:
       postgres:
         condition: service_healthy
@@ -17,8 +16,6 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
-    volumes:
-      - clinic_file_storage:/app/var/clinic/file-storage
 
   postgres:
     image: postgres:18-alpine
@@ -49,5 +46,4 @@ services:
       retries: 10
 
 volumes:
-  clinic_file_storage:
   postgres_data:

@@ -10,16 +10,6 @@
  FROM public.health_examination_participant_services WHERE batch_participant_id IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
  ORDER BY id
  </select>
- <select id="existingIdentificationNumbers" resultType="String">
- SELECT identification_number FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} AND identification_number IN
- <foreach collection="numbers" item="n" open="(" close=")" separator=",">#{n}</foreach>
- </select>
- <select id="activeCountsByDay" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper$DayCount">
- SELECT batch_day_id,count(*) AS active_count FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} AND roster_status='ACTIVE' GROUP BY batch_day_id
- </select>
- <insert id="insertAll">INSERT INTO public.health_examination_batch_participants (id,batch_id,batch_day_id,participant_code,full_name,date_of_birth,sex,identification_number,phone,email,department_name,position_name,patient_id,roster_status,attendance_status,actual_examination_date,attendance_recorded_by,attendance_recorded_at,attendance_note,service_reconciliation_status,services_reconciled_by,services_reconciled_at,import_job_id,source_row_number,prepared_at,created_at,updated_at,row_version) VALUES
- <foreach collection="participants" item="p" separator=",">(#{p.id},#{p.batchId},#{p.batchDayId},#{p.participantCode},#{p.fullName},#{p.dateOfBirth},#{p.sex},#{p.identificationNumber},#{p.phone},#{p.email},#{p.departmentName},#{p.positionName},#{p.patientId},#{p.rosterStatus},#{p.attendanceStatus},#{p.actualExaminationDate},#{p.attendanceRecordedBy},#{p.attendanceRecordedAt},#{p.attendanceNote},#{p.serviceReconciliationStatus},#{p.servicesReconciledBy},#{p.servicesReconciledAt},#{p.importJobId},#{p.sourceRowNumber},#{p.preparedAt},#{p.createdAt},#{p.updatedAt},#{p.rowVersion})</foreach>
- </insert>
  <update id="update">UPDATE public.health_examination_batch_participants SET
  row_version=row_version+1,updated_at=CURRENT_TIMESTAMP,batch_day_id=#{p.batchDayId},patient_id=#{p.patientId},prepared_at=#{p.preparedAt},roster_status=#{p.rosterStatus},
  attendance_status=#{p.attendanceStatus},actual_examination_date=#{p.actualExaminationDate},attendance_recorded_by=#{p.attendanceRecordedBy},

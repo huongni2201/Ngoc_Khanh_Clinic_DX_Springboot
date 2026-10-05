@@ -48,7 +48,7 @@ the same Batch. Roster, attendance and service reconciliation are independent:
 - attendance: UNCONFIRMED/ATTENDED/ABSENT; ATTENDED requires actual date;
 - reconciliation: PENDING/RECONCILED; zero items is meaningful only after reconciliation.
 
-Import/manual roster addition never creates Patient or Encounter. Authorized visit
+Roster addition must never create Patient or Encounter. Authorized visit
 preparation links or creates Patient by exact CCCD and prepares the visit. Moving
 a planned day preserves prepared links and actual attendance. Sensitive changes
 use expected versions and audit in the application transaction.
@@ -59,29 +59,12 @@ batch services and their negotiated price. Existing identity, historical price
 and established ServiceRequest links cannot change through reconciliation. Keep
 unchecked rows with is_performed=false; save header/items atomically with versions.
 
-## Roster import
+## Removed roster import
 
-A standard roster file contains STT, participant code, name, birth date, sex,
-CCCD, phone, email, department and position. Name/birth date/sex/CCCD/department/
-position are required; code/phone/email are optional. Preserve CCCD as text.
-
-Validate the entire request before writing ImportJob/staging. Structural errors
-fail fast; row/business errors are collected. Invalid files return row errors
-and create no job or staging. Parser/infrastructure failures remain exceptions.
-Duplicate CCCD in file or existing Batch rejects the whole file. Confirmation
-inserts new participants only, never overwrites existing roster or creates visits.
-
-Capture explicit selected BatchDay IDs. Allocate new rows to the lowest active
-count, then examination date, then day ID. Do not rebalance existing participants.
-Preview captures proposed assignments and allows authorized review. Changing
-selected days/configuration produces a new version; later-added days do not
-silently enter an existing preview.
-
-Confirmation locks/scopes the Batch and job, compares expected version, uses
-approved staging assignments without reallocation, inserts atomically, audits,
-and stores its result. A confirmed retry returns that result without new writes.
-Job states are VALIDATED, CONFIRMED, CANCELLED, EXPIRED. Concurrent writes fail
-explicitly; staging failure/audit failure rolls back business writes.
+The owner removed the backend Excel roster import workflow on 2026-10-05.
+No template, upload, preview, confirm or cancel use case remains. See
+[the API removal contract](../api/clean-slate-migration.md#removed-excel-roster-import).
+Existing participant provenance and import history remain in the unchanged schema.
 
 ## Record history and other contexts
 

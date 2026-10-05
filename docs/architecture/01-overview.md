@@ -36,7 +36,7 @@ mappers, records or aggregates; use published application contracts instead.
 
 ## Implemented migration scope
 
-Existing account authentication and organization/batch/roster import workflows
+Existing account authentication and organization/batch workflows
 use the clean-slate schema. Infrastructure represents all 64 schema tables in
 owning modules. Record presence does not claim all clinic workflows or HTTP APIs
 are implemented. New clinical, payment, release or rendering operations require

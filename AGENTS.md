@@ -404,6 +404,9 @@ Application comments and logging:
 
 ## 14. DTO / Model Rules
 
+Follow [DTO construction](PROJECT_RULES.md#dto-construction) for the Lombok
+`@Builder` preference when adding or changing DTOs and their construction sites.
+
 Keep separate models when responsibilities differ:
 
 ```text

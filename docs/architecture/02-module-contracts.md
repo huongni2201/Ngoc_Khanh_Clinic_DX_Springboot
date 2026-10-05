@@ -27,15 +27,13 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 - `identity::access` publishes the authenticated principal. `identity::sessions`
   publishes session revocation; revoke snapshots after account/grant changes commit.
 - `catalog` publishes service lookup with current unit price through its query contract.
-- `integration::imports` publishes immutable generic staging contracts through
-  ImportStore. Integration owns storage mechanics; healthexamination owns roster
-  validation, allocation and business interpretation.
 - `audit::recording` publishes AuthAudit/AuditWriter. Audit owns its adapters and
   depends on the published shared ID generator, without identity persistence access.
 - Document query contracts expose template lookup without leaking table records.
 
-A batch update checks staged-day references through ImportStore; its MyBatis
-mapper only reads health-examination tables. Foreign keys in the shared database
+The Excel roster import contract and its runtime staging adapters were removed
+on 2026-10-05. Integration retains ownership of import tables and schema records
+for historical data; it no longer publishes `integration::imports`. Foreign keys
 preserve relational integrity without granting Java modules cross-context access.
 
 Use direct public application contracts for synchronous coordination, in-process

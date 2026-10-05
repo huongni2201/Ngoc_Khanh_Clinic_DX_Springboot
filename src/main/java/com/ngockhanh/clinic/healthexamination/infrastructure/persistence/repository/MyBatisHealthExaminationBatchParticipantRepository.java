@@ -11,11 +11,8 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -30,34 +27,6 @@ public class MyBatisHealthExaminationBatchParticipantRepository
   public Optional<HealthExaminationBatchParticipant> findById(AggregateId id) {
     return Optional.ofNullable(mapper.findById(id.value()))
         .map(r -> domain(r, mapper.findServices(List.of(r.id()))));
-  }
-
-  public Set<IdentificationNumber> existingIdentificationNumbers(
-      AggregateId id, Collection<IdentificationNumber> numbers) {
-    if (numbers.isEmpty()) return Set.of();
-    return mapper
-        .existingIdentificationNumbers(
-            id.value(), numbers.stream().map(IdentificationNumber::value).toList())
-        .stream()
-        .map(IdentificationNumber::of)
-        .collect(Collectors.toSet());
-  }
-
-  public Map<UUID, Long> activeCountsByDay(AggregateId id) {
-    return mapper.activeCountsByDay(id.value()).stream()
-        .collect(Collectors.toMap(r -> r.batchDayId(), r -> r.activeCount()));
-  }
-
-  public void insertAll(Collection<HealthExaminationBatchParticipant> participants) {
-    var rows =
-        participants.stream()
-            .map(MyBatisHealthExaminationBatchParticipantRepository::record)
-            .toList();
-    for (int start = 0; start < rows.size(); start += 400) {
-      var chunk = rows.subList(start, Math.min(start + 400, rows.size()));
-      if (mapper.insertAll(chunk) != chunk.size())
-        throw new IllegalStateException("Roster rows were not inserted");
-    }
   }
 
   public void save(HealthExaminationBatchParticipant p, long expectedVersion) {

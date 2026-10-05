@@ -95,8 +95,7 @@ class ModuleVerificationTest {
             "Organization",
             "HealthExaminationBatch",
             "HealthExaminationBatchParticipant",
-            "HealthExaminationRecord",
-            "HealthExaminationImportJob");
+            "HealthExaminationRecord");
     assertThat(
             applicationClasses.stream()
                 .filter(
@@ -110,8 +109,7 @@ class ModuleVerificationTest {
             "OrganizationRepository",
             "HealthExaminationBatchRepository",
             "HealthExaminationBatchParticipantRepository",
-            "HealthExaminationRecordRepository",
-            "HealthExaminationImportJobRepository");
+            "HealthExaminationRecordRepository");
   }
 
   @Test

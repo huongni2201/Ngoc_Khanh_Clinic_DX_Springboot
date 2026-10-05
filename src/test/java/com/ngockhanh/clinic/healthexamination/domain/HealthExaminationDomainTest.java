@@ -84,49 +84,6 @@ class HealthExaminationDomainTest {
   }
 
   @Test
-  void noInvalidOrUnassignedRowsCanCreateDurableImport() {
-    var row = row(1);
-    assertThatThrownBy(
-            () ->
-                new HealthExaminationImportJob(
-                    id(5),
-                    id(1),
-                    id(6),
-                    NOW,
-                    List.of(id(3)),
-                    List.of(row),
-                    ImportStatus.VALIDATED,
-                    null,
-                    null,
-                    null,
-                    null,
-                    0,
-                    false,
-                    null))
-        .isInstanceOf(IllegalArgumentException.class);
-    row.assignDay(id(3));
-    row.reject("DUPLICATE_IN_BATCH");
-    assertThatThrownBy(
-            () ->
-                new HealthExaminationImportJob(
-                    id(5),
-                    id(1),
-                    id(6),
-                    NOW,
-                    List.of(id(3)),
-                    List.of(row),
-                    ImportStatus.VALIDATED,
-                    null,
-                    null,
-                    null,
-                    null,
-                    0,
-                    false,
-                    null))
-        .isInstanceOf(IllegalArgumentException.class);
-  }
-
-  @Test
   void recordUsesStableMrnAndExplicitLifecycle() {
     var r = HealthExaminationRecord.prepare(id(20), id(10), id(21), "MRN-1", NOW);
     assertThatThrownBy(() -> r.issue(NOW)).isInstanceOf(DomainRuleViolation.class);

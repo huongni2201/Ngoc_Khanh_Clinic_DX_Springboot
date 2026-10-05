@@ -99,28 +99,6 @@ class HealthExaminationBatchMapperTest {
             "metadata");
   }
 
-  @Test
-  void countsAndPagesImportRowsInSql() throws Exception {
-    var config = mapperConfiguration("integration", "ImportMapper");
-    UUID jobId = UUID.randomUUID();
-    var countSql =
-        config
-            .getMappedStatement(
-                "com.ngockhanh.clinic.integration.infrastructure.persistence.mapper.ImportMapper.countRows")
-            .getBoundSql(Map.of("jobId", jobId))
-            .getSql();
-    var pageSql =
-        config
-            .getMappedStatement(
-                "com.ngockhanh.clinic.integration.infrastructure.persistence.mapper.ImportMapper.pageRows")
-            .getBoundSql(Map.of("jobId", jobId, "offset", 100, "limit", 50))
-            .getSql();
-
-    assertThat(countSql).contains("COUNT(*)", "public.import_rows", "job_id=?");
-    assertThat(pageSql)
-        .contains("public.import_rows", "job_id=?", "ORDER BY row_number", "LIMIT ? OFFSET ?");
-  }
-
   private Configuration mapperConfiguration(String module, String mapper) throws Exception {
     var config = new Configuration();
     config

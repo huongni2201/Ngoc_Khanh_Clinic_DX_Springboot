@@ -15,7 +15,7 @@ Spring Modulith/ArchUnit check module inventory, public interfaces, pure domain
 and transport/persistence separation. Spotless uses the project's committed format.
 
 Use PostgreSQL 18 Testcontainers for Flyway, MyBatis, unique/composite constraints,
-optimistic conflicts, atomic import/audit rollback, price history and immutable
+optimistic conflicts, atomic business/audit rollback, price history and immutable
 versions. Identity integration additionally uses Redis. Report real skips/failures;
 H2, mocks and schema text tests are not evidence of PostgreSQL compatibility.
 
@@ -23,11 +23,11 @@ The current schema has 64 business tables. Contract tests assert every table's
 record columns/order/types/owner and no removed table records. Runtime SQL table
 checks supplement, rather than replace, actual PostgreSQL execution.
 
-Import regression coverage includes invalid upload without staging, duplicates,
-deterministic allocation, reviewed frozen assignments, stored version increments,
-confirmed retries, audit rollback and retained unchecked performed-service rows.
-Batch coverage includes atomic days/services, reference snapshots, ordering swaps,
-staged-day guards and stale versions. API requests require explicit mutable versions.
+API surface coverage verifies that all removed Excel import routes remain absent.
+Import-specific tests and workbook fixtures are removed; participant service
+reconciliation and historical provenance remain covered by their own tests.
+Batch coverage includes atomic days/services, reference snapshots and stale versions.
+API requests require explicit mutable versions.
 
 ## Build output
 
@@ -46,8 +46,8 @@ Flyway startup is disabled by default and enabled for local/test databases by
 configuration. Production migration is an explicit deployment step. Startup must
 use a compatible migrated schema. No runtime auto-create/auto-alter ORM schema exists.
 
-DB_URL, DB_USERNAME, DB_PASSWORD, Redis settings, JWT key and encrypted import-file
-storage key belong in environment/secret storage. Do not use local/test profiles in
+DB_URL, DB_USERNAME, DB_PASSWORD, Redis settings and JWT key belong in
+environment/secret storage. Do not use local/test profiles in
 production. Keep the documented cookie/CSRF/CORS policy and database privileges.
 
 Outbox/external effects are recorded with business changes and dispatched after

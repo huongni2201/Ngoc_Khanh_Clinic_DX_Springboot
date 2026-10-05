@@ -14,13 +14,6 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
 
   List<HealthExaminationParticipantServiceRecord> findServices(@Param("ids") Collection<UUID> ids);
 
-  List<String> existingIdentificationNumbers(
-      @Param("batchId") UUID batchId, @Param("numbers") Collection<String> numbers);
-
-  List<DayCount> activeCountsByDay(UUID batchId);
-
-  int insertAll(@Param("participants") List<HealthExaminationBatchParticipantRecord> participants);
-
   int update(
       @Param("p") HealthExaminationBatchParticipantRecord participant,
       @Param("expectedVersion") long expectedVersion);
@@ -28,6 +21,4 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
   int insertServices(@Param("services") List<HealthExaminationParticipantServiceRecord> services);
 
   int updateServices(@Param("services") List<HealthExaminationParticipantServiceRecord> services);
-
-  record DayCount(UUID batchDayId, long activeCount) {}
 }

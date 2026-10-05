@@ -23,17 +23,17 @@ class HealthExaminationApiSurfaceTest {
           "POST /api/v1/organizations",
           "PUT /api/v1/organizations/{organizationId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches",
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches");
+
+  private static final Set<String> REMOVED_MAPPINGS =
+      Set.of(
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/export-template",
           "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/rows",
           "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/preview",
           "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/confirm",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel");
-
-  private static final Set<String> REMOVED_MAPPINGS =
-      Set.of(
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel",
           "GET /api/v1/organizations",
           "DELETE /api/v1/organizations/{organizationId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
