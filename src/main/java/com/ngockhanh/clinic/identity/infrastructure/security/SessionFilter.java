@@ -46,7 +46,9 @@ public final class SessionFilter extends OncePerRequestFilter {
                 .toList();
     if (!sessionIds.isEmpty()) {
       try {
-        var principal = authenticateSession.execute(new AuthenticateSessionQuery(sessionIds));
+        var principal =
+            authenticateSession.execute(
+                AuthenticateSessionQuery.builder().sessionIds(sessionIds).build());
         var context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(
             new UsernamePasswordAuthenticationToken(principal, null, List.of()));

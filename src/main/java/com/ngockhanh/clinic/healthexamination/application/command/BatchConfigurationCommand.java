@@ -3,7 +3,9 @@ package com.ngockhanh.clinic.healthexamination.application.command;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import lombok.Builder;
 
+@Builder
 public record BatchConfigurationCommand(
     String batchCode,
     String batchName,
@@ -17,5 +19,6 @@ public record BatchConfigurationCommand(
     services = services == null ? null : List.copyOf(services);
   }
 
+  @Builder
   public record ServicePrice(UUID serviceId, BigDecimal negotiatedPrice) {}
 }

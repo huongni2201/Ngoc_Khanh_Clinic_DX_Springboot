@@ -56,13 +56,15 @@ public class ListHealthExaminationBatchUseCase {
     long total = batches.count(org, pattern);
     long pages = total == 0 ? 0 : (total - 1) / size + 1;
     log.debug("List batches: organizationId={}, page={}, size={}", org, page, size);
-    return new PageResponse<>(
-        batches.findPage(org, (page - 1L) * size, size, pattern, key, direction).stream()
-            .map(BatchSummaryResponse::from)
-            .toList(),
-        page,
-        size,
-        total,
-        (int) Math.min(Integer.MAX_VALUE, pages));
+    return PageResponse.<BatchSummaryResponse>builder()
+        .items(
+            batches.findPage(org, (page - 1L) * size, size, pattern, key, direction).stream()
+                .map(BatchSummaryResponse::from)
+                .toList())
+        .page(page)
+        .size(size)
+        .totalElements(total)
+        .totalPages((int) Math.min(Integer.MAX_VALUE, pages))
+        .build();
   }
 }

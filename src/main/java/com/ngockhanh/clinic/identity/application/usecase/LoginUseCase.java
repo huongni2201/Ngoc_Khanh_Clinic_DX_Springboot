@@ -147,7 +147,7 @@ public class LoginUseCase {
                   idleDeadline,
                   claims.expiresAt()));
       log.info("User login completed userId={} correlationId={}", userId, command.correlationId());
-      return new LoginResult(sessionId, response);
+      return LoginResult.builder().sessionId(sessionId).response(response).build();
     } catch (RuntimeException failure) {
       log.error(
           "User login could not complete correlationId={} failureType={}",

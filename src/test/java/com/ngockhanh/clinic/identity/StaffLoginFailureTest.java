@@ -79,7 +79,13 @@ class StaffLoginFailureTest {
       new LogoutAllSessionsUseCase(
           sessions, audit, Clock.fixed(now, ZoneOffset.UTC), directTransaction);
   final LoginCommand command =
-      new LoginCommand(" staff ", "password", "127.0.0.1", List.of(), UUID.randomUUID());
+      LoginCommand.builder()
+          .username(" staff ")
+          .password("password")
+          .clientIp("127.0.0.1")
+          .sessionIds(List.of())
+          .correlationId(UUID.randomUUID())
+          .build();
 
   @BeforeEach
   void validAccount() {
@@ -112,7 +118,13 @@ class StaffLoginFailureTest {
   @Test
   void rejectsUsernameBeyondCleanSlateAccountLimitBeforeReadingCredentials() {
     var oversized =
-        new LoginCommand("x".repeat(151), "password", "127.0.0.1", List.of(), UUID.randomUUID());
+        LoginCommand.builder()
+            .username("x".repeat(151))
+            .password("password")
+            .clientIp("127.0.0.1")
+            .sessionIds(List.of())
+            .correlationId(UUID.randomUUID())
+            .build();
     assertThatThrownBy(() -> login.execute(oversized))
         .isInstanceOfSatisfying(
             AuthenticationFailure.class,
@@ -151,12 +163,13 @@ class StaffLoginFailureTest {
   @Test
   void applicationRejectsDuplicateSessionCookiesAtTheEndpointSpecificStatus() {
     var duplicateCookies =
-        new LoginCommand(
-            "staff",
-            "password",
-            "127.0.0.1",
-            List.of("old-session", "other-session"),
-            UUID.randomUUID());
+        LoginCommand.builder()
+            .username("staff")
+            .password("password")
+            .clientIp("127.0.0.1")
+            .sessionIds(List.of("old-session", "other-session"))
+            .correlationId(UUID.randomUUID())
+            .build();
     assertThatThrownBy(() -> login.execute(duplicateCookies))
         .isInstanceOfSatisfying(
             AuthenticationFailure.class,
@@ -166,7 +179,11 @@ class StaffLoginFailureTest {
                         com.ngockhanh.clinic.shared.exception.ApplicationException.Type
                             .INVALID_INPUT));
     assertThatThrownBy(
-            () -> authenticate.execute(new AuthenticateSessionQuery(List.of("first", "second"))))
+            () ->
+                authenticate.execute(
+                    AuthenticateSessionQuery.builder()
+                        .sessionIds(List.of("first", "second"))
+                        .build()))
         .isInstanceOfSatisfying(
             AuthenticationFailure.class,
             failure ->
@@ -230,7 +247,12 @@ class StaffLoginFailureTest {
         .when(audit)
         .record(user, "ACCOUNT_SESSIONS_REVOKED", now, command.correlationId());
     assertThatCode(
-            () -> logoutAll.execute(new LogoutAllSessionsCommand(user, command.correlationId())))
+            () ->
+                logoutAll.execute(
+                    LogoutAllSessionsCommand.builder()
+                        .userId(user)
+                        .correlationId(command.correlationId())
+                        .build()))
         .doesNotThrowAnyException();
     verify(sessions).revokeAll(user);
   }
@@ -243,7 +265,12 @@ class StaffLoginFailureTest {
         .when(sessions)
         .revokeAll(user);
     assertThatThrownBy(
-            () -> logoutAll.execute(new LogoutAllSessionsCommand(user, command.correlationId())))
+            () ->
+                logoutAll.execute(
+                    LogoutAllSessionsCommand.builder()
+                        .userId(user)
+                        .correlationId(command.correlationId())
+                        .build()))
         .isInstanceOfSatisfying(
             AuthenticationFailure.class,
             failure ->
@@ -279,7 +306,10 @@ class StaffLoginFailureTest {
             Clock.fixed(now.plusSeconds(5), ZoneOffset.UTC));
     when(sessions.touch(eq(id), any(), any(), eq(now.plusSeconds(5))))
         .thenReturn(now.plusSeconds(1805));
-    assertThat(later.execute(new AuthenticateSessionQuery(List.of(id))).roleAssignments())
+    assertThat(
+            later
+                .execute(AuthenticateSessionQuery.builder().sessionIds(List.of(id)).build())
+                .roleAssignments())
         .extracting(r -> r.roleCode())
         .containsExactly("DOCTOR");
   }

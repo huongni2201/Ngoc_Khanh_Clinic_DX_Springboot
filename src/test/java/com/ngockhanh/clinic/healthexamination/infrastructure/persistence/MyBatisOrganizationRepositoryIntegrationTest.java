@@ -107,19 +107,20 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     var response =
         updateOrganization.execute(
             first.id().value(),
-            new UpdateOrganizationCommand(
-                first.code(),
-                "Renamed School",
-                first.organizationType(),
-                first.taxCode(),
-                first.phone(),
-                first.email(),
-                first.address(),
-                first.contactFullName(),
-                first.contactPosition(),
-                first.contactPhone(),
-                first.contactEmail(),
-                0L),
+            UpdateOrganizationCommand.builder()
+                .code(first.code())
+                .name("Renamed School")
+                .organizationType(first.organizationType())
+                .taxCode(first.taxCode())
+                .phone(first.phone())
+                .email(first.email())
+                .address(first.address())
+                .contactFullName(first.contactFullName())
+                .contactPosition(first.contactPosition())
+                .contactPhone(first.contactPhone())
+                .contactEmail(first.contactEmail())
+                .rowVersion(0L)
+                .build(),
             actor);
 
     assertThat(response.name()).isEqualTo("Renamed School");
@@ -156,19 +157,20 @@ class MyBatisOrganizationRepositoryIntegrationTest {
             () ->
                 updateOrganization.execute(
                     first.id().value(),
-                    new UpdateOrganizationCommand(
-                        first.code(),
-                        "Renamed School",
-                        first.organizationType(),
-                        first.taxCode(),
-                        first.phone(),
-                        first.email(),
-                        first.address(),
-                        first.contactFullName(),
-                        first.contactPosition(),
-                        first.contactPhone(),
-                        first.contactEmail(),
-                        0L),
+                    UpdateOrganizationCommand.builder()
+                        .code(first.code())
+                        .name("Renamed School")
+                        .organizationType(first.organizationType())
+                        .taxCode(first.taxCode())
+                        .phone(first.phone())
+                        .email(first.email())
+                        .address(first.address())
+                        .contactFullName(first.contactFullName())
+                        .contactPosition(first.contactPosition())
+                        .contactPhone(first.contactPhone())
+                        .contactEmail(first.contactEmail())
+                        .rowVersion(0L)
+                        .build(),
                     actor))
         .isInstanceOf(IllegalStateException.class);
 
@@ -186,18 +188,19 @@ class MyBatisOrganizationRepositoryIntegrationTest {
   void auditFailureRollsBackOrganizationInsertAndAuditRow() {
     UUID actor = createActorAccount();
     var command =
-        new CreateOrganizationCommand(
-            "AUDIT-ORG",
-            "Audit Partner",
-            "COMPANY",
-            null,
-            "0901",
-            "office@example.test",
-            "Address",
-            "Contact",
-            null,
-            "0902",
-            "contact@example.test");
+        CreateOrganizationCommand.builder()
+            .code("AUDIT-ORG")
+            .name("Audit Partner")
+            .organizationType("COMPANY")
+            .taxCode(null)
+            .phone("0901")
+            .email("office@example.test")
+            .address("Address")
+            .contactFullName("Contact")
+            .contactPosition(null)
+            .contactPhone("0902")
+            .contactEmail("contact@example.test")
+            .build();
     doAnswer(
             invocation -> {
               invocation.callRealMethod();

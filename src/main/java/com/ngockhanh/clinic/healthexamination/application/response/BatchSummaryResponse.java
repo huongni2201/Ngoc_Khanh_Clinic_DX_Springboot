@@ -3,7 +3,9 @@ package com.ngockhanh.clinic.healthexamination.application.response;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchSummary;
 import java.time.*;
 import java.util.UUID;
+import lombok.Builder;
 
+@Builder
 public record BatchSummaryResponse(
     UUID id,
     String batchCode,
@@ -14,14 +16,15 @@ public record BatchSummaryResponse(
     Instant createdAt,
     Instant updatedAt) {
   public static BatchSummaryResponse from(BatchSummary b) {
-    return new BatchSummaryResponse(
-        b.id(),
-        b.batchCode(),
-        b.batchName(),
-        b.startDate(),
-        b.endDate(),
-        b.status(),
-        b.createdAt(),
-        b.updatedAt());
+    return BatchSummaryResponse.builder()
+        .id(b.id())
+        .batchCode(b.batchCode())
+        .batchName(b.batchName())
+        .startDate(b.startDate())
+        .endDate(b.endDate())
+        .status(b.status())
+        .createdAt(b.createdAt())
+        .updatedAt(b.updatedAt())
+        .build();
   }
 }

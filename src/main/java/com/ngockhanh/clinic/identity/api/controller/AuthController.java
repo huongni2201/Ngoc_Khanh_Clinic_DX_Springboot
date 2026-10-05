@@ -69,7 +69,11 @@ public class AuthController {
   @GetMapping("/csrf")
   public ResponseEntity<ApiResponse<CsrfResponse>> csrf(CsrfToken token) {
     log.debug("Issuing CSRF token");
-    GetCsrfTokenQuery query = new GetCsrfTokenQuery(token.getToken(), token.getHeaderName());
+    GetCsrfTokenQuery query =
+        GetCsrfTokenQuery.builder()
+            .token(token.getToken())
+            .headerName(token.getHeaderName())
+            .build();
     CsrfResponse response = getCsrfToken.execute(query);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
@@ -93,12 +97,13 @@ public class AuthController {
       HttpServletResponse response) {
     UUID correlationId = UUID.randomUUID();
     LoginCommand command =
-        new LoginCommand(
-            body.username(),
-            body.password(),
-            clientIpResolver.resolve(request),
-            sessionIds(request),
-            correlationId);
+        LoginCommand.builder()
+            .username(body.username())
+            .password(body.password())
+            .clientIp(clientIpResolver.resolve(request))
+            .sessionIds(sessionIds(request))
+            .correlationId(correlationId)
+            .build();
     LoginResult login = loginUser.execute(command);
     csrf.saveToken(null, request, response);
     Duration cookieAge = Duration.between(clock.instant(), login.response().absoluteExpiresAt());
@@ -124,7 +129,7 @@ public class AuthController {
   public ResponseEntity<ApiResponse<UserSessionResponse>> me(
       @AuthenticationPrincipal UserPrincipal principal) {
     log.debug("Reading authenticated userId={}", principal.userId());
-    GetSessionQuery query = new GetSessionQuery(principal);
+    GetSessionQuery query = GetSessionQuery.builder().principal(principal).build();
     UserSessionResponse response = getSession.execute(query);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
@@ -141,7 +146,11 @@ public class AuthController {
    */
   @PostMapping("/logout")
   public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-    LogoutSessionCommand command = new LogoutSessionCommand(sessionIds(request), UUID.randomUUID());
+    LogoutSessionCommand command =
+        LogoutSessionCommand.builder()
+            .sessionIds(sessionIds(request))
+            .correlationId(UUID.randomUUID())
+            .build();
     logoutSession.execute(command);
     return clear(request, response);
   }
@@ -161,7 +170,10 @@ public class AuthController {
       HttpServletRequest request,
       HttpServletResponse response) {
     LogoutAllSessionsCommand command =
-        new LogoutAllSessionsCommand(principal.userId(), UUID.randomUUID());
+        LogoutAllSessionsCommand.builder()
+            .userId(principal.userId())
+            .correlationId(UUID.randomUUID())
+            .build();
     logoutAllSessions.execute(command);
     return clear(request, response);
   }

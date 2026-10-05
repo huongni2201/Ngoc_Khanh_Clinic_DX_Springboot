@@ -21,20 +21,21 @@ public record OrganizationResponse(
     String status,
     long rowVersion) {
   public static OrganizationResponse from(Organization organization) {
-    return new OrganizationResponse(
-        organization.id().value(),
-        organization.code(),
-        organization.name(),
-        organization.organizationType(),
-        organization.taxCode(),
-        organization.phone(),
-        organization.email(),
-        organization.address(),
-        organization.contactFullName(),
-        organization.contactPosition(),
-        organization.contactPhone(),
-        organization.contactEmail(),
-        organization.status(),
-        organization.rowVersion());
+    return OrganizationResponse.builder()
+        .id(organization.id().value())
+        .code(organization.code())
+        .name(organization.name())
+        .organizationType(organization.organizationType())
+        .taxCode(organization.taxCode())
+        .phone(organization.phone())
+        .email(organization.email())
+        .address(organization.address())
+        .contactFullName(organization.contactFullName())
+        .contactPosition(organization.contactPosition())
+        .contactPhone(organization.contactPhone())
+        .contactEmail(organization.contactEmail())
+        .status(organization.status())
+        .rowVersion(organization.rowVersion())
+        .build();
   }
 }

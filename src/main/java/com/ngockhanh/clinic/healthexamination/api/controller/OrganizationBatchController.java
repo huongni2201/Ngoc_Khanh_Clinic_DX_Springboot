@@ -49,8 +49,10 @@ public class OrganizationBatchController {
                 "Batch created",
                 create.execute(
                     organizationId,
-                    new CreateHealthExaminationBatchCommand(
-                        actor(principal), request.toCommand()))));
+                    CreateHealthExaminationBatchCommand.builder()
+                        .createdBy(actor(principal))
+                        .configuration(request.toCommand())
+                        .build())));
   }
 
   /**
@@ -74,12 +76,13 @@ public class OrganizationBatchController {
             200,
             list.execute(
                 organizationId,
-                new HealthExaminationBatchListQuery(
-                    request.getPage(),
-                    request.getSize(),
-                    request.getSearchKey(),
-                    request.getSortKey(),
-                    request.getSortBy()))));
+                HealthExaminationBatchListQuery.builder()
+                    .page(request.getPage())
+                    .size(request.getSize())
+                    .searchKey(request.getSearchKey())
+                    .sortKey(request.getSortKey())
+                    .sortBy(request.getSortBy())
+                    .build())));
   }
 
   private UUID actor(UserPrincipal principal) {

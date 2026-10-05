@@ -37,19 +37,20 @@ class OrganizationCrudUseCaseTest {
   }
 
   private UpdateOrganizationCommand command(long version) {
-    return new UpdateOrganizationCommand(
-        "S1",
-        "Renamed",
-        "SCHOOL",
-        "TAX",
-        "0901",
-        "s@example.test",
-        "Address",
-        "Contact",
-        null,
-        "0902",
-        "c@example.test",
-        version);
+    return UpdateOrganizationCommand.builder()
+        .code("S1")
+        .name("Renamed")
+        .organizationType("SCHOOL")
+        .taxCode("TAX")
+        .phone("0901")
+        .email("s@example.test")
+        .address("Address")
+        .contactFullName("Contact")
+        .contactPosition(null)
+        .contactPhone("0902")
+        .contactEmail("c@example.test")
+        .rowVersion(version)
+        .build();
   }
 
   @Test

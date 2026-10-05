@@ -43,7 +43,8 @@ public class LogoutAllSessionsUseCase implements SessionRevocation {
 
   @Override
   public void revokeAllSessions(UUID userId) {
-    execute(new LogoutAllSessionsCommand(userId, UUID.randomUUID()));
+    execute(
+        LogoutAllSessionsCommand.builder().userId(userId).correlationId(UUID.randomUUID()).build());
   }
 
   private void sessionDependency(Runnable operation) {

@@ -39,7 +39,13 @@ class ListHealthExaminationBatchUseCaseTest {
         new ListHealthExaminationBatchUseCase(organizations, batches)
             .execute(
                 organizationId,
-                new HealthExaminationBatchListQuery(2, 2, "Clinic%_", "startDate", "DESC"));
+                HealthExaminationBatchListQuery.builder()
+                    .page(2)
+                    .size(2)
+                    .searchKey("Clinic%_")
+                    .sortKey("startDate")
+                    .sortBy("DESC")
+                    .build());
 
     assertThat(page.items()).extracting(item -> item.batchCode()).containsExactly("B2", "B1");
     assertThat(page.page()).isEqualTo(2);
@@ -62,7 +68,15 @@ class ListHealthExaminationBatchUseCaseTest {
 
     var page =
         new ListHealthExaminationBatchUseCase(organizations, batches)
-            .execute(organizationId, new HealthExaminationBatchListQuery(1, 10, null, null, null));
+            .execute(
+                organizationId,
+                HealthExaminationBatchListQuery.builder()
+                    .page(1)
+                    .size(10)
+                    .searchKey(null)
+                    .sortKey(null)
+                    .sortBy(null)
+                    .build());
 
     assertThat(page.items()).isEmpty();
     assertThat(page.totalElements()).isZero();
@@ -81,7 +95,13 @@ class ListHealthExaminationBatchUseCaseTest {
                 new ListHealthExaminationBatchUseCase(organizations, batches)
                     .execute(
                         organizationId,
-                        new HealthExaminationBatchListQuery(1, 10, null, null, null)))
+                        HealthExaminationBatchListQuery.builder()
+                            .page(1)
+                            .size(10)
+                            .searchKey(null)
+                            .sortKey(null)
+                            .sortBy(null)
+                            .build()))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(batches);
   }
@@ -99,7 +119,13 @@ class ListHealthExaminationBatchUseCaseTest {
                 new ListHealthExaminationBatchUseCase(organizations, batches)
                     .execute(
                         organizationId,
-                        new HealthExaminationBatchListQuery(0, 10, null, null, null)))
+                        HealthExaminationBatchListQuery.builder()
+                            .page(0)
+                            .size(10)
+                            .searchKey(null)
+                            .sortKey(null)
+                            .sortBy(null)
+                            .build()))
         .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(batches);
   }
@@ -117,8 +143,13 @@ class ListHealthExaminationBatchUseCaseTest {
                 new ListHealthExaminationBatchUseCase(organizations, batches)
                     .execute(
                         organizationId,
-                        new HealthExaminationBatchListQuery(
-                            1, 10, null, "id; DROP TABLE services", "ASC")))
+                        HealthExaminationBatchListQuery.builder()
+                            .page(1)
+                            .size(10)
+                            .searchKey(null)
+                            .sortKey("id; DROP TABLE services")
+                            .sortBy("ASC")
+                            .build()))
         .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(batches);
   }

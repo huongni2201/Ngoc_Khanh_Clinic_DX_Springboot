@@ -19,14 +19,20 @@ import org.junit.jupiter.api.Test;
 
 class HealthExaminationBatchUseCasesTest {
   private BatchConfigurationCommand configuration(UUID service) {
-    return new BatchConfigurationCommand(
-        "B1",
-        "Batch",
-        List.of(LocalDate.of(2026, 10, 4)),
-        "CLINIC",
-        "Clinic",
-        "Address",
-        List.of(new BatchConfigurationCommand.ServicePrice(service, BigDecimal.TEN)));
+    return BatchConfigurationCommand.builder()
+        .batchCode("B1")
+        .batchName("Batch")
+        .examinationDates(List.of(LocalDate.of(2026, 10, 4)))
+        .examinationSiteType("CLINIC")
+        .examinationSiteName("Clinic")
+        .examinationSiteAddress("Address")
+        .services(
+            List.of(
+                BatchConfigurationCommand.ServicePrice.builder()
+                    .serviceId(service)
+                    .negotiatedPrice(BigDecimal.TEN)
+                    .build()))
+        .build();
   }
 
   @Test
@@ -44,7 +50,10 @@ class HealthExaminationBatchUseCasesTest {
                         organizations, repo, new BatchDraftEditor(catalog), audit)
                     .execute(
                         org,
-                        new CreateHealthExaminationBatchCommand(actor, configuration(service))))
+                        CreateHealthExaminationBatchCommand.builder()
+                            .createdBy(actor)
+                            .configuration(configuration(service))
+                            .build()))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(repo, catalog, audit);
   }
@@ -78,7 +87,10 @@ class HealthExaminationBatchUseCasesTest {
                         organizations, repo, new BatchDraftEditor(catalog), audit)
                     .execute(
                         org,
-                        new CreateHealthExaminationBatchCommand(actor, configuration(service))))
+                        CreateHealthExaminationBatchCommand.builder()
+                            .createdBy(actor)
+                            .configuration(configuration(service))
+                            .build()))
         .isInstanceOf(BusinessRuleException.class);
     verify(repo, never()).insert(any(), any());
   }

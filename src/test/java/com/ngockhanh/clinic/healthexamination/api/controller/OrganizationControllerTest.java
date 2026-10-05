@@ -72,15 +72,16 @@ class OrganizationControllerTest {
             .build();
 
     UserPrincipal principal =
-        new UserPrincipal(
-            actorId,
-            UUID.randomUUID(),
-            null,
-            "staff",
-            "STAFF",
-            List.of(),
-            Instant.now(),
-            Instant.now().plusSeconds(3600));
+        UserPrincipal.builder()
+            .userId(actorId)
+            .staffId(UUID.randomUUID())
+            .patientId(null)
+            .username("staff")
+            .principalType("STAFF")
+            .roleAssignments(List.of())
+            .idleExpiresAt(Instant.now())
+            .absoluteExpiresAt(Instant.now().plusSeconds(3600))
+            .build();
     when(createOrganizationUseCase.execute(any(CreateOrganizationCommand.class), eq(actorId)))
         .thenReturn(expectedResponse);
 
@@ -118,15 +119,16 @@ class OrganizationControllerTest {
   @Test
   void invalidCreateTransportIsRejectedBeforeTheUseCase() throws Exception {
     UserPrincipal principal =
-        new UserPrincipal(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            null,
-            "staff",
-            "STAFF",
-            List.of(),
-            Instant.now(),
-            Instant.now().plusSeconds(3600));
+        UserPrincipal.builder()
+            .userId(UUID.randomUUID())
+            .staffId(UUID.randomUUID())
+            .patientId(null)
+            .username("staff")
+            .principalType("STAFF")
+            .roleAssignments(List.of())
+            .idleExpiresAt(Instant.now())
+            .absoluteExpiresAt(Instant.now().plusSeconds(3600))
+            .build();
     SecurityContextHolder.getContext()
         .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
     try {
@@ -264,15 +266,16 @@ class OrganizationControllerTest {
   }
 
   private UserPrincipal principal(UUID userId) {
-    return new UserPrincipal(
-        userId,
-        UUID.randomUUID(),
-        null,
-        "staff",
-        "STAFF",
-        List.of(),
-        Instant.now(),
-        Instant.now().plusSeconds(3600));
+    return UserPrincipal.builder()
+        .userId(userId)
+        .staffId(UUID.randomUUID())
+        .patientId(null)
+        .username("staff")
+        .principalType("STAFF")
+        .roleAssignments(List.of())
+        .idleExpiresAt(Instant.now())
+        .absoluteExpiresAt(Instant.now().plusSeconds(3600))
+        .build();
   }
 
   private MockMvc mvc() {

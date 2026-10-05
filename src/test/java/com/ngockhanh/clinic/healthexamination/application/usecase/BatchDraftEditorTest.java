@@ -29,7 +29,13 @@ class BatchDraftEditorTest {
                 new ServiceCatalogQuery.Service(
                     service, "S1", "Exam", true, new BigDecimal("200"))));
     var services =
-        editor.services(batch, List.of(new ServicePrice(service, new BigDecimal("100"))));
+        editor.services(
+            batch,
+            List.of(
+                ServicePrice.builder()
+                    .serviceId(service)
+                    .negotiatedPrice(new BigDecimal("100"))
+                    .build()));
 
     assertThat(days)
         .extracting(HealthExaminationBatchDay::examinationDate)
@@ -50,7 +56,7 @@ class BatchDraftEditorTest {
     when(catalog.findByIds(Set.of(id)))
         .thenReturn(
             List.of(new ServiceCatalogQuery.Service(id, "S1", "Exam", false, BigDecimal.TEN)));
-    var item = new ServicePrice(id, BigDecimal.ONE);
+    var item = ServicePrice.builder().serviceId(id).negotiatedPrice(BigDecimal.ONE).build();
     var batch = new AggregateId(UUID.randomUUID());
     var date = LocalDate.of(2026, 10, 4);
     assertThatThrownBy(() -> editor.days(List.of(date, date)))
@@ -66,7 +72,14 @@ class BatchDraftEditorTest {
         .thenReturn(
             List.of(new ServiceCatalogQuery.Service(id, "S1", "Exam", true, BigDecimal.TEN)));
     assertThatThrownBy(
-            () -> editor.services(batch, List.of(new ServicePrice(id, new BigDecimal("-1.00")))))
+            () ->
+                editor.services(
+                    batch,
+                    List.of(
+                        ServicePrice.builder()
+                            .serviceId(id)
+                            .negotiatedPrice(new BigDecimal("-1.00"))
+                            .build())))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

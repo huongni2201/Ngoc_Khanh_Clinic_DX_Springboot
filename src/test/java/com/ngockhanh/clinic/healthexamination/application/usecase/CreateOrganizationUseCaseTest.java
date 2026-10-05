@@ -15,18 +15,19 @@ import org.mockito.ArgumentCaptor;
 
 class CreateOrganizationUseCaseTest {
   private CreateOrganizationCommand command(String code, String taxCode) {
-    return new CreateOrganizationCommand(
-        code,
-        "School",
-        "SCHOOL",
-        taxCode,
-        "0901",
-        "school@example.test",
-        "Address",
-        "Contact",
-        null,
-        "0902",
-        "contact@example.test");
+    return CreateOrganizationCommand.builder()
+        .code(code)
+        .name("School")
+        .organizationType("SCHOOL")
+        .taxCode(taxCode)
+        .phone("0901")
+        .email("school@example.test")
+        .address("Address")
+        .contactFullName("Contact")
+        .contactPosition(null)
+        .contactPhone("0902")
+        .contactEmail("contact@example.test")
+        .build();
   }
 
   @Test

@@ -29,7 +29,14 @@ class OrganizationBatchControllerTest {
   void listReturnsPageForTheOrganizationInThePath() throws Exception {
     var list = mock(ListHealthExaminationBatchUseCase.class);
     UUID organizationId = UUID.randomUUID();
-    var page = new PageResponse<BatchSummaryResponse>(List.of(), 2, 5, 11, 3);
+    var page =
+        PageResponse.<BatchSummaryResponse>builder()
+            .items(List.of())
+            .page(2)
+            .size(5)
+            .totalElements(11)
+            .totalPages(3)
+            .build();
     when(list.execute(eq(organizationId), any(HealthExaminationBatchListQuery.class)))
         .thenReturn(page);
     var controller =
@@ -57,7 +64,14 @@ class OrganizationBatchControllerTest {
     var query = ArgumentCaptor.forClass(HealthExaminationBatchListQuery.class);
     verify(list).execute(eq(organizationId), query.capture());
     assertThat(query.getValue())
-        .isEqualTo(new HealthExaminationBatchListQuery(2, 5, "Clinic", "startDate", "DESC"));
+        .isEqualTo(
+            HealthExaminationBatchListQuery.builder()
+                .page(2)
+                .size(5)
+                .searchKey("Clinic")
+                .sortKey("startDate")
+                .sortBy("DESC")
+                .build());
   }
 
   @Test
@@ -120,15 +134,16 @@ class OrganizationBatchControllerTest {
         organizationId = UUID.randomUUID(),
         serviceId = UUID.randomUUID();
     var principal =
-        new UserPrincipal(
-            actorId,
-            UUID.randomUUID(),
-            null,
-            "staff",
-            "STAFF",
-            java.util.List.of(),
-            java.time.Instant.now(),
-            java.time.Instant.now().plusSeconds(3600));
+        UserPrincipal.builder()
+            .userId(actorId)
+            .staffId(UUID.randomUUID())
+            .patientId(null)
+            .username("staff")
+            .principalType("STAFF")
+            .roleAssignments(java.util.List.of())
+            .idleExpiresAt(java.time.Instant.now())
+            .absoluteExpiresAt(java.time.Instant.now().plusSeconds(3600))
+            .build();
     var authentication =
         new UsernamePasswordAuthenticationToken(principal, "test", java.util.List.of());
     var environment = new MockEnvironment();
