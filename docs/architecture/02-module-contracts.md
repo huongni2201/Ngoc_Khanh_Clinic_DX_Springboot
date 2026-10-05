@@ -27,8 +27,10 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 - `identity::access` publishes the authenticated principal. `identity::sessions`
   publishes session revocation; revoke snapshots after account/grant changes commit.
 - `catalog` publishes service lookup with current unit price through its query contract.
-- `audit::recording` publishes AuthAudit/AuditWriter. Audit owns its adapters and
+- `audit::recording` publishes AuditWriter for business, authentication and session events. Audit owns its adapters and
   depends on the published shared ID generator, without identity persistence access.
+  All recording paths use one writer and one audit-event insert method;
+  authentication retains occurrence time/correlation, and business mutations retain before/after metadata.
 - Document query contracts expose template lookup without leaking table records.
 
 The Excel roster import contract and its runtime staging adapters were removed

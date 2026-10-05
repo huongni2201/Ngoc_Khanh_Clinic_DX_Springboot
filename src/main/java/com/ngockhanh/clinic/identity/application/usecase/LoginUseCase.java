@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.audit.application.port.AuthAudit;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.identity.application.command.LoginCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
@@ -26,11 +26,12 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
+/** Authenticates an account, records its audit event and issues a server-managed session. */
 @Service
 @Slf4j
 public class LoginUseCase {
   private final UserAccountRepository accounts;
-  private final AuthAudit audit;
+  private final AuditWriter audit;
   private final Passwords passwords;
   private final SessionTokens tokens;
   private final SessionStore sessions;
@@ -44,7 +45,7 @@ public class LoginUseCase {
 
   public LoginUseCase(
       UserAccountRepository accounts,
-      AuthAudit audit,
+      AuditWriter audit,
       Passwords passwords,
       SessionTokens tokens,
       SessionStore sessions,
@@ -69,6 +70,14 @@ public class LoginUseCase {
     this.accountWriteTransaction = accountWriteTransaction;
   }
 
+  /**
+   * Issues a session after eligibility and audit checks, compensating the new session on failure.
+   *
+   * @param command credentials, existing session cookies and request context
+   * @return the issued session identifier and account view
+   * @throws AuthenticationFailure if input, credentials, eligibility, throttling or session checks
+   *     fail
+   */
   public LoginResult execute(LoginCommand command) {
     String username = command.username();
     String password = command.password();

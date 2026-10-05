@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.audit.application.port.AuthAudit;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.identity.application.command.LogoutAllSessionsCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionRevocation;
@@ -13,17 +13,18 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
+/** Revokes all sessions for an account and records its audit event. */
 @Service
 @Slf4j
 public class LogoutAllSessionsUseCase implements SessionRevocation {
   private final SessionStore sessions;
-  private final AuthAudit audit;
+  private final AuditWriter audit;
   private final Clock clock;
   private final TransactionOperations accountWriteTransaction;
 
   public LogoutAllSessionsUseCase(
       SessionStore sessions,
-      AuthAudit audit,
+      AuditWriter audit,
       Clock clock,
       @Qualifier("accountWriteTransaction") TransactionOperations accountWriteTransaction) {
     this.sessions = sessions;
@@ -32,6 +33,12 @@ public class LogoutAllSessionsUseCase implements SessionRevocation {
     this.accountWriteTransaction = accountWriteTransaction;
   }
 
+  /**
+   * Revokes the account's sessions; a subsequent audit failure does not undo the revocation.
+   *
+   * @param command account identifier and request correlation context
+   * @throws AuthenticationFailure if the session store is unavailable
+   */
   public void execute(LogoutAllSessionsCommand command) {
     sessionDependency(() -> sessions.revokeAll(command.userId()));
     recordRevocation(command.userId(), command.correlationId());

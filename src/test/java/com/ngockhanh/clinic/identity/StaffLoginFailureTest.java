@@ -14,9 +14,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.ngockhanh.clinic.audit.application.port.AuthAudit;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.infrastructure.persistence.mapper.AuditEventMapper;
+import com.ngockhanh.clinic.audit.infrastructure.persistence.record.AuditEventRecord;
+import com.ngockhanh.clinic.audit.infrastructure.persistence.repository.MyBatisAuditWriter;
 import com.ngockhanh.clinic.identity.application.command.LoginCommand;
 import com.ngockhanh.clinic.identity.application.command.LogoutAllSessionsCommand;
+import com.ngockhanh.clinic.identity.application.command.LogoutSessionCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
 import com.ngockhanh.clinic.identity.application.port.Passwords;
@@ -26,6 +30,7 @@ import com.ngockhanh.clinic.identity.application.query.AuthenticateSessionQuery;
 import com.ngockhanh.clinic.identity.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.identity.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.identity.application.usecase.LogoutAllSessionsUseCase;
+import com.ngockhanh.clinic.identity.application.usecase.LogoutSessionUseCase;
 import com.ngockhanh.clinic.identity.domain.entity.UserAccount;
 import com.ngockhanh.clinic.identity.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.identity.domain.valueobject.RoleAssignment;
@@ -38,12 +43,14 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionOperations;
+import tools.jackson.databind.json.JsonMapper;
 
 class StaffLoginFailureTest {
   final UserAccountRepository accounts = mock(UserAccountRepository.class);
-  final AuthAudit audit = mock(AuthAudit.class);
+  final AuditWriter audit = mock(AuditWriter.class);
   final TransactionOperations directTransaction =
       new TransactionOperations() {
         @Override
@@ -58,20 +65,7 @@ class StaffLoginFailureTest {
   final UUID user = UUID.randomUUID();
   final Instant now = Instant.parse("2026-09-28T00:00:00Z");
   final String id = "A".repeat(43);
-  final LoginUseCase login =
-      new LoginUseCase(
-          accounts,
-          audit,
-          passwords,
-          tokens,
-          sessions,
-          throttle,
-          SessionAdaptersTest.settings(),
-          Clock.fixed(now, ZoneOffset.UTC),
-          () -> id,
-          directTransaction,
-          directTransaction,
-          directTransaction);
+  final LoginUseCase login = loginWithAudit(audit);
   final AuthenticateSessionUseCase authenticate =
       new AuthenticateSessionUseCase(
           sessions, tokens, SessionAdaptersTest.settings(), Clock.fixed(now, ZoneOffset.UTC));
@@ -143,6 +137,90 @@ class StaffLoginFailureTest {
     assertThatThrownBy(() -> login.execute(command)).isSameAs(failure);
     verify(sessions).delete(id);
     verify(sessions, never()).touch(any(), any(), any(), any());
+  }
+
+  @Test
+  void authenticationFlowsUseTheSharedWriterAndPreserveAccountEventContext() {
+    var mapper = mock(AuditEventMapper.class);
+    when(mapper.insert(any())).thenReturn(1);
+    var writer = new MyBatisAuditWriter(mapper, JsonMapper.builder().build());
+
+    assertThat(loginWithAudit(writer).execute(command).sessionId()).isEqualTo(id);
+    when(sessions.find(id))
+        .thenReturn(new SessionStore.Stored(user, "signed-token", 7L, now.plusSeconds(28800)));
+    new LogoutSessionUseCase(sessions, writer, Clock.fixed(now, ZoneOffset.UTC), directTransaction)
+        .execute(
+            LogoutSessionCommand.builder()
+                .sessionIds(List.of(id))
+                .correlationId(command.correlationId())
+                .build());
+    new LogoutAllSessionsUseCase(
+            sessions, writer, Clock.fixed(now, ZoneOffset.UTC), directTransaction)
+        .execute(
+            LogoutAllSessionsCommand.builder()
+                .userId(user)
+                .correlationId(command.correlationId())
+                .build());
+
+    var events = ArgumentCaptor.forClass(AuditEventRecord.class);
+    verify(mapper, org.mockito.Mockito.times(3)).insert(events.capture());
+    assertThat(events.getAllValues())
+        .extracting(AuditEventRecord::action)
+        .containsExactly("ACCOUNT_LOGIN", "ACCOUNT_LOGOUT", "ACCOUNT_SESSIONS_REVOKED");
+    assertThat(events.getAllValues())
+        .allSatisfy(
+            event -> {
+              assertThat(event.actorAccountId()).isEqualTo(user);
+              assertThat(event.resourceType()).isEqualTo("ACCOUNT");
+              assertThat(event.resourceId()).isEqualTo(user);
+              assertThat(event.occurredAt()).isEqualTo(now);
+              assertThat(event.correlationId()).isEqualTo(command.correlationId());
+              assertThat(event.departmentId()).isNull();
+              assertThat(event.metadata()).isEqualTo("{}");
+              assertThat(event.id().version()).isEqualTo(7);
+            });
+    assertThat(events.getAllValues()).extracting(AuditEventRecord::id).doesNotHaveDuplicates();
+  }
+
+  @Test
+  void sharedWriterRejectsAnUnsavedLoginAuditAndCompensatesTheSession() {
+    var mapper = mock(AuditEventMapper.class);
+    when(mapper.insert(any())).thenReturn(0);
+    var writer = new MyBatisAuditWriter(mapper, JsonMapper.builder().build());
+
+    assertThatThrownBy(() -> loginWithAudit(writer).execute(command))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage("Audit not saved");
+    verify(sessions).delete(id);
+    verify(sessions, never()).touch(any(), any(), any(), any());
+  }
+
+  @Test
+  void sharedWriterPreservesPersistenceFailureDuringLoginCompensation() {
+    var mapper = mock(AuditEventMapper.class);
+    var failure = new IllegalStateException("audit database unavailable");
+    when(mapper.insert(any())).thenThrow(failure);
+    var writer = new MyBatisAuditWriter(mapper, JsonMapper.builder().build());
+
+    assertThatThrownBy(() -> loginWithAudit(writer).execute(command)).isSameAs(failure);
+    verify(sessions).delete(id);
+    verify(sessions, never()).touch(any(), any(), any(), any());
+  }
+
+  private LoginUseCase loginWithAudit(AuditWriter recording) {
+    return new LoginUseCase(
+        accounts,
+        recording,
+        passwords,
+        tokens,
+        sessions,
+        throttle,
+        SessionAdaptersTest.settings(),
+        Clock.fixed(now, ZoneOffset.UTC),
+        () -> id,
+        directTransaction,
+        directTransaction,
+        directTransaction);
   }
 
   @Test

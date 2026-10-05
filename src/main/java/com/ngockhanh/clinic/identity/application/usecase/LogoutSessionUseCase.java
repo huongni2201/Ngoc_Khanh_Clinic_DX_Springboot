@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
-import com.ngockhanh.clinic.audit.application.port.AuthAudit;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.identity.application.command.LogoutSessionCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
@@ -14,17 +14,18 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionOperations;
 
+/** Revokes the supplied session and records an audit event for a known account. */
 @Service
 @Slf4j
 public class LogoutSessionUseCase {
   private final SessionStore sessions;
-  private final AuthAudit audit;
+  private final AuditWriter audit;
   private final Clock clock;
   private final TransactionOperations accountWriteTransaction;
 
   public LogoutSessionUseCase(
       SessionStore sessions,
-      AuthAudit audit,
+      AuditWriter audit,
       Clock clock,
       @Qualifier("accountWriteTransaction") TransactionOperations accountWriteTransaction) {
     this.sessions = sessions;
@@ -33,6 +34,13 @@ public class LogoutSessionUseCase {
     this.accountWriteTransaction = accountWriteTransaction;
   }
 
+  /**
+   * Revokes a session when present; a subsequent audit failure does not undo the revocation.
+   *
+   * @param command session cookies and request correlation context
+   * @throws AuthenticationFailure if multiple cookies are supplied or the session store is
+   *     unavailable
+   */
   public void execute(LogoutSessionCommand command) {
     String sessionId = singleSessionCookie(command.sessionIds());
     var stored = sessionId == null ? null : sessionDependency(() -> sessions.find(sessionId));
