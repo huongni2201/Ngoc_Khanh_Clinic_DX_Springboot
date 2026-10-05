@@ -17,7 +17,7 @@ import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganiza
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase;
-import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
@@ -41,14 +41,14 @@ import tools.jackson.databind.json.JsonMapper;
 class OrganizationControllerTest {
 
   private CreateOrganizationUseCase createOrganizationUseCase;
-  private GetOrganizationUseCase getOrganizationUseCase;
+  private GetOrganizationByIdUseCase getOrganizationUseCase;
   private UpdateOrganizationUseCase updateOrganizationUseCase;
   private OrganizationController controller;
 
   @BeforeEach
   void setUp() {
     createOrganizationUseCase = mock(CreateOrganizationUseCase.class);
-    getOrganizationUseCase = mock(GetOrganizationUseCase.class);
+    getOrganizationUseCase = mock(GetOrganizationByIdUseCase.class);
     updateOrganizationUseCase = mock(UpdateOrganizationUseCase.class);
     controller =
         new OrganizationController(

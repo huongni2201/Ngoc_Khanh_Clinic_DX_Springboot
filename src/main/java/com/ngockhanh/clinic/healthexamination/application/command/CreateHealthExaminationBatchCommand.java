@@ -5,4 +5,4 @@ import lombok.Builder;
 
 @Builder
 public record CreateHealthExaminationBatchCommand(
-    UUID createdBy, BatchConfigurationCommand configuration) {}
+    UUID createdBy, UpdateHealthExaminationBatchCommand configuration) {}

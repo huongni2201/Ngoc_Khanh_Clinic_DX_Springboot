@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.prescription.infrastructure.persistence.record;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.prescription_items}. */
+@Builder
 public record PrescriptionItemRecord(
     UUID id,
     UUID prescriptionVersionId,

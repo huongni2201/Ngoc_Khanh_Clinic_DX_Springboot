@@ -135,6 +135,18 @@ class PersistenceRecordContractTest {
     }
   }
 
+  @Test
+  void everyTableRecordExposesABuilder() throws ClassNotFoundException {
+    for (String entry : OWNERS.strip().split("\\R")) {
+      String[] parts = entry.strip().split(" ");
+      String className =
+          "com.ngockhanh.clinic." + parts[1] + ".infrastructure.persistence.record." + parts[2];
+      assertThat(Class.forName(className).getDeclaredMethods())
+          .as(className)
+          .anyMatch(method -> method.getName().equals("builder"));
+    }
+  }
+
   private static String snakeCase(String name) {
     return name.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(Locale.ROOT);
   }

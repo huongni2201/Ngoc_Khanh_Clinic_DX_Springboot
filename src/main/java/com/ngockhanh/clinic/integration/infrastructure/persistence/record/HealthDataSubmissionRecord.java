@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.health_data_submissions}. */
+@Builder
 public record HealthDataSubmissionRecord(
     UUID id,
     UUID patientId,

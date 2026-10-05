@@ -12,6 +12,8 @@ Use bounded pagination and allowlisted sort keys. Stable API contracts do not
 expose persistence records or domain internals. Central error handling distinguishes
 validation, not found, business rules, conflicts, concurrency, authentication,
 access denial, dependencies and unexpected errors without leaking SQL/stack traces.
+The concrete envelope, error/status mapping, pagination fields and implementation
+classes are defined in [API policy](../../PROJECT_RULES.md#envelope-errors-and-pagination).
 
 Breaking clean-slate fields/routes are listed in [the API migration](../api/clean-slate-migration.md).
 Use explicit expected versions on mutable configuration updates. A stale update rolls back instead of overwriting data.
@@ -32,18 +34,23 @@ No method-level @PreAuthorize is added to health-examination use cases.
 
 Existing profile selection remains: local/test settings apply if those profiles
 are active even alongside prod/production. Production must omit local/test.
-This is documented existing behavior, not a new production bypass.
+Startup currently does not reject this combination. Profile guarding and the
+controller actor fallback are pending [code fixes](../maintenance/code-follow-ups.md).
 
 Permission updates must revoke existing snapshots after database commit. Direct
 SQL grants/status changes do not silently refresh sessions. See
-[login operations](../api/login.md) for actual protocol/configuration and failure handling.
+[AuthController](../../src/main/java/com/ngockhanh/clinic/identity/api/controller/AuthController.java)
+and [auth configuration](../../src/main/java/com/ngockhanh/clinic/identity/infrastructure/configuration/AuthInfrastructureConfiguration.java)
+for current protocol/configuration. Inspect the owning use cases and integration
+tests before changing Redis/database compensation; the old login guide is absent.
 
 ## Audit and healthcare data
 
 Audit owns append-only audit_events, exposed through audit::recording. Capture
 account actor, action, resource type/ID, occurredAt and concise safe metadata.
 Business mutations and required audit commit together; audit failure rolls back.
-Authentication's Redis/database compensation remains documented in login operations.
+Authentication's Redis/database compensation requires its owning use-case and
+integration-test evidence; no distributed transaction guarantee is inferred here.
 
 Application owns operational use-case events; controllers add useful HTTP context.
 Follow [the logging policy](../../PROJECT_RULES.md#27-logging) for levels, safe

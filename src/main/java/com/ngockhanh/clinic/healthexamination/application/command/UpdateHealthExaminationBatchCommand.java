@@ -6,7 +6,7 @@ import java.util.*;
 import lombok.Builder;
 
 @Builder
-public record BatchConfigurationCommand(
+public record UpdateHealthExaminationBatchCommand(
     String batchCode,
     String batchName,
     List<LocalDate> examinationDates,
@@ -14,7 +14,7 @@ public record BatchConfigurationCommand(
     String examinationSiteName,
     String examinationSiteAddress,
     List<ServicePrice> services) {
-  public BatchConfigurationCommand {
+  public UpdateHealthExaminationBatchCommand {
     examinationDates = examinationDates == null ? null : List.copyOf(examinationDates);
     services = services == null ? null : List.copyOf(services);
   }

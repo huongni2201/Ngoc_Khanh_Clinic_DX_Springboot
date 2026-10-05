@@ -25,22 +25,23 @@ public final class OrganizationPersistenceConverter {
   }
 
   public OrganizationRecord toRecord(Organization organization) {
-    return new OrganizationRecord(
-        organization.id().value(),
-        organization.code(),
-        organization.name(),
-        organization.organizationType(),
-        organization.taxCode(),
-        organization.phone(),
-        organization.email(),
-        organization.address(),
-        organization.contactFullName(),
-        organization.contactPosition(),
-        organization.contactPhone(),
-        organization.contactEmail(),
-        organization.status(),
-        null,
-        null,
-        organization.rowVersion());
+    return OrganizationRecord.builder()
+        .id(organization.id().value())
+        .code(organization.code())
+        .name(organization.name())
+        .organizationType(organization.organizationType())
+        .taxCode(organization.taxCode())
+        .phone(organization.phone())
+        .email(organization.email())
+        .address(organization.address())
+        .contactFullName(organization.contactFullName())
+        .contactPosition(organization.contactPosition())
+        .contactPhone(organization.contactPhone())
+        .contactEmail(organization.contactEmail())
+        .status(organization.status())
+        .createdAt(null)
+        .updatedAt(null)
+        .rowVersion(organization.rowVersion())
+        .build();
   }
 }

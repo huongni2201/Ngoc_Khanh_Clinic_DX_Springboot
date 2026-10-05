@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
-import com.ngockhanh.clinic.healthexamination.application.command.BatchConfigurationCommand.ServicePrice;
+import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand.ServicePrice;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;

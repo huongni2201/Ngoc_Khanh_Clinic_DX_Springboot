@@ -6,7 +6,7 @@ import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganiza
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase;
-import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.web.ApiResponse;
@@ -32,7 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrganizationController {
 
   private final CreateOrganizationUseCase createOrganizationUseCase;
-  private final GetOrganizationUseCase getOrganizationUseCase;
+  private final GetOrganizationByIdUseCase getOrganizationUseCase;
   private final UpdateOrganizationUseCase updateOrganizationUseCase;
 
   /**
@@ -75,8 +75,12 @@ public class OrganizationController {
    * @return the requested organization
    */
   @GetMapping("/{organizationId}")
-  public ResponseEntity<ApiResponse<OrganizationResponse>> get(@PathVariable UUID organizationId) {
+  public ResponseEntity<ApiResponse<OrganizationResponse>> get(
+      @PathVariable UUID organizationId
+  ) {
+
     log.debug("Get organization request: organizationId={}", organizationId);
+
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
   }

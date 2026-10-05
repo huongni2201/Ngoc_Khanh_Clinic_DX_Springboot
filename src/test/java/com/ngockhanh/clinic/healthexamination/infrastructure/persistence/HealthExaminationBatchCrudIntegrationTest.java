@@ -6,7 +6,7 @@ import static org.mockito.Mockito.doThrow;
 
 import com.ngockhanh.clinic.healthexamination.application.command.*;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
-import com.ngockhanh.clinic.healthexamination.application.usecase.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
@@ -93,8 +93,8 @@ class HealthExaminationBatchCrudIntegrationTest {
         department);
   }
 
-  private BatchConfigurationCommand config(String code, UUID... services) {
-    return BatchConfigurationCommand.builder()
+  private UpdateHealthExaminationBatchCommand config(String code, UUID... services) {
+    return UpdateHealthExaminationBatchCommand.builder()
         .batchCode(code)
         .batchName("Campaign%_")
         .examinationDates(List.of(LocalDate.of(2026, 10, 4), LocalDate.of(2026, 10, 8)))
@@ -105,7 +105,7 @@ class HealthExaminationBatchCrudIntegrationTest {
             Arrays.stream(services)
                 .map(
                     s ->
-                        BatchConfigurationCommand.ServicePrice.builder()
+                        UpdateHealthExaminationBatchCommand.ServicePrice.builder()
                             .serviceId(s)
                             .negotiatedPrice(new BigDecimal("100"))
                             .build())

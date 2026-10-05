@@ -3,7 +3,9 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.record;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import lombok.Builder;
 
+@Builder
 public record StaffMemberRecord(
     UUID id,
     String staffCode,

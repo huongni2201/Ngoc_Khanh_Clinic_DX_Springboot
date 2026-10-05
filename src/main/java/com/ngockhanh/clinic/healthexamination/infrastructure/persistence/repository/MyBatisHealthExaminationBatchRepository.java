@@ -95,8 +95,11 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
         batch.days().stream()
             .map(
                 d ->
-                    new HealthExaminationBatchDayRecord(
-                        d.id(), batch.id().value(), d.examinationDate()))
+                    HealthExaminationBatchDayRecord.builder()
+                        .id(d.id())
+                        .batchId(batch.id().value())
+                        .examinationDate(d.examinationDate())
+                        .build())
             .toList();
     if (mapper.insertDays(rows) != rows.size())
       throw new IllegalStateException("Batch days were not inserted");
@@ -107,36 +110,38 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
         services.stream()
             .map(
                 s ->
-                    new HealthExaminationBatchServiceRecord(
-                        s.id().value(),
-                        s.batchId().value(),
-                        s.serviceId().value(),
-                        s.referencePriceSnapshot().amount(),
-                        s.negotiatedPrice().amount(),
-                        s.displayOrder(),
-                        s.active(),
-                        null,
-                        null,
-                        s.rowVersion()))
+                    HealthExaminationBatchServiceRecord.builder()
+                        .id(s.id().value())
+                        .batchId(s.batchId().value())
+                        .serviceId(s.serviceId().value())
+                        .referencePriceSnapshot(s.referencePriceSnapshot().amount())
+                        .negotiatedPrice(s.negotiatedPrice().amount())
+                        .displayOrder(s.displayOrder())
+                        .active(s.active())
+                        .createdAt(null)
+                        .updatedAt(null)
+                        .rowVersion(s.rowVersion())
+                        .build())
             .toList();
     if (mapper.insertServices(rows) != rows.size())
       throw new IllegalStateException("Batch services were not inserted");
   }
 
   private HealthExaminationBatchRecord record(HealthExaminationBatch b, UUID actor) {
-    return new HealthExaminationBatchRecord(
-        b.id().value(),
-        b.organizationId().value(),
-        b.code(),
-        b.name(),
-        b.site().type().name(),
-        b.site().name(),
-        b.site().address(),
-        b.status().name(),
-        actor,
-        null,
-        null,
-        b.rowVersion());
+    return HealthExaminationBatchRecord.builder()
+        .id(b.id().value())
+        .organizationId(b.organizationId().value())
+        .batchCode(b.code())
+        .name(b.name())
+        .examinationSiteType(b.site().type().name())
+        .examinationSiteName(b.site().name())
+        .examinationSiteAddress(b.site().address())
+        .status(b.status().name())
+        .createdBy(actor)
+        .createdAt(null)
+        .updatedAt(null)
+        .rowVersion(b.rowVersion())
+        .build();
   }
 
   @Override

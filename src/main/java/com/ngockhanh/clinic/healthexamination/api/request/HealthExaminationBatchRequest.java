@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.api.request;
 
-import com.ngockhanh.clinic.healthexamination.application.command.BatchConfigurationCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
@@ -25,8 +25,8 @@ public record HealthExaminationBatchRequest(
 			@NotNull @DecimalMin("0") @Digits(integer = 12, fraction = 2) BigDecimal negotiatedPrice) {
 	}
 
-	public BatchConfigurationCommand toCommand() {
-		return BatchConfigurationCommand.builder()
+	public UpdateHealthExaminationBatchCommand toCommand() {
+		return UpdateHealthExaminationBatchCommand.builder()
 				.batchCode(batchCode)
 				.batchName(batchName)
 				.examinationDates(examinationDates)
@@ -37,7 +37,7 @@ public record HealthExaminationBatchRequest(
 						services.stream()
 								.map(
 										s ->
-												BatchConfigurationCommand.ServicePrice.builder()
+												UpdateHealthExaminationBatchCommand.ServicePrice.builder()
 														.serviceId(s.serviceId())
 														.negotiatedPrice(s.negotiatedPrice())
 														.build())

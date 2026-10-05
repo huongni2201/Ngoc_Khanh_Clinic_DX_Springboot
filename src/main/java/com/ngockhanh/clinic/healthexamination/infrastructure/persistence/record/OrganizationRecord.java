@@ -2,7 +2,9 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
+@Builder
 public record OrganizationRecord(
     UUID id,
     String code,

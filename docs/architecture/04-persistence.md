@@ -15,8 +15,10 @@ of the old schema. This change includes no deployed-data conversion.
 
 Each table has one Java record in its owner's `infrastructure/persistence/record`.
 The record follows the actual table columns and their order, including composite
-keys, nullable lifecycle values and row versions. Query projections belong outside
-that directory. Domain objects and API responses never expose persistence records.
+keys, nullable lifecycle values and row versions. SQL projections/join results
+belong in `infrastructure/persistence/view`, mapped by adapters to typed port read
+contracts; see [model placement](../../PROJECT_RULES.md#9-domain-vs-persistence-model).
+Domain objects and API responses never expose persistence records or views.
 
 - Identity: accounts, staff members, account-role grants, roles and permissions.
 - Catalog: departments, rooms, specialties, services, medicines and lab definitions.

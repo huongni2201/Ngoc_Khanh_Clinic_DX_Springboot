@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.integration.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.outbox_events}. */
+@Builder
 public record OutboxEventRecord(
     UUID id,
     String eventType,

@@ -13,6 +13,13 @@ when allocating persisted identity; exact CCCD is the mandatory patient identity
 Patient/clinical/financial history is not hard-deleted. No fuzzy identity merge
 or age-eligibility rejection is part of the implemented roster/record workflow.
 
+### Patient identity
+
+CCCD uses the technical field `identification_number`, stored as text. Exact lookup
+precedes Patient creation; `patients.identification_number` is unique. The current
+baseline has no passport/identity-type abstraction or fuzzy merge by name/phone.
+Patient contacts/addresses/merge-history tables require an explicit new contract.
+
 ## Account authentication
 
 Account owns username/password_hash and exactly one STAFF or PATIENT owner.
@@ -76,7 +83,21 @@ tables; final/issued content is immutable and corrections retain history.
 Clinical assessments and diagnostics results have separate version roots.
 Prescriptions have logical roots, official versions and version items. Billing
 ServiceAuthorization gates service execution; each Encounter can contain multiple
-OrderRounds. Read current status/constraints from the clean-slate schema; do not
+OrderRounds. Encounter, ServiceRequest and Result retain their own lifecycles;
+derive diagnostic progress and Doctor worklists from those records, OrderRound,
+ServiceAuthorization and performing location. Doctor review readiness follows
+completion of required requests/results; no reception/exam/return queue tickets
+are introduced. Doctor creates orders; Front Desk owns baseline collection.
+Billable diagnostics execute only with the documented payment authorization or
+explicit exemption. Financial history is preserved.
+
+Final results and issued prescriptions are versioned/corrected, not overwritten
+or hard-deleted. Finalization enforces permissions; results remain traceable to
+their ServiceRequest/Encounter, with explicit partial/final states. Attachments
+do not replace structured results where structured data exists. Inventory and
+dispensing are outside the current baseline.
+
+Read current status/constraints from the clean-slate schema; do not
 recreate a parallel queue model.
 
 Portal releases reference exact official result/document versions and remain

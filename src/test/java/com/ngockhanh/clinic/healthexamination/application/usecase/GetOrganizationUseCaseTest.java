@@ -36,7 +36,7 @@ class GetOrganizationUseCaseTest {
     var organizations = mock(OrganizationRepository.class);
     when(organizations.findById(id)).thenReturn(Optional.of(organization));
 
-    var response = new GetOrganizationUseCase(organizations).execute(organizationId);
+    var response = new GetOrganizationByIdUseCase(organizations).execute(organizationId);
 
     assertThat(response.id()).isEqualTo(organizationId);
     assertThat(response.code()).isEqualTo("ORG-01");
@@ -51,7 +51,7 @@ class GetOrganizationUseCaseTest {
     var organizations = mock(OrganizationRepository.class);
     when(organizations.findById(id)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> new GetOrganizationUseCase(organizations).execute(organizationId))
+    assertThatThrownBy(() -> new GetOrganizationByIdUseCase(organizations).execute(organizationId))
         .isInstanceOf(ResourceNotFoundException.class);
     verify(organizations).findById(id);
   }

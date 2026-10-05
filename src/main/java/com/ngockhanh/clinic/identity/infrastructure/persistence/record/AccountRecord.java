@@ -2,7 +2,9 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
+@Builder
 public record AccountRecord(
     UUID id,
     String accountType,

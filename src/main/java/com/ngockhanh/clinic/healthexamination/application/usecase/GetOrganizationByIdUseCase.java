@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GetOrganizationUseCase {
+public class GetOrganizationByIdUseCase {
   private final OrganizationRepository organizations;
 
   @Transactional(readOnly = true)

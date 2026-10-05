@@ -40,19 +40,20 @@ public class MyBatisHealthExaminationBatchParticipantRepository
         p.services().stream()
             .map(
                 s ->
-                    new HealthExaminationParticipantServiceRecord(
-                        s.id().value(),
-                        s.batchId().value(),
-                        s.batchParticipantId().value(),
-                        s.batchServiceId().value(),
-                        s.performed(),
-                        value(s.serviceRequestId()),
-                        s.unitPriceSnapshot().amount(),
-                        s.recordedBy().value(),
-                        s.recordedAt(),
-                        s.createdAt(),
-                        s.updatedAt(),
-                        s.rowVersion()))
+                    HealthExaminationParticipantServiceRecord.builder()
+                        .id(s.id().value())
+                        .batchId(s.batchId().value())
+                        .batchParticipantId(s.batchParticipantId().value())
+                        .batchServiceId(s.batchServiceId().value())
+                        .isPerformed(s.performed())
+                        .serviceRequestId(value(s.serviceRequestId()))
+                        .unitPriceSnapshot(s.unitPriceSnapshot().amount())
+                        .recordedBy(s.recordedBy().value())
+                        .recordedAt(s.recordedAt())
+                        .createdAt(s.createdAt())
+                        .updatedAt(s.updatedAt())
+                        .rowVersion(s.rowVersion())
+                        .build())
             .toList();
     var added = rows.stream().filter(r -> !existing.contains(r.id())).toList();
     var changed = rows.stream().filter(r -> existing.contains(r.id())).toList();
@@ -118,35 +119,36 @@ public class MyBatisHealthExaminationBatchParticipantRepository
   private static HealthExaminationBatchParticipantRecord record(
       HealthExaminationBatchParticipant p) {
     var r = p.roster();
-    return new HealthExaminationBatchParticipantRecord(
-        p.id().value(),
-        p.batchId().value(),
-        p.batchDayId().value(),
-        r.participantCode(),
-        r.fullName(),
-        r.dateOfBirth(),
-        r.sex(),
-        r.identificationNumber().value(),
-        r.phone(),
-        r.email(),
-        r.departmentName(),
-        r.positionName(),
-        value(p.patientId()),
-        p.rosterStatus().name(),
-        p.attendanceStatus().name(),
-        p.actualExaminationDate(),
-        value(p.attendanceRecordedBy()),
-        p.attendanceRecordedAt(),
-        p.attendanceNote(),
-        p.reconciliationStatus().name(),
-        value(p.reconciledBy()),
-        p.reconciledAt(),
-        value(p.importJobId()),
-        p.sourceRowNumber(),
-        p.preparedAt(),
-        p.createdAt(),
-        p.updatedAt(),
-        p.rowVersion());
+    return HealthExaminationBatchParticipantRecord.builder()
+        .id(p.id().value())
+        .batchId(p.batchId().value())
+        .batchDayId(p.batchDayId().value())
+        .participantCode(r.participantCode())
+        .fullName(r.fullName())
+        .dateOfBirth(r.dateOfBirth())
+        .sex(r.sex())
+        .identificationNumber(r.identificationNumber().value())
+        .phone(r.phone())
+        .email(r.email())
+        .departmentName(r.departmentName())
+        .positionName(r.positionName())
+        .patientId(value(p.patientId()))
+        .rosterStatus(p.rosterStatus().name())
+        .attendanceStatus(p.attendanceStatus().name())
+        .actualExaminationDate(p.actualExaminationDate())
+        .attendanceRecordedBy(value(p.attendanceRecordedBy()))
+        .attendanceRecordedAt(p.attendanceRecordedAt())
+        .attendanceNote(p.attendanceNote())
+        .serviceReconciliationStatus(p.reconciliationStatus().name())
+        .servicesReconciledBy(value(p.reconciledBy()))
+        .servicesReconciledAt(p.reconciledAt())
+        .importJobId(value(p.importJobId()))
+        .sourceRowNumber(p.sourceRowNumber())
+        .preparedAt(p.preparedAt())
+        .createdAt(p.createdAt())
+        .updatedAt(p.updatedAt())
+        .rowVersion(p.rowVersion())
+        .build();
   }
 
   private static AggregateId id(UUID id) {

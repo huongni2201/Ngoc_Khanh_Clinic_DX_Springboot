@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.clinical.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.encounter_assessment_versions}. */
+@Builder
 public record EncounterAssessmentVersionRecord(
     UUID id,
     UUID encounterAssessmentId,

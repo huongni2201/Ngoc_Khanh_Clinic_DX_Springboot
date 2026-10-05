@@ -7,9 +7,7 @@ import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.*;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.*;
-import com.ngockhanh.clinic.healthexamination.domain.enums.*;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.*;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import com.ngockhanh.clinic.shared.exception.*;
 import java.math.BigDecimal;
@@ -18,8 +16,8 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class HealthExaminationBatchUseCasesTest {
-  private BatchConfigurationCommand configuration(UUID service) {
-    return BatchConfigurationCommand.builder()
+  private UpdateHealthExaminationBatchCommand configuration(UUID service) {
+    return UpdateHealthExaminationBatchCommand.builder()
         .batchCode("B1")
         .batchName("Batch")
         .examinationDates(List.of(LocalDate.of(2026, 10, 4)))
@@ -28,7 +26,7 @@ class HealthExaminationBatchUseCasesTest {
         .examinationSiteAddress("Address")
         .services(
             List.of(
-                BatchConfigurationCommand.ServicePrice.builder()
+                UpdateHealthExaminationBatchCommand.ServicePrice.builder()
                     .serviceId(service)
                     .negotiatedPrice(BigDecimal.TEN)
                     .build()))

@@ -19,7 +19,7 @@ retain Participant terminology and public SQL schema. Keep domain, persistence,
 application and HTTP responsibilities separate.
 
 [API migration](../api/clean-slate-migration.md) and
-[login operations](../api/login.md) describe supported client/deployment contracts.
+[authentication policy](05-api-and-security.md#authentication-and-authorization) describe declared HTTP and deployment contracts.
 No schema representation claims every clinic feature or endpoint is implemented.
 
 The retained clean-slate decisions are

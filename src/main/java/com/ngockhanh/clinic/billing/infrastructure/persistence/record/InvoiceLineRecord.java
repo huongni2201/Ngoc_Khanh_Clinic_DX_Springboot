@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.billing.infrastructure.persistence.record;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.invoice_lines}. */
+@Builder
 public record InvoiceLineRecord(
     UUID id,
     UUID invoiceId,
