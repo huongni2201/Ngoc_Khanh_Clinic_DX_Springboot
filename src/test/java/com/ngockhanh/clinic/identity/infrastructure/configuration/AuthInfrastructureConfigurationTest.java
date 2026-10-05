@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
-import com.ngockhanh.clinic.audit.application.port.AuthAudit;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
 import com.ngockhanh.clinic.identity.application.port.Passwords;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
@@ -37,7 +37,7 @@ class AuthInfrastructureConfigurationTest {
         .withUserConfiguration(
             LoginUseCase.class, LogoutSessionUseCase.class, LogoutAllSessionsUseCase.class)
         .withBean(UserAccountRepository.class, () -> mock(UserAccountRepository.class))
-        .withBean(AuthAudit.class, () -> mock(AuthAudit.class))
+        .withBean(AuditWriter.class, () -> mock(AuditWriter.class))
         .withBean(Passwords.class, () -> mock(Passwords.class))
         .withBean(SessionTokens.class, () -> mock(SessionTokens.class))
         .withBean(SessionStore.class, () -> mock(SessionStore.class))

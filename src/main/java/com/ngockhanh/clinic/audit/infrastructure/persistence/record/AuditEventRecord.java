@@ -1,8 +1,11 @@
 package com.ngockhanh.clinic.audit.infrastructure.persistence.record;
 
+import lombok.Builder;
+
 import java.time.Instant;
 import java.util.UUID;
 
+@Builder
 public record AuditEventRecord(
     UUID id,
     Instant occurredAt,
