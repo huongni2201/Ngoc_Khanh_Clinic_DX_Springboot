@@ -14,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -75,15 +76,8 @@ public class AuthSecurityConfiguration {
                 authorize
                     .requestMatchers("/api/v1/**")
                     .access(
-                        (authentication, context) -> {
-                          var current = authentication.get();
-                          boolean allowed =
-                              current.isAuthenticated()
-                                  && current.getPrincipal() instanceof UserPrincipal principal
-                                  && "STAFF".equals(principal.principalType())
-                                  && !principal.roleAssignments().isEmpty();
-                          return new AuthorizationDecision(allowed);
-                        });
+                        (authentication, context) ->
+                            new AuthorizationDecision(hasAnyStaffRole(authentication.get())));
               }
               authorize.anyRequest().denyAll();
             })
@@ -91,6 +85,19 @@ public class AuthSecurityConfiguration {
         .addFilterBefore(
             new SessionFilter(authenticateSession, errors), AnonymousAuthenticationFilter.class);
     return http.build();
+  }
+
+  private static boolean hasAnyStaffRole(Authentication authentication) {
+    var principal = staffPrincipal(authentication);
+    return principal != null && !principal.roleAssignments().isEmpty();
+  }
+
+  private static UserPrincipal staffPrincipal(Authentication authentication) {
+    if (authentication == null
+        || !authentication.isAuthenticated()
+        || !(authentication.getPrincipal() instanceof UserPrincipal principal)
+        || !"STAFF".equals(principal.principalType())) return null;
+    return principal;
   }
 
   private CorsConfigurationSource cors(AuthHttpSettings settings) {

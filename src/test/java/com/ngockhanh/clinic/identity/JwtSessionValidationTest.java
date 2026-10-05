@@ -36,13 +36,15 @@ class JwtSessionValidationTest {
             "roleAssignments",
             List.of(
                 Map.of(
-                    "assignmentId",
+                    "roleId",
                     UUID.randomUUID().toString(),
                     "roleCode",
                     "DOCTOR",
                     "permissions",
                     List.of("READ"),
-                    "validFrom",
+                    "grantedBy",
+                    user.toString(),
+                    "grantedAt",
                     now.toString())));
   }
 
@@ -92,7 +94,7 @@ class JwtSessionValidationTest {
   }
 
   @Test
-  void acceptsLegacyStaffTokensAndRolelessStaffAndPatientTokens() throws Exception {
+  void acceptsAccountRoleAndRolelessStaffAndPatientTokens() throws Exception {
     var staff =
         codec
             .verify(sign(valid().claim("roleAssignments", List.of()), JWSAlgorithm.HS256))

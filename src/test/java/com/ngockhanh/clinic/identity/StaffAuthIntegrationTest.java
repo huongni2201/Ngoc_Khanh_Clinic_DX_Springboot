@@ -48,7 +48,7 @@ class StaffAuthIntegrationTest {
   @Autowired SessionRevocation revocation;
   @Autowired org.springframework.data.redis.core.StringRedisTemplate redis;
   String username;
-  UUID userId, staffId, assignmentId, roleId;
+  UUID userId, staffId, roleId;
 
   @BeforeEach
   void staff() {
@@ -56,30 +56,29 @@ class StaffAuthIntegrationTest {
     userId = UUID.randomUUID();
     staffId = UUID.randomUUID();
     roleId = UUID.randomUUID();
-    assignmentId = UUID.randomUUID();
     username = "staff-" + userId;
     jdbc.update(
-        "INSERT INTO staff(id,staff_code,full_name,staff_type) VALUES(?,?,?,?)",
+        "INSERT INTO staff_members(id,staff_code,full_name,status) VALUES(?,?,?,?)",
         staffId,
         staffId.toString().substring(0, 20),
         "Test staff",
-        "DOCTOR");
+        "ACTIVE");
     jdbc.update(
-        "INSERT INTO users(id,principal_type,staff_id,status,created_at,username,password) VALUES(?,'STAFF',?,'ACTIVE',CURRENT_TIMESTAMP,?,?)",
+        "INSERT INTO accounts(id,account_type,staff_member_id,status,username,password_hash) VALUES(?,'STAFF',?,'ACTIVE',?,?)",
         userId,
         staffId,
         username,
         passwords.encode("test-password"));
     jdbc.update(
-        "INSERT INTO roles(id,role_code,role_name) VALUES(?,?,?)",
+        "INSERT INTO roles(id,code,name,description) VALUES(?,?,?,'Test role')",
         roleId,
         roleId.toString(),
         "Doctor");
     jdbc.update(
-        "INSERT INTO user_roles(id,user_id,role_id,valid_from) VALUES(?,?,?,CURRENT_TIMESTAMP - interval '1 hour')",
-        assignmentId,
+        "INSERT INTO account_roles(account_id,role_id,granted_by) VALUES(?,?,?)",
         userId,
-        roleId);
+        roleId,
+        userId);
   }
 
   record Csrf(Cookie cookie, String header, String token) {}
@@ -117,9 +116,8 @@ class StaffAuthIntegrationTest {
     var response =
         login(username, "test-password")
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.userId").value(userId.toString()))
-            .andExpect(
-                jsonPath("$.data.roleAssignments[0].assignmentId").value(assignmentId.toString()))
+            .andExpect(jsonPath("$.data.accountId").value(userId.toString()))
+            .andExpect(jsonPath("$.data.roleAssignments[0].roleId").value(roleId.toString()))
             .andExpect(jsonPath("$.data.password").doesNotExist())
             .andExpect(jsonPath("$.data.jwt").doesNotExist())
             .andExpect(jsonPath("$.data.sessionId").doesNotExist())
@@ -131,14 +129,13 @@ class StaffAuthIntegrationTest {
     assertThat(session.getValue()).hasSize(43).doesNotContain(".");
     me(session)
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.staffId").value(staffId.toString()));
+        .andExpect(jsonPath("$.data.staffMemberId").value(staffId.toString()));
+    assertThat(
+            jdbc.queryForObject("SELECT row_version FROM accounts WHERE id=?", Long.class, userId))
+        .isZero();
     assertThat(
             jdbc.queryForObject(
-                "SELECT last_login_at IS NOT NULL FROM users WHERE id=?", Boolean.class, userId))
-        .isTrue();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM audit_logs WHERE actor_user_id=? AND action='USER_LOGIN'",
+                "SELECT count(*) FROM audit_events WHERE actor_account_id=? AND action='ACCOUNT_LOGIN'",
                 Integer.class,
                 userId))
         .isEqualTo(1);
@@ -151,30 +148,17 @@ class StaffAuthIntegrationTest {
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.result").value("NG"));
     login("missing-user", "wrong").andExpect(status().isUnauthorized());
-    jdbc.update("UPDATE staff SET is_active=false WHERE id=?", staffId);
+    jdbc.update("UPDATE staff_members SET status='SUSPENDED' WHERE id=?", staffId);
     login(username, "test-password").andExpect(status().isUnauthorized());
-    jdbc.update("UPDATE staff SET is_active=true WHERE id=?", staffId);
-    jdbc.update("UPDATE users SET status='INACTIVE' WHERE id=?", userId);
+    jdbc.update("UPDATE staff_members SET status='ACTIVE' WHERE id=?", staffId);
+    jdbc.update("UPDATE accounts SET status='DISABLED' WHERE id=?", userId);
     login(username, "test-password").andExpect(status().isUnauthorized());
-    jdbc.update("UPDATE users SET status='ACTIVE' WHERE id=?", userId);
-    jdbc.update(
-        "UPDATE user_roles SET valid_from=CURRENT_TIMESTAMP + interval '1 hour' WHERE id=?",
-        assignmentId);
+    jdbc.update("UPDATE accounts SET status='ACTIVE' WHERE id=?", userId);
+    jdbc.update("UPDATE roles SET active=false WHERE id=?", roleId);
     login(username, "test-password")
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.roleAssignments").isEmpty());
-    jdbc.update(
-        "UPDATE user_roles SET valid_from=CURRENT_TIMESTAMP - interval '1 hour', valid_to=CURRENT_TIMESTAMP - interval '1 minute' WHERE id=?",
-        assignmentId);
-    login(username, "test-password")
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.roleAssignments").isEmpty());
-    jdbc.update("UPDATE user_roles SET valid_to=NULL WHERE id=?", assignmentId);
-    jdbc.update("UPDATE roles SET is_active=false WHERE id=?", roleId);
-    login(username, "test-password")
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.roleAssignments").isEmpty());
-    jdbc.update("DELETE FROM user_roles WHERE user_id=?", userId);
+    jdbc.update("DELETE FROM account_roles WHERE account_id=?", userId);
     login(username, "test-password")
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.roleAssignments").isEmpty());
@@ -237,29 +221,29 @@ class StaffAuthIntegrationTest {
   }
 
   @Test
-  void credentialsAreRequiredAndPatientCanAuthenticateWithoutStaff() throws Exception {
-    jdbc.update("UPDATE users SET password=NULL WHERE id=?", userId);
+  void unsupportedCredentialHashIsRejectedAndPatientCanAuthenticateWithoutStaff() throws Exception {
+    jdbc.update("UPDATE accounts SET password_hash='invalid-hash' WHERE id=?", userId);
     login(username, "test-password").andExpect(status().isUnauthorized());
     UUID patient = UUID.randomUUID();
     jdbc.update(
         """
-                INSERT INTO patients(id,patient_code,identification_number,full_name,full_name_normalized,date_of_birth,sex,created_at,updated_at)
-                VALUES(?,?,?,'Patient','patient','1990-01-01','MALE',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+                INSERT INTO patients(id,patient_code,identification_number,full_name,date_of_birth,sex,status)
+                VALUES(?,?,?,'Patient','1990-01-01','MALE','ACTIVE')
                 """,
         patient,
         patient.toString().substring(0, 20),
         patient.toString().substring(0, 20));
     jdbc.update(
-        "UPDATE users SET principal_type='PATIENT',staff_id=NULL,patient_id=?,password=? WHERE id=?",
+        "UPDATE accounts SET account_type='PATIENT',staff_member_id=NULL,patient_id=?,password_hash=? WHERE id=?",
         patient,
         passwords.encode("test-password"),
         userId);
     var response =
         login(username, "test-password")
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.principalType").value("PATIENT"))
+            .andExpect(jsonPath("$.data.accountType").value("PATIENT"))
             .andExpect(jsonPath("$.data.patientId").value(patient.toString()))
-            .andExpect(jsonPath("$.data.staffId").isEmpty())
+            .andExpect(jsonPath("$.data.staffMemberId").isEmpty())
             .andReturn()
             .getResponse();
     Cookie first = response.getCookie("NKC_SESSION");
@@ -269,10 +253,9 @@ class StaffAuthIntegrationTest {
     mvc.perform(get("/api/v1/organizations").servletPath("/api/v1/organizations").cookie(first))
         .andExpect(status().isForbidden());
     assertThat(
-            jdbc.queryForObject(
-                "SELECT last_login_at IS NOT NULL FROM users WHERE id=?", Boolean.class, userId))
-        .isTrue();
-    jdbc.update("DELETE FROM user_roles WHERE user_id=?", userId);
+            jdbc.queryForObject("SELECT row_version FROM accounts WHERE id=?", Long.class, userId))
+        .isZero();
+    jdbc.update("DELETE FROM account_roles WHERE account_id=?", userId);
     Cookie second =
         login(username, "test-password")
             .andExpect(status().isOk())
@@ -360,26 +343,28 @@ class StaffAuthIntegrationTest {
   }
 
   @Test
-  void databaseAuditFailureRollsBackLastLoginAndCompensatesRedisWithoutCookie() throws Exception {
+  void databaseAuditFailureCompensatesRedisWithoutCookieOrAudit() throws Exception {
     jdbc.execute(
         """
                 CREATE FUNCTION reject_test_login_audit() RETURNS trigger LANGUAGE plpgsql AS $$
-                BEGIN IF NEW.action = 'USER_LOGIN' THEN RAISE EXCEPTION 'test audit failure'; END IF;
+                BEGIN IF NEW.action = 'ACCOUNT_LOGIN' THEN RAISE EXCEPTION 'test audit failure'; END IF;
                 RETURN NEW; END $$
                 """);
     jdbc.execute(
-        "CREATE TRIGGER reject_test_login BEFORE INSERT ON audit_logs FOR EACH ROW EXECUTE FUNCTION reject_test_login_audit()");
+        "CREATE TRIGGER reject_test_login BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION reject_test_login_audit()");
     try {
       login(username, "test-password")
           .andExpect(status().isInternalServerError())
           .andExpect(cookie().doesNotExist("NKC_SESSION"));
       assertThat(
               jdbc.queryForObject(
-                  "SELECT last_login_at FROM users WHERE id=?", java.sql.Timestamp.class, userId))
-          .isNull();
+                  "SELECT count(*) FROM audit_events WHERE actor_account_id=? AND action='ACCOUNT_LOGIN'",
+                  Integer.class,
+                  userId))
+          .isZero();
       assertThat(redis.opsForZSet().size("nkc:auth:user:" + userId + ":sessions")).isZero();
     } finally {
-      jdbc.execute("DROP TRIGGER reject_test_login ON audit_logs");
+      jdbc.execute("DROP TRIGGER reject_test_login ON audit_events");
       jdbc.execute("DROP FUNCTION reject_test_login_audit()");
     }
   }
@@ -390,25 +375,21 @@ class StaffAuthIntegrationTest {
     for (String permission : new String[] {"READ", "WRITE"}) {
       UUID id = UUID.randomUUID();
       jdbc.update(
-          "INSERT INTO permissions(id,permission_code,module) VALUES(?,?,'identity')",
+          "INSERT INTO permissions(id,code,name,description) VALUES(?,?,'Test permission','Test permission')",
           id,
           permission + id);
-      jdbc.update(
-          "INSERT INTO role_permissions(id,role_id,permission_id) VALUES(?,?,?)",
-          UUID.randomUUID(),
-          roleId,
-          id);
+      jdbc.update("INSERT INTO role_permissions(role_id,permission_id) VALUES(?,?)", roleId, id);
     }
     UUID secondRole = UUID.randomUUID();
     jdbc.update(
-        "INSERT INTO roles(id,role_code,role_name) VALUES(?,?,'Other role')",
+        "INSERT INTO roles(id,code,name,description) VALUES(?,?,'Other role','Other role')",
         secondRole,
         secondRole.toString());
     jdbc.update(
-        "INSERT INTO user_roles(id,user_id,role_id,valid_from) VALUES(?,?,?,CURRENT_TIMESTAMP - interval '1 hour')",
-        UUID.randomUUID(),
+        "INSERT INTO account_roles(account_id,role_id,granted_by) VALUES(?,?,?)",
         userId,
-        secondRole);
+        secondRole,
+        userId);
     var response =
         login(username, "test-password")
             .andExpect(status().isOk())
@@ -419,7 +400,7 @@ class StaffAuthIntegrationTest {
     int permissionCount = 0;
     for (var role : roles) permissionCount += role.get("permissions").size();
     assertThat(permissionCount).isEqualTo(2);
-    jdbc.update("UPDATE roles SET is_active=false WHERE id=?", roleId);
+    jdbc.update("UPDATE roles SET active=false WHERE id=?", roleId);
     me(response.getCookie("NKC_SESSION"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.roleAssignments.length()").value(2));

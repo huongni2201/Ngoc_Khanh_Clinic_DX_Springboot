@@ -1,10 +1,10 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
+import com.ngockhanh.clinic.audit.application.port.AuthAudit;
 import com.ngockhanh.clinic.identity.application.command.LogoutAllSessionsCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionRevocation;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
-import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import java.time.Clock;
 import java.util.UUID;
@@ -43,7 +43,8 @@ public class LogoutAllSessionsUseCase implements SessionRevocation {
 
   @Override
   public void revokeAllSessions(UUID userId) {
-    execute(new LogoutAllSessionsCommand(userId, UUID.randomUUID()));
+    execute(
+        LogoutAllSessionsCommand.builder().userId(userId).correlationId(UUID.randomUUID()).build());
   }
 
   private void sessionDependency(Runnable operation) {
@@ -57,7 +58,8 @@ public class LogoutAllSessionsUseCase implements SessionRevocation {
   private void recordRevocation(UUID userId, UUID correlationId) {
     try {
       accountWriteTransaction.executeWithoutResult(
-          status -> audit.record(userId, "USER_SESSIONS_REVOKED", clock.instant(), correlationId));
+          status ->
+              audit.record(userId, "ACCOUNT_SESSIONS_REVOKED", clock.instant(), correlationId));
       log.info(
           "User session revocation recorded userId={} all=true correlationId={}",
           userId,

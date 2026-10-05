@@ -57,8 +57,7 @@ public class AuthenticateSessionUseCase {
             claims.principalType(),
             claims.roles(),
             idleDeadline,
-            claims.expiresAt(),
-            clock.instant());
+            claims.expiresAt());
     log.debug("Authenticated user session userId={}", principal.userId());
     return principal;
   }

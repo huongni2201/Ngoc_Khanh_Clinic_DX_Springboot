@@ -1,219 +1,259 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
+import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest
+@SpringBootTest(classes = HealthExaminationBatchCrudIntegrationTest.BatchTestConfiguration.class)
 class MyBatisOrganizationRepositoryIntegrationTest {
-  private static java.util.UUID id(long suffix) {
-    return java.util.UUID.fromString("01990000-0000-7000-8000-" + String.format("%012x", suffix));
-  }
-
-  @Container
-  static final PostgreSQLContainer POSTGRES =
-      new PostgreSQLContainer("postgres:18-alpine")
-          .withDatabaseName("nkclinic")
-          .withUsername("nkclinic")
-          .withPassword("test-password");
+  @Container static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:18-alpine");
 
   @DynamicPropertySource
-  static void databaseProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+  static void database(DynamicPropertyRegistry r) {
+    r.add("spring.datasource.url", DB::getJdbcUrl);
+    r.add("spring.datasource.username", DB::getUsername);
+    r.add("spring.datasource.password", DB::getPassword);
   }
 
   @Autowired OrganizationRepository organizations;
+  @Autowired CreateOrganizationUseCase createOrganization;
+  @Autowired UpdateOrganizationUseCase updateOrganization;
+  @Autowired JdbcTemplate jdbc;
 
-  @Autowired HealthExaminationParticipantRepository participants;
+  @org.springframework.test.context.bean.override.mockito.MockitoSpyBean AuditWriter audit;
 
-  @Test
-  void savesAndRestoresOrganizationThroughMyBatisAgainstPostgreSql() {
-    Organization expected =
-        Organization.create(
-            new AggregateId(id(1)),
-            "Organization",
-            "TAX-01",
-            "Address",
-            "Contact",
-            "0900000000",
-            "Director",
-            "Note");
-
-    organizations.save(expected);
-
-    Organization restored = organizations.findById(expected.id()).orElseThrow();
-    assertThat(restored.name()).isEqualTo(expected.name());
-    assertThat(restored.taxCode()).isEqualTo(expected.taxCode());
-    assertThat(restored.address()).isEqualTo(expected.address());
-    assertThat(organizations.existsByTaxCode(expected.taxCode(), null)).isTrue();
-    assertThat(organizations.existsByTaxCode(expected.taxCode(), expected.id())).isFalse();
-    assertThat(organizations.existsByTaxCode(expected.taxCode(), new AggregateId(id(999))))
-        .isTrue();
-    assertThat(organizations.existsByTaxCode("UNUSED-TAX", null)).isFalse();
+  private Organization organization(String code) {
+    return Organization.create(
+        new AggregateId(UUID.randomUUID()),
+        code,
+        "Synthetic School",
+        "SCHOOL",
+        "SHARED-TAX",
+        "0901",
+        "o@example.test",
+        "Address",
+        "Contact",
+        "Principal",
+        "0902",
+        "c@example.test");
   }
 
   @Test
-  void incrementsOrganizationVersionAndRejectsStaleUpdates() {
-    Organization expected =
-        Organization.create(
-            new AggregateId(id(4)),
-            "Organization",
-            "TAX-04",
-            "Address",
-            "Contact",
-            "0900000000",
-            "Director",
-            "Note");
-    organizations.save(expected);
+  void roundTripsCleanSlateChannelsAndUsesCodeUniquenessInsteadOfTaxCode() {
+    var first = organization("S1");
+    var second = organization("S2");
+    organizations.save(first);
+    organizations.save(second);
+    assertThat(organizations.findById(first.id())).contains(first);
+    assertThat(organizations.existsByCode("S1", null)).isTrue();
+    assertThat(organizations.existsByCode("S1", first.id())).isFalse();
+    assertThatThrownBy(() -> organizations.save(organization("S1")))
+        .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+  }
 
-    Organization loaded = organizations.findById(expected.id()).orElseThrow();
+  @Test
+  void staleWritesAreDetectedAndUpdatesPreserveChannels() {
+    var first = organization("S3");
+    organizations.save(first);
     organizations.update(
-        loaded.updateDetails(
-            "Updated",
-            loaded.taxCode(),
-            loaded.address(),
-            loaded.contactName(),
-            loaded.contactPhone(),
-            loaded.contactJobTitle(),
-            loaded.note()),
-        loaded.rowVersion());
+        first.updateDetails(
+            first.code(),
+            "Renamed School",
+            first.organizationType(),
+            first.taxCode(),
+            first.phone(),
+            first.email(),
+            first.address(),
+            first.contactFullName(),
+            first.contactPosition(),
+            first.contactPhone(),
+            first.contactEmail()),
+        0);
+    var restored = organizations.findById(first.id()).orElseThrow();
+    assertThat(restored.name()).isEqualTo("Renamed School");
+    assertThat(restored.rowVersion()).isEqualTo(1);
+    assertThat(restored.contactEmail()).isEqualTo("c@example.test");
+    assertThatThrownBy(() -> organizations.update(first, 0))
+        .isInstanceOf(ConcurrentUpdateException.class);
+  }
 
-    Organization current = organizations.findById(expected.id()).orElseThrow();
-    assertThat(current.rowVersion()).isEqualTo(1L);
+  @Test
+  void updateAuditsVersionChangeWithAuthenticatedActor() {
+    UUID actor = createActorAccount();
+    var first = organization("S4");
+    organizations.save(first);
+
+    var response =
+        updateOrganization.execute(
+            first.id().value(),
+            UpdateOrganizationCommand.builder()
+                .code(first.code())
+                .name("Renamed School")
+                .organizationType(first.organizationType())
+                .taxCode(first.taxCode())
+                .phone(first.phone())
+                .email(first.email())
+                .address(first.address())
+                .contactFullName(first.contactFullName())
+                .contactPosition(first.contactPosition())
+                .contactPhone(first.contactPhone())
+                .contactEmail(first.contactEmail())
+                .rowVersion(0L)
+                .build(),
+            actor);
+
+    assertThat(response.name()).isEqualTo("Renamed School");
+    assertThat(response.rowVersion()).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.audit_events WHERE resource_id = ? AND action = 'UPDATE_ORGANIZATION' AND actor_account_id = ?",
+                Integer.class,
+                first.id().value(),
+                actor))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void auditFailureRollsBackOrganizationUpdateAndAuditRow() {
+    UUID actor = createActorAccount();
+    var first = organization("S5");
+    organizations.save(first);
+    doAnswer(
+            invocation -> {
+              invocation.callRealMethod();
+              throw new IllegalStateException("audit failed after insert");
+            })
+        .when(audit)
+        .record(
+            eq(actor),
+            eq("UPDATE_ORGANIZATION"),
+            eq("ORGANIZATION"),
+            eq(first.id().value()),
+            any(),
+            any());
 
     assertThatThrownBy(
             () ->
-                organizations.update(
-                    loaded.updateDetails(
-                        "Stale",
-                        loaded.taxCode(),
-                        loaded.address(),
-                        loaded.contactName(),
-                        loaded.contactPhone(),
-                        loaded.contactJobTitle(),
-                        loaded.note()),
-                    loaded.rowVersion()))
-        .isInstanceOf(ConcurrentUpdateException.class);
+                updateOrganization.execute(
+                    first.id().value(),
+                    UpdateOrganizationCommand.builder()
+                        .code(first.code())
+                        .name("Renamed School")
+                        .organizationType(first.organizationType())
+                        .taxCode(first.taxCode())
+                        .phone(first.phone())
+                        .email(first.email())
+                        .address(first.address())
+                        .contactFullName(first.contactFullName())
+                        .contactPosition(first.contactPosition())
+                        .contactPhone(first.contactPhone())
+                        .contactEmail(first.contactEmail())
+                        .rowVersion(0L)
+                        .build(),
+                    actor))
+        .isInstanceOf(IllegalStateException.class);
 
-    organizations.update(
-        current.updateDetails(
-            "Updated again",
-            current.taxCode(),
-            current.address(),
-            current.contactName(),
-            current.contactPhone(),
-            current.contactJobTitle(),
-            current.note()),
-        current.rowVersion());
-    assertThat(organizations.findById(expected.id()).orElseThrow().rowVersion()).isEqualTo(2L);
-  }
-
-  @Test
-  void searchesFiltersSortsAndPaginatesOrganizations() {
-    Organization alpha =
-        Organization.create(
-            new AggregateId(id(51)),
-            "Alpha Clinic",
-            "LIST-51",
-            "Address",
-            "ListContact Alpha",
-            "0900000051",
-            null,
-            null);
-    Organization beta =
-        Organization.create(
-            new AggregateId(id(52)),
-            "Beta Clinic",
-            "LIST-52",
-            "Address",
-            "ListContact Beta",
-            "0900000052",
-            null,
-            null);
-    Organization inactive =
-        Organization.create(
-                new AggregateId(id(53)),
-                "Hidden Clinic",
-                "LIST-53",
-                "Address",
-                "ListContact Hidden",
-                "0900000053",
-                null,
-                null)
-            .deactivate();
-    organizations.save(alpha);
-    organizations.save(beta);
-    organizations.save(inactive);
-
-    assertThat(organizations.countAll("%listcontact%", "ACTIVE")).isEqualTo(2);
-    assertThat(organizations.findPage(1, 1, "%listcontact%", "ACTIVE", "contactName", "DESC"))
-        .extracting(Organization::name)
-        .containsExactly("Alpha Clinic");
-  }
-
-  @Test
-  void savesReimportsAndFindsParticipantByOrganizationRosterIdentity() {
-    AggregateId organizationId = new AggregateId(id(2));
-    AggregateId participantId = new AggregateId(id(3));
-    organizations.save(
-        Organization.create(organizationId, "Organization", "Contact", "0900000000"));
-    HealthExaminationParticipant participant =
-        HealthExaminationParticipant.create(
-            participantId,
-            organizationId,
-            "PART-01",
-            IdentificationNumber.of("987654321098"),
-            "Nguyen A",
-            java.time.LocalDate.of(1990, 1, 1),
-            "MALE",
-            "Department",
-            "Technician",
-            "Technician");
-    participants.save(participant);
-
-    HealthExaminationParticipant restored = participants.findById(participantId).orElseThrow();
-    assertThat(restored.departmentName()).isEqualTo("Department");
-    assertThat(participants.findByOrganizationAndCode(organizationId, "PART-01"))
-        .get()
-        .extracting(HealthExaminationParticipant::id)
-        .isEqualTo(participantId);
+    var restored = organizations.findById(first.id()).orElseThrow();
+    assertThat(restored).isEqualTo(first);
     assertThat(
-            participants.findByOrganizationAndIdentificationNumber(
-                organizationId, participant.identificationNumber()))
-        .get()
-        .extracting(HealthExaminationParticipant::id)
-        .isEqualTo(participantId);
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.audit_events WHERE resource_id = ? AND action = 'UPDATE_ORGANIZATION'",
+                Integer.class,
+                first.id().value()))
+        .isZero();
+  }
 
-    participants.save(
-        restored.reimport(
-            "PART-01",
-            participant.identificationNumber(),
-            "Updated Name",
-            participant.dateOfBirth(),
-            participant.sex(),
-            "New Department",
-            participant.jobTitle(),
-            participant.occupation()));
+  @Test
+  void auditFailureRollsBackOrganizationInsertAndAuditRow() {
+    UUID actor = createActorAccount();
+    var command =
+        CreateOrganizationCommand.builder()
+            .code("AUDIT-ORG")
+            .name("Audit Partner")
+            .organizationType("COMPANY")
+            .taxCode(null)
+            .phone("0901")
+            .email("office@example.test")
+            .address("Address")
+            .contactFullName("Contact")
+            .contactPosition(null)
+            .contactPhone("0902")
+            .contactEmail("contact@example.test")
+            .build();
+    doAnswer(
+            invocation -> {
+              invocation.callRealMethod();
+              throw new IllegalStateException("audit failed after insert");
+            })
+        .when(audit)
+        .record(
+            eq(actor),
+            eq("CREATE_ORGANIZATION"),
+            eq("ORGANIZATION"),
+            any(UUID.class),
+            isNull(),
+            any());
 
-    assertThat(participants.findById(participantId).orElseThrow().fullName())
-        .isEqualTo("Updated Name");
+    assertThatThrownBy(() -> createOrganization.execute(command, actor))
+        .isInstanceOf(IllegalStateException.class);
+
+    ArgumentCaptor<UUID> id = ArgumentCaptor.forClass(UUID.class);
+    verify(audit)
+        .record(
+            eq(actor),
+            eq("CREATE_ORGANIZATION"),
+            eq("ORGANIZATION"),
+            id.capture(),
+            isNull(),
+            any());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.organizations WHERE id = ?",
+                Integer.class,
+                id.getValue()))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.audit_events WHERE resource_id = ?",
+                Integer.class,
+                id.getValue()))
+        .isZero();
+  }
+
+  private UUID createActorAccount() {
+    UUID staffId = UUID.randomUUID();
+    UUID accountId = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO public.staff_members(id,staff_code,full_name,status) VALUES (?,?,?,'ACTIVE')",
+        staffId,
+        "ACTOR-" + staffId,
+        "Synthetic Actor");
+    jdbc.update(
+        "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status) VALUES (?,'STAFF',?,'test-password-hash',?,'ACTIVE')",
+        accountId,
+        "org-actor-" + staffId,
+        staffId);
+    return accountId;
   }
 }

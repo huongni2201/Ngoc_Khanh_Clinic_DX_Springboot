@@ -4,17 +4,19 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record OrganizationRecord(
-        UUID id,
-        String organizationName,
-        String taxCode,
-        String address,
-        String contactName,
-        String contactPhone,
-        String contactJobTitle,
-        String note,
-        String status,
-        Instant createdAt,
-        Instant updatedAt,
-        long rowVersion
-) {
-}
+    UUID id,
+    String code,
+    String name,
+    String organizationType,
+    String taxCode,
+    String phone,
+    String email,
+    String address,
+    String contactFullName,
+    String contactPosition,
+    String contactPhone,
+    String contactEmail,
+    String status,
+    Instant createdAt,
+    Instant updatedAt,
+    long rowVersion) {}

@@ -107,7 +107,10 @@ class ProductionAuthSecurityTest {
         .thenAnswer(
             invocation -> {
               GetCsrfTokenQuery query = invocation.getArgument(0);
-              return new CsrfResponse(query.token(), query.headerName());
+              return CsrfResponse.builder()
+                  .token(query.token())
+                  .headerName(query.headerName())
+                  .build();
             });
     mvc.perform(get("/api/v1/auth/csrf"))
         .andExpect(status().isOk())
@@ -148,11 +151,18 @@ class ProductionAuthSecurityTest {
         .thenAnswer(
             invocation -> {
               GetCsrfTokenQuery query = invocation.getArgument(0);
-              return new CsrfResponse(query.token(), query.headerName());
+              return CsrfResponse.builder()
+                  .token(query.token())
+                  .headerName(query.headerName())
+                  .build();
             });
     var principal = principal(clock.instant());
     when(staffLogin.execute(any()))
-        .thenReturn(new LoginResult("A".repeat(43), UserSessionResponse.from(principal)));
+        .thenReturn(
+            LoginResult.builder()
+                .sessionId("A".repeat(43))
+                .response(UserSessionResponse.from(principal))
+                .build());
 
     var csrfResponse = mvc.perform(get("/api/v1/auth/csrf")).andReturn().getResponse();
     var csrf = json.readTree(csrfResponse.getContentAsString()).get("data");
@@ -195,7 +205,10 @@ class ProductionAuthSecurityTest {
         .thenAnswer(
             invocation -> {
               GetCsrfTokenQuery query = invocation.getArgument(0);
-              return new CsrfResponse(query.token(), query.headerName());
+              return CsrfResponse.builder()
+                  .token(query.token())
+                  .headerName(query.headerName())
+                  .build();
             });
     var csrfResponse = mvc.perform(get("/api/v1/auth/csrf")).andReturn().getResponse();
     var csrf = json.readTree(csrfResponse.getContentAsString()).get("data");
@@ -225,7 +238,10 @@ class ProductionAuthSecurityTest {
         .thenAnswer(
             invocation -> {
               GetCsrfTokenQuery query = invocation.getArgument(0);
-              return new CsrfResponse(query.token(), query.headerName());
+              return CsrfResponse.builder()
+                  .token(query.token())
+                  .headerName(query.headerName())
+                  .build();
             });
     var principal = principal(clock.instant());
     when(authenticateStaffSession.execute(any())).thenReturn(principal);
@@ -249,46 +265,48 @@ class ProductionAuthSecurityTest {
   }
 
   private UserPrincipal principal(Instant now) {
-    return new UserPrincipal(
-        UUID.randomUUID(),
-        UUID.randomUUID(),
-        null,
-        "staff",
-        "STAFF",
-        List.of(
-            new UserPrincipal.Assignment(
-                UUID.randomUUID(),
-                "DOCTOR",
-                List.of("READ"),
-                null,
-                null,
-                now.minusSeconds(10),
-                null)),
-        now.plusSeconds(1800),
-        now.plusSeconds(28800));
+    return UserPrincipal.builder()
+        .userId(UUID.randomUUID())
+        .staffId(UUID.randomUUID())
+        .patientId(null)
+        .username("staff")
+        .principalType("STAFF")
+        .roleAssignments(
+            List.of(
+                UserPrincipal.Assignment.builder()
+                    .roleId(UUID.randomUUID())
+                    .roleCode("DOCTOR")
+                    .permissions(List.of("READ"))
+                    .grantedBy(UUID.randomUUID())
+                    .grantedAt(now.minusSeconds(10))
+                    .build()))
+        .idleExpiresAt(now.plusSeconds(1800))
+        .absoluteExpiresAt(now.plusSeconds(28800))
+        .build();
   }
 
   @Test
   void patientCanReadItsSessionButCannotAccessBusinessEndpoints() throws Exception {
     Instant now = clock.instant();
     var patient =
-        new UserPrincipal(
-            UUID.randomUUID(),
-            null,
-            UUID.randomUUID(),
-            "patient",
-            "PATIENT",
-            List.of(),
-            now.plusSeconds(1800),
-            now.plusSeconds(28800));
+        UserPrincipal.builder()
+            .userId(UUID.randomUUID())
+            .staffId(null)
+            .patientId(UUID.randomUUID())
+            .username("patient")
+            .principalType("PATIENT")
+            .roleAssignments(List.of())
+            .idleExpiresAt(now.plusSeconds(1800))
+            .absoluteExpiresAt(now.plusSeconds(28800))
+            .build();
     when(authenticateStaffSession.execute(any())).thenReturn(patient);
     when(getStaffSession.execute(any())).thenReturn(UserSessionResponse.from(patient));
     Cookie session = new Cookie("NKC_SESSION", "A".repeat(43));
     mvc.perform(get("/api/v1/auth/me").servletPath("/api/v1/auth/me").cookie(session))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.principalType").value("PATIENT"))
+        .andExpect(jsonPath("$.data.accountType").value("PATIENT"))
         .andExpect(jsonPath("$.data.patientId").value(patient.patientId().toString()))
-        .andExpect(jsonPath("$.data.staffId").isEmpty())
+        .andExpect(jsonPath("$.data.staffMemberId").isEmpty())
         .andExpect(jsonPath("$.data.roleAssignments").isEmpty());
     mvc.perform(get("/api/v1/organizations").servletPath("/api/v1/organizations").cookie(session))
         .andExpect(status().isForbidden());
@@ -300,7 +318,10 @@ class ProductionAuthSecurityTest {
         .thenAnswer(
             invocation -> {
               GetCsrfTokenQuery query = invocation.getArgument(0);
-              return new CsrfResponse(query.token(), query.headerName());
+              return CsrfResponse.builder()
+                  .token(query.token())
+                  .headerName(query.headerName())
+                  .build();
             });
     var response = mvc.perform(get("/api/v1/auth/csrf")).andReturn().getResponse();
     var csrf = json.readTree(response.getContentAsString()).get("data");

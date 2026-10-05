@@ -9,5 +9,5 @@ public interface UserAccountRepository {
 
   UserAccount find(String username, Instant now);
 
-  int recordLogin(UUID userId, Instant now);
+  boolean lockEligibleAccount(UUID accountId);
 }

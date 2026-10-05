@@ -1,237 +1,159 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
-import lombok.RequiredArgsConstructor;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.BatchParticipantSummaryMyBatisMapper;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantServiceRecord;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-
-import org.springframework.stereotype.Repository;
-
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.*;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository.BatchParticipantSummary;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository.BatchParticipantRosterSnapshot;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord;
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
 public class MyBatisHealthExaminationBatchParticipantRepository
-        implements HealthExaminationBatchParticipantRepository {
-    private final HealthExaminationBatchParticipantMyBatisMapper mapper;
-    private final BatchParticipantSummaryMyBatisMapper summaryMapper;
+    implements HealthExaminationBatchParticipantRepository {
+  private final HealthExaminationBatchParticipantMyBatisMapper mapper;
 
-    @Override
-    public Optional<HealthExaminationBatchParticipant> findById(AggregateId id) {
-        return Optional.ofNullable(toDomain(mapper.findById(id.value())));
-    }
+  public Optional<HealthExaminationBatchParticipant> findById(AggregateId id) {
+    return Optional.ofNullable(mapper.findById(id.value()))
+        .map(r -> domain(r, mapper.findServices(List.of(r.id()))));
+  }
 
-    @Override
-    public Optional<HealthExaminationBatchParticipant> findByBatchAndParticipant(
-            AggregateId batchId, AggregateId participantId) {
-        return Optional.ofNullable(toDomain(mapper.findByBatchAndParticipant(
-                batchId.value(), participantId.value())));
-    }
+  public void save(HealthExaminationBatchParticipant p, long expectedVersion) {
+    if (mapper.update(record(p), expectedVersion) != 1) throw new ConcurrentUpdateException();
+    if (p.services().isEmpty()) return;
+    var existing =
+        mapper.findServices(List.of(p.id().value())).stream()
+            .map(HealthExaminationParticipantServiceRecord::id)
+            .collect(Collectors.toSet());
+    var rows =
+        p.services().stream()
+            .map(
+                s ->
+                    new HealthExaminationParticipantServiceRecord(
+                        s.id().value(),
+                        s.batchId().value(),
+                        s.batchParticipantId().value(),
+                        s.batchServiceId().value(),
+                        s.performed(),
+                        value(s.serviceRequestId()),
+                        s.unitPriceSnapshot().amount(),
+                        s.recordedBy().value(),
+                        s.recordedAt(),
+                        s.createdAt(),
+                        s.updatedAt(),
+                        s.rowVersion()))
+            .toList();
+    var added = rows.stream().filter(r -> !existing.contains(r.id())).toList();
+    var changed = rows.stream().filter(r -> existing.contains(r.id())).toList();
+    if (!added.isEmpty() && mapper.insertServices(added) != added.size())
+      throw new IllegalStateException("Participant services were not inserted");
+    if (!changed.isEmpty() && mapper.updateServices(changed) != changed.size())
+      throw new ConcurrentUpdateException();
+  }
 
-    @Override
-    public List<BatchParticipantSummary> findByBatch(AggregateId batchId, long offset, long limit,
-                                                     String searchPattern, String sortKey, String sortBy) {
-        return summaryMapper.findByBatch(batchId.value(), offset, limit, searchPattern, sortKey, sortBy)
-                .stream().map(Converter::toSummary).toList();
-    }
+  private static HealthExaminationBatchParticipant domain(
+      HealthExaminationBatchParticipantRecord r,
+      List<HealthExaminationParticipantServiceRecord> services) {
+    return HealthExaminationBatchParticipant.restore(
+        id(r.id()),
+        id(r.batchId()),
+        id(r.batchDayId()),
+        new Roster(
+            r.participantCode(),
+            r.fullName(),
+            r.dateOfBirth(),
+            r.sex(),
+            IdentificationNumber.of(r.identificationNumber()),
+            r.phone(),
+            r.email(),
+            r.departmentName(),
+            r.positionName()),
+        new Progress(
+            id(r.patientId()),
+            RosterStatus.valueOf(r.rosterStatus()),
+            AttendanceStatus.valueOf(r.attendanceStatus()),
+            r.actualExaminationDate(),
+            id(r.attendanceRecordedBy()),
+            r.attendanceRecordedAt(),
+            r.attendanceNote(),
+            ReconciliationStatus.valueOf(r.serviceReconciliationStatus()),
+            id(r.servicesReconciledBy()),
+            r.servicesReconciledAt(),
+            r.preparedAt()),
+        id(r.importJobId()),
+        r.sourceRowNumber(),
+        r.createdAt(),
+        r.updatedAt(),
+        r.rowVersion(),
+        services.stream()
+            .map(
+                s ->
+                    new HealthExaminationBatchParticipantService(
+                        id(s.id()),
+                        id(s.batchId()),
+                        id(s.batchParticipantId()),
+                        id(s.batchServiceId()),
+                        s.isPerformed(),
+                        id(s.serviceRequestId()),
+                        new Money(s.unitPriceSnapshot(), "VND"),
+                        id(s.recordedBy()),
+                        s.recordedAt(),
+                        s.createdAt(),
+                        s.updatedAt(),
+                        s.rowVersion()))
+            .toList());
+  }
 
-    @Override
-    public long countByBatch(AggregateId batchId, String searchPattern) {
-        return summaryMapper.countByBatch(batchId.value(), searchPattern);
-    }
+  private static HealthExaminationBatchParticipantRecord record(
+      HealthExaminationBatchParticipant p) {
+    var r = p.roster();
+    return new HealthExaminationBatchParticipantRecord(
+        p.id().value(),
+        p.batchId().value(),
+        p.batchDayId().value(),
+        r.participantCode(),
+        r.fullName(),
+        r.dateOfBirth(),
+        r.sex(),
+        r.identificationNumber().value(),
+        r.phone(),
+        r.email(),
+        r.departmentName(),
+        r.positionName(),
+        value(p.patientId()),
+        p.rosterStatus().name(),
+        p.attendanceStatus().name(),
+        p.actualExaminationDate(),
+        value(p.attendanceRecordedBy()),
+        p.attendanceRecordedAt(),
+        p.attendanceNote(),
+        p.reconciliationStatus().name(),
+        value(p.reconciledBy()),
+        p.reconciledAt(),
+        value(p.importJobId()),
+        p.sourceRowNumber(),
+        p.preparedAt(),
+        p.createdAt(),
+        p.updatedAt(),
+        p.rowVersion());
+  }
 
-    @Override
-    public Set<AggregateId> findParticipantIdsByBatch(AggregateId batchId,
-                                                       Collection<AggregateId> participantIds) {
-        if (participantIds.isEmpty()) return Set.of();
-        List<java.util.UUID> ids = participantIds.stream().map(AggregateId::value).toList();
-        return mapper.findParticipantIdsByBatch(batchId.value(), ids).stream()
-                .map(AggregateId::new).collect(java.util.stream.Collectors.toUnmodifiableSet());
-    }
+  private static AggregateId id(UUID id) {
+    return id == null ? null : AggregateId.of(id);
+  }
 
-    @Override
-    public List<BatchParticipantRosterSnapshot> findRosterSnapshots(AggregateId batchId,
-                                                                      Collection<AggregateId> participantIds) {
-        if (participantIds.isEmpty()) return List.of();
-        List<java.util.UUID> ids = participantIds.stream().map(AggregateId::value).toList();
-        return toRosterSnapshots(mapper.findRosterSnapshots(batchId.value(), ids));
-    }
-
-    @Override
-    public List<BatchParticipantRosterSnapshot> findRosterSnapshotsForUpdate(
-            AggregateId batchId, Collection<AggregateId> participantIds) {
-        if (participantIds.isEmpty()) return List.of();
-        List<java.util.UUID> ids = participantIds.stream().map(AggregateId::value).toList();
-        return toRosterSnapshots(mapper.findRosterSnapshotsForUpdate(batchId.value(), ids));
-    }
-
-    @Override
-    public Set<AggregateId> findBatchParticipantIdsWithHealthRecords(Collection<AggregateId> batchParticipantIds) {
-        if (batchParticipantIds.isEmpty()) return Set.of();
-        List<java.util.UUID> ids = batchParticipantIds.stream().map(AggregateId::value).toList();
-        return mapper.findBatchParticipantIdsWithHealthRecords(ids).stream()
-                .map(AggregateId::new).collect(java.util.stream.Collectors.toUnmodifiableSet());
-    }
-
-    @Override
-    public void insertRosterSnapshots(AggregateId batchId,
-                                      Collection<BatchParticipantRosterSnapshot> snapshots) {
-        List<BatchParticipantRosterSnapshot> items = List.copyOf(snapshots);
-        for (int start = 0; start < items.size(); start += 500) {
-            List<HealthExaminationBatchParticipantRecord> records = items.subList(start,
-                            Math.min(start + 500, items.size())).stream()
-                    .map(snapshot -> Converter.toRosterRecord(batchId, snapshot)).toList();
-            if (mapper.insertRosterSnapshots(batchId.value(), records) != records.size()) {
-                throw new ConcurrentUpdateException();
-            }
-        }
-    }
-
-    @Override
-    public void updateRosterSnapshots(AggregateId batchId,
-                                      Collection<BatchParticipantRosterSnapshot> snapshots) {
-        List<BatchParticipantRosterSnapshot> items = List.copyOf(snapshots);
-        for (int start = 0; start < items.size(); start += 500) {
-            List<HealthExaminationBatchParticipantRecord> records = items.subList(start,
-                            Math.min(start + 500, items.size())).stream()
-                    .map(snapshot -> Converter.toRosterRecord(batchId, snapshot)).toList();
-            if (mapper.updateRosterSnapshots(batchId.value(), records) != records.size()) {
-                throw new ConcurrentUpdateException();
-            }
-        }
-    }
-
-    @Override
-    public void save(HealthExaminationBatchParticipant participant) {
-        HealthExaminationBatchParticipantRecord record = Converter.toRecord(participant);
-        if (mapper.insert(record) != 1) throw new IllegalStateException("Batch participant was not saved");
-        List<HealthExaminationBatchParticipantServiceRecord> assignments = participant.assignments().stream()
-                .map(assignment -> Converter.toRecord(participant, assignment))
-                .toList();
-        if (!assignments.isEmpty() && mapper.insertAssignments(assignments) != assignments.size()) {
-            throw new IllegalStateException("Batch participant service assignments were not saved");
-        }
-    }
-
-    @Override
-    public void updateRosterSnapshot(HealthExaminationBatchParticipant participant) {
-        HealthExaminationBatchParticipantRecord record = Converter.toRecord(participant);
-        if (mapper.updateRosterSnapshot(record) != 1) throw new ConcurrentUpdateException();
-    }
-
-    private HealthExaminationBatchParticipant toDomain(HealthExaminationBatchParticipantRecord record) {
-        if (record == null) return null;
-        return Converter.toDomain(record, mapper.findAssignments(record.id()));
-    }
-
-    private static List<BatchParticipantRosterSnapshot> toRosterSnapshots(
-            List<HealthExaminationBatchParticipantRecord> records) {
-        return records.stream().map(Converter::toRosterSnapshot).toList();
-    }
-
-    private static final class Converter {
-        static BatchParticipantRosterSnapshot toRosterSnapshot(HealthExaminationBatchParticipantRecord record) {
-            return new BatchParticipantRosterSnapshot(new AggregateId(record.id()),
-                    new AggregateId(record.healthExaminationParticipantId()), record.participantCodeSnapshot(),
-                    record.departmentSnapshot(), record.jobTitleSnapshot(), record.occupationSnapshot(),
-                    record.fullNameSnapshot(), record.dateOfBirthSnapshot(), record.sexSnapshot(),
-                    IdentificationNumber.of(record.identificationNumberSnapshot()),
-                    record.identificationNumberIssueDateSnapshot(), record.identificationNumberIssuePlaceSnapshot(),
-                    record.ethnicitySnapshot(), record.subjectTypeSnapshot(), record.payerSourceSnapshot(),
-                    record.bloodGroupSnapshot(), record.phoneSnapshot(), record.provinceSnapshot(), record.wardSnapshot(),
-                    record.addressDetailSnapshot(), record.administrativeOccupationSnapshot(),
-                    record.workplaceOrSchoolSnapshot(), record.healthExaminationReasonSnapshot(),
-                    record.rosterNoteSnapshot());
-        }
-
-        static HealthExaminationBatchParticipantRecord toRosterRecord(AggregateId batchId,
-                                                                       BatchParticipantRosterSnapshot snapshot) {
-            return new HealthExaminationBatchParticipantRecord(snapshot.batchParticipantId().value(), batchId.value(),
-                    snapshot.participantId().value(), snapshot.participantCode(), snapshot.departmentName(),
-                    snapshot.jobTitle(), snapshot.occupation(), snapshot.fullName(), snapshot.dateOfBirth(),
-                    snapshot.sex(), snapshot.identificationNumber().value(), snapshot.identificationNumberIssueDate(),
-                    snapshot.identificationNumberIssuePlace(), snapshot.ethnicity(), snapshot.subjectType(),
-                    snapshot.payerSource(), snapshot.bloodGroup(), snapshot.phone(), snapshot.province(),
-                    snapshot.ward(), snapshot.addressDetail(), snapshot.administrativeOccupation(),
-                    snapshot.workplaceOrSchool(), snapshot.healthExaminationReason(), snapshot.rosterNote(),
-                    "REGISTERED", null);
-        }
-
-        static HealthExaminationBatchParticipantRecord toRecord(HealthExaminationBatchParticipant participant) {
-            return new HealthExaminationBatchParticipantRecord(
-                participant.id().value(), participant.batchId().value(),
-                participant.healthExaminationParticipantId().value(), participant.participantCodeSnapshot(),
-                participant.departmentSnapshot(), participant.jobTitleSnapshot(), participant.occupationSnapshot(),
-                participant.fullNameSnapshot(), participant.dateOfBirthSnapshot(), participant.sexSnapshot(),
-                participant.identificationNumberSnapshot().value(), participant.identificationNumberIssueDateSnapshot(),
-                participant.identificationNumberIssuePlaceSnapshot(), participant.ethnicitySnapshot(),
-                participant.subjectTypeSnapshot(), participant.payerSourceSnapshot(), participant.bloodGroupSnapshot(),
-                participant.phoneSnapshot(), participant.provinceSnapshot(), participant.wardSnapshot(),
-                participant.addressDetailSnapshot(), participant.administrativeOccupationSnapshot(),
-                participant.workplaceOrSchoolSnapshot(), participant.healthExaminationReasonSnapshot(),
-                participant.rosterNoteSnapshot(),
-                "REGISTERED", null);
-        }
-
-        static HealthExaminationBatchParticipantServiceRecord toRecord(
-                HealthExaminationBatchParticipant participant,
-                HealthExaminationBatchParticipantService assignment) {
-            return new HealthExaminationBatchParticipantServiceRecord(
-                    assignment.id().value(), participant.id().value(), assignment.batchServiceId().value(),
-                    assignment.serviceRequestId() == null ? null : assignment.serviceRequestId().value(),
-                    assignment.billable(), assignment.unitPrice().amount(),
-                    null, null);
-        }
-
-        static HealthExaminationBatchParticipant toDomain(HealthExaminationBatchParticipantRecord record,
-                    List<HealthExaminationBatchParticipantServiceRecord> assignmentRecords) {
-            if (record == null) return null;
-            List<HealthExaminationBatchParticipantService> assignments = assignmentRecords.stream()
-                    .map(service -> HealthExaminationBatchParticipantService.restore(
-                            new AggregateId(service.id()), new AggregateId(service.healthExaminationBatchServiceId()),
-                            service.serviceRequestId() == null ? null : new AggregateId(service.serviceRequestId()),
-                            new Money(service.unitPriceSnapshot(), "VND"), service.billable()))
-                    .toList();
-            HealthExaminationBatchParticipant participant = HealthExaminationBatchParticipant.restore(new AggregateId(record.id()),
-                    new AggregateId(record.healthExaminationBatchId()),
-                    new AggregateId(record.healthExaminationParticipantId()), record.participantCodeSnapshot(),
-                    record.departmentSnapshot(), record.jobTitleSnapshot(), record.occupationSnapshot(),
-                    record.fullNameSnapshot(), record.dateOfBirthSnapshot(), record.sexSnapshot(),
-                    IdentificationNumber.of(record.identificationNumberSnapshot()),
-                    record.identificationNumberIssueDateSnapshot(), record.identificationNumberIssuePlaceSnapshot(),
-                    record.ethnicitySnapshot(), record.subjectTypeSnapshot(), record.payerSourceSnapshot(),
-                    record.bloodGroupSnapshot(), record.phoneSnapshot(), record.provinceSnapshot(), record.wardSnapshot(),
-                    record.addressDetailSnapshot(), record.administrativeOccupationSnapshot(),
-                    record.workplaceOrSchoolSnapshot(), record.healthExaminationReasonSnapshot(), assignments);
-            participant.updateRosterNoteSnapshot(record.rosterNoteSnapshot());
-            return participant;
-        }
-
-        static BatchParticipantSummary toSummary(HealthExaminationBatchParticipantRecord record) {
-            return new BatchParticipantSummary(new AggregateId(record.id()),
-                    new AggregateId(record.healthExaminationParticipantId()), record.participantCodeSnapshot(),
-                    record.departmentSnapshot(), record.jobTitleSnapshot(), record.occupationSnapshot(),
-                    record.fullNameSnapshot(), record.dateOfBirthSnapshot(), record.sexSnapshot(),
-                    record.identificationNumberSnapshot(), record.identificationNumberIssueDateSnapshot(),
-                    record.identificationNumberIssuePlaceSnapshot(), record.ethnicitySnapshot(),
-                    record.subjectTypeSnapshot(), record.payerSourceSnapshot(), record.bloodGroupSnapshot(),
-                    record.phoneSnapshot(), record.provinceSnapshot(), record.wardSnapshot(),
-                    record.addressDetailSnapshot(), record.administrativeOccupationSnapshot(),
-                    record.workplaceOrSchoolSnapshot(), record.healthExaminationReasonSnapshot(),
-                    record.status(), record.createdAt());
-        }
-    }
+  private static UUID value(AggregateId id) {
+    return id == null ? null : id.value();
+  }
 }

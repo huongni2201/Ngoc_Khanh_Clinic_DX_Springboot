@@ -7,13 +7,9 @@ import static org.mockito.Mockito.doThrow;
 import com.ngockhanh.clinic.healthexamination.application.command.*;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationImportJobMyBatisMapper;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.*;
-import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,15 +28,14 @@ class HealthExaminationBatchCrudIntegrationTest {
       basePackages = {
         "com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper",
         "com.ngockhanh.clinic.catalog.infrastructure.persistence.mapper",
-        "com.ngockhanh.clinic.document.infrastructure.persistence.mapper",
-        "com.ngockhanh.clinic.shared.infrastructure.persistence.mapper"
+        "com.ngockhanh.clinic.audit.infrastructure.persistence.mapper",
+        "com.ngockhanh.clinic.integration.infrastructure.persistence.mapper"
       })
   @org.springframework.context.annotation.Import({
     CreateHealthExaminationBatchUseCase.class,
-    UpdateHealthExaminationBatchUseCase.class,
-    GetHealthExaminationBatchUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase.class,
     ListHealthExaminationBatchUseCase.class,
-    DeleteHealthExaminationBatchUseCase.class,
     BatchDraftEditor.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisHealthExaminationBatchRepository.class,
@@ -48,10 +43,7 @@ class HealthExaminationBatchCrudIntegrationTest {
         .MyBatisOrganizationRepository.class,
     com.ngockhanh.clinic.catalog.infrastructure.persistence.repository.MyBatisServiceCatalogQuery
         .class,
-    com.ngockhanh.clinic.document.infrastructure.persistence.repository
-        .MyBatisMasterHealthExaminationTemplateQuery.class,
-    com.ngockhanh.clinic.shared.infrastructure.persistence.repository.MyBatisAuditWriter.class,
-    com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator.class
+    com.ngockhanh.clinic.audit.infrastructure.persistence.repository.MyBatisAuditWriter.class
   })
   static class BatchTestConfiguration {}
 
@@ -66,382 +58,217 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Autowired JdbcTemplate jdbc;
   @Autowired CreateHealthExaminationBatchUseCase create;
-  @Autowired UpdateHealthExaminationBatchUseCase update;
-  @Autowired GetHealthExaminationBatchUseCase get;
-  @Autowired DeleteHealthExaminationBatchUseCase delete;
   @Autowired ListHealthExaminationBatchUseCase list;
-  @Autowired HealthExaminationBatchRepository batches;
-  @Autowired HealthExaminationBatchParticipantMyBatisMapper roster;
-  @Autowired HealthExaminationImportJobMyBatisMapper importJobs;
-
-  @Autowired
-  com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper
-          .ImportAttachmentMetadataMapper
-      sourceMetadata;
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
-  com.ngockhanh.clinic.shared.audit.AuditWriter audit;
+  com.ngockhanh.clinic.audit.application.port.AuditWriter audit;
 
-  UUID org, actor, service, template, attachment;
+  UUID org, actor, service;
 
-  @Test
-  void localMockActorFixtureSatisfiesTheCreatorForeignKey() {
-    Flyway.configure()
-        .dataSource(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())
-        .locations("classpath:db/migration", "classpath:db/local")
-        .load()
-        .migrate();
-    UUID localActor = UUID.fromString("01990000-0000-7000-8000-000000000001");
-    var result =
-        create.execute(
-            org, new CreateHealthExaminationBatchCommand(localActor, config("LOCAL-ACTOR", "10")));
-    assertThat(result.createdBy()).isEqualTo(localActor);
+  @BeforeEach
+  void fixture() {
+    jdbc.execute(
+        "TRUNCATE public.organizations,public.staff_members,public.services,public.departments CASCADE");
+    org = UUID.randomUUID();
+    actor = UUID.randomUUID();
+    service = UUID.randomUUID();
+    var staff = UUID.randomUUID();
+    var department = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO public.staff_members(id,staff_code,full_name,status) VALUES (?,'ACTOR','Synthetic Actor','ACTIVE')",
+        staff);
+    jdbc.update(
+        "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status) VALUES (?,'STAFF','actor','test-password-hash',?,'ACTIVE')",
+        actor,
+        staff);
+    jdbc.update(
+        "INSERT INTO public.organizations(id,code,name,organization_type,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES (?,'ORG','Synthetic Organization','COMPANY','0901','o@example.test','Address','Contact','0902','c@example.test','ACTIVE')",
+        org);
+    jdbc.update(
+        "INSERT INTO public.departments(id,code,name,department_type) VALUES (?,'D1','Exam','CLINICAL')",
+        department);
+    jdbc.update(
+        "INSERT INTO public.services(id,code,name,service_type,performing_department_id,unit_price) VALUES (?,'S1','Exam','CONSULTATION',?,200)",
+        service,
+        department);
+  }
+
+  private BatchConfigurationCommand config(String code, UUID... services) {
+    return BatchConfigurationCommand.builder()
+        .batchCode(code)
+        .batchName("Campaign%_")
+        .examinationDates(List.of(LocalDate.of(2026, 10, 4), LocalDate.of(2026, 10, 8)))
+        .examinationSiteType("ORGANIZATION_SITE")
+        .examinationSiteName("Site")
+        .examinationSiteAddress("Address")
+        .services(
+            Arrays.stream(services)
+                .map(
+                    s ->
+                        BatchConfigurationCommand.ServicePrice.builder()
+                            .serviceId(s)
+                            .negotiatedPrice(new BigDecimal("100"))
+                            .build())
+                .toList())
+        .build();
   }
 
   @Test
-  void auditFailureRollsBackHeaderAndAllServices() {
-    doThrow(new IllegalStateException("audit failure"))
+  void atomicallyPersistsInitialDaysAndCapturesPriceSnapshots() {
+    var first =
+        create.execute(
+            org,
+            CreateHealthExaminationBatchCommand.builder()
+                .createdBy(actor)
+                .configuration(config("B1", service))
+                .build());
+    assertThat(first.days()).hasSize(2);
+    assertThat(first.startDate()).isEqualTo(LocalDate.of(2026, 10, 4));
+    assertThat(first.endDate()).isEqualTo(LocalDate.of(2026, 10, 8));
+    assertThat(first.rowVersion()).isZero();
+    var initialService = first.services().getFirst();
+    assertThat(initialService.referencePriceSnapshot()).isEqualByComparingTo("200");
+    create.execute(
+        org,
+        CreateHealthExaminationBatchCommand.builder()
+            .createdBy(actor)
+            .configuration(config("B2", service))
+            .build());
+    UUID otherOrganization = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO public.organizations(id,code,name,organization_type,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES (?,'ORG-2','Other Organization','COMPANY','0901','other@example.test','Address','Contact','0902','other-contact@example.test','ACTIVE')",
+        otherOrganization);
+    create.execute(
+        otherOrganization,
+        CreateHealthExaminationBatchCommand.builder()
+            .createdBy(actor)
+            .configuration(config("B3", service))
+            .build());
+    var firstPage =
+        list.execute(
+            org,
+            HealthExaminationBatchListQuery.builder()
+                .page(1)
+                .size(1)
+                .searchKey(null)
+                .sortKey("batchCode")
+                .sortBy("ASC")
+                .build());
+    var secondPage =
+        list.execute(
+            org,
+            HealthExaminationBatchListQuery.builder()
+                .page(2)
+                .size(1)
+                .searchKey(null)
+                .sortKey("batchCode")
+                .sortBy("ASC")
+                .build());
+    var otherOrganizationPage =
+        list.execute(
+            otherOrganization,
+            HealthExaminationBatchListQuery.builder()
+                .page(1)
+                .size(10)
+                .searchKey(null)
+                .sortKey(null)
+                .sortBy(null)
+                .build());
+    assertThat(firstPage.totalElements()).isEqualTo(2);
+    assertThat(firstPage.items()).extracting(item -> item.batchCode()).containsExactly("B1");
+    assertThat(secondPage.items()).extracting(item -> item.batchCode()).containsExactly("B2");
+    assertThat(otherOrganizationPage.totalElements()).isEqualTo(1);
+    assertThat(otherOrganizationPage.items())
+        .extracting(item -> item.batchCode())
+        .containsExactly("B3");
+    assertThat(
+            list.execute(
+                    org,
+                    HealthExaminationBatchListQuery.builder()
+                        .page(1)
+                        .size(10)
+                        .searchKey("%_")
+                        .sortKey("startDate")
+                        .sortBy("ASC")
+                        .build())
+                .totalElements())
+        .isEqualTo(2);
+  }
+
+  @Test
+  void duplicateBatchCodeIsRejectedWithoutPartialChildren() {
+    create.execute(
+        org,
+        CreateHealthExaminationBatchCommand.builder()
+            .createdBy(actor)
+            .configuration(config("B1", service))
+            .build());
+
+    assertThatThrownBy(
+            () ->
+                create.execute(
+                    org,
+                    CreateHealthExaminationBatchCommand.builder()
+                        .createdBy(actor)
+                        .configuration(config("B1", service))
+                        .build()))
+        .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batches", Integer.class))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batch_days", Integer.class))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batch_services", Integer.class))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void failedAuditRollsBackHeaderDaysAndServices() {
+    doThrow(new IllegalStateException("audit unavailable"))
         .when(audit)
         .record(any(), any(), any(), any(), any(), any());
     assertThatThrownBy(
             () ->
                 create.execute(
                     org,
-                    new CreateHealthExaminationBatchCommand(actor, config("AUDIT-FAIL", "10"))))
+                    CreateHealthExaminationBatchCommand.builder()
+                        .createdBy(actor)
+                        .configuration(config("BAD", service))
+                        .build()))
         .isInstanceOf(IllegalStateException.class);
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM public.health_examination_batches", Integer.class))
+                "SELECT COUNT(*) FROM public.health_examination_batches", Integer.class))
         .isZero();
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM public.health_examination_batch_services", Integer.class))
+                "SELECT COUNT(*) FROM public.health_examination_batch_days", Integer.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.health_examination_batch_services", Integer.class))
         .isZero();
   }
 
   @Test
-  void batchReferenceLookupsAreScopedToOrganization() {
-    var batch =
-        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("SCOPED", "10")));
-    AggregateId batchId = AggregateId.of(batch.id());
-    AggregateId organizationId = AggregateId.of(org);
-
-    assertThat(batches.findByIdAndOrganizationId(batchId, organizationId)).isPresent();
-    assertThat(batches.findByIdAndOrganizationId(batchId, AggregateId.of(UUID.randomUUID())))
-        .isEmpty();
-    assertThat(batches.findByIdAndOrganizationIdForUpdate(batchId, organizationId)).isPresent();
-  }
-
-  @Test
-  void importJobLookupsAreScopedToBatch() {
-    var batch =
-        create.execute(
-            org, new CreateHealthExaminationBatchCommand(actor, config("JOB-SCOPE", "10")));
-    var otherBatch =
-        create.execute(
-            org, new CreateHealthExaminationBatchCommand(actor, config("OTHER-JOB", "10")));
-    UUID importId = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO public.health_examination_import_jobs"
-            + "(id,health_examination_batch_id,import_type,source_file_attachment_id,status,created_by_user_id,created_at)"
-            + " VALUES (?,?,'PARTICIPANT_LIST',?,'UPLOADED',?,CURRENT_TIMESTAMP)",
-        importId,
-        batch.id(),
-        attachment,
-        actor);
-
-    assertThat(importJobs.findJobByIdAndBatchId(importId, batch.id())).isNotNull();
-    assertThat(importJobs.findJobByIdAndBatchId(importId, otherBatch.id())).isNull();
-    assertThat(importJobs.findJobByIdAndBatchIdForUpdate(importId, batch.id())).isNotNull();
-
-    insertImportRow(importId, 3, "First Person", "012345678901", "CREATE", "[]");
-    insertImportRow(
-        importId, 8, "Second Person", "012345678902", "UPDATE", "[\"OPTIONAL_FIELDS_MISSING\"]");
-
-    assertThat(importJobs.countRowsByJobId(importId, "VALID")).isEqualTo(2);
-    assertThat(importJobs.findRowsPage(importId, "VALID", 1, 1))
-        .extracting(row -> row.rowNumber())
-        .containsExactly(8);
-    assertThat(importJobs.countRowsByJobId(importId, "WARNING")).isEqualTo(1);
-    assertThat(importJobs.findRowsPage(importId, "CREATE", 0, 10))
-        .extracting(row -> row.rowNumber())
-        .containsExactly(3);
-  }
-
-  private void insertImportRow(
-      UUID jobId,
-      int rowNumber,
-      String name,
-      String identificationNumber,
-      String action,
-      String warningsJson) {
-    String payload =
-        "{\"fullName\":\""
-            + name
-            + "\",\"dateOfBirth\":\"1990-01-01\","
-            + "\"sex\":\"MALE\",\"identificationNumber\":\""
-            + identificationNumber
-            + "\","
-            + "\"warningCodes\":"
-            + warningsJson
-            + ",\"appliedAction\":\""
-            + action
-            + "\"}";
-    jdbc.update(
-        "INSERT INTO public.health_examination_import_rows "
-            + "(id,health_examination_import_job_id,row_number,validation_status,error_codes_json,normalized_payload_json) "
-            + "VALUES (?,?,?,'VALID','[]',?)",
-        UUID.randomUUID(),
-        jobId,
-        rowNumber,
-        payload);
-  }
-
-  @Test
-  void addsRemovesServicesAndRollsBackConflictingUpdate() {
-    var first =
-        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B1", "10")));
-    var second =
-        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B2", "20")));
-    UUID addedService = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO"
-            + " public.services(id,service_code,service_name,service_type,health_examination_eligible,created_at,updated_at)"
-            + " VALUES (?,'S2','Second exam','EXAM',true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
-        addedService);
-    var original = config("B1", "11");
-    var desired =
-        new BatchConfigurationCommand(
-            original.batchCode(),
-            original.batchName(),
-            null,
-            null,
-            null,
-            null,
-            "CLINIC",
-            "Clinic",
-            null,
-            List.of(
-                original.services().getFirst(),
-                new BatchConfigurationCommand.ServicePrice(addedService, new BigDecimal("30"))));
-    var expanded = update.execute(org, first.id(), desired, actor);
-    assertThat(expanded.services()).hasSize(2);
-    assertThat(expanded.services().getFirst().id()).isEqualTo(first.services().getFirst().id());
-    assertThatThrownBy(() -> update.execute(org, first.id(), config("B2", "99"), actor))
-        .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
-    var restored = get.execute(org, first.id());
-    assertThat(restored.batchCode()).isEqualTo("B1");
-    assertThat(restored.services()).hasSize(2);
-    assertThat(restored.services().getFirst().negotiatedUnitPrice()).isEqualByComparingTo("11");
-    var shrunk = update.execute(org, first.id(), original, actor);
-    assertThat(shrunk.services()).hasSize(1);
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM public.health_examination_batch_services WHERE"
-                    + " health_examination_batch_id=?",
-                Integer.class,
-                first.id()))
-        .isEqualTo(1);
-    assertThat(get.execute(org, second.id()).services().getFirst().negotiatedUnitPrice())
-        .isEqualByComparingTo("20");
-  }
-
-  @Test
-  void bulkRosterUpdateAcceptsAnAbsentIdentificationIssueDate() {
-    var batch =
-        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("ROSTER", "10")));
-    UUID participantId = UUID.randomUUID();
-    UUID membershipId = UUID.randomUUID();
-    jdbc.update(
-        """
-        INSERT INTO public.health_examination_participants
-          (id, organization_id, participant_code, identification_number, full_name,
-           date_of_birth, sex, created_at, updated_at)
-        VALUES (?, ?, 'TEST-PARTICIPANT', '012345678901', 'Synthetic Participant',
-                DATE '1990-01-01', 'MALE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        """,
-        participantId,
-        org);
-    jdbc.update(
-        """
-        INSERT INTO public.health_examination_batch_participants
-          (id, health_examination_batch_id, health_examination_participant_id,
-           participant_code_snapshot, full_name_snapshot, date_of_birth_snapshot,
-           sex_snapshot, identification_number_snapshot, created_at)
-        VALUES (?, ?, ?, 'TEST-PARTICIPANT', 'Synthetic Participant', DATE '1990-01-01',
-                'MALE', '012345678901', CURRENT_TIMESTAMP)
-        """,
-        membershipId,
-        batch.id(),
-        participantId);
-    var original = roster.findById(membershipId);
-
-    assertThat(roster.updateRosterSnapshots(batch.id(), List.of(original))).isEqualTo(1);
-
-    var restored = roster.findById(membershipId);
-    assertThat(restored.identificationNumberIssueDateSnapshot()).isNull();
-    assertThat(restored.fullNameSnapshot()).isEqualTo("Synthetic Participant");
-    assertThat(restored.healthExaminationParticipantId()).isEqualTo(participantId);
-  }
-
-  @BeforeEach
-  void fixture() {
-    jdbc.execute(
-        "TRUNCATE public.organizations,public.staff,public.document_templates,public.services"
-            + " CASCADE");
-    org = UUID.randomUUID();
-    actor = UUID.randomUUID();
-    service = UUID.randomUUID();
-    template = UUID.randomUUID();
-    attachment = UUID.randomUUID();
-    UUID staff = UUID.randomUUID(), version = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO public.staff(id,staff_code,full_name,staff_type) VALUES (?,'TEST_ACTOR','Test"
-            + " actor','ADMIN')",
-        staff);
-    jdbc.update(
-        "INSERT INTO"
-            + " public.users(id,principal_type,staff_id,status,created_at)"
-            + " VALUES (?,'STAFF',?,'ACTIVE',CURRENT_TIMESTAMP)",
-        actor,
-        staff);
-    jdbc.update(
-        "INSERT INTO"
-            + " public.organizations(id,organization_name,contact_name,contact_phone,created_at,updated_at)"
-            + " VALUES (?,'Org','Contact','0900',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
-        org);
-    jdbc.update(
-        "INSERT INTO"
-            + " public.services(id,service_code,service_name,service_type,health_examination_eligible,created_at,updated_at)"
-            + " VALUES (?,'S1','Exam','EXAM',true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
-        service);
-    jdbc.update(
-        "INSERT INTO"
-            + " public.document_templates(id,template_code,template_name,template_type,is_master_health_examination_form,created_at,updated_at)"
-            + " VALUES"
-            + " (?,'FORM03','Master','HEALTH_EXAMINATION',true,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)",
-        template);
-    jdbc.update(
-        "INSERT INTO"
-            + " public.file_attachments(id,entity_type,entity_id,document_type,storage_provider,storage_key,file_name,mime_type,size_bytes,created_at)"
-            + " VALUES"
-            + " (?,'TEMPLATE',?,'TEMPLATE','TEST','fixture','form.html','text/html',1,CURRENT_TIMESTAMP)",
-        attachment,
-        template);
-    jdbc.update(
-        "INSERT INTO"
-            + " public.document_template_versions(id,document_template_id,version_number,source_file_attachment_id,paper_size,render_mode,renderer_type,schema_json,effective_from,created_by_user_id,created_at)"
-            + " VALUES (?,?,1,?,'A4','HTML','HTML','{}',CURRENT_TIMESTAMP-INTERVAL '1"
-            + " day',?,CURRENT_TIMESTAMP)",
-        version,
-        template,
-        attachment,
-        actor);
-  }
-
-  BatchConfigurationCommand config(String code, String price) {
-    return new BatchConfigurationCommand(
-        code,
-        "Campaign%_",
-        java.time.LocalDate.of(2026, 9, 30),
-        null,
-        null,
-        null,
-        "COMPANY",
-        "Site",
-        null,
-        List.of(new BatchConfigurationCommand.ServicePrice(service, new BigDecimal(price))));
-  }
-
-  @Test
-  void roundTripsSnapshotsAtomicUpdatesAndIdempotentSoftDelete() {
-    var first =
-        create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B1", "123.00")));
-    assertThat(first.createdBy()).isEqualTo(actor);
-    assertThat(first.services().getFirst().negotiatedUnitPrice()).isEqualByComparingTo("123.00");
-    assertThat(batches.findDetails(UUID.randomUUID(), first.id(), false)).isEmpty();
-    var row = first.services().getFirst().id();
-    jdbc.update("UPDATE public.services SET service_name='Renamed' WHERE id=?", service);
-    var changed = update.execute(org, first.id(), config("B2", "150.00"), actor);
-    assertThat(changed.services().getFirst().id()).isEqualTo(row);
-    assertThat(changed.services().getFirst().serviceName()).isEqualTo("Exam");
-    assertThat(
-            list.execute(org, new HealthExaminationBatchListQuery(1, 10, "%_", "batchCode", "DESC"))
-                .totalElements())
-        .isEqualTo(1);
-    delete.execute(org, first.id(), actor);
-    delete.execute(org, first.id(), actor);
-    assertThat(batches.findDetails(org, first.id(), false)).isEmpty();
-    assertThat(batches.findDetailsIncludingDeleted(org, first.id(), false))
-        .get()
-        .extracting(details -> details.batch().status().name())
-        .isEqualTo("DELETED");
-    assertThatThrownBy(() -> get.execute(org, first.id()))
-        .isInstanceOf(com.ngockhanh.clinic.shared.exception.ResourceNotFoundException.class);
-    assertThatThrownBy(() -> update.execute(org, first.id(), config("B3", "200"), actor))
-        .isInstanceOf(com.ngockhanh.clinic.shared.exception.ResourceNotFoundException.class);
-    assertThat(
-            list.execute(org, new HealthExaminationBatchListQuery(1, 10, null, "id", "ASC"))
-                .totalElements())
-        .isZero();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM public.health_examination_batch_services WHERE id=?",
-                Integer.class,
-                row))
-        .isEqualTo(1);
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM public.audit_logs WHERE entity_id=?",
-                Integer.class,
-                first.id().toString()))
-        .isEqualTo(3);
-    assertThatThrownBy(
-            () ->
-                create.execute(
-                    org, new CreateHealthExaminationBatchCommand(actor, config("B2", "1"))))
-        .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
-  }
-
-  @Test
-  void readsAnImportSourceOnlyForItsOwningJob() {
-    UUID source = UUID.randomUUID();
-    UUID job = UUID.randomUUID();
-    jdbc.update(
-        "INSERT INTO public.file_attachments"
-            + " (id,entity_type,entity_id,document_type,storage_provider,storage_key,file_name,mime_type,size_bytes,created_at)"
-            + " VALUES (?,'HEALTH_EXAMINATION_IMPORT',?,'PARTICIPANT_ROSTER_SOURCE','LOCAL_AES_GCM',"
-            + " 'imports/test.gcm','roster.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',1,CURRENT_TIMESTAMP)",
-        source,
-        job);
-    assertThat(sourceMetadata.findByIdAndImportJobId(source, job).importJobId()).isEqualTo(job);
-    assertThat(sourceMetadata.findByIdAndImportJobId(source, UUID.randomUUID())).isNull();
-  }
-
-  @Test
-  void rollsBackInvalidActorAndBlocksDeleteWithImport() {
+  void unknownActorForeignKeyRollsBackCreation() {
     assertThatThrownBy(
             () ->
                 create.execute(
                     org,
-                    new CreateHealthExaminationBatchCommand(
-                        UUID.randomUUID(), config("BAD", "10"))))
+                    CreateHealthExaminationBatchCommand.builder()
+                        .createdBy(UUID.randomUUID())
+                        .configuration(config("BAD", service))
+                        .build()))
         .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM public.health_examination_batches", Integer.class))
+                "SELECT COUNT(*) FROM public.health_examination_batches", Integer.class))
         .isZero();
-    var b = create.execute(org, new CreateHealthExaminationBatchCommand(actor, config("B1", "10")));
-    jdbc.update(
-        "INSERT INTO"
-            + " public.health_examination_import_jobs(id,health_examination_batch_id,import_type,source_file_attachment_id,status,created_by_user_id,created_at)"
-            + " VALUES (?,?,'PARTICIPANT_LIST',?,'UPLOADED',?,CURRENT_TIMESTAMP)",
-        UUID.randomUUID(),
-        b.id(),
-        attachment,
-        actor);
-    assertThatThrownBy(() -> delete.execute(org, b.id(), actor))
-        .isInstanceOf(com.ngockhanh.clinic.shared.exception.BusinessRuleException.class);
-    assertThat(get.execute(org, b.id()).status()).isEqualTo("DRAFT");
   }
 }

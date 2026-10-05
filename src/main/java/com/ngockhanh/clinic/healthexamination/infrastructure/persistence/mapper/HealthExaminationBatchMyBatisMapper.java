@@ -1,12 +1,9 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper;
 
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchSummary;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord;
-import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchServiceRecord;
-import java.util.List;
-import java.util.UUID;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.*;
+import java.util.*;
+import org.apache.ibatis.annotations.*;
 
 @Mapper
 public interface HealthExaminationBatchMyBatisMapper {
@@ -19,25 +16,17 @@ public interface HealthExaminationBatchMyBatisMapper {
   HealthExaminationBatchRecord findScoped(
       @Param("organizationId") UUID organizationId,
       @Param("id") UUID id,
-      @Param("lock") boolean lock,
-      @Param("includeDeleted") boolean includeDeleted);
+      @Param("lock") boolean lock);
 
-  List<
-          com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record
-              .HealthExaminationBatchServiceRecord>
-      findServices(@Param("id") UUID id);
+  List<HealthExaminationBatchServiceRecord> findServices(@Param("id") UUID id);
+
+  List<HealthExaminationBatchDayRecord> findDays(@Param("id") UUID id);
 
   int insert(HealthExaminationBatchRecord record);
 
-  int update(HealthExaminationBatchRecord record);
+  int insertDays(@Param("items") List<HealthExaminationBatchDayRecord> items);
 
-  int upsertServices(@Param("items") List<HealthExaminationBatchServiceRecord> items);
-
-  int deleteRemoved(@Param("id") UUID id, @Param("retained") List<UUID> retained);
-
-  boolean hasReferencedRemoved(@Param("id") UUID id, @Param("retained") List<UUID> retained);
-
-  boolean hasDependents(@Param("id") UUID id);
+  int insertServices(@Param("items") List<HealthExaminationBatchServiceRecord> items);
 
   List<BatchSummary> findPage(
       @Param("organizationId") UUID organizationId,

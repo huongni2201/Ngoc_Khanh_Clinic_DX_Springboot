@@ -1,9 +1,9 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
+import com.ngockhanh.clinic.audit.application.port.AuthAudit;
 import com.ngockhanh.clinic.identity.application.command.LogoutSessionCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.SessionStore;
-import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import java.time.Clock;
 import java.util.List;
@@ -77,7 +77,7 @@ public class LogoutSessionUseCase {
           status ->
               audit.record(
                   userId,
-                  all ? "USER_SESSIONS_REVOKED" : "USER_LOGOUT",
+                  all ? "ACCOUNT_SESSIONS_REVOKED" : "ACCOUNT_LOGOUT",
                   clock.instant(),
                   correlationId));
       log.info(

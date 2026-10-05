@@ -43,20 +43,26 @@ class LocalAuthSecurityTest {
   void onlyStaffWithEffectiveAssignmentsCanAccessDevelopmentBusinessEndpoints() throws Exception {
     Instant now = Instant.now();
     var assignment =
-        new UserPrincipal.Assignment(
-            UUID.randomUUID(), "DOCTOR", List.of(), null, null, now.minusSeconds(60), null);
+        UserPrincipal.Assignment.builder()
+            .roleId(UUID.randomUUID())
+            .roleCode("DOCTOR")
+            .permissions(List.of())
+            .grantedBy(UUID.randomUUID())
+            .grantedAt(now.minusSeconds(60))
+            .build();
     for (String type : List.of("STAFF", "PATIENT")) {
       for (boolean hasRoles : List.of(true, false)) {
         var principal =
-            new UserPrincipal(
-                UUID.randomUUID(),
-                type.equals("STAFF") ? UUID.randomUUID() : null,
-                type.equals("PATIENT") ? UUID.randomUUID() : null,
-                "user",
-                type,
-                hasRoles ? List.of(assignment) : List.of(),
-                now.plusSeconds(1800),
-                now.plusSeconds(28800));
+            UserPrincipal.builder()
+                .userId(UUID.randomUUID())
+                .staffId(type.equals("STAFF") ? UUID.randomUUID() : null)
+                .patientId(type.equals("PATIENT") ? UUID.randomUUID() : null)
+                .username("user")
+                .principalType(type)
+                .roleAssignments(hasRoles ? List.of(assignment) : List.of())
+                .idleExpiresAt(now.plusSeconds(1800))
+                .absoluteExpiresAt(now.plusSeconds(28800))
+                .build();
         when(authenticate.execute(any())).thenReturn(principal);
         var result =
             mvc.perform(

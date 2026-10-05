@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class GetCsrfTokenUseCase {
-    public CsrfResponse execute(GetCsrfTokenQuery query) {
-        log.debug("Preparing CSRF token response");
-        return new CsrfResponse(query.token(), query.headerName());
-    }
+  public CsrfResponse execute(GetCsrfTokenQuery query) {
+    log.debug("Preparing CSRF token response");
+    return CsrfResponse.builder().token(query.token()).headerName(query.headerName()).build();
+  }
 }

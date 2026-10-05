@@ -69,7 +69,11 @@ public class AuthController {
   @GetMapping("/csrf")
   public ResponseEntity<ApiResponse<CsrfResponse>> csrf(CsrfToken token) {
     log.debug("Issuing CSRF token");
-    GetCsrfTokenQuery query = new GetCsrfTokenQuery(token.getToken(), token.getHeaderName());
+    GetCsrfTokenQuery query =
+        GetCsrfTokenQuery.builder()
+            .token(token.getToken())
+            .headerName(token.getHeaderName())
+            .build();
     CsrfResponse response = getCsrfToken.execute(query);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
@@ -77,14 +81,14 @@ public class AuthController {
   }
 
   /**
-   * Authenticates a user's username and password and creates a server-side session. Requires a
-   * current CSRF token; returns the user session view and sets the opaque session ID in an HttpOnly
-   * cookie. A supplied session cookie is replaced after successful login.
+   * Authenticates an account's username and password and creates a server-side session. Requires a
+   * current CSRF token; returns the account session view and sets the opaque session ID in an
+   * HttpOnly cookie. A supplied session cookie is replaced after successful login.
    *
-   * @param body the submitted user credentials
+   * @param body the submitted account credentials
    * @param request the HTTP request containing cookies and peer address
    * @param response the HTTP response used to clear the CSRF cookie
-   * @return the user session response and newly issued session cookie
+   * @return the account session response and newly issued session cookie
    */
   @PostMapping("/login")
   public ResponseEntity<ApiResponse<UserSessionResponse>> login(
@@ -93,12 +97,13 @@ public class AuthController {
       HttpServletResponse response) {
     UUID correlationId = UUID.randomUUID();
     LoginCommand command =
-        new LoginCommand(
-            body.username(),
-            body.password(),
-            clientIpResolver.resolve(request),
-            sessionIds(request),
-            correlationId);
+        LoginCommand.builder()
+            .username(body.username())
+            .password(body.password())
+            .clientIp(clientIpResolver.resolve(request))
+            .sessionIds(sessionIds(request))
+            .correlationId(correlationId)
+            .build();
     LoginResult login = loginUser.execute(command);
     csrf.saveToken(null, request, response);
     Duration cookieAge = Duration.between(clock.instant(), login.response().absoluteExpiresAt());
@@ -114,17 +119,17 @@ public class AuthController {
   }
 
   /**
-   * Returns the authenticated user and role assignments in the current session snapshot. Requires a
+   * Returns the authenticated account and role grants in the current session snapshot. Requires a
    * valid NKC_SESSION cookie; the response contains the session role snapshot and expiration times.
    *
-   * @param principal the authenticated user principal
-   * @return the current user session response
+   * @param principal the authenticated account principal
+   * @return the current account session response
    */
   @GetMapping("/me")
   public ResponseEntity<ApiResponse<UserSessionResponse>> me(
       @AuthenticationPrincipal UserPrincipal principal) {
     log.debug("Reading authenticated userId={}", principal.userId());
-    GetSessionQuery query = new GetSessionQuery(principal);
+    GetSessionQuery query = GetSessionQuery.builder().principal(principal).build();
     UserSessionResponse response = getSession.execute(query);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
@@ -141,16 +146,20 @@ public class AuthController {
    */
   @PostMapping("/logout")
   public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-    LogoutSessionCommand command = new LogoutSessionCommand(sessionIds(request), UUID.randomUUID());
+    LogoutSessionCommand command =
+        LogoutSessionCommand.builder()
+            .sessionIds(sessionIds(request))
+            .correlationId(UUID.randomUUID())
+            .build();
     logoutSession.execute(command);
     return clear(request, response);
   }
 
   /**
-   * Revokes every session belonging to the authenticated user and clears this browser's cookies.
+   * Revokes every session belonging to the authenticated account and clears this browser's cookies.
    * Requires an authenticated session and CSRF token; returns 204 after all sessions are revoked.
    *
-   * @param principal the authenticated user principal
+   * @param principal the authenticated account principal
    * @param request the HTTP request containing this browser's cookies
    * @param response the HTTP response used to clear this browser's cookies
    * @return an empty 204 response after all sessions are revoked
@@ -161,7 +170,10 @@ public class AuthController {
       HttpServletRequest request,
       HttpServletResponse response) {
     LogoutAllSessionsCommand command =
-        new LogoutAllSessionsCommand(principal.userId(), UUID.randomUUID());
+        LogoutAllSessionsCommand.builder()
+            .userId(principal.userId())
+            .correlationId(UUID.randomUUID())
+            .build();
     logoutAllSessions.execute(command);
     return clear(request, response);
   }

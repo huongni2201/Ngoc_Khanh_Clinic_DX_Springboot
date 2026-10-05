@@ -3,23 +3,22 @@ package com.ngockhanh.clinic.healthexamination.application.command;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
+import lombok.Builder;
 
+@Builder
 public record BatchConfigurationCommand(
     String batchCode,
     String batchName,
-    LocalDate startDate,
-    LocalDate endDate,
-    String reason,
-    String payerType,
+    List<LocalDate> examinationDates,
     String examinationSiteType,
     String examinationSiteName,
     String examinationSiteAddress,
     List<ServicePrice> services) {
   public BatchConfigurationCommand {
-    if (services != null && services.stream().anyMatch(Objects::isNull))
-      throw new IllegalArgumentException("Missing service");
+    examinationDates = examinationDates == null ? null : List.copyOf(examinationDates);
     services = services == null ? null : List.copyOf(services);
   }
 
-  public record ServicePrice(UUID serviceId, BigDecimal negotiatedUnitPrice) {}
+  @Builder
+  public record ServicePrice(UUID serviceId, BigDecimal negotiatedPrice) {}
 }

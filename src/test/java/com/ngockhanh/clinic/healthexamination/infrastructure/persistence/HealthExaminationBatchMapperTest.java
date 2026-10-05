@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class HealthExaminationBatchMapperTest {
   @Test
   void parsesXmlAndSafelyBuildsScopedParameterizedQueries() throws Exception {
-    var config = mapperConfiguration("health-examination", "HealthExaminationBatchMyBatisMapper");
+    var config = mapperConfiguration("healthexamination", "HealthExaminationBatchMyBatisMapper");
     String namespace =
         "com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchMyBatisMapper.";
     var params = new HashMap<String, Object>();
@@ -27,15 +27,19 @@ class HealthExaminationBatchMapperTest {
     params.put("limit", 10);
     var sql = config.getMappedStatement(namespace + "findPage").getBoundSql(params).getSql();
     assertThat(sql)
-        .contains("ESCAPE chr(92)", "status!='DELETED'")
+        .contains(
+            "organization_id=?",
+            "ESCAPE chr(92)",
+            "public.health_examination_batch_days",
+            "LIMIT ? OFFSET ?",
+            "id ASC")
         .doesNotContain("DROP TABLE", "evil_%");
-    params.put("retained", List.of(UUID.randomUUID()));
-    assertThat(
-            config
-                .getMappedStatement(namespace + "hasReferencedRemoved")
-                .getBoundSql(params)
-                .getSql())
-        .contains("resolved_batch_service_id", "health_examination_batch_service_id");
+    assertThat(config.getMappedStatement(namespace + "count").getBoundSql(params).getSql())
+        .contains("organization_id=?");
+    params.put("sortKey", "batchCode");
+    params.put("sortBy", "ASC");
+    assertThat(config.getMappedStatement(namespace + "findPage").getBoundSql(params).getSql())
+        .contains("batch_code", "ASC", "id ASC");
   }
 
   @Test
@@ -49,38 +53,50 @@ class HealthExaminationBatchMapperTest {
             .getSql();
     assertThat(sql)
         .contains(
-            "FROM public.document_template_versions v",
-            "JOIN public.document_templates t ON",
-            "t.is_active=true",
-            "t.is_master_health_examination_form=true",
-            "v.effective_from<=CURRENT_TIMESTAMP",
+            "FROM public.template_versions v",
+            "JOIN public.templates t ON",
+            "t.active=true",
+            "v.render_mode='MASTER_FORM'",
+            "v.active_from<=CURRENT_TIMESTAMP",
             "v.retired_at IS NULL",
             "v.retired_at>CURRENT_TIMESTAMP");
   }
 
   @Test
-  void bindsSharedAuditInsertFieldsFromXml() throws Exception {
-    var config = mapperConfiguration("shared", "AuditLogMapper");
+  void bindsAuditEventInsertFieldsFromXml() throws Exception {
+    var config = mapperConfiguration("audit", "AuditEventMapper");
     var bound =
         config
             .getMappedStatement(
-                "com.ngockhanh.clinic.shared.infrastructure.persistence.mapper.AuditLogMapper.insert")
+                "com.ngockhanh.clinic.audit.infrastructure.persistence.mapper.AuditEventMapper.insert")
             .getBoundSql(
                 Map.of(
-                    "id", UUID.randomUUID(),
-                    "actorUserId", UUID.randomUUID(),
-                    "action", "TEST_ACTION",
-                    "entityType", "TEST_ENTITY",
-                    "entityId", "test-id",
-                    "beforeJson", "{}",
-                    "afterJson", "{}"));
+                    "id",
+                    UUID.randomUUID(),
+                    "actorAccountId",
+                    UUID.randomUUID(),
+                    "action",
+                    "TEST_ACTION",
+                    "resourceType",
+                    "TEST_ENTITY",
+                    "resourceId",
+                    UUID.randomUUID(),
+                    "metadata",
+                    "{}"));
     assertThat(bound.getSql())
-        .contains(
-            "INSERT INTO public.audit_logs", "CURRENT_TIMESTAMP", "before_json", "after_json");
+        .contains("INSERT INTO public.audit_events", "actor_account_id", "metadata");
     assertThat(bound.getParameterMappings())
         .extracting(mapping -> mapping.getProperty())
         .containsExactly(
-            "id", "actorUserId", "action", "entityType", "entityId", "beforeJson", "afterJson");
+            "id",
+            "occurredAt",
+            "actorAccountId",
+            "action",
+            "resourceType",
+            "resourceId",
+            "departmentId",
+            "correlationId",
+            "metadata");
   }
 
   private Configuration mapperConfiguration(String module, String mapper) throws Exception {

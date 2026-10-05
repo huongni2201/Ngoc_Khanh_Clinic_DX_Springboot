@@ -1,5 +1,8 @@
 package com.ngockhanh.clinic.identity.application.query;
 
+import lombok.Builder;
+
+@Builder
 public record GetSessionQuery(UserPrincipal principal) {
   @Override
   public String toString() {

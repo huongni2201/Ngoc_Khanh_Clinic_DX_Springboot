@@ -1,19 +1,15 @@
 package com.ngockhanh.clinic.patient.infrastructure.persistence.record;
 
+import java.time.Instant;
 import java.util.UUID;
 
-import java.time.Instant;
-
+/** Persistence row of {@code public.patient_allergies}. */
 public record PatientAllergyRecord(
-        UUID id,
-        UUID patientId,
-        String substanceCode,
-        String substanceName,
-        String reaction,
-        String severity,
-        String verificationStatus,
-        UUID recordedByUserId,
-        Instant recordedAt,
-        Instant endedAt
-) {
-}
+    UUID id,
+    UUID patientId,
+    String substance,
+    String reaction,
+    String severity,
+    String status,
+    Instant recordedAt,
+    UUID recordedBy) {}

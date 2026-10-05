@@ -2,7 +2,9 @@ package com.ngockhanh.clinic.identity.application.command;
 
 import java.util.List;
 import java.util.UUID;
+import lombok.Builder;
 
+@Builder
 public record LoginCommand(
     String username,
     String password,
@@ -16,5 +18,12 @@ public record LoginCommand(
   @Override
   public String toString() {
     return "LoginCommand[correlationId=" + correlationId + "]";
+  }
+
+  public static class LoginCommandBuilder {
+    @Override
+    public String toString() {
+      return "LoginCommandBuilder[redacted]";
+    }
   }
 }

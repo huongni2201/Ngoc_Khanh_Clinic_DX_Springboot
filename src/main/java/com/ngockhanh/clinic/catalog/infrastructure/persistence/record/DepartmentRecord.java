@@ -1,16 +1,14 @@
 package com.ngockhanh.clinic.catalog.infrastructure.persistence.record;
 
+import java.time.Instant;
 import java.util.UUID;
 
-import java.time.Instant;
-
+/** Persistence row of {@code public.departments}. */
 public record DepartmentRecord(
-        UUID id,
-        String departmentCode,
-        String departmentName,
-        String departmentType,
-        Boolean isActive,
-        Instant createdAt,
-        Instant updatedAt
-) {
-}
+    UUID id,
+    String code,
+    String name,
+    String departmentType,
+    boolean active,
+    Instant createdAt,
+    Instant updatedAt) {}

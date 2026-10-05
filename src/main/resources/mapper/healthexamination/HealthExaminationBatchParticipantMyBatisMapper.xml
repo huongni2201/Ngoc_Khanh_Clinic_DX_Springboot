@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper">
+ <sql id="columns">id,batch_id,batch_day_id,participant_code,full_name,date_of_birth,sex,identification_number,phone,email,department_name,position_name,patient_id,roster_status,attendance_status,actual_examination_date,attendance_recorded_by,attendance_recorded_at,attendance_note,service_reconciliation_status,services_reconciled_by,services_reconciled_at,import_job_id,source_row_number,prepared_at,created_at,updated_at,row_version</sql>
+ <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
+ SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE id=#{id}
+ </select>
+ <select id="findServices" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord">
+ SELECT id,batch_id,batch_participant_id,batch_service_id,is_performed,service_request_id,unit_price_snapshot,recorded_by,recorded_at,created_at,updated_at,row_version
+ FROM public.health_examination_participant_services WHERE batch_participant_id IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
+ ORDER BY id
+ </select>
+ <update id="update">UPDATE public.health_examination_batch_participants SET
+ row_version=row_version+1,updated_at=CURRENT_TIMESTAMP,batch_day_id=#{p.batchDayId},patient_id=#{p.patientId},prepared_at=#{p.preparedAt},roster_status=#{p.rosterStatus},
+ attendance_status=#{p.attendanceStatus},actual_examination_date=#{p.actualExaminationDate},attendance_recorded_by=#{p.attendanceRecordedBy},
+ attendance_recorded_at=#{p.attendanceRecordedAt},attendance_note=#{p.attendanceNote},service_reconciliation_status=#{p.serviceReconciliationStatus},
+ services_reconciled_by=#{p.servicesReconciledBy},services_reconciled_at=#{p.servicesReconciledAt}
+ WHERE id=#{p.id} AND batch_id=#{p.batchId} AND row_version=#{expectedVersion}
+ </update>
+
+ <insert id="insertServices">
+ INSERT INTO public.health_examination_participant_services (id,batch_id,batch_participant_id,batch_service_id,is_performed,service_request_id,
+ unit_price_snapshot,recorded_by,recorded_at,created_at,updated_at,row_version) VALUES
+ <foreach collection="services" item="s" separator=",">(#{s.id},#{s.batchId},#{s.batchParticipantId},#{s.batchServiceId},#{s.isPerformed},#{s.serviceRequestId},
+ #{s.unitPriceSnapshot},#{s.recordedBy},#{s.recordedAt},#{s.createdAt},#{s.updatedAt},#{s.rowVersion})</foreach>
+ </insert>
+ <update id="updateServices">
+ UPDATE public.health_examination_participant_services s SET row_version=s.row_version+1,updated_at=CURRENT_TIMESTAMP,is_performed=v.performed,service_request_id=v.request_id,recorded_by=v.actor,recorded_at=v.recorded_at
+ FROM (VALUES <foreach collection="services" item="s" separator=",">
+ (CAST(#{s.id} AS uuid),CAST(#{s.batchId} AS uuid),CAST(#{s.batchParticipantId} AS uuid),CAST(#{s.batchServiceId} AS uuid),CAST(#{s.isPerformed} AS boolean),
+ CAST(#{s.serviceRequestId} AS uuid),CAST(#{s.recordedBy} AS uuid),CAST(#{s.recordedAt} AS timestamptz),CAST(#{s.rowVersion} AS bigint))
+ </foreach>) AS v(id,batch_id,participant_id,service_id,performed,request_id,actor,recorded_at,version)
+ WHERE s.id=v.id AND s.batch_id=v.batch_id AND s.batch_participant_id=v.participant_id AND s.batch_service_id=v.service_id AND s.row_version=v.version
+ </update>
+</mapper>

@@ -25,11 +25,11 @@ public class MyBatisUserAccountRepository implements UserAccountRepository {
     if (row == null) {
       return null;
     }
-    return UserAccountPersistenceConverter.from(row, mapper.grants(row.userId(), now));
+    return UserAccountPersistenceConverter.from(row, mapper.grants(row.accountId()));
   }
 
   @Override
-  public int recordLogin(UUID userId, Instant now) {
-    return mapper.lastLogin(userId, now);
+  public boolean lockEligibleAccount(UUID accountId) {
+    return mapper.lockEligibleAccount(accountId) != null;
   }
 }

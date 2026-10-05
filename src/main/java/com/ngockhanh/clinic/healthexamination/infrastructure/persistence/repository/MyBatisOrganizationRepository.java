@@ -6,7 +6,6 @@ import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.converter.OrganizationPersistenceConverter;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.OrganizationMyBatisMapper;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -23,23 +22,10 @@ public class MyBatisOrganizationRepository implements OrganizationRepository {
   }
 
   @Override
-  public boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId) {
-    if (taxCode == null || taxCode.isBlank()) return false;
-    return mapper.existsByTaxCode(
-        taxCode, excludedOrganizationId == null ? null : excludedOrganizationId.value());
-  }
-
-  @Override
-  public List<Organization> findPage(
-      long offset, long limit, String searchPattern, String status, String sortKey, String sortBy) {
-    return mapper.findPage(offset, limit, searchPattern, status, sortKey, sortBy).stream()
-        .map(converter::toDomain)
-        .toList();
-  }
-
-  @Override
-  public long countAll(String searchPattern, String status) {
-    return mapper.countAll(searchPattern, status);
+  public boolean existsByCode(String code, AggregateId excludedOrganizationId) {
+    if (code == null || code.isBlank()) return false;
+    return mapper.existsByCode(
+        code, excludedOrganizationId == null ? null : excludedOrganizationId.value());
   }
 
   @Override

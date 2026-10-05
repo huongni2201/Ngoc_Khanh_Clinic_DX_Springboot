@@ -39,14 +39,13 @@ class SessionAdaptersTest {
   }
 
   @Test
-  void jwtKeepsScopedRolesAndRejectsTamperingAndExpiry() {
+  void jwtKeepsAccountRoleGrantsAndRejectsTamperingAndExpiry() {
     Instant now = Instant.parse("2026-09-28T00:00:00Z");
     String key = Base64.getEncoder().encodeToString(new byte[32]);
     var codec = new ServerJwtTokens(jwtSettings(key), settings(), Clock.fixed(now, ZoneOffset.UTC));
     UUID user = UUID.randomUUID();
     var role =
-        new RoleAssignment(
-            UUID.randomUUID(), "DOCTOR", List.of("READ"), UUID.randomUUID(), null, now, null);
+        new RoleAssignment(UUID.randomUUID(), "DOCTOR", List.of("READ"), UUID.randomUUID(), now);
     var claims =
         new SessionTokens.Claims(
             user,

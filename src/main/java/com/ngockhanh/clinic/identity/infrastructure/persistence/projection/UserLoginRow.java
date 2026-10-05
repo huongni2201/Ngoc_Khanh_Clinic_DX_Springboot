@@ -3,16 +3,16 @@ package com.ngockhanh.clinic.identity.infrastructure.persistence.projection;
 import java.util.UUID;
 
 public record UserLoginRow(
-    UUID userId,
-    UUID staffId,
+    UUID accountId,
+    UUID staffMemberId,
     UUID patientId,
     String username,
-    String password,
+    String passwordHash,
     String status,
-    String principalType,
-    boolean staffActive) {
+    String accountType,
+    String staffStatus) {
   @Override
   public String toString() {
-    return "UserLoginRow[userId=" + userId + "]";
+    return "UserLoginRow[accountId=" + accountId + "]";
   }
 }

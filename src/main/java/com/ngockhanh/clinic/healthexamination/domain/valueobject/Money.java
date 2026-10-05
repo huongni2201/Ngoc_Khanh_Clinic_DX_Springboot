@@ -7,7 +7,7 @@ public record Money(BigDecimal amount, String currency) {
     if (amount == null
         || amount.signum() < 0
         || amount.scale() > 2
-        || (long) amount.precision() - amount.scale() > 16
+        || (long) amount.precision() - amount.scale() > 12
         || !"VND".equals(currency)) {
       throw new IllegalArgumentException("Invalid corporate price");
     }

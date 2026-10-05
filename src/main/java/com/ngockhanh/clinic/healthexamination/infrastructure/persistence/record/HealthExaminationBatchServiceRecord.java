@@ -6,14 +6,12 @@ import java.util.UUID;
 
 public record HealthExaminationBatchServiceRecord(
     UUID id,
-    UUID healthExaminationBatchId,
+    UUID batchId,
     UUID serviceId,
-    UUID documentTemplateVersionId,
-    String serviceCodeSnapshot,
-    String serviceNameSnapshot,
-    BigDecimal negotiatedUnitPrice,
-    String currency,
-    Integer displayOrder,
-    String status,
+    BigDecimal referencePriceSnapshot,
+    BigDecimal negotiatedPrice,
+    int displayOrder,
+    boolean active,
     Instant createdAt,
-    Instant updatedAt) {}
+    Instant updatedAt,
+    long rowVersion) {}

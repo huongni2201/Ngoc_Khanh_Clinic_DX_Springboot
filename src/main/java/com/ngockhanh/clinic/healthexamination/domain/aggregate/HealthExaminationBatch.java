@@ -1,141 +1,41 @@
 package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
-import com.ngockhanh.clinic.healthexamination.domain.exception.BatchConfigurationLocked;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.BatchPriceRevision;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.ExaminationSite;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
-import java.time.Instant;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public final class HealthExaminationBatch {
   private final AggregateId id;
   private final AggregateId organizationId;
   private String code;
   private String name;
-  private String reason;
-  private String payerType;
   private ExaminationSite site;
-  private final AggregateId masterTemplateVersionId;
-  private LocalDate startDate;
-  private LocalDate endDate;
-  private final Map<AggregateId, HealthExaminationBatchService> services =
-      new java.util.LinkedHashMap<>();
-  private BatchStatus status = BatchStatus.DRAFT;
-  private Instant finalizedAt;
-  private Instant closedAt;
+  private List<HealthExaminationBatchDay> days;
+  private List<HealthExaminationBatchService> services;
+  private BatchStatus status;
+  private final long rowVersion;
 
   private HealthExaminationBatch(
       AggregateId id,
       AggregateId organizationId,
       String code,
+      String name,
       ExaminationSite site,
-      AggregateId masterTemplateVersionId,
-      LocalDate startDate,
-      LocalDate endDate) {
-    if (id == null
-        || organizationId == null
-        || code == null
-        || code.isBlank()
-        || site == null
-        || masterTemplateVersionId == null
-        || (startDate != null && endDate != null && startDate.isAfter(endDate))) {
-      throw new IllegalArgumentException("Invalid health-examination batch");
-    }
+      List<HealthExaminationBatchDay> days,
+      List<HealthExaminationBatchService> services,
+      BatchStatus status,
+      long rowVersion) {
+    if (id == null || organizationId == null || status == null || rowVersion < 0)
+      throw new IllegalArgumentException("Invalid batch");
     this.id = id;
     this.organizationId = organizationId;
-    this.code = code;
-    this.name = code;
-    this.site = site;
-    this.masterTemplateVersionId = masterTemplateVersionId;
-    this.startDate = startDate;
-    this.endDate = endDate;
-  }
-
-  public static HealthExaminationBatch create(
-      AggregateId id,
-      AggregateId organizationId,
-      String code,
-      ExaminationSite site,
-      AggregateId masterTemplateVersionId) {
-    return create(id, organizationId, code, site, masterTemplateVersionId, null, null);
-  }
-
-  public static HealthExaminationBatch create(
-      AggregateId id,
-      AggregateId organizationId,
-      String code,
-      ExaminationSite site,
-      AggregateId masterTemplateVersionId,
-      LocalDate startDate,
-      LocalDate endDate) {
-    return new HealthExaminationBatch(
-        id, organizationId, code, site, masterTemplateVersionId, startDate, endDate);
-  }
-
-  public static HealthExaminationBatch restore(
-      AggregateId id,
-      AggregateId organizationId,
-      String code,
-      ExaminationSite site,
-      AggregateId masterTemplateVersionId,
-      LocalDate startDate,
-      LocalDate endDate,
-      BatchStatus status,
-      List<HealthExaminationBatchService> services) {
-    return restore(
-        id,
-        organizationId,
-        code,
-        site,
-        masterTemplateVersionId,
-        startDate,
-        endDate,
-        status,
-        services,
-        null,
-        null);
-  }
-
-  public static HealthExaminationBatch restore(
-      AggregateId id,
-      AggregateId organizationId,
-      String code,
-      ExaminationSite site,
-      AggregateId masterTemplateVersionId,
-      LocalDate startDate,
-      LocalDate endDate,
-      BatchStatus status,
-      List<HealthExaminationBatchService> services,
-      Instant finalizedAt,
-      Instant closedAt) {
-    if (status == null || services == null)
-      throw new IllegalArgumentException("Incomplete persisted batch");
-    if ((status == BatchStatus.FINALIZED || status == BatchStatus.CLOSED) != (finalizedAt != null)
-        || (status == BatchStatus.CLOSED) != (closedAt != null)) {
-      throw new IllegalArgumentException(
-          "Persisted batch lifecycle timestamps do not match status");
-    }
-    HealthExaminationBatch batch =
-        new HealthExaminationBatch(
-            id, organizationId, code, site, masterTemplateVersionId, startDate, endDate);
-    for (HealthExaminationBatchService service : services) batch.attachService(service);
-    if (status != BatchStatus.DRAFT
-        && status != BatchStatus.CANCELED
-        && status != BatchStatus.DELETED
-        && services.isEmpty()) {
-      throw new IllegalArgumentException("Persisted batch has no service scope");
-    }
-    batch.status = status;
-    batch.finalizedAt = finalizedAt;
-    batch.closedAt = closedAt;
-    return batch;
+    this.status = status;
+    this.rowVersion = rowVersion;
+    configure(code, name, site, days, services);
   }
 
   public static HealthExaminationBatch createDraft(
@@ -143,16 +43,11 @@ public final class HealthExaminationBatch {
       AggregateId organizationId,
       String code,
       String name,
-      LocalDate startDate,
-      LocalDate endDate,
-      String reason,
-      String payerType,
       ExaminationSite site,
-      AggregateId templateId,
+      List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services) {
-    HealthExaminationBatch batch = create(id, organizationId, code, site, templateId);
-    batch.updateDraft(code, name, startDate, endDate, reason, payerType, site, services);
-    return batch;
+    return new HealthExaminationBatch(
+        id, organizationId, code, name, site, days, services, BatchStatus.DRAFT, 0);
   }
 
   public static HealthExaminationBatch restoreConfiguration(
@@ -160,196 +55,79 @@ public final class HealthExaminationBatch {
       AggregateId organizationId,
       String code,
       String name,
-      LocalDate startDate,
-      LocalDate endDate,
-      String reason,
-      String payerType,
       ExaminationSite site,
-      AggregateId templateId,
-      BatchStatus status,
+      List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services,
-      Instant finalizedAt,
-      Instant closedAt) {
-    validateDetails(code, name, startDate, endDate, site);
-    if ((reason != null && reason.length() > 300) || (payerType != null && payerType.length() > 24))
-      throw new IllegalArgumentException("Invalid batch details");
-    HealthExaminationBatch batch =
-        restore(
-            id,
-            organizationId,
-            code,
-            site,
-            templateId,
-            startDate,
-            endDate,
-            status,
-            services,
-            finalizedAt,
-            closedAt);
-    batch.name = name;
-    batch.reason = reason;
-    batch.payerType = payerType;
-    return batch;
+      BatchStatus status,
+      long rowVersion) {
+    return new HealthExaminationBatch(
+        id, organizationId, code, name, site, days, services, status, rowVersion);
   }
 
-  public void updateDraft(
+  private void configure(
       String code,
       String name,
-      LocalDate startDate,
-      LocalDate endDate,
-      String reason,
-      String payerType,
       ExaminationSite site,
-      List<HealthExaminationBatchService> desired) {
-    if (status != BatchStatus.DRAFT) throw new BatchConfigurationLocked();
-    validateDetails(code, name, startDate, endDate, site);
-    if ((reason != null && reason.length() > 300) || (payerType != null && payerType.length() > 24))
-      throw new IllegalArgumentException("Invalid batch details");
-    if (desired == null || desired.isEmpty())
-      throw new DomainRuleViolation("Batch needs service scope");
-    Map<AggregateId, HealthExaminationBatchService> replacement = new java.util.LinkedHashMap<>();
-    java.util.Set<AggregateId> catalogIds = new java.util.HashSet<>();
-    for (HealthExaminationBatchService service : desired) {
-      if (service == null
-          || !id.equals(service.batchId())
-          || replacement.putIfAbsent(service.id(), service) != null
-          || !catalogIds.add(service.serviceId())) {
-        throw new DomainRuleViolation("Invalid or duplicate batch service");
-      }
-    }
-    this.code = code.trim();
-    this.name = name.trim();
-    this.reason = reason;
-    this.payerType = payerType;
-    this.startDate = startDate;
-    this.endDate = endDate;
-    this.site = site;
-    services.clear();
-    services.putAll(replacement);
-  }
-
-  private static void validateDetails(
-      String code, String name, LocalDate start, LocalDate end, ExaminationSite site) {
+      List<HealthExaminationBatchDay> days,
+      List<HealthExaminationBatchService> services) {
     if (code == null
         || code.isBlank()
-        || code.trim().length() > 40
+        || code.trim().length() > 50
         || name == null
         || name.isBlank()
-        || name.trim().length() > 250
+        || name.trim().length() > 300
         || site == null
-        || (start != null && end != null && start.isAfter(end))) {
-      throw new IllegalArgumentException("Invalid batch configuration");
-    }
-  }
-
-  public void deleteDraft() {
-    if (status != BatchStatus.DRAFT) throw new BatchConfigurationLocked();
-    status = BatchStatus.DELETED;
-  }
-
-  public String name() {
-    return name;
-  }
-
-  public String reason() {
-    return reason;
-  }
-
-  public String payerType() {
-    return payerType;
-  }
-
-  public void addService(HealthExaminationBatchService service) {
-    if (status != BatchStatus.DRAFT) throw new BatchConfigurationLocked();
-    attachService(service);
-  }
-
-  private void attachService(HealthExaminationBatchService service) {
-    if (service == null || !Objects.equals(service.batchId(), id)) {
-      throw new IllegalArgumentException("Service outside batch");
-    }
-    if (services.containsKey(service.id())
-        || services.values().stream()
-            .anyMatch(existing -> Objects.equals(existing.serviceId(), service.serviceId()))) {
-      throw new DomainRuleViolation("Duplicate batch service");
-    }
-    services.put(service.id(), service);
+        || days == null
+        || days.isEmpty()) throw new IllegalArgumentException("Invalid batch configuration");
+    Set<UUID> dayIds = new HashSet<>();
+    Set<LocalDate> dates = new HashSet<>();
+    for (var day : days)
+      if (day == null || !dayIds.add(day.id()) || !dates.add(day.examinationDate()))
+        throw new IllegalArgumentException("Duplicate batch day");
+    if (services == null || services.isEmpty())
+      throw new DomainRuleViolation("Batch needs service scope");
+    Set<AggregateId> ids = new HashSet<>();
+    Set<AggregateId> catalogIds = new HashSet<>();
+    Set<Integer> orders = new HashSet<>();
+    for (var service : services)
+      if (service == null
+          || !id.equals(service.batchId())
+          || !ids.add(service.id())
+          || !catalogIds.add(service.serviceId())
+          || !orders.add(service.displayOrder()))
+        throw new DomainRuleViolation("Invalid or duplicate batch service");
+    this.code = code.trim();
+    this.name = name.trim();
+    this.site = site;
+    this.days =
+        days.stream()
+            .sorted(
+                Comparator.comparing(HealthExaminationBatchDay::examinationDate)
+                    .thenComparing(HealthExaminationBatchDay::id))
+            .toList();
+    this.services =
+        services.stream()
+            .sorted(
+                Comparator.comparingInt(HealthExaminationBatchService::displayOrder)
+                    .thenComparing(s -> s.id().value()))
+            .toList();
   }
 
   public void markReady() {
-    if (status != BatchStatus.DRAFT) throw new DomainRuleViolation("Batch cannot become READY");
-    if (services.isEmpty()) throw new DomainRuleViolation("Batch needs service scope");
-    if (site.type()
-            == com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType.COMPANY
-        && (site.address() == null || site.address().isBlank())) {
-      throw new DomainRuleViolation("Company examination address is required before readiness");
-    }
-    status = BatchStatus.READY;
+    transition(BatchStatus.DRAFT, BatchStatus.READY);
   }
 
-  public BatchPriceRevision repriceService(AggregateId batchServiceId, Money price, String reason) {
-    if (reason == null || reason.isBlank())
-      throw new IllegalArgumentException("Repricing requires reason");
-    if (status == BatchStatus.FINALIZED
-        || status == BatchStatus.CLOSED
-        || status == BatchStatus.CANCELED
-        || status == BatchStatus.DELETED) {
-      throw new DomainRuleViolation("Batch must be reopened before repricing");
-    }
-    HealthExaminationBatchService service = services.get(batchServiceId);
-    if (service == null) throw new IllegalArgumentException("Unknown batch service");
-    BatchPriceRevision revision =
-        new BatchPriceRevision(id, batchServiceId, service.negotiatedPrice(), price, reason);
-    services.put(batchServiceId, service.withNegotiatedPrice(price));
-    return revision;
+  public void finalizeBatch() {
+    transition(BatchStatus.READY, BatchStatus.FINALIZED);
   }
 
-  public void start() {
-    transition(BatchStatus.READY, BatchStatus.IN_PROGRESS);
-  }
-
-  public void startResultProcessing() {
-    transition(BatchStatus.IN_PROGRESS, BatchStatus.RESULT_PROCESSING);
-  }
-
-  public void finalizeBatch(Instant finalizedAt) {
-    if (finalizedAt == null) throw new IllegalArgumentException("Missing finalization timestamp");
-    transition(BatchStatus.RESULT_PROCESSING, BatchStatus.FINALIZED);
-    this.finalizedAt = finalizedAt;
-  }
-
-  public void close(Instant closedAt) {
-    if (closedAt == null) throw new IllegalArgumentException("Missing close timestamp");
+  public void close() {
     transition(BatchStatus.FINALIZED, BatchStatus.CLOSED);
-    this.closedAt = closedAt;
-  }
-
-  public void cancel(String reason) {
-    if (reason == null || reason.isBlank())
-      throw new IllegalArgumentException("Cancellation requires reason");
-    if (status != BatchStatus.DRAFT
-        && status != BatchStatus.READY
-        && status != BatchStatus.IN_PROGRESS
-        && status != BatchStatus.RESULT_PROCESSING) {
-      throw new DomainRuleViolation("Batch cannot be canceled from its current state");
-    }
-    status = BatchStatus.CANCELED;
   }
 
   private void transition(BatchStatus expected, BatchStatus next) {
     if (status != expected) throw new DomainRuleViolation("Invalid batch transition");
     status = next;
-  }
-
-  public void reopenForRepricing(String reason) {
-    if (reason == null || reason.isBlank())
-      throw new IllegalArgumentException("Reopen requires reason");
-    if (status != BatchStatus.FINALIZED && status != BatchStatus.CLOSED) {
-      throw new DomainRuleViolation("Only finalized or closed batch may reopen for repricing");
-    }
-    status = BatchStatus.RESULT_PROCESSING;
-    finalizedAt = null;
-    closedAt = null;
   }
 
   public AggregateId id() {
@@ -364,39 +142,39 @@ public final class HealthExaminationBatch {
     return code;
   }
 
+  public String name() {
+    return name;
+  }
+
   public ExaminationSite site() {
     return site;
   }
 
-  public AggregateId masterTemplateVersionId() {
-    return masterTemplateVersionId;
+  public List<HealthExaminationBatchDay> days() {
+    return days;
   }
 
   public LocalDate startDate() {
-    return startDate;
+    return days.getFirst().examinationDate();
   }
 
   public LocalDate endDate() {
-    return endDate;
+    return days.getLast().examinationDate();
+  }
+
+  public List<HealthExaminationBatchService> services() {
+    return services;
+  }
+
+  public HealthExaminationBatchService service(AggregateId serviceId) {
+    return services.stream().filter(s -> s.id().equals(serviceId)).findFirst().orElse(null);
   }
 
   public BatchStatus status() {
     return status;
   }
 
-  public Instant finalizedAt() {
-    return finalizedAt;
-  }
-
-  public Instant closedAt() {
-    return closedAt;
-  }
-
-  public List<HealthExaminationBatchService> services() {
-    return List.copyOf(services.values());
-  }
-
-  public HealthExaminationBatchService service(AggregateId batchServiceId) {
-    return services.get(batchServiceId);
+  public long rowVersion() {
+    return rowVersion;
   }
 }

@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.identity.application.usecase;
 
+import com.ngockhanh.clinic.audit.application.port.AuthAudit;
 import com.ngockhanh.clinic.identity.application.command.LoginCommand;
 import com.ngockhanh.clinic.identity.application.exception.AuthenticationFailure;
 import com.ngockhanh.clinic.identity.application.port.LoginThrottle;
@@ -12,7 +13,6 @@ import com.ngockhanh.clinic.identity.application.response.UserSessionResponse;
 import com.ngockhanh.clinic.identity.domain.entity.UserAccount;
 import com.ngockhanh.clinic.identity.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.identity.domain.valueobject.SessionPolicy;
-import com.ngockhanh.clinic.shared.audit.AuthAudit;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -74,7 +74,7 @@ public class LoginUseCase {
     String password = command.password();
     if (username == null
         || username.strip().isEmpty()
-        || username.strip().length() > 200
+        || username.strip().length() > 150
         || password == null
         || password.isEmpty()
         || password.getBytes(StandardCharsets.UTF_8).length > 72) {
@@ -94,11 +94,11 @@ public class LoginUseCase {
     UserAccount account =
         accountSnapshotTransaction.execute(status -> accounts.find(normalizedUsername, now));
     boolean passwordMatches =
-        passwords.matches(password, account == null ? null : account.password());
+        passwords.matches(password, account == null ? null : account.passwordHash());
     if (!passwordMatches
         || account == null
         || !account.eligible()
-        || !account.userId().equals(userId)) {
+        || !account.accountId().equals(userId)) {
       failedAttempt(normalizedUsername);
       log.info("User login rejected correlationId={}", command.correlationId());
       throw AuthenticationFailure.invalid();
@@ -107,10 +107,10 @@ public class LoginUseCase {
     var claims =
         new SessionTokens.Claims(
             userId,
-            account.staffId(),
+            account.staffMemberId(),
             account.patientId(),
             account.username(),
-            account.principalType(),
+            account.accountType(),
             UUID.randomUUID(),
             now,
             now.plus(sessionPolicy.absoluteTimeout()),
@@ -145,10 +145,9 @@ public class LoginUseCase {
                   claims.principalType(),
                   claims.roles(),
                   idleDeadline,
-                  claims.expiresAt(),
-                  clock.instant()));
+                  claims.expiresAt()));
       log.info("User login completed userId={} correlationId={}", userId, command.correlationId());
-      return new LoginResult(sessionId, response);
+      return LoginResult.builder().sessionId(sessionId).response(response).build();
     } catch (RuntimeException failure) {
       log.error(
           "User login could not complete correlationId={} failureType={}",
@@ -202,10 +201,10 @@ public class LoginUseCase {
     log.debug("Recording user login audit userId={} correlationId={}", userId, correlationId);
     accountWriteTransaction.executeWithoutResult(
         status -> {
-          if (accounts.recordLogin(userId, now) != 1) {
+          if (!accounts.lockEligibleAccount(userId)) {
             throw AuthenticationFailure.invalid();
           }
-          audit.record(userId, "USER_LOGIN", now, correlationId);
+          audit.record(userId, "ACCOUNT_LOGIN", now, correlationId);
         });
   }
 

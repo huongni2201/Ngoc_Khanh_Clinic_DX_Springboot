@@ -1,415 +1,112 @@
 # Ngọc Khánh Clinic Backend — Project Skills Guide
 
-This backend should keep a focused skill set aligned with:
+Use skills only when their workflow fits the current task and repository stack.
+Read a selected skill's `SKILL.md` before applying it. Project rules and accepted
+ADRs override generic examples; a skill cannot authorize a business-contract change.
 
-```text
-Java 25
-Spring Boot 4
-PostgreSQL 18
-MyBatis
-DDD
-Modular Monolith
+## Start with the task
+
+1. Read `PROJECT_RULES.md`, this guide, relevant ADRs and architecture sections.
+2. Identify the owning module, supported behavior and verifiable acceptance criteria.
+3. Select the smallest relevant set of skills from the table below. This is a
+   routing guide, not a checklist requiring every skill on every change.
+4. Inspect current code and callers, implement the authorized change, and run the
+   checks required by `PROJECT_RULES.md` and the affected architecture contracts.
+5. Report actual evidence, skipped/failed checks and unresolved requirements.
+
+When `.codegraph/` exists, use CodeGraph first to locate/understand code. Use
+Context7 for current library/API/configuration questions as directed by AGENTS;
+ordinary domain reasoning, refactoring and rule review do not need a library lookup.
+Existing code and generated examples never override the clean-slate contract.
+
+## Skills by task
+
+| Task | Relevant skills | Project-specific boundary |
+|---|---|---|
+| Focused implementation/refactoring | `karpathy-guidelines`, `codebase-design` when changing a seam | Keep the smallest cohesive change; preserve explicit ports and required DTO boundaries. |
+| Domain or workflow change | `domain-modeling`; `architecture-patterns` when layering changes | Read ADR-0013 and current workflows; retain Participant terminology. |
+| Long-lived architecture decision | `architecture-decision-records` | ADRs cover lasting decisions, not routine class/method extraction. |
+| REST contract design | `api-design-principles` | Versioned REST; no invented fields, permissions, statuses or GraphQL. |
+| PostgreSQL schema/query work | `postgresql-table-design`, `sql-optimization-patterns` as relevant | PostgreSQL 18 + MyBatis, approved schema, Flyway, actual integration tests. |
+| Error mapping/integration failure | `error-handling-patterns` | Preserve safe error categories and root causes; no catch-all successful responses. |
+| Bug diagnosis | `diagnosing-bugs` | Trace root cause and supported callers before changing behavior. |
+| Test-first business change | `tdd` | Cover business outcomes, invariants, authorization and required retry/concurrency behavior. |
+| Diff/PR review | `code-review` when base and specification are available | Review standards and specification; do not mislabel a diff review as a whole-repo audit. |
+| Explicit threat-model request | `security-threat-model` | Use its actual supported workflow; security-relevant work alone does not invoke a full threat model. |
+| Agent-facing rules/docs | `writing-for-agents` when available | Keep one owning policy and links; remove contradictions and stale pointers. |
+| Code formatting | `codefmt` when available | Scope to changed files and the configured formatter; do not reformat unrelated work. |
+
+For Java/Spring security review, use the current
+[API/security architecture](docs/architecture/05-api-and-security.md), accepted
+ADRs, current official documentation when API facts are needed, and authorization
+tests. Review patient access, permission checks, CSRF/session behavior, safe errors,
+logging and audit according to the actual supported contract.
+
+## Compatibility and availability
+
+Project-local copies under `.agents/skills/` were recorded on 2026-09-24:
+`architecture-decision-records`, `architecture-patterns`, `codebase-design`,
+`domain-modeling`, `api-design-principles`, `diagnosing-bugs`, `tdd`, and
+`karpathy-guidelines`. These are local copies, not a latest-release claim.
+`error-handling-patterns` was recorded in the parent workspace's `.agents/skills/`;
+check availability when working outside that workspace. Check the active skill
+catalog before selecting optional skills; do not install tools just to satisfy
+this guide.
+
+| Capability | Restriction / supported alternative |
+|---|---|
+| `run-tests` | The available skill targets Gradle. Use this repository's Maven wrapper directly; do not apply its Gradle commands. |
+| `coverage` | Check the installed skill's build-tool support and project configuration first; do not apply Gradle recipes or add a plugin merely to obtain a percentage. |
+| `security-best-practices` | The available skill supports Python, JavaScript/TypeScript and Go, not Java/Spring. Use the security-review route above. |
+| `setup-pre-commit` | Its Node/Husky workflow is not the backend default. Use existing Java/Maven checks; hooks are optional work requiring a concrete request. |
+| CRUD/JPA/mapper generators | Do not introduce JPA/Hibernate or generic CRUD scaffolding. MyBatis adapters and domain ports follow the approved architecture. |
+| Simplification skills | Removing ceremony does not authorize removing repository/external ports, authorization, audit, transactions or tests. A boundary may have one implementation. |
+| Frontend/Python/backend platform skills | Do not apply unrelated stacks to this backend. |
+
+## Review focus
+
+For an affected flow, check:
+
+- domain/module boundaries, published cross-module contracts and mapper isolation;
+- the owner of validation, authorization, transaction, audit and concurrency rules;
+- SQL/schema compatibility, bounded queries and absence of N+1 behavior;
+- [application Javadoc](PROJECT_RULES.md#application-comments-and-javadoc) and
+  [logging](PROJECT_RULES.md#27-logging), including safe fields and commit wording;
+- observable tests, supported callers and public API documentation;
+- the focused diff, preserved worktree changes and actual verification evidence.
+
+The [2026-10-04 migration review](docs/reviews/2026-10-04-clean-slate-migration-review.md)
+is a dated record of findings and checks, not proof of current implementation
+status. Recheck a finding against the current tree before acting on it.
+
+## Verification
+
+Use the Maven wrapper, following the current required checks in
+[PROJECT_RULES.md](PROJECT_RULES.md#36-definition-of-done):
+
+```powershell
+.\mvnw.cmd test
+.\mvnw.cmd verify
 ```
 
-Repository rules and accepted ADRs override generic skill examples.
+For removed/moved classes or mapper resources, follow the clean-output guidance
+in [testing and operations](docs/architecture/06-testing-and-operations.md).
+PostgreSQL/MyBatis integration needs PostgreSQL 18 Testcontainers; relevant
+identity integration also needs Redis. Report skips/environment failures explicitly.
+Use existing coverage facilities when requested to identify missing behavioral
+coverage; a percentage does not replace critical workflow tests.
 
-Before using a skill, read its `SKILL.md`.
-
-## Installed skills and compatibility (2026-09-24)
-
-Project-local copies are installed under `.agents/skills/`: `architecture-decision-records`,
-`architecture-patterns`, `codebase-design`, `domain-modeling`, `api-design-principles`,
-`diagnosing-bugs`, `tdd`, and `karpathy-guidelines`. They were copied from the existing local
-Codex installation, including supporting files; no upstream version or latest-release claim is
-made.
-`error-handling-patterns` already exists in the parent workspace's `.agents/skills/`.
-That inherited skill must be installed separately when using this backend outside that workspace.
-
-The sections below describe desired capabilities, not a guarantee that every named
-skill supports this stack. Apply these compatibility restrictions:
-
-- The currently available `run-tests` skill targets Gradle. Run this project's Maven
-  wrapper directly (`.\mvnw.cmd test` and `.\mvnw.cmd verify` on Windows); do not use
-  that skill to select build commands for this repository.
-- The currently available `security-best-practices` skill supports Python,
-  JavaScript/TypeScript, and Go, not Java/Spring. It is not the Spring Security
-  review implementation advertised below; use project security requirements and
-  current official documentation for that work.
-- Use `postgresql-table-design` for this PostgreSQL backend. Generic SQL skill examples still require dialect review before use.
-- `setup-pre-commit` is not installed here; do not add its Node/Husky toolchain
-  solely to implement backend checks.
-- Generic architecture/API examples do not authorize Python, GraphQL,
-  microservices, or additional frameworks in this project.
-- `code-review` is a diff review workflow requiring a base and a specification;
-  it is not an unconditional whole-repository architecture audit.
-
-See [the architecture review](docs/reviews/2026-09-22-backend-review.md) for the
-current implementation gaps and verification results.
-
----
-
-## 1. Recommended Skills
-
-Recommended local/backend skills:
+## Suggested task prompt
 
 ```text
-architecture-decision-records
-architecture-patterns
-code-review
-codebase-design
-diagnosing-bugs
-karpathy-guidelines
-domain-modeling
-error-handling-patterns
-security-best-practices
-security-threat-model
-sql-optimization-patterns
-tdd
-run-tests
-setup-pre-commit
-```
-
-If available and appropriate:
-
-```text
-api-design-principles
-coverage
-postgresql-table-design
-```
-
-Apply PostgreSQL-specific DDL guidance when consistent with the clinic's documented business schema; SQL must remain PostgreSQL 18 compatible.
-
----
-
-## 2. Domain / Architecture
-
-### `domain-modeling`
-
-Use for:
-
-```text
-aggregate boundaries
-entities/value objects
-invariants
-domain services
-domain events
-bounded contexts
-ubiquitous language
-```
-
-Business source-of-truth documents override generic DDD examples.
-
-### `architecture-patterns`
-
-Use for:
-
-```text
-layer boundaries
-ports/adapters
-modular monolith structure
-dependency direction
-event-driven decoupling
-outbox pattern
-```
-
-Do not use this skill as justification to split the system into microservices.
-
-### `codebase-design`
-
-Use for:
-
-```text
-package structure
-module ownership
-public/internal contracts
-refactoring boundaries
-dependency cleanup
-```
-
-### `architecture-decision-records`
-
-Use only for decisions with long-term architectural impact.
-
----
-
-## 3. API
-
-### `api-design-principles`
-
-Use for:
-
-```text
-REST resources
-HTTP semantics
-pagination
-idempotency
-error contracts
-API versioning
-```
-
-Do not invent backend fields or business actions not present in requirements.
-
----
-
-## 4. SQL / MyBatis
-
-### `sql-optimization-patterns`
-
-Use for:
-
-```text
-index review
-query plans
-pagination
-N+1 detection
-batch operations
-join/query optimization
-```
-
-All generated SQL must be reviewed for PostgreSQL 18 compatibility.
-
-Project persistence is MyBatis, not JPA.
-
-No skill may introduce Hibernate/JPA unless the project stack is intentionally changed through ADR.
-
----
-
-## 5. Error Handling
-
-### `error-handling-patterns`
-
-Use for:
-
-```text
-domain errors
-application errors
-API exception mapping
-integration failures
-retry-safe behavior
-concurrency conflicts
-```
-
-Do not convert all exceptions into generic HTTP 500 or HTTP 200 wrappers.
-
----
-
-## 6. Security
-
-### `security-best-practices`
-
-Use for:
-
-```text
-Spring Security
-RBAC/permissions
-secret handling
-sensitive logging
-input validation
-API authorization
-healthcare-data protection
-```
-
-### `security-threat-model`
-
-Use when adding:
-
-```text
-authentication
-patient portal
-file upload/download
-payment callbacks
-SMS/integration callbacks
-admin functions
-external integrations
-```
-
----
-
-## 7. Testing
-
-### `tdd`
-
-Use for business rules with clear deterministic behavior, especially:
-
-```text
-`identification_number` uniqueness (CCCD)
-health-examination record lifecycle (age is not a backend eligibility rule; see ADR-0010)
-employee import validation
-doctor-only service selection
-batch-service subset rule
-payment gate
-ServiceRequest lifecycle
-result finalization
-idempotency
-```
-
-### `run-tests`
-
-Use before completion to run actual configured Maven tests.
-
-### `coverage`
-
-Use to find meaningful missing coverage, not to chase a percentage mechanically.
-
----
-
-## 8. Debugging / Review
-
-### `diagnosing-bugs`
-
-Use when:
-
-```text
-MyBatis mapping fails
-transaction behavior is unexpected
-PostgreSQL constraint errors occur
-Spring context fails
-module boundary tests fail
-workflow behavior differs from requirements
-```
-
-Find root cause before patching symptoms.
-
-### `karpathy-guidelines`
-
-Use when writing, reviewing, or refactoring code to keep changes focused, avoid speculative
-abstractions, surface assumptions, and define verifiable completion criteria. Project rules
-and accepted ADRs remain authoritative.
-
-### `code-review`
-
-Use after meaningful feature/refactor work.
-
-Review specifically for:
-
-```text
-DDD boundary leaks
-controller business logic
-mapper leakage
-cross-module persistence access
-transaction scope
-SQL injection risks
-missing indexes
-sensitive logging
-missing audit
-test gaps
-```
-
----
-
-## 9. Pre-commit
-
-### `setup-pre-commit`
-
-Use for lightweight repository checks.
-
-Adapt examples to Maven/Java.
-
-Do not introduce Node/pnpm tooling into the backend repository just for pre-commit hooks unless already justified.
-
----
-
-## 10. Skills by Task
-
-### New Domain Module
-
-```text
-domain-modeling
-architecture-patterns
-codebase-design
-tdd
-code-review
-```
-
-### New REST API
-
-```text
-api-design-principles
-error-handling-patterns
-security-best-practices
-tdd
-```
-
-### New MyBatis Repository / Query
-
-```text
-sql-optimization-patterns
-tdd
-code-review
-```
-
-### Health Check Workflow
-
-```text
-domain-modeling
-architecture-patterns
-tdd
-security-best-practices
-code-review
-```
-
-### Payment / External Callback
-
-```text
-security-threat-model
-security-best-practices
-error-handling-patterns
-architecture-patterns
-tdd
-```
-
-### Bug Fix
-
-```text
-diagnosing-bugs
-tdd
-code-review
-```
-
-### Architecture Change
-
-```text
-architecture-decision-records
-architecture-patterns
-codebase-design
-code-review
-```
-
----
-
-## 11. Skills Not Appropriate by Default
-
-Do not use frontend-specific skills for backend implementation:
-
-```text
-frontend-design
-ui-styling
-ui-ux-pro-max
-tailwind-design-system
-react-state-management
-javascript-testing-patterns
-web-design-guidelines
-```
-
-Do not use Python backend/async skills.
-
-Do not use JPA/MapStruct CRUD generators as the default architecture.
-
----
-
-## 12. Suggested Agent Prompt
-
-```text
-Read AGENTS.md, PROJECT_RULES.md, PROJECT_SKILLS.md, relevant ADRs, and the current requirement/use-case/table-design documents first.
-
-Use Java 25 + Spring Boot 4 + PostgreSQL 18 + MyBatis.
-Keep DDD modular-monolith boundaries.
-Do not use JPA/Hibernate.
-Domain models must not be MyBatis persistence records.
-Do not access another module's mapper/repository implementation.
-Do not invent business rules, statuses, tables, permissions, or API fields.
-Use Flyway for every schema change.
-Use PostgreSQL 18 Testcontainers for persistence integration tests.
-Run ./mvnw test and ./mvnw verify before claiming completion.
-Report changed modules, migrations, public API changes, tests run, assumptions, and remaining risks.
+Read AGENTS.md, PROJECT_RULES.md, PROJECT_SKILLS.md, relevant accepted ADRs and
+current architecture/contracts for this task. Identify the owning module and
+acceptance criteria, inspect existing code/callers, then make the smallest cohesive
+change. Preserve Java 25 / Spring Boot 4 / PostgreSQL 18 / MyBatis and module boundaries.
+Use wrapper scalar types and List<T>/ArrayList<T> for ordered business collections,
+following PROJECT_RULES.md's null-safety and technical exceptions.
+Apply application Javadoc and safe logging rules to changed use cases. Preserve
+unrelated worktree changes. Do not invent business contracts or add speculative
+abstractions/files. Run required checks and report changed files/modules, API and
+migration impact, tests actually run, unresolved conflicts and remaining risks.
 ```

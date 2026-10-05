@@ -1,16 +1,8 @@
 package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
+import java.time.Instant;
 import java.util.UUID;
 
-import java.time.Instant;
-
+/** Persistence row of {@code public.service_template_mappings}. */
 public record ServiceTemplateMappingRecord(
-        UUID id,
-        UUID serviceId,
-        UUID documentTemplateId,
-        Integer displayOrder,
-        Boolean isActive,
-        Instant createdAt,
-        Instant updatedAt
-) {
-}
+    UUID id, UUID serviceId, UUID templateId, Instant activeFrom, Instant retiredAt) {}

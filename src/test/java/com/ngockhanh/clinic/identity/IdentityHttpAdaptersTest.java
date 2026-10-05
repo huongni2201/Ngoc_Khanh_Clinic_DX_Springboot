@@ -1,15 +1,50 @@
 package com.ngockhanh.clinic.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ngockhanh.clinic.identity.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.identity.api.http.TrustedProxyClientIpResolver;
+import com.ngockhanh.clinic.identity.api.request.LoginRequest;
+import com.ngockhanh.clinic.identity.application.command.LoginCommand;
+import com.ngockhanh.clinic.identity.application.command.LogoutSessionCommand;
+import com.ngockhanh.clinic.identity.application.query.AuthenticateSessionQuery;
+import com.ngockhanh.clinic.identity.application.query.GetCsrfTokenQuery;
+import com.ngockhanh.clinic.identity.application.response.CsrfResponse;
+import com.ngockhanh.clinic.identity.application.response.LoginResult;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 class IdentityHttpAdaptersTest {
+  @Test
+  void loginBuilderPreservesDefensiveSessionCopy() {
+    List<String> sessionIds = new ArrayList<>(List.of("session-secret"));
+    var command = LoginCommand.builder().sessionIds(sessionIds).build();
+    sessionIds.clear();
+    assertThat(command.sessionIds()).containsExactly("session-secret");
+    assertThatThrownBy(() -> command.sessionIds().clear())
+        .isInstanceOf(UnsupportedOperationException.class);
+  }
+
+  @Test
+  void authenticationBuildersDoNotExposeCredentialsOrTokens() {
+    String secret = "sensitive-test-secret";
+    List<Object> builders =
+        List.of(
+            LoginRequest.builder().username(secret).password(secret),
+            LoginCommand.builder().username(secret).password(secret).sessionIds(List.of(secret)),
+            LogoutSessionCommand.builder().sessionIds(List.of(secret)),
+            AuthenticateSessionQuery.builder().sessionIds(List.of(secret)),
+            GetCsrfTokenQuery.builder().token(secret),
+            CsrfResponse.builder().token(secret),
+            LoginResult.builder().sessionId(secret));
+    assertThat(builders)
+        .allSatisfy(builder -> assertThat(builder.toString()).doesNotContain(secret));
+  }
+
   @Test
   void sessionCookieRetainsSecurityAttributesAndCanBeCleared() {
     var cookie = new SessionCookieFactory(true).create("opaque-id", Duration.ofHours(8));

@@ -18,7 +18,7 @@ public final class UserAccountPersistenceConverter {
         grants.stream()
             .collect(
                 Collectors.groupingBy(
-                    RoleGrantRow::assignmentId, LinkedHashMap::new, Collectors.toList()));
+                    RoleGrantRow::roleId, LinkedHashMap::new, Collectors.toList()));
     var roles = new ArrayList<RoleAssignment>();
     groups
         .values()
@@ -27,26 +27,24 @@ public final class UserAccountPersistenceConverter {
               var first = rows.getFirst();
               roles.add(
                   new RoleAssignment(
-                      first.assignmentId(),
+                      first.roleId(),
                       first.roleCode(),
                       rows.stream()
                           .map(RoleGrantRow::permissionCode)
                           .filter(Objects::nonNull)
                           .toList(),
-                      first.departmentId(),
-                      first.roomId(),
-                      first.validFrom(),
-                      first.validTo()));
+                      first.grantedBy(),
+                      first.grantedAt()));
             });
     return new UserAccount(
-        row.userId(),
-        row.staffId(),
+        row.accountId(),
+        row.staffMemberId(),
         row.patientId(),
         row.username(),
-        row.password(),
+        row.passwordHash(),
         row.status(),
-        row.principalType(),
-        row.staffActive(),
+        row.accountType(),
+        row.staffStatus(),
         roles);
   }
 }

@@ -1,12 +1,11 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.document.application.query.MasterHealthExaminationTemplateQuery;
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.repository.*;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.shared.audit.AuditWriter;
 import com.ngockhanh.clinic.shared.exception.*;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import java.util.UUID;
@@ -22,7 +21,6 @@ public class CreateHealthExaminationBatchUseCase {
   private final OrganizationRepository organizations;
   private final HealthExaminationBatchRepository batches;
   private final BatchDraftEditor editor;
-  private final MasterHealthExaminationTemplateQuery templates;
   private final AuditWriter audit;
 
   @Transactional
@@ -38,24 +36,15 @@ public class CreateHealthExaminationBatchUseCase {
     var c = command.configuration();
     var site = BatchDraftEditor.site(c);
     var id = new AggregateId(UuidV7Generator.generate());
-    var template =
-        templates
-            .findEffectiveVersion()
-            .orElseThrow(
-                () -> new BusinessRuleException("No effective master health-examination template"));
     var batch =
         HealthExaminationBatch.createDraft(
             id,
             org.id(),
             c.batchCode(),
             c.batchName(),
-            c.startDate(),
-            c.endDate(),
-            c.reason(),
-            c.payerType(),
             site,
-            new AggregateId(template),
-            editor.services(id, c.services(), java.util.List.of()));
+            editor.days(c.examinationDates()),
+            editor.services(id, c.services()));
     batches.insert(batch, command.createdBy());
     var result =
         BatchDetailResponse.from(
