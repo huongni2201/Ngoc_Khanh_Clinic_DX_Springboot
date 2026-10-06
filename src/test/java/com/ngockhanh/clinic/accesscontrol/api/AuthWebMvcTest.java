@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -199,6 +200,25 @@ class AuthWebMvcTest {
         .andExpect(status().isNoContent())
         .andExpect(header().string("Set-Cookie", containsString("Max-Age=0")));
     verify(logout).execute(argThat(command -> "sid".equals(command.sessionId())));
+  }
+
+  @Test
+  void corsPreflightAllowsOnlyConfiguredOriginWithCredentials() throws Exception {
+    mvc.perform(
+            options("/api/v1/auth/login")
+                .header("Origin", ORIGIN)
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "Content-Type"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN))
+        .andExpect(header().string("Access-Control-Allow-Credentials", "true"));
+
+    mvc.perform(
+            options("/api/v1/auth/login")
+                .header("Origin", "https://evil.test")
+                .header("Access-Control-Request-Method", "POST"))
+        .andExpect(status().isForbidden())
+        .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
   }
 
   @Test

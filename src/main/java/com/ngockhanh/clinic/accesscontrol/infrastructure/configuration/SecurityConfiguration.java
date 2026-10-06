@@ -9,23 +9,29 @@ import com.ngockhanh.clinic.accesscontrol.infrastructure.security.SessionCookieA
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.UserPasswordEncoder;
 import jakarta.servlet.DispatcherType;
 import java.time.Clock;
+import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * HTTP security: stateless session-cookie authentication, Origin checks for state-changing requests
- * and the default access rules (ADR-0014). Per-endpoint permission rules are added here with {@code
- * hasAuthority("PERM_<code>")}.
+ * HTTP security: stateless session-cookie authentication, CORS and Origin checks for the allowed
+ * frontend origins, and the default access rules (ADR-0014). Per-endpoint permission rules are
+ * added here with {@code hasAuthority("PERM_<code>")}.
  */
 @Configuration
 @EnableWebSecurity
@@ -41,7 +47,8 @@ public class SecurityConfiguration {
     var originCheck = new OriginCheckFilter(properties.allowedOrigins(), errors);
     var sessionAuthentication =
         new SessionCookieAuthenticationFilter(authenticateSession, properties.cookieName(), errors);
-    http.csrf(csrf -> csrf.disable())
+    http.cors(Customizer.withDefaults())
+        .csrf(csrf -> csrf.disable())
         .formLogin(form -> form.disable())
         .httpBasic(basic -> basic.disable())
         .logout(logout -> logout.disable())
@@ -66,6 +73,23 @@ public class SecurityConfiguration {
                     .anyRequest()
                     .denyAll());
     return http.build();
+  }
+
+  /**
+   * Lets the browser frontend on an allowed origin call the API with the session cookie. Uses the
+   * same allow-list as the Origin check; other origins get no CORS headers.
+   */
+  @Bean
+  CorsConfigurationSource corsConfigurationSource(AccessControlProperties properties) {
+    var cors = new CorsConfiguration();
+    cors.setAllowedOrigins(properties.allowedOrigins());
+    cors.setAllowCredentials(true);
+    cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+    cors.setAllowedHeaders(List.of("Content-Type", "Accept"));
+    cors.setMaxAge(Duration.ofHours(1));
+    var source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/api/**", cors);
+    return source;
   }
 
   @Bean

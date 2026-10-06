@@ -70,6 +70,8 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
   local HTTP; HttpOnly, SameSite=Lax, Path=/, no Domain.
 - POST/PUT/PATCH/DELETE require an `Origin` (or `Referer`) in the configured
   allow-list; otherwise 403. No Spring CSRF token is used.
+- CORS for `/api/**` uses the same allow-list with credentials, so the browser
+  frontend calls the backend directly (no proxy).
 - `Authorization: Bearer` is not accepted.
 
 ### Credentials

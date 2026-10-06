@@ -80,6 +80,11 @@ All errors use the `ApiResponse` error envelope with `Cache-Control: no-store`.
 | `clinic.auth.cookie-secure` | `NKC_AUTH_COOKIE_SECURE` | `true` (`false` in `local`) |
 | `clinic.auth.allowed-origins` | `NKC_AUTH_ALLOWED_ORIGINS` (comma-separated) | empty (`http://localhost:3000` in `local`) |
 
+The same origin list drives CORS for `/api/**`: allowed origins receive
+`Access-Control-Allow-Origin` and `Access-Control-Allow-Credentials: true` for
+methods GET, POST, PUT, PATCH, DELETE and headers `Content-Type`, `Accept`;
+other origins get no CORS headers (preflight 403).
+
 With an empty origin list every state-changing request, including sign-in, is
 rejected. Production must set `NKC_AUTH_ALLOWED_ORIGINS` and keep
 `NKC_AUTH_COOKIE_SECURE=true`.
