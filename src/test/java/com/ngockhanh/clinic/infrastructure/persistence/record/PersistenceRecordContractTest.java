@@ -75,12 +75,12 @@ class PersistenceRecordContractTest {
       notification_batches notification NotificationBatchRecord
       notifications notification NotificationRecord
       notification_attempts notification NotificationAttemptRecord
-      staff_members identity StaffMemberRecord
-      roles identity RoleRecord
-      permissions identity PermissionRecord
-      accounts identity AccountRecord
-      account_roles identity AccountRoleRecord
-      role_permissions identity RolePermissionRecord
+      staff_members accesscontrol StaffMemberRecord
+      roles accesscontrol RoleRecord
+      permissions accesscontrol PermissionRecord
+      accounts accesscontrol AccountRecord
+      account_roles accesscontrol AccountRoleRecord
+      role_permissions accesscontrol RolePermissionRecord
       audit_events audit AuditEventRecord
       organizations healthexamination OrganizationRecord
       health_examination_batches healthexamination HealthExaminationBatchRecord

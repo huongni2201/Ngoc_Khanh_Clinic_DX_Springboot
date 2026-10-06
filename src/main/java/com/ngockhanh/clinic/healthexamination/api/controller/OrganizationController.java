@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.api.controller;
 
+import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.api.request.CreateOrganizationRequest;
 import com.ngockhanh.clinic.healthexamination.api.request.DeleteOrganizationRequest;
 import com.ngockhanh.clinic.healthexamination.api.request.ListOrganizationRequest;
@@ -14,7 +15,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteOrganiza
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
-import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.web.ApiResponse;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import jakarta.validation.Valid;

@@ -35,15 +35,17 @@ This clean-slate contract is the accepted business/schema baseline.
   `row_version` and increment it in application SQL. There is no version trigger.
   A zero-row versioned update raises a concurrency conflict.
 
-### Identity
+### Access control
 
-- Identity owns `accounts`, `staff_members`, `account_roles`, `roles`,
-  `permissions` and `role_permissions`. Credentials use `password_hash`.
+- Access control (`accesscontrol`, formerly `identity`) owns `accounts`,
+  `staff_members`, `account_roles`, `roles`, `permissions` and
+  `role_permissions`. Credentials use `password_hash`.
 - Role grants are account/role pairs with `granted_by` and `granted_at`, without
   fabricated assignment IDs, validity windows or department/batch scopes.
-- Preserve the secure opaque cookie/Redis session protocol, CSRF, rate limiting
-  and revocation. A refresh-token storage column does not specify a new public
-  authentication protocol. No refresh-token endpoint is inferred from it.
+- The session protocol is decided in
+  [ADR-0014](0014-session-cookie-redis-login.md). A refresh-token storage column
+  does not specify a new public authentication protocol. No refresh-token
+  endpoint is inferred from it.
 - Login and session views identify the account and its STAFF/PATIENT owner.
   Account identifiers referenced by audit and other modules are account IDs.
 

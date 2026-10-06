@@ -1,12 +1,12 @@
 package com.ngockhanh.clinic.shared.validation;
 
-import java.util.List;
-
 import com.ngockhanh.clinic.shared.web.BasePagination;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
+import java.util.List;
 
-public class AllowedSortKeysValidator implements ConstraintValidator<AllowedSortKeys, BasePagination> {
+public class AllowedSortKeysValidator
+    implements ConstraintValidator<AllowedSortKeys, BasePagination> {
   private List<String> allowedSortKeys;
 
   @Override
@@ -24,7 +24,8 @@ public class AllowedSortKeysValidator implements ConstraintValidator<AllowedSort
     }
 
     context.disableDefaultConstraintViolation();
-    context.buildConstraintViolationWithTemplate(
+    context
+        .buildConstraintViolationWithTemplate(
             "sortKey must be one of: " + String.join(", ", allowedSortKeys))
         .addPropertyNode("sortKey")
         .addConstraintViolation();

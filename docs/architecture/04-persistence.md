@@ -20,7 +20,7 @@ belong in `infrastructure/persistence/view`, mapped by adapters to typed port re
 contracts; see [model placement](../../PROJECT_RULES.md#9-domain-vs-persistence-model).
 Domain objects and API responses never expose persistence records or views.
 
-- Identity: accounts, staff members, account-role grants, roles and permissions.
+- Access control: accounts, staff members, account-role grants, roles and permissions.
 - Catalog: departments, rooms, specialties, services, medicines and lab definitions.
 - Patient: patient master, allergies and conditions.
 - Encounter: encounters and assignment fields stored on each encounter.
