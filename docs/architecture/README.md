@@ -19,7 +19,7 @@ retain Participant terminology and public SQL schema. Keep domain, persistence,
 application and HTTP responsibilities separate.
 
 [API migration](../api/clean-slate-migration.md) describes supported client/deployment
-contracts; the login/session protocol is in [ADR-0014](../adr/0014-session-cookie-redis-login.md).
+contracts; [login operations](../api/login.md) describe the session login API.
 No schema representation claims every clinic feature or endpoint is implemented.
 
 The retained clean-slate decisions are

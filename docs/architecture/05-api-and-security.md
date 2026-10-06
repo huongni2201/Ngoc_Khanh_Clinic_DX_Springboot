@@ -23,8 +23,8 @@ maps to a server-side JSON session snapshot in Redis (no JWT). Business routes
 under `/api/v1/**` require a logged-in STAFF account; PATIENT accounts can log in
 but receive 403. Per-endpoint RBAC, rate limiting and revocation are not yet
 implemented and block go-live. Credentials and session IDs are never returned or
-logged. The decision and planned HTTP contract are in
-[ADR-0014](../adr/0014-session-cookie-redis-login.md).
+logged. The decision is [ADR-0014](../adr/0014-session-cookie-redis-login.md);
+the HTTP contract is [login operations](../api/login.md).
 
 ## Audit and healthcare data
 
