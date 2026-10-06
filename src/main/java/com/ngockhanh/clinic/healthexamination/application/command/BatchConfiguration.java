@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.application.command;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
@@ -36,7 +37,7 @@ public record BatchConfiguration(
   }
 
   private static <T> List<T> copy(List<T> source) {
-    return source == null ? null : new ArrayList<>(source);
+    return source == null ? null : Collections.unmodifiableList(new ArrayList<>(source));
   }
 
   /**

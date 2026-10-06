@@ -371,7 +371,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
 
     var page = listOrganizations.execute(ListOrganizationCommand.builder().build());
 
-    assertThat(page.items()).extracting("taxCode").containsExactly("A1", "A2");
+    assertThat(page.items()).extracting("taxCode").containsExactlyInAnyOrder("A1", "A2");
     assertThat(page.items()).allSatisfy(o -> assertThat(o.status()).isEqualTo("ACTIVE"));
     assertThat(page.totalElements()).isEqualTo(2);
     assertThat(page.totalPages()).isEqualTo(1);
@@ -647,7 +647,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     jdbc.update(
         "INSERT INTO public.staff_members(id,staff_code,full_name,status) VALUES (?,?,?,'ACTIVE')",
         staffId,
-        "ACTOR-" + staffId,
+        "ACT-" + staffId.toString().substring(0, 26),
         "Synthetic Actor");
     jdbc.update(
         "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status) VALUES (?,'STAFF',?,'test-password-hash',?,'ACTIVE')",

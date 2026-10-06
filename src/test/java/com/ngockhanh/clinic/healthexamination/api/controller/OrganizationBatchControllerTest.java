@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
@@ -28,7 +29,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteHealthEx
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetHealthExaminationBatchByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateHealthExaminationBatchUseCase;
-import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;

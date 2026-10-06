@@ -57,8 +57,7 @@ class HealthExaminationApiSurfaceTest {
 
     return scanner.findCandidateComponents(MODULE_PACKAGE).stream()
         .map(candidate -> ClassUtils.resolveClassName(candidate.getBeanClassName(), classLoader))
-        // Test-only endpoints are declared as nested classes of test classes (for example the CSRF
-        // token endpoint of the security tests); production controllers are top-level classes.
+        // Count only top-level production controllers in the published API surface.
         .filter(controllerType -> !controllerType.isMemberClass())
         .flatMap(
             controllerType ->

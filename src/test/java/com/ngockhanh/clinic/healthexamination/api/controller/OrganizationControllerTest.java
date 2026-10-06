@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.api.request.UpdateOrganizationRequest;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteOrganizationCommand;
@@ -25,7 +26,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteOrganiza
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
-import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;

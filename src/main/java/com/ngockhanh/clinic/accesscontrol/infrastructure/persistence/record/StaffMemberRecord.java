@@ -1,4 +1,4 @@
-package com.ngockhanh.clinic.identity.infrastructure.persistence.record;
+package com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.time.LocalDate;

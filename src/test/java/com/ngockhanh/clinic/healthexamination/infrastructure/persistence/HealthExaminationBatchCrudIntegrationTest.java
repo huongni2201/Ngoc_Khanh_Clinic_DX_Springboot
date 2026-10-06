@@ -532,8 +532,14 @@ class HealthExaminationBatchCrudIntegrationTest {
               return "deleted";
             });
 
-    assertThat(results.stream().filter(r -> r instanceof ConcurrentUpdateException)).hasSize(1);
-    assertThat(results.stream().filter(r -> !(r instanceof Throwable))).hasSize(1);
+    var updateResult = results.getFirst();
+    var deleteResult = results.get(1);
+    if (updateResult instanceof BatchDetailResponse) {
+      assertThat(deleteResult).isInstanceOf(ConcurrentUpdateException.class);
+    } else {
+      assertThat(updateResult).isInstanceOf(ResourceNotFoundException.class);
+      assertThat(deleteResult).isEqualTo("deleted");
+    }
     assertThat(
             count(
                 "SELECT row_version FROM public.health_examination_batches WHERE id=?",

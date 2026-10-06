@@ -17,7 +17,7 @@ class LocalCatalogSeedIntegrationTest {
   static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
 
   @Test
-  void seedsActiveCatalogServicesOnlyAndIsIdempotent() {
+  void seedsLocalOrganizationsAndActiveCatalogServicesIdempotently() {
     var flyway =
         Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
@@ -36,6 +36,11 @@ class LocalCatalogSeedIntegrationTest {
                 "SELECT COUNT(*) FROM public.departments WHERE code LIKE 'LOCAL_DEPT_%' AND active",
                 Integer.class))
         .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.organizations WHERE tax_code IN ('LOCAL_TEST_ORG_001', 'LOCAL_TEST_ORG_002', 'LOCAL_TEST_ORG_003') AND status = 'ACTIVE'",
+                Integer.class))
+        .isEqualTo(3);
     assertThat(
             jdbc.queryForObject(
                 "SELECT COUNT(*) FROM public.services WHERE code LIKE 'LOCAL_SVC_%' AND active AND unit_price > 0",
