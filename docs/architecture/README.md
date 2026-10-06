@@ -18,11 +18,12 @@ The owner's clean-slate business contract supersedes earlier schema/workflows;
 retain Participant terminology and public SQL schema. Keep domain, persistence,
 application and HTTP responsibilities separate.
 
-[API migration](../api/clean-slate-migration.md) and
-[authentication policy](05-api-and-security.md#authentication-and-authorization) describe declared HTTP and deployment contracts.
+[API migration](../api/clean-slate-migration.md) describes supported client/deployment
+contracts; [login operations](../api/login.md) describe the session login API.
 No schema representation claims every clinic feature or endpoint is implemented.
 
 The retained clean-slate decisions are
-[the module inventory](../adr/0012-clean-slate-module-boundaries.md) and
-[the application/database contract](../adr/0013-clean-slate-application-contract.md).
+[the module inventory](../adr/0012-clean-slate-module-boundaries.md),
+[the application/database contract](../adr/0013-clean-slate-application-contract.md) and
+[the session login protocol](../adr/0014-session-cookie-redis-login.md).
 Older ADR files and architecture documents are removed.

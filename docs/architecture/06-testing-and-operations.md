@@ -51,7 +51,7 @@ use a compatible migrated schema. No runtime auto-create/auto-alter ORM schema e
 DB_URL, DB_USERNAME, DB_PASSWORD, Redis settings, `NKC_AUTH_COOKIE_SECURE` and
 `NKC_AUTH_ALLOWED_ORIGINS` belong in environment/secret storage. Do not use
 local/test profiles in production. Keep the documented cookie/Origin policy
-([ADR-0014](../adr/0014-session-cookie-redis-login.md)) and database privileges.
+([login operations](../api/login.md)) and database privileges.
 
 Outbox/external effects are recorded with business changes and dispatched after
 commit. Workers use leases/idempotency and bounded retries. Operational health and

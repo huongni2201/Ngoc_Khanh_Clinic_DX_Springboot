@@ -16,3 +16,9 @@ mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
   type-handlers-package: com.ngockhanh.clinic.shared.infrastructure.mybatis
   map-underscore-to-camel-case: true
+clinic:
+  auth:
+    idle-timeout: 30m
+    absolute-timeout: 8h
+    cookie-secure: ${NKC_AUTH_COOKIE_SECURE:true}
+    allowed-origins: ${NKC_AUTH_ALLOWED_ORIGINS:}

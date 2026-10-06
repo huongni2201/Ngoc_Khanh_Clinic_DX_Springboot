@@ -194,7 +194,6 @@ class ModuleVerificationTest {
         .resideInAnyPackage(
             "com.ngockhanh.clinic.accesscontrol.api..",
             "com.ngockhanh.clinic.accesscontrol.infrastructure..")
-        .allowEmptyShould(true)
         .check(applicationClasses);
   }
 
@@ -206,7 +205,6 @@ class ModuleVerificationTest {
         .should()
         .dependOnClassesThat()
         .resideInAPackage("com.ngockhanh.clinic.accesscontrol.infrastructure..")
-        .allowEmptyShould(true)
         .check(applicationClasses);
   }
 
@@ -220,7 +218,6 @@ class ModuleVerificationTest {
         .should()
         .dependOnClassesThat()
         .resideInAPackage("com.ngockhanh.clinic.accesscontrol.api..")
-        .allowEmptyShould(true)
         .check(applicationClasses);
   }
 

@@ -2,7 +2,9 @@
 -- Use bound parameters in an approved client; never bind plaintext passwords.
 -- Allocate IDs using the application's UUIDv7 generator.
 -- Use an explicit transaction, check affected rows, and commit only intended changes.
--- Revoke existing account sessions through SessionRevocation after COMMIT.
+-- Sessions keep the roles captured at sign-in; end existing sessions of a changed
+-- account through the application's SessionStore.revokeAll after COMMIT.
+-- Password hashes must come from UserPasswordEncoder (NFKC, bcrypt, {bcrypt} prefix).
 
 PREPARE set_staff_credentials(uuid, varchar, text) AS
 UPDATE public.accounts
