@@ -23,8 +23,10 @@ Control". Business controllers already read the authenticated `UserPrincipal`.
 
 ### Session protocol
 
-- `POST /api/v1/auth/login` and `POST /api/v1/auth/logout` only. The detailed
-  HTTP contract will be documented in `docs/api/login.md` with the implementation.
+- `POST /api/v1/auth/login`, `POST /api/v1/auth/logout` and
+  `GET /api/v1/auth/me` (restores the principal after a page reload, since the
+  HttpOnly cookie is unreadable by the frontend). The HTTP contract is in
+  [login operations](../api/login.md).
 - On valid credentials the backend creates a random 32-byte session ID
   (base64url, 43 characters) and returns it only in an HttpOnly cookie. The body
   never contains the session ID.
@@ -33,7 +35,8 @@ Control". Business controllers already read the authenticated `UserPrincipal`.
   permission codes, creation time and absolute expiry. Hashing the ID keeps
   usable cookies out of Redis dumps.
 - Redis set `nkc:auth:account-sessions:{accountId}` indexes an account's
-  sessions so revocation and logout-all can be added without a data change.
+  sessions. `SessionStore.revokeAll(accountId)` ends all of them; no use case
+  calls it yet (see go-live blockers).
 - Each request reads the snapshot from the cookie, rejects it after absolute
   expiry and extends the key TTL to `min(idle timeout, absolute expiry - now)`.
 - Logging in with an existing session cookie deletes the old session first
@@ -75,7 +78,8 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
   case-sensitive, matching the `accounts.username` unique constraint.
 - Passwords are NFKC-normalized and hashed with bcrypt (`{bcrypt}` prefix).
   Inputs longer than 72 UTF-8 bytes cannot be encoded and fail login with 401.
-- Unknown user, wrong password and ineligible account return the same 401 body.
+- Unknown user, wrong password and ineligible (inactive, locked or wrongly
+  owned) account return the same 401 body and message.
 
 ### Authorization
 
@@ -83,15 +87,18 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
   type, plus `ROLE_<roleCode>` and `PERM_<permissionCode>`. Prefixes prevent a
   permission code from impersonating an account-type authority.
 - Until per-endpoint RBAC exists, `/api/v1/**` requires `ACCOUNT_STAFF`.
-  PATIENT accounts can log in but receive 403 on business routes.
+  PATIENT accounts can log in and call `/api/v1/auth/me` but receive 403 on
+  business routes.
 
 ### Audit order
 
 - Successful login: `ACCOUNT_LOGIN` audit commits first; writing the Redis
   session is the last step. A Redis failure returns 503 without a cookie.
 - Failed login for an existing account: `ACCOUNT_LOGIN_FAILED` in its own
-  transaction, actor NULL, reason metadata only, no credentials. Unknown
-  usernames are logged, not audited (`audit_events.resource_id` is required).
+  committed transaction through `AuditWriter`, which requires an actor; the
+  actor and resource are the targeted account. No reason or credentials are
+  stored. Unknown usernames are logged, not audited (`audit_events.resource_id`
+  is required).
 - Logout of a valid session: `ACCOUNT_LOGOUT`.
 
 ## Go-live blockers
@@ -109,6 +116,8 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
   rate limiting mitigates this.
 - If Redis fails after the login audit commits, an `ACCOUNT_LOGIN` row exists for
   a login that returned 503. This avoids compensating deletes.
+- A failed-login audit row names the targeted account as actor, although nobody
+  authenticated, and does not record why the attempt failed.
 
 ## Consequences
 

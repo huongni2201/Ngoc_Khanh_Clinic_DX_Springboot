@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.shared.web;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,13 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ConcurrentUpdateException.class)
   ResponseEntity<ApiResponse<Void>> concurrency(ConcurrentUpdateException exception) {
     return error(HttpStatus.CONFLICT, exception.getMessage());
+  }
+
+  @ExceptionHandler(DependencyUnavailableException.class)
+  ResponseEntity<ApiResponse<Void>> dependencyUnavailable(
+      DependencyUnavailableException exception) {
+    log.warn("Dependency unavailable: {}", exception.getMessage());
+    return error(HttpStatus.SERVICE_UNAVAILABLE, "Service is temporarily unavailable");
   }
 
   @ExceptionHandler(BusinessRuleException.class)
