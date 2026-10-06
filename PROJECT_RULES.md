@@ -464,7 +464,7 @@ Order Round N+1
 
 Doctor creates Service Requests.
 
-Front Desk handles current baseline payment collection.
+Receptionist handles current baseline payment collection.
 
 Do not bypass the payment gate for a billable diagnostic service unless a documented authorization/exemption rule permits it.
 

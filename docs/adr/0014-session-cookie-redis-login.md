@@ -49,7 +49,7 @@ already replace, while it would add a signing key, a JOSE library and its tests.
 
 Idle timeout 30 minutes, absolute lifetime 8 hours.
 
-- Idle 30 minutes: front-desk and consultation workstations are shared and often
+- Idle 30 minutes: receptionist and consultation workstations are shared and often
   left unattended. Expiring an inactive session limits how long someone else can
   use an open session to read patient data (OWASP ASVS suggests 15–30 minutes
   for high-risk applications).

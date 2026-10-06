@@ -241,7 +241,7 @@ Do not silently change these rules:
 
 - Diagnostic services are executable only after valid payment authorization according to the requirement.
 - Doctor creates orders; Doctor does not collect payment.
-- Front Desk handles the baseline payment collection workflow.
+- Receptionist handles the baseline payment collection workflow.
 
 ---
 
