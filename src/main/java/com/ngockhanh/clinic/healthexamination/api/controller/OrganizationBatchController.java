@@ -1,11 +1,11 @@
 package com.ngockhanh.clinic.healthexamination.api.controller;
 
+import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.api.request.*;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.*;
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
-import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.web.*;
 import jakarta.validation.Valid;
 import java.util.UUID;

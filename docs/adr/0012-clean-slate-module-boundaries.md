@@ -18,7 +18,7 @@ public application schema. SQL schema names do not define Java package names.
 ## Decision
 
 - Keep the canonical root package `com.ngockhanh.clinic` and these modules:
-  `identity`, `patient`, `catalog`, `encounter`, `clinical`, `billing`,
+  `accesscontrol`, `patient`, `catalog`, `encounter`, `clinical`, `billing`,
   `diagnostics`, `healthexamination`, `document`, `prescription`,
   `notification`, `integration`, `appointment`, `portal`, `audit`, `shared`.
 - Keep `healthexamination`; Java packages do not contain underscores.
@@ -53,6 +53,9 @@ No database migration is added by this decision.
 
 Adding modules does not claim that all of their database contracts or use cases
 are implemented.
+
+Update — 2026-10-05: the `identity` module was renamed `accesscontrol`
+("User & Access Control"); see [ADR-0014](0014-session-cookie-redis-login.md).
 
 ## References
 

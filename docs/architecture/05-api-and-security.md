@@ -18,32 +18,20 @@ Use explicit expected versions on mutable configuration updates. A stale update 
 
 ## Authentication and authorization
 
-Preserve secure opaque NKC_SESSION cookies, Redis-held signed session snapshots,
-CSRF on login/unsafe requests, explicit CORS origins, rate limiting and revocation.
-The JWT key comes from environment and must meet configured strength. Username
-limit follows accounts.username (150 characters); passwords retain bcrypt policy.
-Credentials/tokens are never returned or logged.
-
-Default/production currently denies business endpoints until explicit RBAC
-policies are implemented. Local/test requires authenticated STAFF with an active
-role for business access. The removed roster-import routes have no HTTP handlers
-or import-specific role policy. Patients and roleless staff do not gain business access merely by login.
-No method-level @PreAuthorize is added to health-examination use cases.
-
-Existing profile selection remains: local/test settings apply if those profiles
-are active even alongside prod/production. Production must omit local/test.
-This is documented existing behavior, not a new production bypass.
-
-Permission updates must revoke existing snapshots after database commit. Direct
-SQL grants/status changes do not silently refresh sessions. See
-[login operations](../api/login.md) for actual protocol/configuration and failure handling.
+The `accesscontrol` module authenticates with an opaque session cookie whose ID
+maps to a server-side JSON session snapshot in Redis (no JWT). Business routes
+under `/api/v1/**` require a logged-in STAFF account; PATIENT accounts can log in
+but receive 403. Per-endpoint RBAC, rate limiting and revocation are not yet
+implemented and block go-live. Credentials and session IDs are never returned or
+logged. The decision and planned HTTP contract are in
+[ADR-0014](../adr/0014-session-cookie-redis-login.md).
 
 ## Audit and healthcare data
 
 Audit owns append-only audit_events, exposed through audit::recording. Capture
 account actor, action, resource type/ID, occurredAt and concise safe metadata.
 Business mutations and required audit commit together; audit failure rolls back.
-Authentication's Redis/database compensation remains documented in login operations.
+Login audit commits before the Redis session is written (see ADR-0014).
 
 Application owns operational use-case events; controllers add useful HTTP context.
 Follow [the logging policy](../../PROJECT_RULES.md#27-logging) for levels, safe

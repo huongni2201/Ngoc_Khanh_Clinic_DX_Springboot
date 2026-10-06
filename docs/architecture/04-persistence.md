@@ -18,7 +18,7 @@ The record follows the actual table columns and their order, including composite
 keys, nullable lifecycle values and row versions. Query projections belong outside
 that directory. Domain objects and API responses never expose persistence records.
 
-- Identity: accounts, staff members, account-role grants, roles and permissions.
+- Access control: accounts, staff members, account-role grants, roles and permissions.
 - Catalog: departments, rooms, specialties, services, medicines and lab definitions.
 - Patient: patient master, allergies and conditions.
 - Encounter: encounters and assignment fields stored on each encounter.

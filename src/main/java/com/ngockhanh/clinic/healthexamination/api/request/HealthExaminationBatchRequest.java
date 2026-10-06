@@ -3,11 +3,9 @@ package com.ngockhanh.clinic.healthexamination.api.request;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfigurationCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
-
 import lombok.Builder;
 
 @Builder
