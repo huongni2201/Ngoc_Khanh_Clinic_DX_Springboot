@@ -17,4 +17,5 @@ public record HealthExaminationBatchRecord(
     UUID createdBy,
     Instant createdAt,
     Instant updatedAt,
-    long rowVersion) {}
+    long rowVersion,
+    Instant deletedAt) {}

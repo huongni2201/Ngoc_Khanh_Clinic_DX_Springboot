@@ -21,15 +21,12 @@ class OrganizationCrudUseCaseTest {
   private Organization organization(long version) {
     return Organization.restore(
         id,
-        "S1",
         "School",
-        "SCHOOL",
         "TAX",
         "0901",
         "s@example.test",
         "Address",
         "Contact",
-        null,
         "0902",
         "c@example.test",
         "ACTIVE",
@@ -37,20 +34,20 @@ class OrganizationCrudUseCaseTest {
   }
 
   private UpdateOrganizationCommand command(long version) {
+    return commandBuilder(version).build();
+  }
+
+  private UpdateOrganizationCommand.UpdateOrganizationCommandBuilder commandBuilder(long version) {
     return UpdateOrganizationCommand.builder()
-        .code("S1")
         .name("Renamed")
-        .organizationType("SCHOOL")
         .taxCode("TAX")
         .phone("0901")
         .email("s@example.test")
         .address("Address")
         .contactFullName("Contact")
-        .contactPosition(null)
         .contactPhone("0902")
         .contactEmail("c@example.test")
-        .rowVersion(version)
-        .build();
+        .rowVersion(version);
   }
 
   @Test
@@ -72,15 +69,15 @@ class OrganizationCrudUseCaseTest {
     when(repo.findById(id)).thenReturn(Optional.of(organization(3)), Optional.of(organization(4)));
     var result = new UpdateOrganizationUseCase(repo, audit).execute(id.value(), command(3), actor);
     verify(repo).update(argThat(o -> "Renamed".equals(o.name())), eq(3L));
-    verify(repo).existsByCode("S1", id);
+    verify(repo).existsByTaxCode("TAX", id);
     verify(audit)
         .record(
             actor,
             "UPDATE_ORGANIZATION",
             "ORGANIZATION",
             id.value(),
-            Map.of("code", "S1", "rowVersion", 3L),
-            Map.of("code", "S1", "rowVersion", 4L));
+            Map.of("taxCode", "TAX", "rowVersion", 3L),
+            Map.of("taxCode", "TAX", "rowVersion", 4L));
     assertThat(result.rowVersion()).isEqualTo(4);
   }
 
@@ -97,16 +94,88 @@ class OrganizationCrudUseCaseTest {
   }
 
   @Test
-  void duplicateCodeDoesNotUpdateOrAudit() {
+  void duplicateTaxCodeDoesNotUpdateOrAudit() {
     var repo = mock(OrganizationRepository.class);
     var audit = mock(AuditWriter.class);
     when(repo.findById(id)).thenReturn(Optional.of(organization(3)));
-    when(repo.existsByCode("S1", id)).thenReturn(true);
+    when(repo.existsByTaxCode("TAX", id)).thenReturn(true);
 
     assertThatThrownBy(
             () -> new UpdateOrganizationUseCase(repo, audit).execute(id.value(), command(3), actor))
         .isInstanceOf(DuplicateOrganizationIdentity.class);
     verify(repo, never()).update(any(), anyLong());
     verifyNoInteractions(audit);
+  }
+
+  @Test
+  void rejectsNullArgumentsWithoutTouchingTheRepository() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    var useCase = new UpdateOrganizationUseCase(repo, audit);
+
+    assertThatThrownBy(() -> useCase.execute(null, command(0), actor))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> useCase.execute(id.value(), null, actor))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> useCase.execute(id.value(), command(0), null))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(repo, audit);
+  }
+
+  @Test
+  void missingRowVersionIsAConflictBeforeMutation() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    when(repo.findById(id)).thenReturn(Optional.of(organization(3)));
+    var withoutVersion = commandBuilder(3).rowVersion(null).build();
+
+    assertThatThrownBy(
+            () ->
+                new UpdateOrganizationUseCase(repo, audit)
+                    .execute(id.value(), withoutVersion, actor))
+        .isInstanceOf(ConcurrentUpdateException.class);
+    verify(repo, never()).update(any(), anyLong());
+    verifyNoInteractions(audit);
+  }
+
+  @Test
+  void rejectsVersionLostBetweenReadAndWrite() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    when(repo.findById(id)).thenReturn(Optional.of(organization(3)));
+    doThrow(new ConcurrentUpdateException()).when(repo).update(any(), eq(3L));
+
+    assertThatThrownBy(
+            () -> new UpdateOrganizationUseCase(repo, audit).execute(id.value(), command(3), actor))
+        .isInstanceOf(ConcurrentUpdateException.class);
+    verifyNoInteractions(audit);
+  }
+
+  @Test
+  void keepsStatusAndAllowsClearingOptionalFields() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    when(repo.findById(id)).thenReturn(Optional.of(organization(3)), Optional.of(organization(4)));
+    var clearing = commandBuilder(3).taxCode(null).build();
+
+    new UpdateOrganizationUseCase(repo, audit).execute(id.value(), clearing, actor);
+
+    verify(repo)
+        .update(
+            argThat(o -> o.taxCode() == null && "ACTIVE".equals(o.status()) && id.equals(o.id())),
+            eq(3L));
+  }
+
+  @Test
+  void keepingTheSameTaxCodeIsAllowedBecauseTheOwnRowIsExcluded() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    when(repo.findById(id)).thenReturn(Optional.of(organization(3)), Optional.of(organization(4)));
+    when(repo.existsByTaxCode("TAX", id)).thenReturn(false);
+
+    new UpdateOrganizationUseCase(repo, audit).execute(id.value(), command(3), actor);
+
+    verify(repo).existsByTaxCode("TAX", id);
+    verify(repo).update(any(), eq(3L));
   }
 }

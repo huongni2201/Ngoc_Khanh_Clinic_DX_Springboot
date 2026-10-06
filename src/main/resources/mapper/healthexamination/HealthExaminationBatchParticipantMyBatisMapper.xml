@@ -16,6 +16,7 @@
  attendance_recorded_at=#{p.attendanceRecordedAt},attendance_note=#{p.attendanceNote},service_reconciliation_status=#{p.serviceReconciliationStatus},
  services_reconciled_by=#{p.servicesReconciledBy},services_reconciled_at=#{p.servicesReconciledAt}
  WHERE id=#{p.id} AND batch_id=#{p.batchId} AND row_version=#{expectedVersion}
+ AND EXISTS (SELECT 1 FROM public.health_examination_batches b WHERE b.id=#{p.batchId} AND b.deleted_at IS NULL FOR SHARE OF b)
  </update>
 
  <insert id="insertServices">

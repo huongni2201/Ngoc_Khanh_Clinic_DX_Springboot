@@ -1,19 +1,43 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchMyBatisMapper">
- <sql id="headerColumns">id,organization_id,batch_code,name,examination_site_type,examination_site_name,examination_site_address,status,created_by,created_at,updated_at,row_version</sql>
- <select id="findByIdAndOrganizationId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">SELECT <include refid="headerColumns"/> FROM public.health_examination_batches WHERE id=#{id} AND organization_id=#{organizationId}</select>
- <select id="findByIdAndOrganizationIdForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">SELECT <include refid="headerColumns"/> FROM public.health_examination_batches WHERE id=#{id} AND organization_id=#{organizationId} FOR UPDATE</select>
- <select id="findScoped" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">SELECT <include refid="headerColumns"/> FROM public.health_examination_batches WHERE id=#{id} AND organization_id=#{organizationId} <if test="lock">FOR UPDATE</if></select>
+ <sql id="headerColumns">id,organization_id,batch_code,name,examination_site_type,examination_site_name,examination_site_address,status,created_by,created_at,updated_at,row_version,deleted_at</sql>
+ <select id="findByIdAndOrganizationId" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">SELECT <include refid="headerColumns"/> FROM public.health_examination_batches WHERE id=#{id} AND organization_id=#{organizationId} AND deleted_at IS NULL</select>
+ <select id="findByIdAndOrganizationIdForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">SELECT <include refid="headerColumns"/> FROM public.health_examination_batches WHERE id=#{id} AND organization_id=#{organizationId} AND deleted_at IS NULL FOR UPDATE</select>
+ <select id="findScoped" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchRecord">SELECT <include refid="headerColumns"/> FROM public.health_examination_batches WHERE id=#{id} AND organization_id=#{organizationId} AND deleted_at IS NULL <if test="lock">FOR UPDATE</if></select>
  <select id="findServices" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchServiceRecord">SELECT id,batch_id,service_id,reference_price_snapshot,negotiated_price,display_order,active,created_at,updated_at,row_version FROM public.health_examination_batch_services WHERE batch_id=#{id} ORDER BY display_order,id</select>
  <select id="findDays" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchDayRecord">SELECT id,batch_id,examination_date FROM public.health_examination_batch_days WHERE batch_id=#{id} ORDER BY examination_date,id</select>
  <insert id="insert">INSERT INTO public.health_examination_batches(id,organization_id,batch_code,name,examination_site_type,examination_site_name,examination_site_address,status,created_by) VALUES (#{id},#{organizationId},#{batchCode},#{name},#{examinationSiteType},#{examinationSiteName},#{examinationSiteAddress},#{status},#{createdBy})</insert>
  <insert id="insertDays">INSERT INTO public.health_examination_batch_days(id,batch_id,examination_date) VALUES <foreach collection="items" item="item" separator=",">(#{item.id},#{item.batchId},#{item.examinationDate})</foreach></insert>
  <insert id="insertServices">INSERT INTO public.health_examination_batch_services(id,batch_id,service_id,reference_price_snapshot,negotiated_price,display_order,active,row_version) VALUES <foreach collection="items" item="item" separator=",">(#{item.id},#{item.batchId},#{item.serviceId},#{item.referencePriceSnapshot},#{item.negotiatedPrice},#{item.displayOrder},#{item.active},#{item.rowVersion})</foreach></insert>
- <sql id="filter">organization_id=#{organizationId} <if test="pattern != null">AND (LOWER(batch_code) LIKE #{pattern} ESCAPE chr(92) OR LOWER(name) LIKE #{pattern} ESCAPE chr(92))</if></sql>
+ <update id="updateHeader">UPDATE public.health_examination_batches SET batch_code=#{batch.batchCode},name=#{batch.name},examination_site_type=#{batch.examinationSiteType},examination_site_name=#{batch.examinationSiteName},examination_site_address=#{batch.examinationSiteAddress},updated_at=CURRENT_TIMESTAMP,row_version=row_version+1 WHERE id=#{batch.id} AND organization_id=#{batch.organizationId} AND row_version=#{expectedRowVersion} AND deleted_at IS NULL AND status='DRAFT'</update>
+ <update id="softDelete">UPDATE public.health_examination_batches SET deleted_at=#{deletedAt},updated_at=#{deletedAt},row_version=row_version+1 WHERE id=#{id} AND organization_id=#{organizationId} AND row_version=#{expectedRowVersion} AND deleted_at IS NULL AND status='DRAFT'</update>
+ <delete id="deleteDays">DELETE FROM public.health_examination_batch_days WHERE batch_id=#{batchId} AND id IN <foreach collection="ids" item="item" open="(" separator="," close=")">#{item}</foreach></delete>
+ <delete id="deleteServices">DELETE FROM public.health_examination_batch_services WHERE batch_id=#{batchId} AND id IN <foreach collection="ids" item="item" open="(" separator="," close=")">#{item}</foreach></delete>
+ <update id="moveServiceOrder">UPDATE public.health_examination_batch_services SET display_order=#{displayOrder} WHERE id=#{id} AND batch_id=#{batchId}</update>
+ <update id="updateService">UPDATE public.health_examination_batch_services SET negotiated_price=#{negotiatedPrice},display_order=#{displayOrder},updated_at=CURRENT_TIMESTAMP,row_version=row_version+1 WHERE id=#{id} AND batch_id=#{batchId} AND row_version=#{expectedRowVersion}</update>
+ <select id="findReferencedDayIds" resultType="java.util.UUID">SELECT DISTINCT batch_day_id FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} AND batch_day_id IN <foreach collection="dayIds" item="item" open="(" separator="," close=")">#{item}</foreach></select>
+ <select id="findReferencedBatchServiceIds" resultType="java.util.UUID">SELECT DISTINCT batch_service_id FROM public.health_examination_participant_services WHERE batch_id=#{batchId} AND batch_service_id IN <foreach collection="serviceIds" item="item" open="(" separator="," close=")">#{item}</foreach></select>
+ <select id="hasParticipants" resultType="boolean">SELECT EXISTS(SELECT 1 FROM public.health_examination_batch_participants WHERE batch_id=#{batchId})</select>
+ <sql id="filter">organization_id=#{organizationId} AND deleted_at IS NULL <if test="pattern != null">AND (LOWER(batch_code) LIKE #{pattern} ESCAPE chr(92) OR LOWER(name) LIKE #{pattern} ESCAPE chr(92))</if></sql>
  <select id="count" resultType="long">SELECT COUNT(*) FROM public.health_examination_batches WHERE <include refid="filter"/></select>
- <select id="findPage" resultType="com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository$BatchSummary">
- SELECT id,batch_code,name AS batch_name,(SELECT MIN(examination_date) FROM public.health_examination_batch_days d WHERE d.batch_id=b.id) AS start_date,(SELECT MAX(examination_date) FROM public.health_examination_batch_days d WHERE d.batch_id=b.id) AS end_date,status,created_at,updated_at FROM public.health_examination_batches b WHERE <include refid="filter"/>
- ORDER BY <choose><when test="sortKey == 'batchCode'">batch_code</when><when test="sortKey == 'batchName'">name</when><when test="sortKey == 'startDate'">start_date</when><when test="sortKey == 'status'">status</when><when test="sortKey == 'createdAt'">created_at</when><otherwise>id</otherwise></choose> <choose><when test="sortBy == 'DESC'">DESC</when><otherwise>ASC</otherwise></choose>,id ASC LIMIT #{limit} OFFSET #{offset}
+ <select id="findPage" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.HealthExaminationBatchSummaryView">
+ SELECT id,batch_code,name AS batch_name,(SELECT MIN(examination_date) FROM public.health_examination_batch_days d WHERE d.batch_id=b.id) AS start_date,(SELECT MAX(examination_date) FROM public.health_examination_batch_days d WHERE d.batch_id=b.id) AS end_date,status,created_at,updated_at,row_version FROM public.health_examination_batches b WHERE <include refid="filter"/>
+ ORDER BY
+ <choose>
+  <when test="sortKey == 'batchCode' and sortBy == 'DESC'">batch_code DESC, id ASC</when>
+  <when test="sortKey == 'batchCode'">batch_code ASC, id ASC</when>
+  <when test="sortKey == 'batchName' and sortBy == 'DESC'">name DESC, id ASC</when>
+  <when test="sortKey == 'batchName'">name ASC, id ASC</when>
+  <when test="sortKey == 'startDate' and sortBy == 'DESC'">start_date DESC, id ASC</when>
+  <when test="sortKey == 'startDate'">start_date ASC, id ASC</when>
+  <when test="sortKey == 'status' and sortBy == 'DESC'">status DESC, id ASC</when>
+  <when test="sortKey == 'status'">status ASC, id ASC</when>
+  <when test="sortKey == 'createdAt' and sortBy == 'DESC'">created_at DESC, id ASC</when>
+  <when test="sortKey == 'createdAt'">created_at ASC, id ASC</when>
+  <when test="sortBy == 'DESC'">id DESC</when>
+  <otherwise>id ASC</otherwise>
+ </choose>
+ LIMIT #{limit} OFFSET #{offset}
  </select>
 </mapper>

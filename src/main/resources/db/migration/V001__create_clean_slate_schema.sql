@@ -775,22 +775,19 @@ ALTER TABLE public.encounters
 
 CREATE TABLE public.organizations (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
-    code varchar(50) NOT NULL UNIQUE,
     name varchar(300) NOT NULL,
-    organization_type varchar(30) NOT NULL,
     tax_code varchar(50) NULL,
     phone text NOT NULL,
     email text NOT NULL,
     address text NOT NULL,
     contact_full_name varchar(200) NOT NULL,
-    contact_position varchar(200) NULL,
     contact_phone text NOT NULL,
     contact_email text NOT NULL,
     status varchar(20) NOT NULL,
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     row_version bigint NOT NULL DEFAULT 0,
-    CONSTRAINT ck_organizations_type CHECK (organization_type IN ('COMPANY', 'SCHOOL', 'GOVERNMENT', 'OTHER')),
+    CONSTRAINT uq_organizations_tax_code UNIQUE (tax_code),
     CONSTRAINT ck_organizations_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 

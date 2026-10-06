@@ -7,15 +7,12 @@ import lombok.Builder;
 @Builder
 public record OrganizationRecord(
     UUID id,
-    String code,
     String name,
-    String organizationType,
     String taxCode,
     String phone,
     String email,
     String address,
     String contactFullName,
-    String contactPosition,
     String contactPhone,
     String contactEmail,
     String status,

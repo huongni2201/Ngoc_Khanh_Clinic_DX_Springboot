@@ -6,6 +6,8 @@ import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.converter.OrganizationPersistenceConverter;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.OrganizationMyBatisMapper;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import com.ngockhanh.clinic.shared.web.PageResponse;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -22,10 +24,10 @@ public class MyBatisOrganizationRepository implements OrganizationRepository {
   }
 
   @Override
-  public boolean existsByCode(String code, AggregateId excludedOrganizationId) {
-    if (code == null || code.isBlank()) return false;
-    return mapper.existsByCode(
-        code, excludedOrganizationId == null ? null : excludedOrganizationId.value());
+  public boolean existsByTaxCode(String taxCode, AggregateId excludedOrganizationId) {
+    if (taxCode == null || taxCode.isBlank()) return false;
+    return mapper.existsByTaxCode(
+        taxCode, excludedOrganizationId == null ? null : excludedOrganizationId.value());
   }
 
   @Override
@@ -40,5 +42,33 @@ public class MyBatisOrganizationRepository implements OrganizationRepository {
     if (mapper.update(converter.toRecord(organization), expectedRowVersion) != 1) {
       throw new ConcurrentUpdateException();
     }
+  }
+
+  @Override
+  public PageResponse<Organization> search(
+      int page, int size, String searchKey, String sortKey, String sortBy, String status) {
+    long offset = ((long) page - 1) * size;
+    String pattern = likePattern(searchKey);
+    long total = mapper.count(status, pattern);
+    List<Organization> items =
+        total == 0 || offset >= total
+            ? List.of()
+            : mapper.search(status, pattern, sortKey, sortBy, size, offset).stream()
+                .map(converter::toDomain)
+                .toList();
+    return PageResponse.<Organization>builder()
+        .items(items)
+        .page(page)
+        .size(size)
+        .totalElements(total)
+        .totalPages(Math.toIntExact((total + size - 1) / size))
+        .build();
+  }
+
+  /** Builds a contains pattern in which user-typed LIKE wildcards are matched literally. */
+  private static String likePattern(String searchKey) {
+    if (searchKey == null || searchKey.isBlank()) return null;
+    String escaped = searchKey.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    return "%" + escaped + "%";
   }
 }

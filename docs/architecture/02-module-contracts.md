@@ -31,6 +31,9 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
   depends on the published shared ID generator, without identity persistence access.
   All recording paths use one writer and one audit-event insert method;
   authentication retains occurrence time/correlation, and business mutations retain before/after metadata.
+- `integration::batch-history` publishes `BatchHistoryQuery`, which tells health examination
+  whether a batch is referenced by import history (used to guard batch deletion). It exposes
+  no table records or mappers.
 - Document query contracts expose template lookup without leaking table records.
 
 The Excel roster import contract and its runtime staging adapters were removed

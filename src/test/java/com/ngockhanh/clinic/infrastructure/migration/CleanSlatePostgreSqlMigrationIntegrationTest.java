@@ -34,7 +34,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 
@@ -42,6 +42,17 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         new JdbcTemplate(
             new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name IN ('organization_type', 'contact_position', 'code')",
+                Integer.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu USING (constraint_catalog, constraint_schema, constraint_name, table_name) WHERE tc.table_schema = 'public' AND tc.table_name = 'organizations' AND tc.constraint_type = 'UNIQUE' AND kcu.column_name = 'tax_code'",
+                Integer.class))
+        .isEqualTo(1);
 
     assertThat(
             jdbc.queryForList(

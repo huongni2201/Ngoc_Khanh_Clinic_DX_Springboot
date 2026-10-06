@@ -9,15 +9,12 @@ public final class OrganizationPersistenceConverter {
     if (record == null) return null;
     return Organization.restore(
         new AggregateId(record.id()),
-        record.code(),
         record.name(),
-        record.organizationType(),
         record.taxCode(),
         record.phone(),
         record.email(),
         record.address(),
         record.contactFullName(),
-        record.contactPosition(),
         record.contactPhone(),
         record.contactEmail(),
         record.status(),
@@ -27,15 +24,12 @@ public final class OrganizationPersistenceConverter {
   public OrganizationRecord toRecord(Organization organization) {
     return OrganizationRecord.builder()
         .id(organization.id().value())
-        .code(organization.code())
         .name(organization.name())
-        .organizationType(organization.organizationType())
         .taxCode(organization.taxCode())
         .phone(organization.phone())
         .email(organization.email())
         .address(organization.address())
         .contactFullName(organization.contactFullName())
-        .contactPosition(organization.contactPosition())
         .contactPhone(organization.contactPhone())
         .contactEmail(organization.contactEmail())
         .status(organization.status())

@@ -19,11 +19,16 @@ class HealthExaminationApiSurfaceTest {
 
   private static final Set<String> ALLOWED_MAPPINGS =
       Set.of(
+          "GET /api/v1/organizations",
           "GET /api/v1/organizations/{organizationId}",
           "POST /api/v1/organizations",
           "PUT /api/v1/organizations/{organizationId}",
+          "DELETE /api/v1/organizations/{organizationId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches");
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
+          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
+          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}");
 
   private static final Set<String> REMOVED_MAPPINGS =
       Set.of(
@@ -34,10 +39,6 @@ class HealthExaminationApiSurfaceTest {
           "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/preview",
           "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/confirm",
           "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel",
-          "GET /api/v1/organizations",
-          "DELETE /api/v1/organizations/{organizationId}",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants");
 
   @Test
@@ -56,6 +57,9 @@ class HealthExaminationApiSurfaceTest {
 
     return scanner.findCandidateComponents(MODULE_PACKAGE).stream()
         .map(candidate -> ClassUtils.resolveClassName(candidate.getBeanClassName(), classLoader))
+        // Test-only endpoints are declared as nested classes of test classes (for example the CSRF
+        // token endpoint of the security tests); production controllers are top-level classes.
+        .filter(controllerType -> !controllerType.isMemberClass())
         .flatMap(
             controllerType ->
                 java.util.Arrays.stream(controllerType.getDeclaredMethods())

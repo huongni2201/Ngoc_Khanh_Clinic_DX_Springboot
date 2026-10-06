@@ -11,36 +11,47 @@
 
 **Nguồn contract:** [PROJECT_RULES](../../PROJECT_RULES.md), [PROJECT_SKILLS](../../PROJECT_SKILLS.md), [ADR-0012](../adr/0012-clean-slate-module-boundaries.md), [ADR-0013](../adr/0013-clean-slate-application-contract.md), [domain workflows](../architecture/03-domain-and-workflows.md), [API/security](../architecture/05-api-and-security.md), [HTTP inventory](../api/clean-slate-migration.md), [V001](../../src/main/resources/db/migration/V001__create_clean_slate_schema.sql).
 
+## 0. Quyết định đã chốt (2026-10-05) và trạng thái thực thi
+
+Các quyết định dưới đây **thay thế** các đề xuất tương ứng ở mục 3 khi mâu thuẫn.
+
+- **Delete = deactivate** (`ACTIVE → INACTIVE`), route `DELETE /api/v1/organizations/{organizationId}?rowVersion=N`, 204 rỗng, 404 khi không có ID, 409 khi stale version, INACTIVE + đúng version là no-op, audit `DEACTIVATE_ORGANIZATION`. Batch và lịch sử giữ nguyên; không chặn deactivate theo Batch.
+- **Get chỉ trả Organization `ACTIVE`**; `INACTIVE` trả 404 (thay cho "Get trả cả ACTIVE và INACTIVE" ở mục 3.1).
+- **List mặc định chỉ trả `ACTIVE`**, không thêm tham số status/type (thay cho "trả cả ACTIVE/INACTIVE" ở mục 3.2). `searchKey` tối đa 100 ký tự. Use case truyền trực tiếp các tham số đã chuẩn hóa tới repository, với `status` gán `ACTIVE`.
+- **Update không bị chặn với Organization INACTIVE** (giữ nguyên hành vi hiện có); cần xác nhận nghiệp vụ nếu muốn chặn.
+
+Trạng thái verification (2026-10-06): `.\mvnw.cmd verify` đã chạy nhưng dừng ở compile vì `MyBatisHealthExaminationBatchRepository` có hai `@Override` không khớp `HealthExaminationBatchRepository`; tests chưa chạy. Đây là thay đổi Batch có sẵn trong worktree và vẫn nằm ngoài phạm vi Organization.
+
 ## 1. Hiện trạng và phạm vi
 
 | Use case | Hiện trạng | Công việc |
 |---|---|---|
-| CreateOrganizationUseCase | Đã tạo domain, kiểm tra trùng code, insert và audit trong transaction | Giữ flow; bổ sung kiểm chứng validation, race unique-code, audit rollback, access và Javadoc/logging |
+| CreateOrganizationUseCase | Đã tạo domain, kiểm tra trùng mã số thuế, insert và audit trong transaction | Giữ flow; bổ sung kiểm chứng validation, race unique-tax-code, audit rollback, access và Javadoc/logging |
 | GetOrganizationByIdUseCase | Đã đọc theo UUID, trả OrganizationResponse, transaction read-only | Hoàn thiện test và contract lỗi; đồng bộ tên test với tên use case |
-| UpdateOrganizationUseCase | Đã kiểm tra expected version, kiểm tra code, update, reload và audit | Giữ flow; kiểm chứng concurrent update, version trả về, audit rollback và HTTP/security |
+| UpdateOrganizationUseCase | Đã kiểm tra expected version, kiểm tra mã số thuế, update, reload và audit | Giữ flow; kiểm chứng concurrent update, version trả về, audit rollback và HTTP/security |
 | ListOrganizationUseCase | Class rỗng; ListOrganizationRequest và ListOrganizationCommand cũng rỗng | Định nghĩa input/read contract, truy vấn phân trang và GET collection |
 | DeleteOrganizationUseCase | Class rỗng, chưa có HTTP handler | Chốt nghĩa của delete; sau đó triển khai mutation có expected version và audit |
 
-`OrganizationRepository` hiện có `findById`, `existsByCode`, `save`, `update`; chưa có list. `Organization.deactivate()` đã tồn tại. Mapper update đã so sánh `row_version` và tăng version trong SQL.
+`OrganizationRepository` hiện có `findById`, `existsByTaxCode`, `save`, `update`; chưa có list. `Organization.deactivate()` đã tồn tại. Mapper update đã so sánh `row_version` và tăng version trong SQL.
 
 Checkout có nhiều thay đổi chưa commit của người dùng, bao gồm rename Get và các class rỗng trên. Không ghi đè, reset hoặc khôi phục file đã xóa. API inventory ghi nhận một số batch caller/test còn tham chiếu class đã xóa; phải kiểm tra lại baseline trước khi thực thi, không tự mở rộng task này thành sửa toàn bộ Batch.
 
-Phạm vi là Organization. Không thêm Batch/Participant/import workflow, frontend, cơ chế RBAC mới hoặc chuyển stack persistence. Tài liệu này không chứng nhận các implementation hiện tại đã build/test thành công.
+Phạm vi là Organization. Không thêm Batch/Participant/import workflow, cơ chế RBAC mới hoặc chuyển stack persistence. Đồng bộ frontend chỉ để khớp contract Organization đã đổi. Tài liệu này không chứng nhận các implementation hiện tại đã build/test thành công.
 
 ## 2. Ràng buộc chung
 
 - Module sở hữu: `healthexamination`; audit qua published contract `audit::recording` / `AuditWriter`. Không truy cập infrastructure của module khác.
 - Domain không phụ thuộc HTTP, Spring hay MyBatis; application không import `api.*`; controller không chứa SQL, transaction hoặc business rule.
 - Dùng `OrganizationRecord` hiện có cho bảng `organizations`. Projection khác hình dạng bảng phải nằm ở `infrastructure/persistence/view`.
-- `code` unique; `taxCode` optional và không unique. Không tự thêm chuẩn hóa hoa/thường hoặc unique tax code.
-- `organizationType`: `COMPANY`, `SCHOOL`, `GOVERNMENT`, `OTHER`; `status`: `ACTIVE`, `INACTIVE`.
+- `code` bị loại bỏ; `taxCode` optional và unique cho giá trị khác `NULL`. Không tự thêm chuẩn hóa hoa/thường.
+- `status`: `ACTIVE`, `INACTIVE`.
 - Business write và required audit dùng cùng transaction; audit lỗi phải rollback cả hai. Actor là account ID lấy từ principal, không lấy từ request và không dùng fallback actor.
 - Backend giữ nguyên production deny policy; local/test chỉ cho STAFF có active role. Không thêm `@PreAuthorize` vào các use case health-examination trái contract hiện tại.
 - HTTP filter chain là boundary được hỗ trợ hiện tại. Trước khi bổ sung caller ngoài HTTP phải có contract authorization ở application; một UUID actor không chứng minh quyền.
 - Dùng `ApiResponse`, `PageResponse`, `PaginationConstants` và exception mapping hiện có. Không thêm wire field lỗi mới.
 - Log chỉ metadata cần thiết; không log request, command, search text, tên, điện thoại hay email. Log trong transaction không khẳng định đã commit.
 - Dùng wrapper cho nullable input, kiểm tra null trước unboxing; so sánh wrapper theo giá trị. Business collection dùng `List<T>`.
-- Không sửa V001 đã áp dụng. Không cần migration cho đề xuất phân trang + deactivate; chỉ tạo migration mới nếu một thay đổi schema được chốt riêng.
+- V001 chưa được áp dụng; bỏ `organization_type`, `contact_position`, và `code` trực tiếp khỏi V001; đặt unique constraint trên `tax_code`, không tạo migration bổ sung.
 
 ## 3. Contract dùng làm đầu vào
 
@@ -52,9 +63,9 @@ Phạm vi là Organization. Không thêm Batch/Participant/import workflow, fron
 | GET `/api/v1/organizations/{organizationId}` | UUID path | 200, ApiResponse chứa OrganizationResponse |
 | PUT `/api/v1/organizations/{organizationId}` | UUID path + UpdateOrganizationRequest | 200, ApiResponse chứa OrganizationResponse với version sau update |
 
-Các field Create/Update giữ nguyên: `code`, `name`, `organizationType`, `taxCode`, `phone`, `email`, `address`, `contactFullName`, `contactPosition`, `contactPhone`, `contactEmail`. Update thêm `rowVersion` bắt buộc, không âm.
+Các field Create/Update: `name`, `taxCode`, `phone`, `email`, `address`, `contactFullName`, `contactPhone`, `contactEmail`. Update thêm `rowVersion` bắt buộc, không âm.
 
-Giới hạn hiện tại: code 50, name 300, taxCode 50, contactFullName 200, contactPosition 200 ký tự. Các kênh liên hệ và address bắt buộc; email/contactEmail được validate ở HTTP. Optional blank được domain chuyển thành null. Không tự thêm giới hạn độ dài cho cột text.
+Giới hạn hiện tại: name 300, taxCode 50, contactFullName 200 ký tự. TaxCode để trống được chuyển thành `NULL`; giá trị có mã số thuế phải unique. Các kênh liên hệ và address bắt buộc; email/contactEmail được validate ở HTTP. Không tự thêm giới hạn độ dài cho cột text.
 
 Create khởi tạo `ACTIVE`, version 0, UUIDv7. Update thay đầy đủ các field request, giữ status và ID; không biến PUT thành partial update. Get hiện trả cả ACTIVE và INACTIVE; không tự đổi INACTIVE thành 404.
 
@@ -68,13 +79,13 @@ Response tiếp tục gồm ID, các field Organization, status và rowVersion; 
 |---|---|
 | page | Default 1, min 1; HTTP input nullable để áp dụng default |
 | size | Default 10, min 1, max 100 |
-| searchKey | Optional; trim, blank tương đương không tìm kiếm; tìm trên code/name |
-| sortKey | Default id; allowlist id/code/name |
+| searchKey | Optional; trim, blank tương đương không tìm kiếm; tìm trên taxCode/name |
+| sortKey | Default id; allowlist id/taxCode/name |
 | sortBy | Default ASC; chỉ ASC/DESC |
 
 - MVP không thêm filter type/status. Đề xuất trả cả ACTIVE/INACTIVE, status có trong từng item; nếu cần default ACTIVE-only phải chốt lại trước khi viết SQL/test.
-- Đề xuất search không phân biệt hoa/thường, coi `%` và `_` trong input là ký tự literal. Chốt giới hạn searchKey trước implementation; không dùng wildcard không giới hạn làm public contract ngầm.
-- Sort bằng code/name thêm ID làm tie-breaker theo cùng chiều. Sort mặc định theo ID. Không ghép tên cột từ input vào SQL.
+- Search không phân biệt hoa/thường, coi `%` và `_` trong input là ký tự literal; tìm theo taxCode/name.
+- Sort bằng taxCode/name thêm ID làm tie-breaker theo cùng chiều. Sort mặc định theo ID. Không ghép tên cột từ input vào SQL.
 - Page vượt cuối trả items rỗng nhưng giữ totalElements/totalPages của kết quả lọc. Dataset rỗng có totalElements = 0, totalPages = 0.
 - Offset tính bằng kiểu đủ lớn và chặn overflow. Count và select dùng cùng predicate. Không load toàn bộ bảng hoặc gọi findById cho từng item.
 
@@ -124,9 +135,9 @@ Quy ước đường dẫn trong các task:
 
 **Interface giữ nguyên:** `OrganizationResponse execute(CreateOrganizationCommand command, UUID actor)`.
 
-- [ ] Bổ sung test cho required/blank, giới hạn field, type sai, optional null, command/actor null; HTTP email sai trả 400, không write/audit.
-- [ ] Giữ flow domain create → existsByCode → save → audit → response; không thêm unique taxCode hoặc cơ chế idempotency chưa có contract.
-- [ ] Thêm test `rejectsDuplicateCodeWithoutAudit` và PostgreSQL test `concurrentCreatesWithSameCodeProduceOneOrganization`: chỉ một insert thành công; request thua nhận conflict an toàn, không để audit mồ côi.
+- [ ] Bổ sung test cho required/blank, giới hạn field, optional taxCode null, command/actor null; HTTP email sai trả 400, không write/audit.
+- [ ] Giữ flow domain create → existsByTaxCode → save → audit → response; không thêm cơ chế idempotency chưa có contract.
+- [ ] Thêm test `rejectsDuplicateTaxCodeWithoutAudit` và PostgreSQL test `concurrentCreatesWithSameTaxCodeProduceOneOrganization`: chỉ một insert thành công; request thua nhận conflict an toàn, không để audit mồ côi.
 - [ ] Giữ/mở rộng `auditFailureRollsBackOrganizationInsertAndAuditRow` với real PostgreSQL và Spring transaction; kiểm tra response ACTIVE/version 0 và audit actor chính xác.
 - [ ] Thêm English Javadoc class/execute, mô tả đúng guarantees; đổi log success trong transaction thành wording commit pending, không log contacts.
 - [ ] Chạy nhóm test Create + controller + repository; success/duplicate/rollback đều có evidence, báo rõ Docker skip.
@@ -158,9 +169,9 @@ Quy ước đường dẫn trong các task:
 **Interface giữ nguyên:** `OrganizationResponse execute(UUID id, UpdateOrganizationCommand command, UUID actor)`.
 
 - [ ] Test rowVersion null/âm ở HTTP trả 400; stale version ở application trả conflict trước mutation; null id/command/actor không write.
-- [ ] Giữ updateDetails, exclude current ID khi kiểm tra code, update theo expected version, reload version mới; PUT giữ nguyên status/ID và cho phép xóa optional field bằng null.
+- [ ] Giữ updateDetails, exclude current ID khi kiểm tra taxCode, update theo expected version, reload version mới; PUT giữ nguyên status/ID và cho phép xóa optional taxCode bằng null.
 - [ ] Bổ sung `rejectsVersionLostBetweenReadAndWrite` và PostgreSQL test hai writes cùng expected version: một thành công, một 409; không mất dữ liệu/audit.
-- [ ] Test code giữ nguyên thành công, code thuộc Organization khác trả 409 kể cả race tại unique constraint; không áp unique cho taxCode.
+- [ ] Test taxCode giữ nguyên thành công, taxCode thuộc Organization khác trả 409 kể cả race tại unique constraint.
 - [ ] Giữ/mở rộng `auditFailureRollsBackOrganizationUpdateAndAuditRow`; kiểm tra rowVersion chỉ tăng một lần, response/audit dùng version đã lưu.
 - [ ] Hoàn thiện Javadoc/logging và chạy test Update + controller + repository. Không claim transaction rollback từ Mockito test.
 
@@ -169,7 +180,6 @@ Quy ước đường dẫn trong các task:
 **Files:**
 
 - Modify: `M/api/request/ListOrganizationRequest.java`, `M/application/command/ListOrganizationCommand.java`, `M/application/usecase/ListOrganizationUseCase.java`, `M/api/controller/OrganizationController.java`.
-- Create: `M/domain/repository/OrganizationSearchCriteria.java`, `M/domain/repository/OrganizationPage.java`.
 - Modify: `M/domain/repository/OrganizationRepository.java`, `M/infrastructure/persistence/repository/MyBatisOrganizationRepository.java`, `M/infrastructure/persistence/mapper/OrganizationMyBatisMapper.java`, XML.
 - Test create: `T/application/usecase/ListOrganizationUseCaseTest.java`; extend controller/repository integration tests.
 
@@ -177,12 +187,12 @@ Quy ước đường dẫn trong các task:
 
 - `ListOrganizationCommand(Integer page, Integer size, String searchKey, String sortKey, String sortBy)`; giữ input file đang có, không rename chỉ để đổi thuật ngữ.
 - `PageResponse<OrganizationResponse> ListOrganizationUseCase.execute(ListOrganizationCommand command)`.
-- `OrganizationSearchCriteria(int page, int size, String searchKey, String sortKey, String sortBy)` là input đã chuẩn hóa/validate, không chứa annotation HTTP/MyBatis.
-- `OrganizationPage(List<Organization> items, long totalElements)` có defensive copy; `OrganizationRepository.search(OrganizationSearchCriteria criteria)` trả kiểu này.
+- `OrganizationRepository.search(int page, int size, String searchKey, String sortKey, String sortBy, String status)` nhận trực tiếp các tham số đã chuẩn hóa/validate.
+- Theo yêu cầu owner ngày 2026-10-06, `OrganizationRepository.search(...)` trả `PageResponse<Organization>` thay cho `OrganizationPage`. Adapter giữ danh sách immutable và tính metadata phân trang; use case map items sang `OrganizationResponse`. Đây là ngoại lệ cho phép repository domain dùng `shared.web.PageResponse`.
 - Adapter có `search` + `count` trong mapper; dùng OrganizationRecord và converter hiện có vì đọc đủ shape Organization, không tạo projection thừa.
 
 - [ ] Test defaults 1/10/id/ASC, null command, page 0, size 0/101, sort sai và sortKey ngoài allowlist; HTTP lỗi trả 400. Cùng validation application bảo vệ caller được hỗ trợ, không nhờ riêng HTTP.
-- [ ] Implement request → command tại controller; application chuẩn hóa input một lần thành criteria, gọi repository và map sang PageResponse.
+- [ ] Implement request → command tại controller; application chuẩn hóa input một lần, truyền trực tiếp các tham số tới repository và map sang PageResponse.
 - [ ] Thêm count/select với predicate giống nhau, explicit columns, bound params, LIMIT/OFFSET, allowlisted ORDER BY và ID tie-breaker. Không truyền `${sortKey}`/`${searchKey}` trực tiếp vào SQL.
 - [ ] PostgreSQL tests: empty dataset, page vượt cuối, tổng sau filter, tên trùng qua nhiều page, ASC/DESC, tiếng Việt, search blank và literal `%`/`_`; áp đúng semantics đã chốt.
 - [ ] Test endpoint GET collection trả đúng envelope/items/page/size/totalElements/totalPages; không query từng item và không log search text.
@@ -229,7 +239,7 @@ Quy ước đường dẫn trong các task:
 
 | Tình huống dễ lỗi | Evidence bắt buộc |
 |---|---|
-| Hai request cùng tạo/chuyển sang một code | Task 1/3: unique constraint race; loser 409, không orphan audit |
+| Hai request cùng tạo/chuyển sang một taxCode | Task 1/3: unique constraint race; loser 409, không orphan audit |
 | Version đúng lúc load nhưng bị thay trước write | Task 3/5: SQL predicate, zero-row conflict và atomic rollback |
 | Audit đã insert rồi mới ném lỗi | Task 1/3/5: real PostgreSQL rollback cả business và audit |
 | Search chứa wildcard, sort chứa SQL hoặc tên trùng | Task 4: literal search, allowlist và stable pagination |

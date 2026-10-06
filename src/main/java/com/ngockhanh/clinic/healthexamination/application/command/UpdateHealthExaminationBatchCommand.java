@@ -1,24 +1,13 @@
 package com.ngockhanh.clinic.healthexamination.application.command;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.*;
 import lombok.Builder;
 
+/**
+ * Input for replacing the configuration of a draft health examination batch.
+ *
+ * @param configuration full replacement configuration
+ * @param rowVersion header version the caller last read; must match the stored version
+ */
 @Builder
 public record UpdateHealthExaminationBatchCommand(
-    String batchCode,
-    String batchName,
-    List<LocalDate> examinationDates,
-    String examinationSiteType,
-    String examinationSiteName,
-    String examinationSiteAddress,
-    List<ServicePrice> services) {
-  public UpdateHealthExaminationBatchCommand {
-    examinationDates = examinationDates == null ? null : List.copyOf(examinationDates);
-    services = services == null ? null : List.copyOf(services);
-  }
-
-  @Builder
-  public record ServicePrice(UUID serviceId, BigDecimal negotiatedPrice) {}
-}
+    BatchConfiguration configuration, Long rowVersion) {}

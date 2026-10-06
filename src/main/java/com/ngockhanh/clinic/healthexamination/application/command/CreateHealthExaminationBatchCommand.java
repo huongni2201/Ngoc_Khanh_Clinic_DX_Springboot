@@ -1,8 +1,11 @@
 package com.ngockhanh.clinic.healthexamination.application.command;
 
-import java.util.UUID;
 import lombok.Builder;
 
+/**
+ * Input for creating a draft health examination batch.
+ *
+ * @param configuration batch configuration; the actor is passed separately to the use case
+ */
 @Builder
-public record CreateHealthExaminationBatchCommand(
-    UUID createdBy, UpdateHealthExaminationBatchCommand configuration) {}
+public record CreateHealthExaminationBatchCommand(BatchConfiguration configuration) {}

@@ -34,12 +34,24 @@ refresh-token storage fields do not invent a new endpoint. See [API/security](05
 
 ## Organization and Batch
 
-Organization has a unique code, type, general contact channels and one named
-contact; optional tax code is not unique. A Batch owns at least one unique
+Organization has an optional unique tax code, general contact channels and one
+named contact; it has no separate business code. A Batch owns at least one unique
 BatchDay and an ordered maximum service scope. Date bounds derive from its days.
 Site types are CLINIC and ORGANIZATION_SITE; states are DRAFT, READY, FINALIZED,
 CLOSED. Draft configuration updates preserve retained day/service IDs and reject
-removal of referenced days/services. No batch deletion endpoint is implemented.
+removal of referenced days/services; only a DRAFT batch can be edited.
+
+Batch "delete" is a soft delete (`deleted_at`): only a DRAFT batch with no Participant
+(any roster status) and no import history can be deleted. The row, its days and
+services and its unique `batch_code` are kept, and a deleted batch is invisible to get,
+list, update and further delete. Participant writes cannot touch a deleted batch.
+Import history is asked through the integration module's `BatchHistoryQuery`.
+
+Organization "delete" is deactivation: `ACTIVE` to `INACTIVE` through
+`Organization.deactivate()`, guarded by the expected row version and audited in the same
+transaction. The row and its batches are preserved (batch FK is `ON DELETE RESTRICT`) and
+batch workflows are unchanged. Inactive organizations are hidden from organization list
+and get; updating one is not blocked by this workflow.
 
 On service addition, capture catalog reference price; negotiated price belongs
 to the Batch. Ordinary edits preserve existing performed-item price snapshots.

@@ -6,9 +6,19 @@ code, schema or authorization. The owning policies remain in PROJECT_RULES and A
 
 | Priority | Evidence | Required follow-up and acceptance evidence |
 |---|---|---|
-| High | [OrganizationBatchController.actor](../../src/main/java/com/ngockhanh/clinic/healthexamination/api/controller/OrganizationBatchController.java) falls back to a configured actor when principal is absent in local/test. [AuthInfrastructureConfiguration](../../src/main/java/com/ngockhanh/clinic/identity/infrastructure/configuration/AuthInfrastructureConfiguration.java) enables development behavior whenever local/test is active, including alongside prod/production. | Move test/development actor provisioning to explicit security configuration; keep real authenticated identity for business writes. Reject mixed production/development profiles at startup. Test prod+local, prod+test, production+local, production+test and absent-principal writes, alongside standalone profile regressions. The current filter chain provides access checks; controller fallback alone is not proof of a reachable unauthenticated HTTP bypass. |
-| Medium | During this documentation repair, source work outside this task removed BatchDraftEditor and batch create/list use-case files while [BatchDraftEditorTest](../../src/test/java/com/ngockhanh/clinic/healthexamination/application/usecase/BatchDraftEditorTest.java) and the batch controller still reference them. | Reconcile callers/tests with the intended replacement before runtime verification. If the collaborator is retained, place it outside usecase. Source may still be changing; recheck the checkout rather than restoring removed files from this report. |
+| High | [AuthInfrastructureConfiguration](../../src/main/java/com/ngockhanh/clinic/identity/infrastructure/configuration/AuthInfrastructureConfiguration.java) enables development behavior whenever local/test is active, including alongside prod/production. The batch controller no longer has an actor fallback (principal only, 2026-10-06), but the stale `clinic.health-examination.batch.mock-created-by` property remains in `application-local.yaml`. | Move test/development actor provisioning to explicit security configuration; keep real authenticated identity for business writes. Reject mixed production/development profiles at startup. Remove the unused property. Test prod+local, prod+test, production+local and production+test regressions alongside standalone profile regressions. |
 | Medium | Java-type policy formerly required wrappers even for local values. | Policy now follows nullability. Do not bulk-migrate existing declarations. When changing nullable contracts, update null/equality handling, MyBatis and affected type assertions together; required local scalar primitives are valid. |
+
+## Local catalog seed and unverified build (2026-10-06)
+
+`src/main/resources/db/local/R__local_catalog_seed.sql` is a repeatable, idempotent Flyway script that
+only runs for the `local` profile (`classpath:db/local`). It inserts two departments and five active
+services (`LOCAL_DEPT_*`, `LOCAL_SVC_*`) with `ON CONFLICT (code) DO NOTHING`; it creates no account,
+role or credential. Production uses `classpath:db/migration` only.
+
+The catalog list endpoint (`GET /api/v1/catalog/services`), `serviceCode`/`serviceName` in batch detail and
+`rowVersion` in batch summaries were written without a Java 25 toolchain, Maven Central access or Docker, so
+`./mvnw verify` (including the Testcontainers tests) has **not** been run for them. Run it before merging.
 
 ## Local cache relocation
 

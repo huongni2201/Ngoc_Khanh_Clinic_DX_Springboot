@@ -14,7 +14,8 @@ public record BatchSummaryResponse(
     LocalDate endDate,
     String status,
     Instant createdAt,
-    Instant updatedAt) {
+    Instant updatedAt,
+    long rowVersion) {
   public static BatchSummaryResponse from(BatchSummary b) {
     return BatchSummaryResponse.builder()
         .id(b.id())
@@ -25,6 +26,7 @@ public record BatchSummaryResponse(
         .status(b.status())
         .createdAt(b.createdAt())
         .updatedAt(b.updatedAt())
+        .rowVersion(b.rowVersion())
         .build();
   }
 }
