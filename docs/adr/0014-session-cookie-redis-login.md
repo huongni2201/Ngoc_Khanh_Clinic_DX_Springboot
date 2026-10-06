@@ -23,8 +23,8 @@ Control". Business controllers already read the authenticated `UserPrincipal`.
 
 ### Session protocol
 
-- `POST /api/v1/auth/login` and `POST /api/v1/auth/logout` only. The HTTP
-  contract is in [login operations](../api/login.md).
+- `POST /api/v1/auth/login` and `POST /api/v1/auth/logout` only. The detailed
+  HTTP contract will be documented in `docs/api/login.md` with the implementation.
 - On valid credentials the backend creates a random 32-byte session ID
   (base64url, 43 characters) and returns it only in an HttpOnly cookie. The body
   never contains the session ID.
