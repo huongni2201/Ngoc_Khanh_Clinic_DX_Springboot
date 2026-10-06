@@ -37,6 +37,13 @@ public application schema. SQL schema names do not define Java package names.
 
 ## Consequences
 
+Implementation update — 2026-10-05: the owner requested one audit contract for
+all flows. `audit::recording` now publishes only `AuditWriter`; it handles business,
+authentication and session events through one persistence adapter and insert method.
+The former authentication-only contract and duplicate mapper/adapter are removed.
+Occurrence time, correlation context, before/after metadata and caller-owned
+transaction/compensation behavior remain specific to each flow.
+
 Consumers, MyBatis namespaces, mapper scan configuration, and tests use the new
 packages. HTTP routes and domain rules do not change in this package migration.
 The audit persistence adapter now writes the clean-slate `audit_events` shape;

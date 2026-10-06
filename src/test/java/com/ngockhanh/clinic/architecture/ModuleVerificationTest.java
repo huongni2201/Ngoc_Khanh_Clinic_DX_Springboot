@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ngockhanh.clinic.NgocKhanhClinicApplication;
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -51,21 +52,18 @@ class ModuleVerificationTest {
             applicationClasses.stream()
                 .filter(
                     type ->
-                        type.getSimpleName().equals("AuthAudit")
-                            || type.getSimpleName().equals("AuditWriter")
-                            || type.getSimpleName().equals("AuditMapper")
+                        type.getSimpleName().equals("AuditWriter")
                             || type.getSimpleName().equals("AuditEventMapper")
                             || type.getSimpleName().equals("AuditEventRecord")
-                            || type.getSimpleName().equals("MyBatisAuthAudit")
                             || type.getSimpleName().equals("MyBatisAuditWriter"))
-                .map(type -> type.getPackageName())
+                .map(JavaClass::getPackageName)
                 .toList())
-        .hasSize(7)
+        .hasSize(4)
         .allMatch(name -> name.startsWith("com.ngockhanh.clinic.audit."));
     assertThat(
             applicationClasses.stream()
                 .filter(type -> type.getSimpleName().equals("AppointmentRecord"))
-                .map(type -> type.getPackageName())
+                .map(JavaClass::getPackageName)
                 .toList())
         .containsExactly("com.ngockhanh.clinic.appointment.infrastructure.persistence.record");
   }
@@ -88,7 +86,7 @@ class ModuleVerificationTest {
                             .equals("com.ngockhanh.clinic.healthexamination.domain.aggregate"))
                 .filter(type -> !type.getName().contains("$"))
                 .filter(type -> !type.getSimpleName().isBlank())
-                .map(type -> type.getSimpleName())
+                .map(JavaClass::getSimpleName)
                 .toList())
         .containsExactlyInAnyOrder(
             "Organization",

@@ -13,6 +13,7 @@ import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -42,6 +43,25 @@ class MyBatisOrganizationRepositoryIntegrationTest {
   @Autowired JdbcTemplate jdbc;
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean AuditWriter audit;
+
+  @Test
+  void authenticationRecordingPreservesAccountColumnsWithSharedWriter() {
+    UUID actor = createActorAccount();
+    UUID correlation = UUID.randomUUID();
+    Instant occurredAt = Instant.parse("2026-10-05T03:00:00Z");
+
+    audit.record(actor, "ACCOUNT_LOGIN", occurredAt, correlation);
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.audit_events WHERE actor_account_id = ? AND action = 'ACCOUNT_LOGIN' AND resource_type = 'ACCOUNT' AND resource_id = ? AND occurred_at = ? AND correlation_id = ? AND department_id IS NULL AND metadata = '{}'::jsonb",
+                Integer.class,
+                actor,
+                actor,
+                java.sql.Timestamp.from(occurredAt),
+                correlation))
+        .isEqualTo(1);
+  }
 
   private Organization organization(String code) {
     return Organization.create(
