@@ -23,6 +23,7 @@ application and HTTP responsibilities separate.
 No schema representation claims every clinic feature or endpoint is implemented.
 
 The retained clean-slate decisions are
-[the module inventory](../adr/0012-clean-slate-module-boundaries.md) and
-[the application/database contract](../adr/0013-clean-slate-application-contract.md).
+[the module inventory](../adr/0012-clean-slate-module-boundaries.md),
+[the application/database contract](../adr/0013-clean-slate-application-contract.md) and
+[the session login protocol](../adr/0014-session-cookie-redis-login.md).
 Older ADR files and architecture documents are removed.

@@ -5,7 +5,7 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 
 | Context | Owned tables/concepts |
 |---|---|
-| identity | accounts, staff_members, roles, permissions, account_roles, role_permissions |
+| accesscontrol | accounts, staff_members, roles, permissions, account_roles, role_permissions |
 | patient | patients, patient_allergies, patient_conditions |
 | catalog | departments, rooms, specialties, services, medicines, lab_tests, lab_analytes, lab_test_analytes |
 | encounter | encounters, including assigned room/doctor and independent visit lifecycle |
@@ -24,11 +24,11 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 
 ## Communication
 
-- `identity::access` publishes the authenticated principal. `identity::sessions`
-  publishes session revocation; revoke snapshots after account/grant changes commit.
+- `accesscontrol::access` publishes the authenticated principal (`UserPrincipal`).
+  Session revocation is not published yet; see [ADR-0014](../adr/0014-session-cookie-redis-login.md).
 - `catalog` publishes service lookup with current unit price through its query contract.
 - `audit::recording` publishes AuthAudit/AuditWriter. Audit owns its adapters and
-  depends on the published shared ID generator, without identity persistence access.
+  depends on the published shared ID generator, without accesscontrol persistence access.
 - Document query contracts expose template lookup without leaking table records.
 
 The Excel roster import contract and its runtime staging adapters were removed

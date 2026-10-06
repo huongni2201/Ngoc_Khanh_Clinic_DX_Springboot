@@ -16,7 +16,7 @@ and transport/persistence separation. Spotless uses the project's committed form
 
 Use PostgreSQL 18 Testcontainers for Flyway, MyBatis, unique/composite constraints,
 optimistic conflicts, atomic business/audit rollback, price history and immutable
-versions. Identity integration additionally uses Redis. Report real skips/failures;
+versions. Access-control integration additionally uses Redis. Report real skips/failures;
 H2, mocks and schema text tests are not evidence of PostgreSQL compatibility.
 
 The current schema has 64 business tables. Contract tests assert every table's
@@ -46,9 +46,10 @@ Flyway startup is disabled by default and enabled for local/test databases by
 configuration. Production migration is an explicit deployment step. Startup must
 use a compatible migrated schema. No runtime auto-create/auto-alter ORM schema exists.
 
-DB_URL, DB_USERNAME, DB_PASSWORD, Redis settings and JWT key belong in
-environment/secret storage. Do not use local/test profiles in
-production. Keep the documented cookie/CSRF/CORS policy and database privileges.
+DB_URL, DB_USERNAME, DB_PASSWORD, Redis settings, `NKC_AUTH_COOKIE_SECURE` and
+`NKC_AUTH_ALLOWED_ORIGINS` belong in environment/secret storage. Do not use
+local/test profiles in production. Keep the documented cookie/Origin policy
+([login operations](../api/login.md)) and database privileges.
 
 Outbox/external effects are recorded with business changes and dispatched after
 commit. Workers use leases/idempotency and bounded retries. Operational health and

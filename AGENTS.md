@@ -75,7 +75,7 @@ Do not create a generic top-level `feature` package.
 Canonical modules:
 
 ```text
-identity
+accesscontrol
 patient
 catalog
 encounter

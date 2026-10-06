@@ -92,7 +92,7 @@ Use the Maven wrapper, following the current required checks in
 For removed/moved classes or mapper resources, follow the clean-output guidance
 in [testing and operations](docs/architecture/06-testing-and-operations.md).
 PostgreSQL/MyBatis integration needs PostgreSQL 18 Testcontainers; relevant
-identity integration also needs Redis. Report skips/environment failures explicitly.
+accesscontrol integration also needs Redis. Report skips/environment failures explicitly.
 Use existing coverage facilities when requested to identify missing behavioral
 coverage; a percentage does not replace critical workflow tests.
 

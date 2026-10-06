@@ -5,10 +5,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchSummaryResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
-import com.ngockhanh.clinic.identity.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;

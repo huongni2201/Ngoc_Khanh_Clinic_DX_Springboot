@@ -22,8 +22,10 @@ assignment IDs, time windows or location scopes. Login requires active account,
 valid credentials and a valid owner; roles can be empty. Authentication itself
 does not grant clinical or portal access.
 
-The opaque cookie/Redis signed-session protocol remains the supported transport;
-refresh-token storage fields do not invent a new endpoint. See [API/security](05-api-and-security.md).
+Username and password are compared exactly as submitted (no trimming; username is
+case-sensitive). The session protocol is described in
+[ADR-0014](../adr/0014-session-cookie-redis-login.md); refresh-token storage
+fields do not invent a new endpoint.
 
 ## Organization and Batch
 

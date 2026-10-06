@@ -70,7 +70,7 @@ The application is one deployable Spring Boot application with explicit bounded 
 Canonical bounded contexts:
 
 ```text
-identity
+accesscontrol
 patient
 catalog
 encounter
