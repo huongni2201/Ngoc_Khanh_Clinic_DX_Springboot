@@ -202,7 +202,7 @@ Thứ tự dòng: ngày khám dự kiến, mã người khám (null cuối), h�
 
 ### 5.3. Giới hạn đề xuất
 
-File 5 MiB; tối đa 2.000 dòng dữ liệu; tối đa 100 cột dịch vụ; giữ budget ZIP như import Participant. Task 7 đo memory/latency với 2.000 × 30 rồi hiệu chỉnh.
+File 5 MiB; tối đa 10.000 dòng dữ liệu; tối đa 100 cột dịch vụ; giữ budget ZIP như import Participant. Task 7 đo memory/latency với 10.000 × 30 rồi hiệu chỉnh.
 
 ## 6. Quy tắc ghi đè đối soát (file → domain)
 
@@ -373,7 +373,7 @@ Frontend: `api/examination-details.ts`, `api/reports.ts`, `api/index.ts` (gỡ `
 - [ ] Vitest: URL builders, schema, mapping nhãn trạng thái, dialog lỗi (400 dòng, 409 version), ẩn nút theo quyền; cập nhật e2e mock backend.
 
 ### Task 8 — Hiệu năng, tài liệu, verify cuối
-- [ ] Đo import/export 2.000 dòng × 30 dịch vụ (thời gian, heap); hiệu chỉnh budget.
+- [ ] Đo import/export 10.000 dòng × 30 dịch vụ (thời gian, heap); hiệu chỉnh budget.
 - [ ] Hoàn thiện tài liệu API/architecture; completion report theo AGENTS.md.
 
 ## 12. Lệnh verification

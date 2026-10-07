@@ -46,14 +46,16 @@ labels, row 2 the hidden machine keys, data starts at row 3. Hidden columns A `p
 are required on import. Other participant columns are read-only context and are ignored on import. `actual_examination_date`
 is optional text `yyyy-MM-dd`. One column `svc:<batch_service_id>` per batch service holds `X` or blank. The set of
 `svc:` keys must equal the batch services exactly, otherwise the template is stale (400).
-Limits: 2,000 data rows, 100 service columns, plus the OOXML package guard shared with the Participant import
+Limits: 10,000 data rows (the export refuses, with 400, a batch with more active Participants so every export can be imported again), 100 service columns, plus the OOXML package guard shared with the Participant import
 (no XLS/XLSM/VBA, no encryption, no external links, bounded unzip, no formula evaluation).
 
 ## Reconciliation rules (overwrite by file)
 
 - Only rows in the file are touched; Participants not in the file stay as they are.
-- `X` marks the service performed and the Participant ATTENDED (actual date from the file, else the business "today",
-  Asia/Ho_Chi_Minh). Blank marks it not performed and keeps the row, its price snapshot and `service_request_id`.
+- `X` marks the service performed and the Participant ATTENDED (actual date from the file, else the date already recorded,
+  else the planned examination date). The actual date must be between the batch start date and today (business time,
+  Asia/Ho_Chi_Minh); a blank actual date on a not-yet-attended Participant whose planned date is still in the future is
+  rejected (400) and the row must state the actual date. Blank marks it not performed and keeps the row, its price snapshot and `service_request_id`.
 - A new `X` takes the current negotiated price as the snapshot. A Participant with no X and no stored rows is skipped.
 - A row identical to the stored state is `unchanged` and writes nothing.
 - Each affected Participant becomes RECONCILED. The batch `rowVersion` does not change.

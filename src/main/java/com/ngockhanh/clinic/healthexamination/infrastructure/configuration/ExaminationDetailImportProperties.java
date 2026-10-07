@@ -15,7 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("clinic.examination-detail-import")
 public record ExaminationDetailImportProperties(Integer maxRows, Integer maxServiceColumns) {
   public ExaminationDetailImportProperties {
-    maxRows = maxRows == null ? 2_000 : maxRows;
+    maxRows = maxRows == null ? 10_000 : maxRows;
     maxServiceColumns = maxServiceColumns == null ? 100 : maxServiceColumns;
     if (maxRows < 1 || maxServiceColumns < 1)
       throw new IllegalArgumentException("Examination detail import limits must be positive");

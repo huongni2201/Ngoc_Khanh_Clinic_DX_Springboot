@@ -7,6 +7,8 @@ import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetai
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailRow;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailWorkbook;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationServiceColumn;
+import com.ngockhanh.clinic.healthexamination.infrastructure.configuration.ExaminationDetailImportProperties;
+import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -51,13 +53,33 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
     "Đánh dấu X vào hạng mục đã thực hiện. Để trống nếu chưa thực hiện.",
     "File là trạng thái đối soát mới của từng người có trong file: ô trống nghĩa là chưa thực hiện.",
     "Người khám không có trong file được giữ nguyên.",
-    "Ngày khám thực tế nhập dạng văn bản yyyy-MM-dd. Để trống để giữ ngày đã ghi hoặc dùng ngày khám dự kiến.",
+    "Ngày khám thực tế nhập dạng văn bản yyyy-MM-dd. Để trống để giữ ngày đã ghi hoặc dùng ngày khám dự kiến (chỉ khi ngày dự kiến không nằm trong tương lai).",
     "Không thêm, xóa hay đổi thứ tự cột và không sửa dòng khóa ẩn. Nếu đợt khám thay đổi, hãy xuất lại file.",
     "Có bất kỳ dòng lỗi nào thì toàn bộ file bị từ chối và không có gì được lưu.",
   };
 
+  private final ExaminationDetailImportProperties limits;
+
+  public PoiExaminationDetailExcelWriter(ExaminationDetailImportProperties limits) {
+    this.limits = limits;
+  }
+
+  /**
+   * Renders the workbook.
+   *
+   * @throws ApplicationException of type {@code INVALID_INPUT} when the batch has more rows than
+   *     the import accepts, because the file could not be imported again
+   */
   @Override
   public byte[] write(ExaminationDetailExportData data) {
+    if (data.rows().size() > limits.maxRows())
+      throw new ApplicationException(
+          ApplicationException.Type.INVALID_INPUT,
+          "The batch has "
+              + data.rows().size()
+              + " participants, more than the "
+              + limits.maxRows()
+              + " rows the examination detail import accepts; the file would not be importable");
     try (XSSFWorkbook workbook = new XSSFWorkbook();
         ByteArrayOutputStream out = new ByteArrayOutputStream()) {
       CellStyle text = workbook.createCellStyle();

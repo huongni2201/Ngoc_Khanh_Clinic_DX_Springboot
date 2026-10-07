@@ -43,7 +43,8 @@ class PoiExaminationDetailExcelTest {
 
   private final ParticipantImportProperties fileLimits =
       new ParticipantImportProperties(null, null, null, null, null, null);
-  private final PoiExaminationDetailExcelWriter writer = new PoiExaminationDetailExcelWriter();
+  private final PoiExaminationDetailExcelWriter writer =
+      new PoiExaminationDetailExcelWriter(new ExaminationDetailImportProperties(null, null));
   private final PoiExaminationDetailExcelReader reader =
       new PoiExaminationDetailExcelReader(
           fileLimits, new ExaminationDetailImportProperties(null, null));
@@ -344,6 +345,42 @@ class PoiExaminationDetailExcelTest {
     assertThatThrownBy(() -> small.read(export()))
         .isInstanceOf(ApplicationException.class)
         .hasMessageContaining("rows 3 to 3");
+  }
+
+  @Test
+  void acceptsTenThousandRowsByDefaultAndRoundTripsThem() {
+    // the worst realistic export: 10,000 people x 30 services must fit the default package guard
+    List<ExaminationServiceColumn> columns = new java.util.ArrayList<>();
+    for (int i = 0; i < 30; i++)
+      columns.add(new ExaminationServiceColumn(new UUID(0, 1000 + i), "Dịch vụ " + i));
+    List<ExaminationDetailRow> rows = new java.util.ArrayList<>();
+    for (int i = 0; i < 10_000; i++)
+      rows.add(
+          row(
+              UUID.nameUUIDFromBytes(("p" + i).getBytes()),
+              "Nguyen Van Person " + i,
+              null,
+              i,
+              columns.get(i % 30).batchServiceId()));
+    byte[] file =
+        writer.write(
+            new ExaminationDetailExportData(
+                BATCH_ID, "B1", Instant.parse("2026-10-07T00:00:00Z"), columns, rows));
+    assertThat(reader.read(file).rows()).hasSize(10_000);
+  }
+
+  @Test
+  void refusesToExportMoreRowsThanTheImportAccepts() {
+    var tight =
+        new PoiExaminationDetailExcelWriter(new ExaminationDetailImportProperties(1, 100));
+    assertThatThrownBy(
+            () ->
+                tight.write(
+                    data(row(P1, "Person One", null, 1), row(P2, "Person Two", null, 2))))
+        .isInstanceOfSatisfying(
+            ApplicationException.class,
+            e -> assertThat(e.type()).isEqualTo(ApplicationException.Type.INVALID_INPUT))
+        .hasMessageContaining("more than the 1 rows");
   }
 
   @Test

@@ -85,6 +85,28 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
   }
 
   @Test
+  void rejectsADateOfBirthInTheFutureButAcceptsTodayInTheBusinessTimeZone() {
+    givenOpenBatch();
+    when(participants.identityTakenByOther(any(), any(), isNull())).thenReturn(false);
+    // the clock is 2026-10-04T00:00Z = 07:00 on 2026-10-04 in Asia/Ho_Chi_Minh
+    var tomorrow =
+        new CreateParticipantCommand(
+            "NV-001", FULL_NAME, LocalDate.of(2026, 10, 5), "MALE", IDENTIFICATION, PHONE, EMAIL,
+            "Accounting", "Staff", firstDay());
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, tomorrow, manager))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Date of birth must not be in the future");
+    verify(participants, org.mockito.Mockito.never()).insert(any());
+
+    var today =
+        new CreateParticipantCommand(
+            "NV-001", FULL_NAME, LocalDate.of(2026, 10, 4), "MALE", IDENTIFICATION, PHONE, EMAIL,
+            "Accounting", "Staff", firstDay());
+    useCase.execute(organizationId, batchId, today, manager);
+    verify(participants).insert(any());
+  }
+
+  @Test
   void createsAnActiveUnconfirmedPendingManualParticipantAndAudits() {
     givenOpenBatch();
     when(participants.identityTakenByOther(any(), any(), isNull())).thenReturn(false);

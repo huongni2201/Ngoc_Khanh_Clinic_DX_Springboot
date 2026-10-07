@@ -260,6 +260,34 @@ class ExaminationDetailImportCommitterTest {
   }
 
   @Test
+  void aBlankActualDateCannotFallBackToAPlannedDateThatIsStillInTheFuture() {
+    var early = Clock.fixed(Instant.parse("2026-10-02T03:00:00Z"), ZoneOffset.UTC); // planned 10-04
+    var committerBeforeTheDay =
+        new ExaminationDetailImportCommitter(organizations, batches, participants, imports, audit, early);
+    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
+    givenLocked(p);
+
+    assertThatThrownBy(
+            () -> committerBeforeTheDay.commit(request(List.of(row(5, p, 1, null, serviceA)))))
+        .isInstanceOf(ApplicationException.class)
+        .hasMessageContaining("Row 5")
+        .hasMessageContaining("planned examination date");
+    verify(participants, never()).save(any(), anyLong());
+    verifyNoInteractions(audit);
+    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+  }
+
+  @Test
+  void aBlankActualDateStillFallsBackToAPlannedDateThatIsTodayOrPast() {
+    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
+    givenLocked(p);
+
+    committer.commit(request(List.of(row(5, p, 1, null, serviceA))));
+
+    assertThat(p.getActualExaminationDate()).isEqualTo(FIRST_DAY);
+  }
+
+  @Test
   void acceptsTodayInTheBusinessTimeZoneEvenWhenUtcIsStillYesterday() {
     var lateClock = Clock.fixed(Instant.parse("2026-10-05T18:30:00Z"), ZoneOffset.UTC); // 01:30 on 10-06
     var late =

@@ -153,6 +153,21 @@ class UpdateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
   }
 
   @Test
+  void rejectsADateOfBirthInTheFutureWithoutSaving() {
+    givenOpenBatch();
+    var p = stored(0);
+    givenStored(p);
+    var future =
+        new UpdateParticipantCommand(
+            "NV-001", FULL_NAME, LocalDate.of(2099, 1, 1), "MALE", IDENTIFICATION, PHONE, EMAIL,
+            "Accounting", "Staff", firstDay(), 0L);
+    assertThatThrownBy(() -> run(p, future))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Date of birth must not be in the future");
+    verify(participants, never()).save(any(), anyLong());
+  }
+
+  @Test
   void rejectsAStaleVersionBeforeChangingAnything() {
     givenOpenBatch();
     var p = stored(3);

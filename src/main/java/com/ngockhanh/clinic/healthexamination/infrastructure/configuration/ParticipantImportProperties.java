@@ -28,8 +28,8 @@ public record ParticipantImportProperties(
     maxRows = maxRows == null ? 1_000 : maxRows;
     maxCellChars = maxCellChars == null ? 500 : maxCellChars;
     maxZipEntries = maxZipEntries == null ? 128 : maxZipEntries;
-    maxEntryBytes = maxEntryBytes == null ? 16L * 1024 * 1024 : maxEntryBytes;
-    maxTotalBytes = maxTotalBytes == null ? 32L * 1024 * 1024 : maxTotalBytes;
+    maxEntryBytes = maxEntryBytes == null ? 64L * 1024 * 1024 : maxEntryBytes;
+    maxTotalBytes = maxTotalBytes == null ? 128L * 1024 * 1024 : maxTotalBytes;
     if (maxFileBytes < 1
         || maxRows < 1
         || maxCellChars < 1
