@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
-import com.ngockhanh.clinic.healthexamination.application.port.ParticipantListReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantListReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantListCriteria;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantPage;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantSummary;

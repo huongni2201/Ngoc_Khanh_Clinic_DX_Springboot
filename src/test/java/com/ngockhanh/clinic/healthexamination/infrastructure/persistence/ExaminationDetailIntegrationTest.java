@@ -47,6 +47,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -59,6 +60,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * of the read model, the row locks, the idempotency receipt, the import tables and their triggers,
  * the price snapshots, atomic rollback and the Word export of the same figures.
  */
+// Close cached connections when this class finishes; its containers are class-scoped.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = ExaminationDetailIntegrationTest.DetailTestConfiguration.class)
 class ExaminationDetailIntegrationTest {
@@ -79,7 +82,8 @@ class ExaminationDetailIntegrationTest {
   @org.springframework.context.annotation.Import({
     CreateHealthExaminationBatchUseCase.class,
     ExaminationDetailAccessPolicy.class,
-    com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailImportCommitter.class,
+    com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailImportCommitter
+        .class,
     com.ngockhanh.clinic.healthexamination.application.service.PaymentSummaryReportAssembler.class,
     ListExaminationDetailsUseCase.class,
     GetExaminationSummaryUseCase.class,
@@ -95,8 +99,10 @@ class ExaminationDetailIntegrationTest {
         .MyBatisHealthExaminationBatchParticipantRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisExaminationDetailReader.class,
-    com.ngockhanh.clinic.healthexamination.infrastructure.excel.PoiExaminationDetailExcelWriter.class,
-    com.ngockhanh.clinic.healthexamination.infrastructure.excel.PoiExaminationDetailExcelReader.class,
+    com.ngockhanh.clinic.healthexamination.infrastructure.excel.PoiExaminationDetailExcelWriter
+        .class,
+    com.ngockhanh.clinic.healthexamination.infrastructure.excel.PoiExaminationDetailExcelReader
+        .class,
     com.ngockhanh.clinic.healthexamination.infrastructure.word.PoiPaymentReportDocxWriter.class,
     com.ngockhanh.clinic.catalog.infrastructure.persistence.repository.MyBatisServiceCatalogQuery
         .class,
@@ -278,9 +284,11 @@ class ExaminationDetailIntegrationTest {
     sheet.getRow(rowOf(sheet, participant)).getCell(11).setCellValue(date);
   }
 
-  private com.ngockhanh.clinic.healthexamination.application.response.ExaminationDetailImportResponse
+  private com.ngockhanh.clinic.healthexamination.application.response
+          .ExaminationDetailImportResponse
       importFile(byte[] file, UUID key) {
-    return importer.execute(org, batchId, new ImportExaminationDetailsCommand(file, key), principal);
+    return importer.execute(
+        org, batchId, new ImportExaminationDetailsCommand(file, key), principal);
   }
 
   private String state(UUID participant) {
@@ -309,7 +317,8 @@ class ExaminationDetailIntegrationTest {
   // --- tests ---
 
   @Test
-  void exportHoldsEveryActiveParticipantWithMaskedIdentificationAndAnAuditEvent() throws IOException {
+  void exportHoldsEveryActiveParticipantWithMaskedIdentificationAndAnAuditEvent()
+      throws IOException {
     jdbc.update(
         "UPDATE public.health_examination_batch_participants SET roster_status='CANCELLED' WHERE id=?",
         p3);
@@ -320,11 +329,14 @@ class ExaminationDetailIntegrationTest {
       Sheet sheet = workbook.getSheet("ChiTietKham");
       assertThat(sheet.getLastRowNum()).isEqualTo(3); // header, keys, two active participants
       assertThat(sheet.getRow(0).getCell(12).getStringCellValue()).isEqualTo("Khám nội");
-      assertThat(sheet.getRow(1).getCell(12).getStringCellValue()).isEqualTo("svc:" + batchServiceA);
+      assertThat(sheet.getRow(1).getCell(12).getStringCellValue())
+          .isEqualTo("svc:" + batchServiceA);
       for (int r = 2; r <= 3; r++)
         assertThat(sheet.getRow(r).getCell(7).getStringCellValue()).doesNotContain("00000000000");
     }
-    assertThat(count("SELECT count(*) FROM public.audit_events WHERE action='EXPORT_EXAMINATION_DETAILS'"))
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.audit_events WHERE action='EXPORT_EXAMINATION_DETAILS'"))
         .isEqualTo(1);
   }
 
@@ -371,14 +383,19 @@ class ExaminationDetailIntegrationTest {
                 "SELECT count(*) FROM public.import_rows WHERE job_id=? AND committed_resource_id IS NOT NULL",
                 response.importJobId()))
         .isEqualTo(2);
-    assertThat(count("SELECT count(*) FROM public.audit_events WHERE action='IMPORT_EXAMINATION_DETAILS'"))
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.audit_events WHERE action='IMPORT_EXAMINATION_DETAILS'"))
         .isEqualTo(1);
 
     var replay = importFile(file, key);
 
     assertThat(replay.importJobId()).isEqualTo(response.importJobId());
-    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE batch_id=?", batchId)).isEqualTo(1);
-    assertThat(count("SELECT count(*) FROM public.audit_events WHERE action='IMPORT_EXAMINATION_DETAILS'"))
+    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE batch_id=?", batchId))
+        .isEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.audit_events WHERE action='IMPORT_EXAMINATION_DETAILS'"))
         .isEqualTo(1);
     assertThat(version(p1)).isEqualTo(1);
   }
@@ -411,15 +428,20 @@ class ExaminationDetailIntegrationTest {
     assertThat(state(p2)).isEqualTo("UNCONFIRMED|-|PENDING");
     assertThat(version(p2)).isEqualTo(p2Version);
     assertThat(serviceRows(p2, true)).isZero();
-    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE batch_id=?", batchId)).isEqualTo(1);
+    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE batch_id=?", batchId))
+        .isEqualTo(1);
   }
 
   @Test
   void aServiceUncheckedAfterwardsKeepsItsRowAsNotPerformed() {
-    importFile(edited(exported(), sheet -> {
-      mark(sheet, p1, 0, "X");
-      mark(sheet, p1, 1, "X");
-    }), UUID.randomUUID());
+    importFile(
+        edited(
+            exported(),
+            sheet -> {
+              mark(sheet, p1, 0, "X");
+              mark(sheet, p1, 1, "X");
+            }),
+        UUID.randomUUID());
 
     var second = importFile(edited(exported(), sheet -> mark(sheet, p1, 1, "")), UUID.randomUUID());
 
@@ -440,7 +462,8 @@ class ExaminationDetailIntegrationTest {
         .hasMessageContaining("cancelled");
 
     byte[] again = edited(exported(), sheet -> mark(sheet, p1, 0, "X"));
-    jdbc.update("UPDATE public.health_examination_batches SET status='FINALIZED' WHERE id=?", batchId);
+    jdbc.update(
+        "UPDATE public.health_examination_batches SET status='FINALIZED' WHERE id=?", batchId);
     assertThatThrownBy(() -> importFile(again, UUID.randomUUID()))
         .isInstanceOf(ConflictException.class);
     assertThat(state(p1)).isEqualTo("UNCONFIRMED|-|PENDING");
@@ -554,12 +577,19 @@ class ExaminationDetailIntegrationTest {
       var text = new StringBuilder();
       doc.getParagraphs().forEach(p -> text.append(p.getText()).append('\n'));
       doc.getTables()
-          .forEach(t -> t.getRows().forEach(r -> r.getTableCells().forEach(c -> text.append(c.getText()).append('\n'))));
+          .forEach(
+              t ->
+                  t.getRows()
+                      .forEach(
+                          r ->
+                              r.getTableCells()
+                                  .forEach(c -> text.append(c.getText()).append('\n'))));
       assertThat(text.toString())
           .contains("(TẠM TÍNH)", "Khám nội", "450,50", "Bằng chữ: ")
           .doesNotContain("Person One", "000000000001");
     }
-    assertThat(count("SELECT count(*) FROM public.audit_events WHERE action='EXPORT_PAYMENT_REPORT'"))
+    assertThat(
+            count("SELECT count(*) FROM public.audit_events WHERE action='EXPORT_PAYMENT_REPORT'"))
         .isEqualTo(1);
   }
 }

@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.word;
 
-import com.ngockhanh.clinic.healthexamination.application.port.PaymentReportDocumentWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.PaymentReportDocumentWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.PaymentReportDocument;
 import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummaryReportResponse;
 import java.io.ByteArrayOutputStream;

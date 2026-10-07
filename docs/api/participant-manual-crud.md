@@ -8,10 +8,22 @@ The import, template and list contract stays in [participant import and list](pa
 
 ## Permission
 
-All five routes need `HEALTH_EXAMINATION_PARTICIPANT_MANAGE`, granted to ADMIN and CLINIC_MANAGER
-by Flyway V004 (and the local seed). Permissions are a login snapshot: sign in again after the
-migration. `GET /import-template` is matched before `GET /{participantId}` in the security chain, and
-`POST /{participantId}/reactivate` has its own matcher before the generic `/api/v1/**` rule.
+Owner amendment 2026-10-07: use separate endpoint permissions under ADR-0015.
+Every route requires a STAFF account and its own permission:
+
+| Route | Permission |
+|---|---|
+| POST collection (manual add) | `PARTICIPANT_CREATE` |
+| GET /{participantId} | `PARTICIPANT_VIEW` |
+| PUT /{participantId} | `PARTICIPANT_UPDATE` |
+| DELETE /{participantId} (cancel) | `PARTICIPANT_REMOVE` |
+| POST /{participantId}/reactivate | `PARTICIPANT_REACTIVATE` |
+
+The consolidated V002 seed grants VIEW, UPDATE, REMOVE, CREATE and REACTIVATE only
+to CLINIC_MANAGER. The legacy `HEALTH_EXAMINATION_PARTICIPANT_MANAGE` grant no longer
+opens these routes. Permissions are a login snapshot: sign in again after migration.
+`GET /import-template` is matched before `GET /{participantId}` and requires
+`PARTICIPANT_TEMPLATE_DOWNLOAD`. The list and import keep their dedicated permissions.
 
 ## Rules
 
@@ -42,7 +54,7 @@ Returns `201` with the detail below and `Cache-Control: no-store`.
 
 Returns the list item plus `identificationNumber` (full), `phone`, `email`, `patientLinked`,
 `source` (`MANUAL|IMPORT`), `createdAt`, `updatedAt`. This is the only response that carries the
-full CCCD, so it needs MANAGE and is `no-store`. It is never logged or audited.
+full CCCD, so it needs PARTICIPANT_VIEW and is `no-store`. It is never logged or audited.
 
 ## `PUT /{participantId}` - edit
 
@@ -75,7 +87,7 @@ Returns `200` with the detail (new `rowVersion`) and `Cache-Control: no-store`.
 | Status | Cause |
 |---|---|
 | 400 | Invalid body or query (missing fields, length, CCCD not digits, bad date, missing `rowVersion`) |
-| 401 / 403 | Not signed in / no MANAGE permission |
+| 401 / 403 | Not signed in / missing endpoint permission |
 | 404 | Unknown organization, batch (or soft-deleted) or Participant |
 | 409 | Any rule above, or a stale `rowVersion` |
 

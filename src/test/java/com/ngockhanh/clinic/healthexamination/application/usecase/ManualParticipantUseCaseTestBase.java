@@ -1,7 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import static com.ngockhanh.clinic.healthexamination.BatchFixtures.*;
-import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.MANAGE;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.staff;
 import static com.ngockhanh.clinic.healthexamination.RosterFixtures.NOW;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,7 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantAccessPolicy;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantChangeSupport;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
@@ -52,8 +51,12 @@ abstract class ManualParticipantUseCaseTestBase {
           organizations, batches, participants, audit, Clock.fixed(NOW, ZoneOffset.UTC));
   final UUID organizationId = UUID.randomUUID();
   final UUID batchId = UUID.randomUUID();
-  final UserPrincipal manager = staff(MANAGE);
+  final UserPrincipal manager;
   HealthExaminationBatch batch;
+
+  ManualParticipantUseCaseTestBase(String permission) {
+    manager = staff(permission);
+  }
 
   /** Stubs an active organization and a READY batch with two days. */
   void givenOpenBatch() {
@@ -62,7 +65,8 @@ abstract class ManualParticipantUseCaseTestBase {
 
   void givenBatch(BatchStatus status, Instant deletedAt, boolean organizationActive) {
     batch = batch(organizationId, batchId, status, 5, deletedAt, UUID.randomUUID());
-    when(batches.findDetails(organizationId, batchId, true)).thenReturn(Optional.of(details(batch)));
+    when(batches.findDetails(organizationId, batchId, true))
+        .thenReturn(Optional.of(details(batch)));
     when(batches.findDetails(organizationId, batchId, false))
         .thenReturn(Optional.of(details(batch)));
     var organization =

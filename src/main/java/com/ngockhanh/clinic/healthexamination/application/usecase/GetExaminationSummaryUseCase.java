@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailReader;
 import com.ngockhanh.clinic.healthexamination.application.response.ExaminationSummaryResponse;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailAccessPolicy;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;

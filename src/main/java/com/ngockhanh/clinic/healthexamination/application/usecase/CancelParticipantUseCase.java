@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  * row, its import provenance, its history and its audit trail stay, and the identification number
  * keeps its place in the batch, so the same number cannot be added again.
  *
- * <p>The caller must hold the Participant manage permission. A Participant that was prepared for a
+ * <p>The caller must hold the Participant remove permission. A Participant that was prepared for a
  * visit, has attended or has its services reconciled cannot be cancelled, and neither can one that
  * is already cancelled.
  */
@@ -39,7 +39,12 @@ public class CancelParticipantUseCase {
   /**
    * Cancels the Participant.
    *
-   * @throws ApplicationException {@code ACCESS_DENIED} without the manage permission
+   * @param organizationId owning organization
+   * @param batchId batch identifier
+   * @param participantId Participant identifier inside the batch
+   * @param command expected Participant version
+   * @param principal authenticated staff caller
+   * @throws ApplicationException {@code ACCESS_DENIED} without the remove permission
    * @throws IllegalArgumentException when an argument is null or the version is negative
    * @throws ResourceNotFoundException when the organization, batch or Participant is not found
    * @throws ConflictException when the batch or organization does not accept changes, or the
@@ -53,7 +58,7 @@ public class CancelParticipantUseCase {
       UUID participantId,
       CancelParticipantCommand command,
       UserPrincipal principal) {
-    access.requireManage(principal);
+    access.requireRemove(principal);
     if (organizationId == null || batchId == null || participantId == null || command == null)
       throw new IllegalArgumentException(
           "Organization, batch and Participant IDs and command are required");

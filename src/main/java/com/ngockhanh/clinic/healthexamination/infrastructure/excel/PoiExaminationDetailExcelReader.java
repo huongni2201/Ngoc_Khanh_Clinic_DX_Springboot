@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.excel;
 
 import static com.ngockhanh.clinic.healthexamination.infrastructure.excel.ExaminationDetailExcelColumns.*;
 
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailExcelReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailExcelReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailImportRow;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailWorkbook;
 import com.ngockhanh.clinic.healthexamination.infrastructure.configuration.ExaminationDetailImportProperties;

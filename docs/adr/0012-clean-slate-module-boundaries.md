@@ -25,7 +25,7 @@ public application schema. SQL schema names do not define Java package names.
   and XML resources. Portal implementation follows supported release use cases;
   do not generate empty layer trees.
 - Publish only `AuditWriter` through `audit::recording`, in
-  `audit.application.port`, for business, authentication and session events.
+  `audit.application.port.out`, for business, authentication and session events.
   Consumers use this public recording boundary; the supported authentication/session
   protocol is described in the current API/security architecture.
 - Audit may depend on `shared::id-generator`. Shared must not depend on audit or

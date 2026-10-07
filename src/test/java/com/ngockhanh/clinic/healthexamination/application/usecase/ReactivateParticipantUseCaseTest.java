@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class ReactivateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
+  ReactivateParticipantUseCaseTest() {
+    super("PARTICIPANT_REACTIVATE");
+  }
+
   private final ReactivateParticipantUseCase useCase =
       new ReactivateParticipantUseCase(access, support, participants);
 

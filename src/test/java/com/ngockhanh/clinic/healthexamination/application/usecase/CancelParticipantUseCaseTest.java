@@ -31,16 +31,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
+  CancelParticipantUseCaseTest() {
+    super("PARTICIPANT_REMOVE");
+  }
+
   private final CancelParticipantUseCase useCase =
       new CancelParticipantUseCase(access, support, participants);
 
   private void cancel(HealthExaminationBatchParticipant p, Long version) {
     useCase.execute(
-        organizationId,
-        batchId,
-        p.getId().value(),
-        new CancelParticipantCommand(version),
-        manager);
+        organizationId, batchId, p.getId().value(), new CancelParticipantCommand(version), manager);
   }
 
   @Test
@@ -92,8 +92,7 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     givenOpenBatch();
     var prepared =
         stored(1, progress(new AggregateId(UUID.randomUUID()), RosterStatus.ACTIVE, NOW, null));
-    var attended =
-        stored(1, progress(null, RosterStatus.ACTIVE, null, AttendanceStatus.ATTENDED));
+    var attended = stored(1, progress(null, RosterStatus.ACTIVE, null, AttendanceStatus.ATTENDED));
     var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null, null));
     for (var p : List.of(prepared, attended)) {
       givenStored(p);

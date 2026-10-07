@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.excel;
 
 import static com.ngockhanh.clinic.healthexamination.infrastructure.excel.ParticipantExcelColumns.*;
 
-import com.ngockhanh.clinic.healthexamination.application.port.ParticipantTemplateWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantTemplateWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantTemplateData;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantWorkbook;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;

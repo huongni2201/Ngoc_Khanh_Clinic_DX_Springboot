@@ -23,7 +23,9 @@ class PostgreSqlMigrationIntegrationTest {
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .locations("classpath:db/migration")
             .load();
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+    flyway.migrate();
+    flyway.validate();
+    assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     var jdbc =
         new JdbcTemplate(

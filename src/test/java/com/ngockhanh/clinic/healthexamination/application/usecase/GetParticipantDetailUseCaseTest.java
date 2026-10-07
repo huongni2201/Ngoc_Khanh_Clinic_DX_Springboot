@@ -20,19 +20,22 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
+  GetParticipantDetailUseCaseTest() {
+    super("PARTICIPANT_VIEW");
+  }
+
   private final GetParticipantDetailUseCase useCase =
       new GetParticipantDetailUseCase(access, support, participants);
 
   @Test
-  void readPermissionIsNotEnoughToSeeTheFullIdentificationNumber() {
+  void rejectsCallersWithoutTheViewPermissionBeforeReadingData() {
     givenOpenBatch();
     var participant = stored(2);
     givenStored(participant);
-    for (var principal : List.of(staff(), staff(READ), staff(IMPORT)))
+    for (var principal : List.of(staff(), staff(IMPORT)))
       assertThatThrownBy(
               () ->
-                  useCase.execute(
-                      organizationId, batchId, participant.getId().value(), principal))
+                  useCase.execute(organizationId, batchId, participant.getId().value(), principal))
           .isInstanceOfSatisfying(
               ApplicationException.class,
               denied ->
@@ -46,7 +49,7 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
     var participant = stored(2);
     givenStored(participant);
 
-    var detail = useCase.execute(organizationId, batchId, participant.getId().value(), manager);
+    var detail = useCase.execute(organizationId, batchId, participant.getId().value(), staff(READ));
 
     assertThat(detail.identificationNumber()).isEqualTo(IDENTIFICATION);
     assertThat(detail.identificationNumberMasked()).isEqualTo("********8901");
@@ -65,14 +68,16 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
         stored(1, progress(new AggregateId(UUID.randomUUID()), RosterStatus.ACTIVE, NOW, null));
     givenStored(linked);
     assertThat(
-            useCase.execute(organizationId, batchId, linked.getId().value(), manager)
+            useCase
+                .execute(organizationId, batchId, linked.getId().value(), manager)
                 .patientLinked())
         .isTrue();
 
     var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null, null));
     givenStored(cancelled);
     assertThat(
-            useCase.execute(organizationId, batchId, cancelled.getId().value(), manager)
+            useCase
+                .execute(organizationId, batchId, cancelled.getId().value(), manager)
                 .rosterStatus())
         .isEqualTo("CANCELLED");
   }
@@ -89,15 +94,14 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
   @Test
   void reportsAnUnknownBatchOrParticipantAsNotFound() {
     when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.empty());
-    assertThatThrownBy(
-            () -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
         .isInstanceOf(ResourceNotFoundException.class);
 
     givenOpenBatch();
-    when(participants.findInBatch(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+    when(participants.findInBatch(
+            org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .thenReturn(Optional.empty());
-    assertThatThrownBy(
-            () -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 }

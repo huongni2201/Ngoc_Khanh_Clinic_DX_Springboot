@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Adds one Participant to a batch by hand.
  *
- * <p>The caller must hold the Participant manage permission. In one transaction the batch is
+ * <p>The caller must hold the Participant create permission. In one transaction the batch is
  * locked, the organization and batch state are checked, the examination day is resolved inside the
  * batch, an identification number already in the batch (cancelled Participants included) is
  * rejected, the Participant is inserted as active, unconfirmed and pending, and the audit event is
@@ -52,7 +52,7 @@ public class CreateParticipantUseCase {
    * @param command roster fields and examination day
    * @param principal authenticated staff account
    * @return the stored Participant in full
-   * @throws ApplicationException {@code ACCESS_DENIED} without the manage permission
+   * @throws ApplicationException {@code ACCESS_DENIED} without the create permission
    * @throws IllegalArgumentException when an argument is null or a field breaks a roster rule
    * @throws ResourceNotFoundException when the organization or the batch is not found
    * @throws ConflictException when the batch or organization does not accept changes, the day is
@@ -64,7 +64,7 @@ public class CreateParticipantUseCase {
       UUID batchId,
       CreateParticipantCommand command,
       UserPrincipal principal) {
-    access.requireManage(principal);
+    access.requireCreate(principal);
     if (organizationId == null
         || batchId == null
         || command == null
@@ -95,8 +95,7 @@ public class CreateParticipantUseCase {
         HealthExaminationBatchParticipant.create(
             participantId, batchAggregateId, dayId, roster, null, null, now);
     participants.insert(participant);
-    support.audit(
-        principal.userId(), ACTION, organizationId, participant, null, 0L, List.of());
+    support.audit(principal.userId(), ACTION, organizationId, participant, null, 0L, List.of());
     log.info(
         "Participant creation pending commit: organizationId={}, batchId={}, participantId={}",
         organizationId,

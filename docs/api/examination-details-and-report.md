@@ -7,7 +7,7 @@ An Organization/Batch pair that does not match, or a soft-deleted batch, is 404.
 
 ## Permissions
 
-Flyway V005 adds three permissions and grants them to ADMIN and CLINIC_MANAGER (and the local seed).
+Flyway V002 adds three permissions and grants them to CLINIC_MANAGER (and to the local ADMIN role by the local seed).
 Permissions are a login snapshot: sign in again after the migration.
 
 | Permission | Routes |
@@ -60,7 +60,7 @@ Limits: 10,000 data rows (the export refuses, with 400, a batch with more active
 - A row identical to the stored state is `unchanged` and writes nothing.
 - Each affected Participant becomes RECONCILED. The batch `rowVersion` does not change.
 - All or nothing in one transaction: batch lock, state recheck, idempotency reserve or replay, row checks, writes, import job
-  (`HEALTH_EXAMINATION_SERVICE_RECONCILIATION`, V006), audit `IMPORT_EXAMINATION_DETAILS`.
+  (`HEALTH_EXAMINATION_SERVICE_RECONCILIATION`, schema V001), audit `IMPORT_EXAMINATION_DETAILS`.
 - Only a DRAFT or READY batch of an ACTIVE organization accepts an import.
 
 Audit actions: `EXPORT_EXAMINATION_DETAILS`, `EXPORT_PAYMENT_REPORT`, `IMPORT_EXAMINATION_DETAILS`. Audit and logs hold

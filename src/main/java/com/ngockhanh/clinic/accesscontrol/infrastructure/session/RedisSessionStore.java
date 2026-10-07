@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.accesscontrol.infrastructure.session;
 
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionSnapshot;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionSnapshot;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

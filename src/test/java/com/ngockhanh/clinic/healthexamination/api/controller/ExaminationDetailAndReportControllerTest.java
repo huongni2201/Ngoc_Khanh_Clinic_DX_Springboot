@@ -31,7 +31,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.GetPaymentSumm
 import com.ngockhanh.clinic.healthexamination.application.usecase.ImportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListExaminationDetailsUseCase;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.math.BigDecimal;
@@ -48,7 +47,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.json.JsonMapper;
 
 class ExaminationDetailAndReportControllerTest {
   private static final String XLSX =
@@ -58,7 +56,8 @@ class ExaminationDetailAndReportControllerTest {
 
   private final ListExaminationDetailsUseCase list = mock(ListExaminationDetailsUseCase.class);
   private final GetExaminationSummaryUseCase summary = mock(GetExaminationSummaryUseCase.class);
-  private final ExportExaminationDetailsUseCase export = mock(ExportExaminationDetailsUseCase.class);
+  private final ExportExaminationDetailsUseCase export =
+      mock(ExportExaminationDetailsUseCase.class);
   private final ImportExaminationDetailsUseCase importer =
       mock(ImportExaminationDetailsUseCase.class);
   private final GetPaymentSummaryReportUseCase report = mock(GetPaymentSummaryReportUseCase.class);
@@ -80,8 +79,7 @@ class ExaminationDetailAndReportControllerTest {
                 new ExaminationDetailController(list, summary, export, importer),
                 new BatchReportController(report, docx))
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
   }
 
@@ -156,14 +154,16 @@ class ExaminationDetailAndReportControllerTest {
   @Test
   void exportReturnsAnXlsxAttachment() throws Exception {
     when(export.execute(organizationId, batchId, principal))
-        .thenReturn(new ExaminationDetailExportResponse(new byte[] {9, 8}, "chi-tiet-kham-B1.xlsx"));
+        .thenReturn(
+            new ExaminationDetailExportResponse(new byte[] {9, 8}, "chi-tiet-kham-B1.xlsx"));
 
     mvc.perform(get(batchBase() + "/examination-details/export"))
         .andExpect(status().isOk())
         .andExpect(header().string("Content-Type", XLSX))
         .andExpect(header().string("Cache-Control", "no-store"))
         .andExpect(
-            header().string("Content-Disposition", "attachment; filename=\"chi-tiet-kham-B1.xlsx\""))
+            header()
+                .string("Content-Disposition", "attachment; filename=\"chi-tiet-kham-B1.xlsx\""))
         .andExpect(content().bytes(new byte[] {9, 8}));
   }
 
@@ -257,7 +257,8 @@ class ExaminationDetailAndReportControllerTest {
   @Test
   void paymentSummaryDocxReturnsADocxAttachment() throws Exception {
     when(docx.execute(organizationId, batchId, principal))
-        .thenReturn(new PaymentReportDocumentResponse(new byte[] {7}, "bao-cao-thanh-toan-B1.docx"));
+        .thenReturn(
+            new PaymentReportDocumentResponse(new byte[] {7}, "bao-cao-thanh-toan-B1.docx"));
 
     mvc.perform(get(batchBase() + "/reports/payment-summary/docx"))
         .andExpect(status().isOk())

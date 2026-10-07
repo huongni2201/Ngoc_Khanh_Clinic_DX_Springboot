@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailCriteria;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailPage;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailRow;

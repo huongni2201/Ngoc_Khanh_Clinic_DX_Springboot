@@ -1,9 +1,9 @@
 package com.ngockhanh.clinic.accesscontrol.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.command.LogoutCommand;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionSnapshot;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionSnapshot;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import java.time.Clock;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

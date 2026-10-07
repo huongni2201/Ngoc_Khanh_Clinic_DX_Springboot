@@ -26,8 +26,9 @@ record columns/order/types/owner and no removed table records. Runtime SQL table
 checks supplement, rather than replace, actual PostgreSQL execution.
 
 API surface coverage verifies that all removed Excel import routes remain absent.
-Import-specific tests and workbook fixtures are removed; participant service
-reconciliation and historical provenance remain covered by their own tests.
+The single-step Participant import, template and list remain covered; only the old
+multi-step preview/confirm/cancel workflow is removed. Participant service
+reconciliation and historical provenance retain their own tests.
 Batch coverage includes atomic days/services, reference snapshots and stale versions.
 API requests require explicit mutable versions.
 
@@ -40,8 +41,16 @@ not permission to weaken tests or retain obsolete runtime adapters.
 
 ## Deployment
 
-Use Java 25 and PostgreSQL 18. Fresh databases apply the clean-slate V001; databases
-with the former V001-V003 history require a separate reviewed conversion procedure.
+Use Java 25 and PostgreSQL 18. The owner-requested consolidation on 2026-10-07
+establishes V001 and V002 for fresh databases: V001 creates the complete
+schema; V002 inserts access-control roles, permissions and grants, including the
+owner-approved PARTICIPANT_CREATE and PARTICIPANT_REACTIVATE permissions. V003
+adds the catalog; V004 aligns the account-role trigger with the PATIENT role.
+Changes from the pre-consolidation V002–V006 history are represented in the
+current schema and seed; V003 and V004 are later catalog and account-role
+amendments. Older migration numbers in implementation plans describe historical
+work, not the current migration chain.
+Databases with any earlier migration history require a separate reviewed conversion procedure.
 Never replace applied checksums or point this baseline at deployed historical data.
 
 Flyway startup is disabled by default and enabled for local/test databases by

@@ -24,9 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
  * No row is inserted, so the identification number stays unique in the batch and the import
  * provenance and audit history stay linked to the Participant.
  *
- * <p>The caller must hold the Participant manage permission. The batch is locked first, then the
- * Participant, the same order as every other roster change. Only the roster status changes, plus
- * the examination day when the caller picks a different one; roster fields, attendance and
+ * <p>The caller must hold the Participant reactivate permission. The batch is locked first, then
+ * the Participant, the same order as every other roster change. Only the roster status changes,
+ * plus the examination day when the caller picks a different one; roster fields, attendance and
  * reconciliation are kept as they were at cancellation. The audit event lists the names of the
  * changed fields, never their values.
  */
@@ -43,8 +43,13 @@ public class ReactivateParticipantUseCase {
   /**
    * Reactivates the Participant.
    *
+   * @param organizationId owning organization
+   * @param batchId batch identifier
+   * @param participantId Participant identifier inside the batch
+   * @param command expected Participant version and optional examination day
+   * @param principal authenticated staff caller
    * @return the stored Participant in full, with its new row version
-   * @throws ApplicationException {@code ACCESS_DENIED} without the manage permission
+   * @throws ApplicationException {@code ACCESS_DENIED} without the reactivate permission
    * @throws IllegalArgumentException when an argument is null or the version is negative
    * @throws ResourceNotFoundException when the organization, batch or Participant is not found
    * @throws ConflictException when the batch or organization does not accept changes, the day is
@@ -59,7 +64,7 @@ public class ReactivateParticipantUseCase {
       UUID participantId,
       ReactivateParticipantCommand command,
       UserPrincipal principal) {
-    access.requireManage(principal);
+    access.requireReactivate(principal);
     if (organizationId == null || batchId == null || participantId == null || command == null)
       throw new IllegalArgumentException(
           "Organization, batch and Participant IDs and command are required");

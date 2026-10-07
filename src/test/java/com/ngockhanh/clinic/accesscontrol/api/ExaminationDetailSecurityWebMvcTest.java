@@ -12,7 +12,6 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
 import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
@@ -42,7 +41,6 @@ import org.springframework.web.bind.annotation.RestController;
 @Import({
   SecurityConfiguration.class,
   ClockConfiguration.class,
-  ApiResponseWriter.class,
   ExaminationDetailSecurityWebMvcTest.StubEndpoints.class
 })
 @TestPropertySource(
@@ -55,7 +53,9 @@ class ExaminationDetailSecurityWebMvcTest {
   private static final String REPORT_READ = "HEALTH_EXAMINATION_REPORT_READ";
   private static final String PARTICIPANT_MANAGE = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
   private static final String BATCH =
-      "/api/v1/organizations/" + UUID.randomUUID() + "/health-examination-batches/"
+      "/api/v1/organizations/"
+          + UUID.randomUUID()
+          + "/health-examination-batches/"
           + UUID.randomUUID();
 
   @Autowired MockMvc mvc;
@@ -128,13 +128,16 @@ class ExaminationDetailSecurityWebMvcTest {
   @Test
   void anonymousCallerIsUnauthorizedOnEveryRoute() throws Exception {
     for (Route route : ROUTES)
-      org.assertj.core.api.Assertions.assertThat(statusOf(route, null)).as(route.name()).isEqualTo(401);
+      org.assertj.core.api.Assertions.assertThat(statusOf(route, null))
+          .as(route.name())
+          .isEqualTo(401);
   }
 
   @Test
   void eachRouteOpensOnlyForItsOwnPermission() throws Exception {
     for (Route allowed : ROUTES) {
-      when(authenticate.execute("holder")).thenReturn(principal("STAFF", List.of(allowed.permission())));
+      when(authenticate.execute("holder"))
+          .thenReturn(principal("STAFF", List.of(allowed.permission())));
       for (Route route : ROUTES) {
         int expected = route.permission().equals(allowed.permission()) ? 200 : 403;
         org.assertj.core.api.Assertions.assertThat(statusOf(route, "holder"))
@@ -146,11 +149,16 @@ class ExaminationDetailSecurityWebMvcTest {
 
   @Test
   void staffWithOnlyParticipantPermissionsOrNoPermissionIsForbidden() throws Exception {
-    when(authenticate.execute("manager")).thenReturn(principal("STAFF", List.of(PARTICIPANT_MANAGE)));
+    when(authenticate.execute("manager"))
+        .thenReturn(principal("STAFF", List.of(PARTICIPANT_MANAGE)));
     when(authenticate.execute("plain")).thenReturn(principal("STAFF", List.of()));
     for (Route route : ROUTES) {
-      org.assertj.core.api.Assertions.assertThat(statusOf(route, "manager")).as(route.name()).isEqualTo(403);
-      org.assertj.core.api.Assertions.assertThat(statusOf(route, "plain")).as(route.name()).isEqualTo(403);
+      org.assertj.core.api.Assertions.assertThat(statusOf(route, "manager"))
+          .as(route.name())
+          .isEqualTo(403);
+      org.assertj.core.api.Assertions.assertThat(statusOf(route, "plain"))
+          .as(route.name())
+          .isEqualTo(403);
     }
   }
 
@@ -159,12 +167,15 @@ class ExaminationDetailSecurityWebMvcTest {
     when(authenticate.execute("patient"))
         .thenReturn(principal("PATIENT", List.of(SERVICE_READ, SERVICE_RECONCILE, REPORT_READ)));
     for (Route route : ROUTES)
-      org.assertj.core.api.Assertions.assertThat(statusOf(route, "patient")).as(route.name()).isEqualTo(403);
+      org.assertj.core.api.Assertions.assertThat(statusOf(route, "patient"))
+          .as(route.name())
+          .isEqualTo(403);
   }
 
   @Test
   void importWithAnUnknownOriginIsForbiddenEvenWithThePermission() throws Exception {
-    when(authenticate.execute("reconciler")).thenReturn(principal("STAFF", List.of(SERVICE_RECONCILE)));
+    when(authenticate.execute("reconciler"))
+        .thenReturn(principal("STAFF", List.of(SERVICE_RECONCILE)));
     mvc.perform(
             post(BATCH + "/examination-details/imports")
                 .header("Origin", "https://evil.test")

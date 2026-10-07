@@ -41,6 +41,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -52,6 +53,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
  * Docker is unavailable): persistence, optimistic locking, soft delete visibility, delete guards,
  * rollback together with the audit event, and concurrent writers.
  */
+// Close cached connections when this class finishes; its containers are class-scoped.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(classes = HealthExaminationBatchCrudIntegrationTest.BatchTestConfiguration.class)
 class HealthExaminationBatchCrudIntegrationTest {
@@ -111,7 +114,7 @@ class HealthExaminationBatchCrudIntegrationTest {
   @Autowired HealthExaminationBatchParticipantRepository participants;
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
-  com.ngockhanh.clinic.audit.application.port.AuditWriter audit;
+  com.ngockhanh.clinic.audit.application.port.out.AuditWriter audit;
 
   UUID org, actor, service, secondService;
 

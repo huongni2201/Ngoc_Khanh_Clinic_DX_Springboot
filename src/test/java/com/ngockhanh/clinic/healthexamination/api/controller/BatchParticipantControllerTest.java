@@ -68,8 +68,7 @@ class BatchParticipantControllerTest {
   private final GetParticipantDetailUseCase detail = mock(GetParticipantDetailUseCase.class);
   private final UpdateParticipantUseCase update = mock(UpdateParticipantUseCase.class);
   private final CancelParticipantUseCase cancel = mock(CancelParticipantUseCase.class);
-  private final ReactivateParticipantUseCase reactivate =
-      mock(ReactivateParticipantUseCase.class);
+  private final ReactivateParticipantUseCase reactivate = mock(ReactivateParticipantUseCase.class);
   private final UUID participantId = UUID.randomUUID();
   private final UUID dayId = UUID.randomUUID();
   private final UUID organizationId = UUID.randomUUID();
@@ -82,7 +81,13 @@ class BatchParticipantControllerTest {
   void authenticatedStaffAndStandaloneMvc() {
     principal =
         ParticipantFixtures.staff(
-            ParticipantFixtures.READ, ParticipantFixtures.IMPORT, ParticipantFixtures.MANAGE);
+            ParticipantFixtures.READ,
+            ParticipantFixtures.IMPORT,
+            ParticipantFixtures.CREATE,
+            ParticipantFixtures.UPDATE,
+            ParticipantFixtures.REMOVE,
+            ParticipantFixtures.REACTIVATE,
+            ParticipantFixtures.TEMPLATE_DOWNLOAD);
     SecurityContextHolder.getContext()
         .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
     mvc =
@@ -100,7 +105,10 @@ class BatchParticipantControllerTest {
   }
 
   private String base() {
-    return "/api/v1/organizations/" + organizationId + "/health-examination-batches/" + batchId
+    return "/api/v1/organizations/"
+        + organizationId
+        + "/health-examination-batches/"
+        + batchId
         + "/participants";
   }
 
@@ -112,7 +120,9 @@ class BatchParticipantControllerTest {
   void importReturns201WithTheSafeResultAndPassesCommandAndPrincipal() throws Exception {
     UUID jobId = UUID.randomUUID();
     when(importer.execute(eq(organizationId), eq(batchId), any(), eq(principal)))
-        .thenReturn(new ParticipantImportResponse(jobId, batchId, 3, 3, Instant.parse("2026-10-06T00:00:00Z")));
+        .thenReturn(
+            new ParticipantImportResponse(
+                jobId, batchId, 3, 3, Instant.parse("2026-10-06T00:00:00Z")));
 
     mvc.perform(
             multipart(base() + "/imports")
@@ -163,7 +173,10 @@ class BatchParticipantControllerTest {
 
   @Test
   void importRejectsMissingOrEmptyFileMissingKeyAndBadKeyWith400() throws Exception {
-    mvc.perform(multipart(base() + "/imports").param("rowVersion", "0").header("Idempotency-Key", key.toString()))
+    mvc.perform(
+            multipart(base() + "/imports")
+                .param("rowVersion", "0")
+                .header("Idempotency-Key", key.toString()))
         .andExpect(status().isBadRequest());
     mvc.perform(
             multipart(base() + "/imports")
@@ -188,7 +201,8 @@ class BatchParticipantControllerTest {
   @Test
   void importMapsConflictsAndStaleVersions() throws Exception {
     when(importer.execute(any(), any(), any(), any()))
-        .thenThrow(new ConflictException("Participant identity already exists in this batch at row 4"))
+        .thenThrow(
+            new ConflictException("Participant identity already exists in this batch at row 4"))
         .thenThrow(new ConcurrentUpdateException());
 
     var request =
@@ -198,31 +212,43 @@ class BatchParticipantControllerTest {
             .header("Idempotency-Key", key.toString());
     mvc.perform(request)
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.message").value("Participant identity already exists in this batch at row 4"));
+        .andExpect(
+            jsonPath("$.message")
+                .value("Participant identity already exists in this batch at row 4"));
     mvc.perform(request).andExpect(status().isConflict());
   }
 
   @Test
   void templateDownloadsAnXlsxAttachment() throws Exception {
     when(template.execute(organizationId, batchId, principal))
-        .thenReturn(new ParticipantImportTemplateResponse(new byte[] {9, 8, 7}, "participant-import-template.xlsx"));
+        .thenReturn(
+            new ParticipantImportTemplateResponse(
+                new byte[] {9, 8, 7}, "participant-import-template.xlsx"));
 
     mvc.perform(get(base() + "/import-template"))
         .andExpect(status().isOk())
         .andExpect(header().string("Content-Type", XLSX))
         .andExpect(header().string("Cache-Control", "no-store"))
         .andExpect(
-            header().string("Content-Disposition", "attachment; filename=\"participant-import-template.xlsx\""))
+            header()
+                .string(
+                    "Content-Disposition",
+                    "attachment; filename=\"participant-import-template.xlsx\""))
         .andExpect(content().bytes(new byte[] {9, 8, 7}));
   }
 
   @Test
   void listReturnsTheEnvelopeWithTheMaskedPageNoStore() throws Exception {
-    var item = ParticipantSummaryResponse.from(
-        ParticipantFixtures.summary("012345678901"));
+    var item = ParticipantSummaryResponse.from(ParticipantFixtures.summary("012345678901"));
     when(list.execute(eq(organizationId), eq(batchId), any(), eq(principal)))
-        .thenReturn(PageResponse.<ParticipantSummaryResponse>builder()
-            .items(List.of(item)).page(1).size(20).totalElements(1).totalPages(1).build());
+        .thenReturn(
+            PageResponse.<ParticipantSummaryResponse>builder()
+                .items(List.of(item))
+                .page(1)
+                .size(20)
+                .totalElements(1)
+                .totalPages(1)
+                .build());
 
     mvc.perform(get(base()).param("page", "1").param("size", "20"))
         .andExpect(status().isOk())
@@ -338,7 +364,8 @@ class BatchParticipantControllerTest {
   @Test
   void detailOfAnUnknownParticipantIs404() throws Exception {
     when(detail.execute(any(), any(), any(), any()))
-        .thenThrow(new com.ngockhanh.clinic.shared.exception.ResourceNotFoundException("Participant"));
+        .thenThrow(
+            new com.ngockhanh.clinic.shared.exception.ResourceNotFoundException("Participant"));
     mvc.perform(get(base() + "/" + participantId)).andExpect(status().isNotFound());
   }
 
@@ -357,7 +384,8 @@ class BatchParticipantControllerTest {
 
     var command = ArgumentCaptor.forClass(UpdateParticipantCommand.class);
     verify(update)
-        .execute(eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
+        .execute(
+            eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
     assertThat(command.getValue().expectedRowVersion()).isEqualTo(3L);
   }
 
@@ -389,7 +417,8 @@ class BatchParticipantControllerTest {
 
     var command = ArgumentCaptor.forClass(CancelParticipantCommand.class);
     verify(cancel)
-        .execute(eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
+        .execute(
+            eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
     assertThat(command.getValue().expectedRowVersion()).isEqualTo(5L);
   }
 
@@ -406,7 +435,8 @@ class BatchParticipantControllerTest {
   @Test
   void cancelMapsRuleViolationsToConflictWithTheSafeMessage() throws Exception {
     org.mockito.Mockito.doThrow(
-            new ConflictException("Participant cannot be cancelled after preparation or attendance"))
+            new ConflictException(
+                "Participant cannot be cancelled after preparation or attendance"))
         .when(cancel)
         .execute(any(), any(), any(), any(), any());
     mvc.perform(delete(base() + "/" + participantId).param("rowVersion", "0"))
@@ -417,9 +447,9 @@ class BatchParticipantControllerTest {
   }
 
   @Test
-  void reactivateReturns200WithTheFullDetailNoStoreAndPassesCommandAndPrincipal()
-      throws Exception {
-    when(reactivate.execute(eq(organizationId), eq(batchId), eq(participantId), any(), eq(principal)))
+  void reactivateReturns200WithTheFullDetailNoStoreAndPassesCommandAndPrincipal() throws Exception {
+    when(reactivate.execute(
+            eq(organizationId), eq(batchId), eq(participantId), any(), eq(principal)))
         .thenReturn(detailResponse(5));
 
     mvc.perform(
@@ -435,7 +465,8 @@ class BatchParticipantControllerTest {
 
     var command = ArgumentCaptor.forClass(ReactivateParticipantCommand.class);
     verify(reactivate)
-        .execute(eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
+        .execute(
+            eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
     assertThat(command.getValue().expectedRowVersion()).isEqualTo(4L);
     assertThat(command.getValue().batchDayId()).isEqualTo(dayId);
   }
@@ -477,7 +508,8 @@ class BatchParticipantControllerTest {
   @Test
   void reactivateMapsNotFoundAndConflictsToTheirSafeMessages() throws Exception {
     when(reactivate.execute(any(), any(), any(), any(), any()))
-        .thenThrow(new com.ngockhanh.clinic.shared.exception.ResourceNotFoundException("Participant"))
+        .thenThrow(
+            new com.ngockhanh.clinic.shared.exception.ResourceNotFoundException("Participant"))
         .thenThrow(new ConflictException("Participant is not cancelled"))
         .thenThrow(new ConflictException("Examination day is not a day of this batch"))
         .thenThrow(new ConflictException("Batch does not accept Participant changes"))

@@ -12,14 +12,14 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.ParticipantFixtures;
 import com.ngockhanh.clinic.healthexamination.application.command.ImportExaminationDetailsCommand;
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailExcelReader;
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailExcelWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailReader;
-import com.ngockhanh.clinic.healthexamination.application.port.PaymentReportDocumentWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailExcelReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailExcelWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.PaymentReportDocumentWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailCriteria;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailExportData;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailListQuery;
@@ -57,21 +57,24 @@ import org.mockito.ArgumentCaptor;
 /** The six use cases of the examination detail screen and the payment report. */
 class ExaminationDetailUseCasesTest {
   private static final String READ = ExaminationDetailAccessPolicy.SERVICE_READ_PERMISSION;
-  private static final String RECONCILE = ExaminationDetailAccessPolicy.SERVICE_RECONCILE_PERMISSION;
+  private static final String RECONCILE =
+      ExaminationDetailAccessPolicy.SERVICE_RECONCILE_PERMISSION;
   private static final String REPORT = ExaminationDetailAccessPolicy.REPORT_READ_PERMISSION;
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-10-07T01:02:03.456789Z"), ZoneOffset.UTC);
 
   private final ExaminationDetailAccessPolicy access = new ExaminationDetailAccessPolicy();
   private final OrganizationRepository organizations = mock(OrganizationRepository.class);
-  private final HealthExaminationBatchRepository batches = mock(HealthExaminationBatchRepository.class);
+  private final HealthExaminationBatchRepository batches =
+      mock(HealthExaminationBatchRepository.class);
   private final ExaminationDetailReader reader = mock(ExaminationDetailReader.class);
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
   private final AuditWriter audit = mock(AuditWriter.class);
   private final ExaminationDetailExcelWriter excelWriter = mock(ExaminationDetailExcelWriter.class);
   private final ExaminationDetailExcelReader excelReader = mock(ExaminationDetailExcelReader.class);
   private final PaymentReportDocumentWriter wordWriter = mock(PaymentReportDocumentWriter.class);
-  private final ExaminationDetailImportCommitter committer = mock(ExaminationDetailImportCommitter.class);
+  private final ExaminationDetailImportCommitter committer =
+      mock(ExaminationDetailImportCommitter.class);
 
   private final UUID organizationId = UUID.randomUUID();
   private final UUID batchId = UUID.randomUUID();
@@ -81,12 +84,15 @@ class ExaminationDetailUseCasesTest {
   @BeforeEach
   void aDraftBatchWithOneCatalogService() {
     batch = draftBatch(organizationId, batchId, 3, catalogId);
-    when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.of(details(batch)));
+    when(batches.findDetails(organizationId, batchId, false))
+        .thenReturn(Optional.of(details(batch)));
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(organization(organizationId)));
     when(catalog.findByIds(any()))
         .thenReturn(
-            List.of(new ServiceCatalogQuery.Service(catalogId, "KN", "Khám nội", true, new BigDecimal("200"))));
+            List.of(
+                new ServiceCatalogQuery.Service(
+                    catalogId, "KN", "Khám nội", true, new BigDecimal("200"))));
   }
 
   private static UserPrincipal staff(String... permissions) {
@@ -127,7 +133,8 @@ class ExaminationDetailUseCasesTest {
         .isInstanceOf(ApplicationException.class);
     assertThatThrownBy(() -> access.requireReportRead(staff(READ, RECONCILE)))
         .isInstanceOf(ApplicationException.class);
-    assertThatThrownBy(() -> access.requireServiceRead(null)).isInstanceOf(ApplicationException.class);
+    assertThatThrownBy(() -> access.requireServiceRead(null))
+        .isInstanceOf(ApplicationException.class);
     assertThatThrownBy(() -> access.requireServiceRead(staff()))
         .isInstanceOf(ApplicationException.class);
   }
@@ -141,12 +148,17 @@ class ExaminationDetailUseCasesTest {
             .username("patient")
             .principalType("PATIENT")
             .roleAssignments(
-                List.of(new UserPrincipal.Assignment(UUID.randomUUID(), "USER", List.of(READ, RECONCILE, REPORT))))
+                List.of(
+                    new UserPrincipal.Assignment(
+                        UUID.randomUUID(), "USER", List.of(READ, RECONCILE, REPORT))))
             .build();
 
-    assertThatThrownBy(() -> access.requireServiceRead(patient)).isInstanceOf(ApplicationException.class);
-    assertThatThrownBy(() -> access.requireServiceReconcile(patient)).isInstanceOf(ApplicationException.class);
-    assertThatThrownBy(() -> access.requireReportRead(patient)).isInstanceOf(ApplicationException.class);
+    assertThatThrownBy(() -> access.requireServiceRead(patient))
+        .isInstanceOf(ApplicationException.class);
+    assertThatThrownBy(() -> access.requireServiceReconcile(patient))
+        .isInstanceOf(ApplicationException.class);
+    assertThatThrownBy(() -> access.requireReportRead(patient))
+        .isInstanceOf(ApplicationException.class);
   }
 
   // --- list ---
@@ -159,14 +171,20 @@ class ExaminationDetailUseCasesTest {
   void listDefaultsToTheActiveRosterAndMasksTheIdentificationNumber() {
     UUID participantId = UUID.randomUUID();
     when(reader.readPage(eq(organizationId), eq(batchId), any()))
-        .thenReturn(Optional.of(new ExaminationDetailPage(List.of(detailRow(participantId, "012345678901")), 41)));
+        .thenReturn(
+            Optional.of(
+                new ExaminationDetailPage(List.of(detailRow(participantId, "012345678901")), 41)));
 
     var page =
         list()
             .execute(
                 organizationId,
                 batchId,
-                ExaminationDetailListQuery.builder().page(2).size(20).searchKey(" 50%_off ").build(),
+                ExaminationDetailListQuery.builder()
+                    .page(2)
+                    .size(20)
+                    .searchKey(" 50%_off ")
+                    .build(),
                 staff(READ));
 
     var criteria = ArgumentCaptor.forClass(ExaminationDetailCriteria.class);
@@ -283,7 +301,8 @@ class ExaminationDetailUseCasesTest {
     assertThat(data.getValue().batchId()).isEqualTo(batchId);
     assertThat(data.getValue().exportedAt()).isEqualTo(Instant.parse("2026-10-07T01:02:03.456Z"));
     assertThat(data.getValue().services()).hasSize(1);
-    assertThat(data.getValue().services().get(0).batchServiceId()).isEqualTo(batch.services().get(0).id().value());
+    assertThat(data.getValue().services().get(0).batchServiceId())
+        .isEqualTo(batch.services().get(0).id().value());
     assertThat(data.getValue().services().get(0).label()).isEqualTo("Khám nội");
     assertThat(data.getValue().rows().get(0).identificationNumber()).doesNotContain("012345678901");
     verify(audit)
@@ -321,18 +340,25 @@ class ExaminationDetailUseCasesTest {
             1,
             Set.of(serviceId),
             List.of(
-                new com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailImportRow(
-                    3, participantId, 5, null, Set.of(serviceId))));
+                new com.ngockhanh.clinic.healthexamination.application.query
+                    .ExaminationDetailImportRow(3, participantId, 5, null, Set.of(serviceId))));
     when(excelReader.read(any())).thenReturn(parsed);
     UUID jobId = UUID.randomUUID();
-    var receipt = new ServiceReconciliationReceipt(jobId, batchId, 1, 1, 0, 1, Instant.parse("2026-10-07T00:00:00Z"));
-    when(committer.commit(any())).thenReturn(new ExaminationDetailImportCommitter.Outcome(receipt, false));
+    var receipt =
+        new ServiceReconciliationReceipt(
+            jobId, batchId, 1, 1, 0, 1, Instant.parse("2026-10-07T00:00:00Z"));
+    when(committer.commit(any()))
+        .thenReturn(new ExaminationDetailImportCommitter.Outcome(receipt, false));
     UUID key = UUID.randomUUID();
     var principal = staff(RECONCILE);
 
     var response =
         importer()
-            .execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[] {1, 2}, key), principal);
+            .execute(
+                organizationId,
+                batchId,
+                new ImportExaminationDetailsCommand(new byte[] {1, 2}, key),
+                principal);
 
     assertThat(response.importJobId()).isEqualTo(jobId);
     assertThat(response.updatedParticipants()).isEqualTo(1);
@@ -349,18 +375,34 @@ class ExaminationDetailUseCasesTest {
 
   @Test
   void importFingerprintDependsOnTheFileAndIgnoresNothingElse() {
-    when(excelReader.read(any()))
-        .thenReturn(new ExaminationDetailWorkbook(1, Set.of(), List.of()));
+    when(excelReader.read(any())).thenReturn(new ExaminationDetailWorkbook(1, Set.of(), List.of()));
     when(committer.commit(any()))
         .thenReturn(
             new ExaminationDetailImportCommitter.Outcome(
-                new ServiceReconciliationReceipt(UUID.randomUUID(), batchId, 0, 0, 0, 0, Instant.EPOCH), false));
+                new ServiceReconciliationReceipt(
+                    UUID.randomUUID(), batchId, 0, 0, 0, 0, Instant.EPOCH),
+                false));
     UUID key = UUID.randomUUID();
     var principal = staff(RECONCILE);
 
-    importer().execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[] {1}, key), principal);
-    importer().execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[] {1}, key), principal);
-    importer().execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[] {2}, key), principal);
+    importer()
+        .execute(
+            organizationId,
+            batchId,
+            new ImportExaminationDetailsCommand(new byte[] {1}, key),
+            principal);
+    importer()
+        .execute(
+            organizationId,
+            batchId,
+            new ImportExaminationDetailsCommand(new byte[] {1}, key),
+            principal);
+    importer()
+        .execute(
+            organizationId,
+            batchId,
+            new ImportExaminationDetailsCommand(new byte[] {2}, key),
+            principal);
 
     var requests = ArgumentCaptor.forClass(ExaminationDetailImportCommitter.Request.class);
     verify(committer, org.mockito.Mockito.times(3)).commit(requests.capture());
@@ -375,16 +417,39 @@ class ExaminationDetailUseCasesTest {
     assertThatThrownBy(
             () ->
                 importer()
-                    .execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[] {1}, key), staff(READ)))
+                    .execute(
+                        organizationId,
+                        batchId,
+                        new ImportExaminationDetailsCommand(new byte[] {1}, key),
+                        staff(READ)))
         .isInstanceOf(ApplicationException.class);
     var reconciler = staff(RECONCILE);
     assertThatThrownBy(
-            () -> importer().execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[0], key), reconciler))
+            () ->
+                importer()
+                    .execute(
+                        organizationId,
+                        batchId,
+                        new ImportExaminationDetailsCommand(new byte[0], key),
+                        reconciler))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
-            () -> importer().execute(organizationId, batchId, new ImportExaminationDetailsCommand(new byte[] {1}, null), reconciler))
+            () ->
+                importer()
+                    .execute(
+                        organizationId,
+                        batchId,
+                        new ImportExaminationDetailsCommand(new byte[] {1}, null),
+                        reconciler))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> importer().execute(null, batchId, new ImportExaminationDetailsCommand(new byte[] {1}, key), reconciler))
+    assertThatThrownBy(
+            () ->
+                importer()
+                    .execute(
+                        null,
+                        batchId,
+                        new ImportExaminationDetailsCommand(new byte[] {1}, key),
+                        reconciler))
         .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(excelReader, committer);
   }
@@ -394,12 +459,15 @@ class ExaminationDetailUseCasesTest {
   private PaymentAggregates aggregates() {
     return new PaymentAggregates(
         new PaymentAggregates.ParticipantCounts(5, 3, 2),
-        List.of(new PaymentAggregates.PerformedService(batch.services().get(0).id().value(), new BigDecimal("100"), 3)));
+        List.of(
+            new PaymentAggregates.PerformedService(
+                batch.services().get(0).id().value(), new BigDecimal("100"), 3)));
   }
 
   @Test
   void theReportAndTheWordDocumentShareOneSetOfFigures() {
-    when(reader.readPaymentAggregates(organizationId, batchId)).thenReturn(Optional.of(aggregates()));
+    when(reader.readPaymentAggregates(organizationId, batchId))
+        .thenReturn(Optional.of(aggregates()));
     when(wordWriter.write(any())).thenReturn(new byte[] {7});
     var assembler = new PaymentSummaryReportAssembler();
     var principal = staff(REPORT);
@@ -409,7 +477,15 @@ class ExaminationDetailUseCasesTest {
             .execute(organizationId, batchId, principal);
     var file =
         new ExportPaymentSummaryReportUseCase(
-                access, organizations, batches, reader, catalog, assembler, wordWriter, audit, CLOCK)
+                access,
+                organizations,
+                batches,
+                reader,
+                catalog,
+                assembler,
+                wordWriter,
+                audit,
+                CLOCK)
             .execute(organizationId, batchId, principal);
 
     assertThat(report.totalAmount()).isEqualByComparingTo("300");
@@ -435,11 +511,14 @@ class ExaminationDetailUseCasesTest {
   @Test
   void aFinalizedBatchReportIsNotProvisional() {
     batch = batch(organizationId, batchId, BatchStatus.FINALIZED, 3, null, catalogId);
-    when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.of(details(batch)));
-    when(reader.readPaymentAggregates(organizationId, batchId)).thenReturn(Optional.of(aggregates()));
+    when(batches.findDetails(organizationId, batchId, false))
+        .thenReturn(Optional.of(details(batch)));
+    when(reader.readPaymentAggregates(organizationId, batchId))
+        .thenReturn(Optional.of(aggregates()));
 
     var report =
-        new GetPaymentSummaryReportUseCase(access, batches, reader, catalog, new PaymentSummaryReportAssembler(), CLOCK)
+        new GetPaymentSummaryReportUseCase(
+                access, batches, reader, catalog, new PaymentSummaryReportAssembler(), CLOCK)
             .execute(organizationId, batchId, staff(REPORT));
 
     assertThat(report.provisional()).isFalse();
@@ -449,7 +528,8 @@ class ExaminationDetailUseCasesTest {
   @Test
   void reportUseCasesNeedThePermissionAndAKnownBatch() {
     var assembler = new PaymentSummaryReportAssembler();
-    var get = new GetPaymentSummaryReportUseCase(access, batches, reader, catalog, assembler, CLOCK);
+    var get =
+        new GetPaymentSummaryReportUseCase(access, batches, reader, catalog, assembler, CLOCK);
     var export =
         new ExportPaymentSummaryReportUseCase(
             access, organizations, batches, reader, catalog, assembler, wordWriter, audit, CLOCK);

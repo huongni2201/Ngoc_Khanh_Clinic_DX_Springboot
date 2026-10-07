@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
+  CreateParticipantUseCaseTest() {
+    super("PARTICIPANT_CREATE");
+  }
+
   private final CreateParticipantUseCase useCase =
       new CreateParticipantUseCase(access, support, participants, CLOCK);
   private final AtomicReference<HealthExaminationBatchParticipant> inserted =
@@ -78,8 +82,7 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
                   assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
     assertThatThrownBy(
             () ->
-                useCase.execute(
-                    organizationId, batchId, command(firstDay(), IDENTIFICATION), null))
+                useCase.execute(organizationId, batchId, command(firstDay(), IDENTIFICATION), null))
         .isInstanceOf(ApplicationException.class);
     verifyNoInteractions(batches, organizations, participants, audit);
   }
@@ -91,8 +94,16 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     // the clock is 2026-10-04T00:00Z = 07:00 on 2026-10-04 in Asia/Ho_Chi_Minh
     var tomorrow =
         new CreateParticipantCommand(
-            "NV-001", FULL_NAME, LocalDate.of(2026, 10, 5), "MALE", IDENTIFICATION, PHONE, EMAIL,
-            "Accounting", "Staff", firstDay());
+            "NV-001",
+            FULL_NAME,
+            LocalDate.of(2026, 10, 5),
+            "MALE",
+            IDENTIFICATION,
+            PHONE,
+            EMAIL,
+            "Accounting",
+            "Staff",
+            firstDay());
     assertThatThrownBy(() -> useCase.execute(organizationId, batchId, tomorrow, manager))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Date of birth must not be in the future");
@@ -100,8 +111,16 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
     var today =
         new CreateParticipantCommand(
-            "NV-001", FULL_NAME, LocalDate.of(2026, 10, 4), "MALE", IDENTIFICATION, PHONE, EMAIL,
-            "Accounting", "Staff", firstDay());
+            "NV-001",
+            FULL_NAME,
+            LocalDate.of(2026, 10, 4),
+            "MALE",
+            IDENTIFICATION,
+            PHONE,
+            EMAIL,
+            "Accounting",
+            "Staff",
+            firstDay());
     useCase.execute(organizationId, batchId, today, manager);
     verify(participants).insert(any());
   }

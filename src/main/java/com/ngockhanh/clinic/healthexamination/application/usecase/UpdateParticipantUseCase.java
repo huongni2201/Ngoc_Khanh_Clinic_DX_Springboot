@@ -20,9 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Edits one Participant's roster fields and examination day.
  *
- * <p>The caller must hold the Participant manage permission. In one transaction the batch is
- * locked and checked, the Participant is loaded inside that batch and its expected version is
- * compared before anything is changed (the SQL version predicate remains the final guard). The
+ * <p>The caller must hold the Participant update permission. In one transaction the batch is locked
+ * and checked, the Participant is loaded inside that batch and its expected version is compared
+ * before anything is changed (the SQL version predicate remains the final guard). The
  * identification number is only checked for a duplicate when it changes, ignoring the Participant
  * itself, and is locked once the Participant is linked to a Patient. Attendance, reconciliation and
  * the Patient link are untouched. The audit event lists the names of the changed fields, never
@@ -41,8 +41,13 @@ public class UpdateParticipantUseCase {
   /**
    * Updates the Participant.
    *
+   * @param organizationId owning organization
+   * @param batchId batch identifier
+   * @param participantId Participant identifier inside the batch
+   * @param command replacement roster fields, day and expected version
+   * @param principal authenticated staff caller
    * @return the stored Participant in full, with its new row version
-   * @throws ApplicationException {@code ACCESS_DENIED} without the manage permission
+   * @throws ApplicationException {@code ACCESS_DENIED} without the update permission
    * @throws IllegalArgumentException when an argument is null, the version is negative or a field
    *     breaks a roster rule
    * @throws ResourceNotFoundException when the organization, batch or Participant is not found
@@ -58,7 +63,7 @@ public class UpdateParticipantUseCase {
       UUID participantId,
       UpdateParticipantCommand command,
       UserPrincipal principal) {
-    access.requireManage(principal);
+    access.requireUpdate(principal);
     if (organizationId == null
         || batchId == null
         || participantId == null

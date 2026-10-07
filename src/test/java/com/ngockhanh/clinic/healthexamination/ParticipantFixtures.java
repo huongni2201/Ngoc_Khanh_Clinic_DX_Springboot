@@ -9,9 +9,13 @@ import java.util.UUID;
 
 /** Synthetic principals, rows and summaries for the Participant roster tests. */
 public final class ParticipantFixtures {
-  public static final String READ = "HEALTH_EXAMINATION_PARTICIPANT_READ";
-  public static final String IMPORT = "HEALTH_EXAMINATION_PARTICIPANT_IMPORT";
-  public static final String MANAGE = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
+  public static final String READ = "PARTICIPANT_VIEW";
+  public static final String TEMPLATE_DOWNLOAD = "PARTICIPANT_TEMPLATE_DOWNLOAD";
+  public static final String IMPORT = "PARTICIPANT_IMPORT";
+  public static final String CREATE = "PARTICIPANT_CREATE";
+  public static final String UPDATE = "PARTICIPANT_UPDATE";
+  public static final String REMOVE = "PARTICIPANT_REMOVE";
+  public static final String REACTIVATE = "PARTICIPANT_REACTIVATE";
 
   private ParticipantFixtures() {}
 
@@ -22,7 +26,9 @@ public final class ParticipantFixtures {
         .username("staff")
         .principalType("STAFF")
         .roleAssignments(
-            List.of(new UserPrincipal.Assignment(UUID.randomUUID(), "ADMIN", List.of(permissions))))
+            List.of(
+                new UserPrincipal.Assignment(
+                    UUID.randomUUID(), "CLINIC_MANAGER", List.of(permissions))))
         .build();
   }
 
@@ -33,8 +39,7 @@ public final class ParticipantFixtures {
         .username("patient")
         .principalType("PATIENT")
         .roleAssignments(
-            List.of(
-                new UserPrincipal.Assignment(UUID.randomUUID(), "USER", List.of(READ, IMPORT))))
+            List.of(new UserPrincipal.Assignment(UUID.randomUUID(), "USER", List.of(READ, IMPORT))))
         .build();
   }
 

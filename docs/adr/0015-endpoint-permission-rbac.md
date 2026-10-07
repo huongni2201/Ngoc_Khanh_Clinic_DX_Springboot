@@ -17,7 +17,9 @@ actor may perform each action.
 
 ### Seed
 
-- `V004__seed_access_control_roles_and_permissions.sql` seeds the whole matrix:
+- Owner amendment — 2026-10-07: the fresh-database migrations are consolidated
+  into schema V001 and seed V002. `V002__seed_access_control_roles_and_permissions.sql`
+  seeds the whole matrix:
   seven roles (`PATIENT`, `RECEPTIONIST`, `GENERAL_PRACTITIONER`,
   `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
   one permission per matrix row and one `role_permissions` row per non-"No" cell.
@@ -27,8 +29,22 @@ actor may perform each action.
   may use them, so their routes are `permitAll` or `authenticated`.
 - A "Restricted n" cell grants the permission. The use case enforces footnote n
   (scope, state) when it is implemented.
-- The seed creates no accounts. Matrix changes require a new migration; V004 is
+- The seed creates no accounts. Matrix changes require a new migration; applied V002 is
   never edited.
+
+### Participant permission amendment — 2026-10-07
+
+The owner selected separate permissions for manual Participant operations: VIEW
+for detail, CREATE for manual add, UPDATE for edit, REMOVE for cancel and
+REACTIVATE for reactivation. All codes start with `PARTICIPANT_`. The consolidated
+V002 seed grants CREATE and REACTIVATE only to CLINIC_MANAGER. Runtime application
+policies and HTTP rules enforce the same permission; the legacy MANAGE grant is
+not accepted.
+See [the manual Participant contract](../api/participant-manual-crud.md).
+
+Owner amendment — 2026-10-07: patient accounts receive only the `PATIENT` role;
+an active STAFF account is required as `granted_by`. V004 enforces this pairing
+while continuing to reject patient accounts receiving staff roles.
 
 ### Enforcement
 

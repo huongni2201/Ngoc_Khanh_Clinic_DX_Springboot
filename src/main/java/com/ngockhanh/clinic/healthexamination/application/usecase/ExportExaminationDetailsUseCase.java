@@ -1,10 +1,10 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailExcelWriter;
-import com.ngockhanh.clinic.healthexamination.application.port.ExaminationDetailReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailExcelWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ExaminationDetailReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailExportData;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailRow;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationServiceColumn;

@@ -2,7 +2,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.application.command.ImportParticipantsCommand;
-import com.ngockhanh.clinic.healthexamination.application.port.ParticipantExcelReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantExcelReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantImportRow;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantWorkbook;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportResponse;

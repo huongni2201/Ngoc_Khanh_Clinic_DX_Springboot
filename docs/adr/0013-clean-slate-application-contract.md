@@ -23,8 +23,9 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Persistence and concurrency
 
-- Use the existing clean-slate V001 for a **fresh database only**. Never apply it
-  to an environment with the former V001–V003 migration history. Deployed data
+- Owner amendment — 2026-10-07: consolidate the final schema into V001 and
+  access-control inserts into V002 for a **fresh database only**. Never apply them
+  to an environment with an earlier migration history. Deployed data
   conversion requires a separate approved migration procedure.
 - Each table has one infrastructure record in its owning module, with SQL column
   names mapped to Java camelCase. Composite-key tables keep their actual keys;
@@ -82,7 +83,7 @@ Owner amendment — 2026-10-07: staff can add one Participant by hand, view its 
 and cancel it, as defined in [participant manual add, edit and cancel](../api/participant-manual-crud.md).
 Delete means cancel (`roster_status` CANCELLED, never a physical delete), and the CCCD stays
 reserved. The CCCD is editable only while the Participant has no linked Patient. The operations are
-guarded by `HEALTH_EXAMINATION_PARTICIPANT_MANAGE` (migration V004) and the batch must be DRAFT/READY
+guarded by their endpoint-specific `PARTICIPANT_` permissions (consolidated seed V002) and the batch must be DRAFT/READY
 of an ACTIVE organization. This does not reopen the multi-step import workflow.
 
 Owner amendment — 2026-10-06: a single-step roster import is restored together with a

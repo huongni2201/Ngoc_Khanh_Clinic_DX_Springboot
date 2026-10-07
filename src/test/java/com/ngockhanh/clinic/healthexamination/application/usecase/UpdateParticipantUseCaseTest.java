@@ -32,6 +32,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class UpdateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
+  UpdateParticipantUseCaseTest() {
+    super("PARTICIPANT_UPDATE");
+  }
+
   private final UpdateParticipantUseCase useCase =
       new UpdateParticipantUseCase(access, support, participants);
 
@@ -121,7 +125,8 @@ class UpdateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     givenOpenBatch();
     var p = stored(0);
     givenStored(p);
-    when(participants.identityTakenByOther(any(), eq(IdentificationNumber.of("999")), eq(p.getId())))
+    when(participants.identityTakenByOther(
+            any(), eq(IdentificationNumber.of("999")), eq(p.getId())))
         .thenReturn(true);
     assertThatThrownBy(() -> run(p, command("999", FULL_NAME, firstDay(), 0L)))
         .isInstanceOf(ConflictException.class)
@@ -159,8 +164,17 @@ class UpdateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     givenStored(p);
     var future =
         new UpdateParticipantCommand(
-            "NV-001", FULL_NAME, LocalDate.of(2099, 1, 1), "MALE", IDENTIFICATION, PHONE, EMAIL,
-            "Accounting", "Staff", firstDay(), 0L);
+            "NV-001",
+            FULL_NAME,
+            LocalDate.of(2099, 1, 1),
+            "MALE",
+            IDENTIFICATION,
+            PHONE,
+            EMAIL,
+            "Accounting",
+            "Staff",
+            firstDay(),
+            0L);
     assertThatThrownBy(() -> run(p, future))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("Date of birth must not be in the future");

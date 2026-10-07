@@ -5,9 +5,14 @@
 PostgreSQL 18, MyBatis and Flyway remain the persistence stack. The owner-selected
 clean-slate contract follows [the current domain workflows](03-domain-and-workflows.md).
 Fresh databases apply `src/main/resources/db/migration/V001__create_clean_slate_schema.sql`
-in one public application schema. The baseline creates 64 business tables.
+in one public application schema. V001 creates the final schema with 64 business
+tables, including batch `deleted_at` and the service reconciliation import type.
+`V002__seed_access_control_roles_and_permissions.sql` then inserts roles,
+permissions and role grants. Later migrations may add approved seed rows; V004
+allows the `PATIENT` role only on patient accounts and requires a staff grantor.
+Local demo data stays in `db/local`.
 
-An environment with the former V001–V003 history must use a separately reviewed
+An environment with any pre-consolidation migration history must use a separately reviewed
 conversion procedure. Do not replace applied checksums or apply this V001 on top
 of the old schema. This change includes no deployed-data conversion.
 

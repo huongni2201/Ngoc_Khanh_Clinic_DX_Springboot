@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.ListOrganizationCommand;
@@ -34,11 +34,14 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.*;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+// Close cached connections when this class finishes; its containers are class-scoped.
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(
     classes = MyBatisOrganizationRepositoryIntegrationTest.OrganizationTestConfiguration.class)
@@ -373,8 +376,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     var page = listOrganizations.execute(ListOrganizationCommand.builder().build());
 
     assertThat(page.items()).extracting("taxCode").containsExactlyInAnyOrder("A1", "A2");
-    assertThat(page.items())
-        .allSatisfy(o -> assertThat(o.status()).isEqualTo(OrganizationStatus.ACTIVE));
+    assertThat(page.items()).allSatisfy(o -> assertThat(o.status()).isEqualTo("ACTIVE"));
     assertThat(page.totalElements()).isEqualTo(2);
     assertThat(page.totalPages()).isEqualTo(1);
   }

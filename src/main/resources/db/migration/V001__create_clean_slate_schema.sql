@@ -6,7 +6,9 @@
 -- Design reference: NKC_DX_Clean_Slate_Database_Design_Detailed_No_Reporting_Schema.md
 -- Participant terminology follows the project owner request.
 -- Flyway owns the transaction; no outer BEGIN/COMMIT or database creation.
--- Do not apply to an existing database carrying the former V001-V003 history.
+-- Consolidated on 2026-10-07: includes batch soft delete and service reconciliation import.
+-- V002 seeds access-control data after this complete schema is created.
+-- Do not apply to an existing database carrying any earlier migration history.
 -- This baseline does not adapt the existing Java/MyBatis contracts to the new model.
 -- Source syntax fix: include the ImportJob ID placeholder in its configuration error.
 -- Generated from design dated 2026-10-03.
@@ -804,6 +806,7 @@ CREATE TABLE public.health_examination_batches (
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     row_version bigint NOT NULL DEFAULT 0,
+    deleted_at timestamptz(3) NULL,
     CONSTRAINT ck_health_exam_batches_site_type CHECK (examination_site_type IN ('CLINIC', 'ORGANIZATION_SITE')),
     CONSTRAINT ck_health_exam_batches_status CHECK (status IN ('DRAFT', 'READY', 'FINALIZED', 'CLOSED'))
 );
@@ -1189,7 +1192,7 @@ CREATE TABLE public.import_jobs (
     expires_at timestamptz(3) NULL,
     confirmed_result jsonb NULL,
     row_version bigint NOT NULL DEFAULT 0,
-    CONSTRAINT ck_import_jobs_type CHECK (import_type IN ('ORGANIZATION_PARTICIPANT', 'HEALTH_EXAMINATION_RESULT')),
+    CONSTRAINT ck_import_jobs_type CHECK (import_type IN ('ORGANIZATION_PARTICIPANT', 'HEALTH_EXAMINATION_RESULT', 'HEALTH_EXAMINATION_SERVICE_RECONCILIATION')),
     CONSTRAINT ck_import_jobs_status CHECK (status IN ('VALIDATED', 'CONFIRMED', 'CANCELLED', 'EXPIRED')),
     CONSTRAINT ck_import_jobs_batch CHECK (batch_id IS NOT NULL),
     CONSTRAINT ck_import_jobs_confirmed CHECK (

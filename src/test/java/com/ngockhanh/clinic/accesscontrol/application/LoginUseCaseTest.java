@@ -14,8 +14,8 @@ import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.accesscontrol.application.command.LoginCommand;
 import com.ngockhanh.clinic.accesscontrol.application.exception.AuthenticationFailure;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionSnapshot;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionSnapshot;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
 import com.ngockhanh.clinic.accesscontrol.application.response.LoginResult;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.entity.UserAccount;
@@ -25,8 +25,7 @@ import com.ngockhanh.clinic.accesscontrol.domain.enums.StaffMemberStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleGrant;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.security.UserPasswordEncoder;
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,14 +33,16 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionOperations;
 
 class LoginUseCaseTest {
-  private static final UserPasswordEncoder ENCODER = new UserPasswordEncoder();
   private static final String PASSWORD = "Mật khẩu-01";
-  private static final String HASH = ENCODER.encode(PASSWORD);
+  private static final String HASH = "synthetic-password-hash";
+  private final PasswordEncoder passwords = mock(PasswordEncoder.class);
 
   private final Instant now = Instant.parse("2026-10-06T01:00:00Z");
   private final UserAccountRepository accounts = mock(UserAccountRepository.class);
@@ -52,12 +53,18 @@ class LoginUseCaseTest {
   private final LoginUseCase login =
       new LoginUseCase(
           accounts,
-          ENCODER,
+          passwords,
           sessions,
           audit,
           TransactionOperations.withoutTransaction(),
           new SessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8)),
           Clock.fixed(now, ZoneOffset.UTC));
+
+  @BeforeEach
+  void passwordVerificationIsAnExternalCollaborator() {
+    when(passwords.matches(any(), eq(HASH)))
+        .thenAnswer(call -> PASSWORD.contentEquals((CharSequence) call.getArgument(0)));
+  }
 
   private UserAccount staff(AccountStatus status) {
     return new UserAccount(

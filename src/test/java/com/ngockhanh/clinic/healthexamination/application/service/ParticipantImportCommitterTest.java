@@ -14,7 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantImportCommitter.Request;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantImportCommitter.Row;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
@@ -45,12 +45,14 @@ import org.mockito.ArgumentCaptor;
 
 class ParticipantImportCommitterTest {
   private final OrganizationRepository organizations = mock(OrganizationRepository.class);
-  private final HealthExaminationBatchRepository batches = mock(HealthExaminationBatchRepository.class);
+  private final HealthExaminationBatchRepository batches =
+      mock(HealthExaminationBatchRepository.class);
   private final HealthExaminationBatchParticipantRepository participants =
       mock(HealthExaminationBatchParticipantRepository.class);
   private final ParticipantImportStore imports = mock(ParticipantImportStore.class);
   private final AuditWriter audit = mock(AuditWriter.class);
-  private final Clock clock = Clock.fixed(Instant.parse("2026-10-06T01:02:03.456789Z"), ZoneOffset.UTC);
+  private final Clock clock =
+      Clock.fixed(Instant.parse("2026-10-06T01:02:03.456789Z"), ZoneOffset.UTC);
   private final ParticipantImportCommitter committer =
       new ParticipantImportCommitter(organizations, batches, participants, imports, audit, clock);
 
@@ -66,7 +68,8 @@ class ParticipantImportCommitterTest {
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(organization(organizationId)));
     when(batches.findDetails(organizationId, batchId, true))
-        .thenReturn(Optional.of(details(draftBatch(organizationId, batchId, 2, UUID.randomUUID()))));
+        .thenReturn(
+            Optional.of(details(draftBatch(organizationId, batchId, 2, UUID.randomUUID()))));
     when(imports.reserve(any())).thenReturn(new ImportReservation.New(reservationId));
     when(imports.createValidatedJob(any())).thenReturn(jobId);
     when(participants.findExistingIdentities(any(), anyList())).thenReturn(List.of());
@@ -76,8 +79,15 @@ class ParticipantImportCommitterTest {
     return new Row(
         number,
         new Roster(
-            null, "Synthetic Person " + number, LocalDate.of(1990, 1, 31), "MALE",
-            new IdentificationNumber(identification), null, null, "Department", "Position"),
+            null,
+            "Synthetic Person " + number,
+            LocalDate.of(1990, 1, 31),
+            "MALE",
+            new IdentificationNumber(identification),
+            null,
+            null,
+            "Department",
+            "Position"),
         day);
   }
 
@@ -87,13 +97,15 @@ class ParticipantImportCommitterTest {
 
   @Test
   void importsInTheDocumentedOrderAndWritesOneAuditEvent() {
-    var outcome = committer.commit(request(2, List.of(row(2, "111", FIRST_DAY), row(3, "222", SECOND_DAY))));
+    var outcome =
+        committer.commit(request(2, List.of(row(2, "111", FIRST_DAY), row(3, "222", SECOND_DAY))));
 
     assertThat(outcome.replayed()).isFalse();
     assertThat(outcome.receipt().importJobId()).isEqualTo(jobId);
     assertThat(outcome.receipt().totalRows()).isEqualTo(2);
     assertThat(outcome.receipt().createdCount()).isEqualTo(2);
-    assertThat(outcome.receipt().completedAt()).isEqualTo(Instant.parse("2026-10-06T01:02:03.456Z"));
+    assertThat(outcome.receipt().completedAt())
+        .isEqualTo(Instant.parse("2026-10-06T01:02:03.456Z"));
 
     var order = inOrder(batches, imports, participants, audit);
     order.verify(batches).findDetails(organizationId, batchId, true);
@@ -104,8 +116,15 @@ class ParticipantImportCommitterTest {
     order.verify(imports).markRowsCommitted(eq(jobId), anyList());
     order.verify(imports).confirmJob(eq(jobId), eq(0L), any(ImportReceipt.class));
     order.verify(imports).completeRequest(eq(reservationId), any(ImportReceipt.class));
-    order.verify(audit)
-        .record(eq(actorId), eq("IMPORT_BATCH_PARTICIPANTS"), eq("HEALTH_EXAMINATION_BATCH"), eq(batchId), eq(null), any());
+    order
+        .verify(audit)
+        .record(
+            eq(actorId),
+            eq("IMPORT_BATCH_PARTICIPANTS"),
+            eq("HEALTH_EXAMINATION_BATCH"),
+            eq(batchId),
+            eq(null),
+            any());
   }
 
   @Test
@@ -113,7 +132,8 @@ class ParticipantImportCommitterTest {
     committer.commit(request(2, List.of(row(2, "111", SECOND_DAY))));
 
     @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<HealthExaminationBatchParticipant>> inserted = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<HealthExaminationBatchParticipant>> inserted =
+        ArgumentCaptor.forClass(List.class);
     verify(participants).insertMany(inserted.capture());
     var created = inserted.getValue().get(0);
     assertThat(property(created, "importJobId")).isEqualTo(AggregateId.of(jobId));
@@ -121,7 +141,10 @@ class ParticipantImportCommitterTest {
     assertThat(property(created, "batchId")).isEqualTo(AggregateId.of(batchId));
   }
 
-  /** Reads a property whether the aggregate exposes fluent ({@code x()}) or bean ({@code getX()}) accessors. */
+  /**
+   * Reads a property whether the aggregate exposes fluent ({@code x()}) or bean ({@code getX()})
+   * accessors.
+   */
   private static Object property(Object target, String name) {
     String bean = "get" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
     for (String candidate : List.of(name, bean)) {
@@ -145,7 +168,8 @@ class ParticipantImportCommitterTest {
 
     assertThat(outcome.receipt().createdCount()).isEqualTo(450);
     @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<HealthExaminationBatchParticipant>> chunks = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<HealthExaminationBatchParticipant>> chunks =
+        ArgumentCaptor.forClass(List.class);
     verify(participants, times(3)).insertMany(chunks.capture());
     assertThat(chunks.getAllValues()).extracting(List::size).containsExactly(200, 200, 50);
   }
@@ -175,7 +199,8 @@ class ParticipantImportCommitterTest {
 
   @Test
   void anExaminationDateOutsideTheBatchIsRejectedWithItsRow() {
-    assertThatThrownBy(() -> committer.commit(request(2, List.of(row(7, "111", LocalDate.of(2026, 12, 1))))))
+    assertThatThrownBy(
+            () -> committer.commit(request(2, List.of(row(7, "111", LocalDate.of(2026, 12, 1))))))
         .isInstanceOf(ConflictException.class)
         .hasMessage("Row 7: examination_date is not a day of this batch");
     verify(participants, never()).insertMany(anyList());
@@ -187,7 +212,9 @@ class ParticipantImportCommitterTest {
         .thenReturn(List.of(new IdentificationNumber("222")));
 
     assertThatThrownBy(
-            () -> committer.commit(request(2, List.of(row(2, "111", FIRST_DAY), row(3, "222", FIRST_DAY)))))
+            () ->
+                committer.commit(
+                    request(2, List.of(row(2, "111", FIRST_DAY), row(3, "222", FIRST_DAY)))))
         .isInstanceOf(ConflictException.class)
         .hasMessage("Participant identity already exists in this batch at row 3");
     verify(imports, never()).createValidatedJob(any());
@@ -208,7 +235,14 @@ class ParticipantImportCommitterTest {
     when(batches.findDetails(organizationId, batchId, true))
         .thenReturn(
             Optional.of(
-                details(batch(organizationId, batchId, BatchStatus.FINALIZED, 2, null, UUID.randomUUID()))));
+                details(
+                    batch(
+                        organizationId,
+                        batchId,
+                        BatchStatus.FINALIZED,
+                        2,
+                        null,
+                        UUID.randomUUID()))));
     assertThatThrownBy(() -> committer.commit(request(2, List.of(row(2, "111", FIRST_DAY)))))
         .isInstanceOf(ConflictException.class);
     verify(imports, never()).createValidatedJob(any());
@@ -238,7 +272,14 @@ class ParticipantImportCommitterTest {
     when(batches.findDetails(organizationId, batchId, true))
         .thenReturn(
             Optional.of(
-                details(batch(organizationId, batchId, BatchStatus.FINALIZED, 3, null, UUID.randomUUID()))));
+                details(
+                    batch(
+                        organizationId,
+                        batchId,
+                        BatchStatus.FINALIZED,
+                        3,
+                        null,
+                        UUID.randomUUID()))));
 
     var outcome = committer.commit(request(2, List.of(row(2, "111", FIRST_DAY))));
 
@@ -254,7 +295,8 @@ class ParticipantImportCommitterTest {
         .isInstanceOf(ResourceNotFoundException.class);
 
     when(batches.findDetails(organizationId, batchId, true))
-        .thenReturn(Optional.of(details(draftBatch(organizationId, batchId, 2, UUID.randomUUID()))));
+        .thenReturn(
+            Optional.of(details(draftBatch(organizationId, batchId, 2, UUID.randomUUID()))));
     when(organizations.findById(new AggregateId(organizationId))).thenReturn(Optional.empty());
     assertThatThrownBy(() -> committer.commit(request(2, List.of(row(2, "111", FIRST_DAY)))))
         .isInstanceOf(ResourceNotFoundException.class);

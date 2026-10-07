@@ -7,8 +7,8 @@ import org.springframework.security.config.annotation.web.configurers.AuthorizeH
 
 /**
  * Permission required by each business endpoint, using the codes of the SRS Permission Matrix 4.4
- * seeded by V004 (ADR-0015). Every new {@code /api/v1} endpoint needs a rule here; endpoints without
- * one are denied. Permissions are those captured in the session at sign-in.
+ * seeded by V004 (ADR-0015). Every new {@code /api/v1} endpoint needs a rule here; endpoints
+ * without one are denied. Permissions are those captured in the session at sign-in.
  */
 public final class EndpointPermissions {
 
@@ -48,7 +48,51 @@ public final class EndpointPermissions {
           new Rule(
               HttpMethod.POST,
               "/api/v1/organizations/*/health-examination-batches/*/participants/imports",
-              "PARTICIPANT_IMPORT"));
+              "PARTICIPANT_IMPORT"),
+          new Rule(
+              HttpMethod.POST,
+              "/api/v1/organizations/*/health-examination-batches/*/participants",
+              "PARTICIPANT_CREATE"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/participants/*",
+              "PARTICIPANT_VIEW"),
+          new Rule(
+              HttpMethod.PUT,
+              "/api/v1/organizations/*/health-examination-batches/*/participants/*",
+              "PARTICIPANT_UPDATE"),
+          new Rule(
+              HttpMethod.DELETE,
+              "/api/v1/organizations/*/health-examination-batches/*/participants/*",
+              "PARTICIPANT_REMOVE"),
+          new Rule(
+              HttpMethod.POST,
+              "/api/v1/organizations/*/health-examination-batches/*/participants/*/reactivate",
+              "PARTICIPANT_REACTIVATE"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/examination-details",
+              "HEALTH_EXAMINATION_SERVICE_READ"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/examination-details/summary",
+              "HEALTH_EXAMINATION_SERVICE_READ"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/examination-details/export",
+              "HEALTH_EXAMINATION_SERVICE_READ"),
+          new Rule(
+              HttpMethod.POST,
+              "/api/v1/organizations/*/health-examination-batches/*/examination-details/imports",
+              "HEALTH_EXAMINATION_SERVICE_RECONCILE"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/reports/payment-summary",
+              "HEALTH_EXAMINATION_REPORT_READ"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/reports/payment-summary/docx",
+              "HEALTH_EXAMINATION_REPORT_READ"));
 
   private EndpointPermissions() {}
 
