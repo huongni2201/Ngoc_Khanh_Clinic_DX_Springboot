@@ -78,6 +78,13 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Roster import scope
 
+Owner amendment — 2026-10-07: staff can add one Participant by hand, view its detail, edit it
+and cancel it, as defined in [participant manual add, edit and cancel](../api/participant-manual-crud.md).
+Delete means cancel (`roster_status` CANCELLED, never a physical delete), and the CCCD stays
+reserved. The CCCD is editable only while the Participant has no linked Patient. The operations are
+guarded by `HEALTH_EXAMINATION_PARTICIPANT_MANAGE` (migration V004) and the batch must be DRAFT/READY
+of an ACTIVE organization. This does not reopen the multi-step import workflow.
+
 Owner amendment — 2026-10-06: a single-step roster import is restored together with a
 Participant list and template download, as defined in
 [participant import and list](../api/participant-import-and-list.md). It is

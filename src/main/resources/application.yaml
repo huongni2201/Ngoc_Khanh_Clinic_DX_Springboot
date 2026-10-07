@@ -26,3 +26,10 @@ clinic:
     absolute-timeout: 8h
     cookie-secure: ${NKC_AUTH_COOKIE_SECURE:true}
     allowed-origins: ${NKC_AUTH_ALLOWED_ORIGINS:}
+nkc:
+  report:
+    clinic:
+      name: ${NKC_REPORT_CLINIC_NAME:Phòng khám Ngọc Khánh}
+      address: ${NKC_REPORT_CLINIC_ADDRESS:}
+      phone: ${NKC_REPORT_CLINIC_PHONE:}
+      city: ${NKC_REPORT_CLINIC_CITY:}

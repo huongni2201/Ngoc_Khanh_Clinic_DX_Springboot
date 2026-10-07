@@ -16,7 +16,10 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteHealthEx
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetHealthExaminationBatchByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateHealthExaminationBatchUseCase;
+import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.math.BigDecimal;
@@ -71,6 +74,8 @@ class HealthExaminationBatchCrudIntegrationTest {
         .MyBatisHealthExaminationBatchRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisOrganizationRepository.class,
+    com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
+        .MyBatisHealthExaminationBatchParticipantRepository.class,
     com.ngockhanh.clinic.catalog.infrastructure.persistence.repository.MyBatisServiceCatalogQuery
         .class,
     com.ngockhanh.clinic.audit.infrastructure.persistence.repository.MyBatisAuditWriter.class,
@@ -103,6 +108,7 @@ class HealthExaminationBatchCrudIntegrationTest {
   @Autowired UpdateHealthExaminationBatchUseCase update;
   @Autowired ListHealthExaminationBatchUseCase list;
   @Autowired DeleteHealthExaminationBatchUseCase delete;
+  @Autowired HealthExaminationBatchParticipantRepository participants;
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
   com.ngockhanh.clinic.audit.application.port.AuditWriter audit;
@@ -575,6 +581,61 @@ class HealthExaminationBatchCrudIntegrationTest {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  @Test
+  void aCancelledParticipantIsReactivatedOnTheSameRowKeepingItsDataAndVersionChain() {
+    var batch = createBatch("B1", service);
+    var participantId = insertParticipant(batch.id(), batch.days().getFirst().id());
+    var batchId = new AggregateId(batch.id());
+    var id = new AggregateId(participantId);
+
+    var loaded = participants.findInBatch(batchId, id).orElseThrow();
+    loaded.cancel();
+    participants.save(loaded, loaded.getRowVersion());
+    var cancelled = participants.findInBatch(batchId, id).orElseThrow();
+    assertThat(cancelled.getRosterStatus()).isEqualTo(RosterStatus.CANCELLED);
+    assertThat(cancelled.getRowVersion()).isEqualTo(1);
+
+    cancelled.reactivate();
+    participants.save(cancelled, cancelled.getRowVersion());
+
+    var reactivated = participants.findInBatch(batchId, id).orElseThrow();
+    assertThat(reactivated.getId()).isEqualTo(id);
+    assertThat(reactivated.getRosterStatus()).isEqualTo(RosterStatus.ACTIVE);
+    assertThat(reactivated.getRowVersion()).isEqualTo(2);
+    assertThat(reactivated.getBatchDayId()).isEqualTo(cancelled.getBatchDayId());
+    assertThat(reactivated.getRoster()).isEqualTo(cancelled.getRoster());
+    assertThat(
+            count(
+                "SELECT COUNT(*) FROM public.health_examination_batch_participants WHERE batch_id = ?",
+                batch.id()))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT roster_status FROM public.health_examination_batch_participants WHERE id = ?",
+                String.class,
+                participantId))
+        .isEqualTo("ACTIVE");
+  }
+
+  @Test
+  void reactivatingWithAStaleVersionIsRejectedAndLeavesTheRowCancelled() {
+    var batch = createBatch("B1", service);
+    var participantId = insertParticipant(batch.id(), batch.days().getFirst().id());
+    var batchId = new AggregateId(batch.id());
+    var id = new AggregateId(participantId);
+    var loaded = participants.findInBatch(batchId, id).orElseThrow();
+    loaded.cancel();
+    participants.save(loaded, loaded.getRowVersion());
+
+    var stale = participants.findInBatch(batchId, id).orElseThrow();
+    stale.reactivate();
+    assertThatThrownBy(() -> participants.save(stale, 0))
+        .isInstanceOf(ConcurrentUpdateException.class);
+
+    assertThat(participants.findInBatch(batchId, id).orElseThrow().getRosterStatus())
+        .isEqualTo(RosterStatus.CANCELLED);
   }
 
   private UUID insertParticipant(UUID batchId, UUID dayId) {

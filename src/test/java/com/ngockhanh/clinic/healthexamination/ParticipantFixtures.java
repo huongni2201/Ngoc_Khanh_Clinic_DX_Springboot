@@ -11,6 +11,7 @@ import java.util.UUID;
 public final class ParticipantFixtures {
   public static final String READ = "HEALTH_EXAMINATION_PARTICIPANT_READ";
   public static final String IMPORT = "HEALTH_EXAMINATION_PARTICIPANT_IMPORT";
+  public static final String MANAGE = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
 
   private ParticipantFixtures() {}
 

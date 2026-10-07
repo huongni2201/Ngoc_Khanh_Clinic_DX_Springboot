@@ -14,7 +14,9 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,6 +39,23 @@ public class MyBatisHealthExaminationBatchParticipantRepository
       AggregateId batchId, AggregateId id) {
     return Optional.ofNullable(mapper.findInBatch(batchId.value(), id.value()))
         .map(r -> domain(r, mapper.findServices(List.of(r.id()))));
+  }
+
+  @Override
+  public List<HealthExaminationBatchParticipant> findManyInBatchForUpdate(
+      AggregateId batchId, Collection<AggregateId> ids) {
+    if (ids.isEmpty()) return List.of();
+    var headers =
+        mapper.findManyInBatchForUpdate(
+            batchId.value(), ids.stream().map(AggregateId::value).toList());
+    if (headers.isEmpty()) return List.of();
+    Map<UUID, List<HealthExaminationParticipantServiceRecord>> servicesByParticipant =
+        mapper.findServices(headers.stream().map(HealthExaminationBatchParticipantRecord::id).toList())
+            .stream()
+            .collect(Collectors.groupingBy(HealthExaminationParticipantServiceRecord::batchParticipantId));
+    return headers.stream()
+        .map(header -> domain(header, servicesByParticipant.getOrDefault(header.id(), List.of())))
+        .toList();
   }
 
   @Override

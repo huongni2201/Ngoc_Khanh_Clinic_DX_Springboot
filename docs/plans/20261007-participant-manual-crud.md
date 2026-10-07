@@ -25,7 +25,7 @@
 | D2 | `GET /{participantId}` trả CCCD đầy đủ, phone, email, chỉ với MANAGE | Form sửa cần giá trị thật; list vẫn mask |
 | D3 | Chặn hủy khi Participant đã chuẩn bị (`prepared_at` ≠ null), `ATTENDED` hoặc `RECONCILED` → 409 | Tránh mồ côi Encounter/record/đối soát dịch vụ |
 | D4 | Hủy lặp lại trên Participant đã CANCELLED → 409 `Participant is cancelled` | Nhất quán `requireActive()` của domain |
-| D5 | Không có endpoint khôi phục (CANCELLED → ACTIVE) | Là use case riêng; thêm lại cùng CCCD sẽ bị 409 |
+| D5 | ~~Không có endpoint khôi phục (CANCELLED → ACTIVE)~~ **Thay bằng [20261007-participant-reactivate.md](20261007-participant-reactivate.md)** | Khôi phục đúng bản ghi cũ qua `POST /{participantId}/reactivate`; thêm lại cùng CCCD vẫn 409 |
 | D6 | Create không dùng `Idempotency-Key`; unique CCCD chặn double submit | Thao tác đơn lẻ, retry trả 409 rõ ràng |
 | D7 | Thao tác thủ công không tăng `row_version` của batch | Giữ ngữ nghĩa version = cấu hình batch như kế hoạch import |
 

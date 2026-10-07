@@ -19,9 +19,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -29,7 +26,6 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 /**
  * Reads the Excel import contract V1 with Apache POI.
@@ -44,9 +40,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class PoiParticipantExcelReader implements ParticipantExcelReader {
-  private static final byte[] ZIP_SIGNATURE = {'P', 'K', 3, 4};
   private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
   private static final int MAX_HEADER_COLUMNS = 64;
   private static final Set<String> REQUIRED = Set.of(
@@ -56,10 +50,16 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
   private static final Set<String> UNTRIMMED = Set.of(IDENTIFICATION_NUMBER);
 
   private final ParticipantImportProperties limits;
+  private final OoxmlPackageGuard guard;
+
+  public PoiParticipantExcelReader(ParticipantImportProperties limits) {
+    this.limits = limits;
+    this.guard = new OoxmlPackageGuard(limits);
+  }
 
   @Override
   public ParticipantWorkbook read(byte[] bytes) {
-    preflight(bytes);
+    guard.check(bytes);
     try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(bytes))) {
       return parse(workbook);
     } catch (ApplicationException rejected) {
@@ -68,43 +68,6 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
       log.debug("Participant workbook could not be read: cause={}", unreadable.getClass().getSimpleName());
       throw invalid("The file is not a valid XLSX workbook");
     }
-  }
-
-  /** Rejects oversized, non-OOXML, macro-enabled, linked or zip-bomb-like packages. */
-  private void preflight(byte[] bytes) {
-    if (bytes.length > limits.maxFileBytes()) throw new MaxUploadSizeExceededException(limits.maxFileBytes());
-    if (bytes.length < ZIP_SIGNATURE.length) throw invalid("The file is not a valid XLSX workbook");
-    for (int i = 0; i < ZIP_SIGNATURE.length; i++)
-      if (bytes[i] != ZIP_SIGNATURE[i]) throw invalid("The file is not a valid XLSX workbook");
-
-    int entries = 0;
-    long total = 0;
-    boolean hasContentTypes = false;
-    boolean hasWorkbook = false;
-    byte[] buffer = new byte[8192];
-    try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
-      for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
-        if (++entries > limits.maxZipEntries()) throw invalid("The workbook contains too many parts");
-        String name = entry.getName();
-        if (name.startsWith("xl/vbaProject")
-            || name.startsWith("xl/externalLinks/")
-            || name.startsWith("xl/embeddings/"))
-          throw invalid("Macros, embedded objects and external links are not supported");
-        hasContentTypes |= "[Content_Types].xml".equals(name);
-        hasWorkbook |= "xl/workbook.xml".equals(name);
-        long entryBytes = 0;
-        for (int read = zip.read(buffer); read != -1; read = zip.read(buffer)) {
-          entryBytes += read;
-          total += read;
-          if (entryBytes > limits.maxEntryBytes() || total > limits.maxTotalBytes())
-            throw invalid("The workbook is too large once extracted");
-        }
-      }
-    } catch (IOException | RuntimeException unreadable) {
-      if (unreadable instanceof ApplicationException rejected) throw rejected;
-      throw invalid("The file is not a valid XLSX workbook");
-    }
-    if (!hasContentTypes || !hasWorkbook) throw invalid("The file is not a valid XLSX workbook");
   }
 
   private ParticipantWorkbook parse(XSSFWorkbook workbook) {

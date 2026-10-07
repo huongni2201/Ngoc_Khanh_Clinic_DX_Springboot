@@ -179,6 +179,14 @@ public class HealthExaminationBatch {
    * and is a draft or ready accepts them.
    */
   public boolean acceptsParticipantImport() {
+    return acceptsParticipantChanges();
+  }
+
+  /**
+   * Whether the roster may still be changed by hand (add, edit, cancel a Participant). The rule is
+   * the same as for the Excel import: a batch that is not deleted and is a draft or ready.
+   */
+  public boolean acceptsParticipantChanges() {
     return deletedAt == null && (status == BatchStatus.DRAFT || status == BatchStatus.READY);
   }
 

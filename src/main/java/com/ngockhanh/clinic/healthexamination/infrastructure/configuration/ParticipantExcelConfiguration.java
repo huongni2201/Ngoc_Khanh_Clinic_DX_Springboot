@@ -7,11 +7,14 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Registers the import limits and configures Apache POI's zip-bomb protection once at startup.
+ * Registers the import limits of the Participant and examination detail Excel imports and configures Apache POI's zip-bomb protection once at startup.
  * POI keeps these limits in static fields, so they are never changed per request.
  */
 @Configuration
-@EnableConfigurationProperties(ParticipantImportProperties.class)
+@EnableConfigurationProperties({
+  ParticipantImportProperties.class,
+  ExaminationDetailImportProperties.class
+})
 @RequiredArgsConstructor
 public class ParticipantExcelConfiguration {
   private final ParticipantImportProperties properties;

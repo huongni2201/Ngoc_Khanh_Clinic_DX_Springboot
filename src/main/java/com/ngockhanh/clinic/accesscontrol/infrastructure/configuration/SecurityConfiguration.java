@@ -38,6 +38,10 @@ import tools.jackson.databind.json.JsonMapper;
 public class SecurityConfiguration {
   private static final String PARTICIPANTS_PATH =
       "/api/v1/organizations/*/health-examination-batches/*/participants";
+  private static final String EXAMINATION_DETAILS_PATH =
+      "/api/v1/organizations/*/health-examination-batches/*/examination-details";
+  private static final String PAYMENT_SUMMARY_PATH =
+      "/api/v1/organizations/*/health-examination-batches/*/reports/payment-summary";
 
   /** A staff account that also holds the given permission; checked before the controller runs. */
   private static AuthorizationManager<RequestAuthorizationContext> staffWith(String permission) {
@@ -91,6 +95,27 @@ public class SecurityConfiguration {
                     .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_READ"))
                     .requestMatchers(HttpMethod.POST, PARTICIPANTS_PATH + "/imports")
                     .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_IMPORT"))
+                    .requestMatchers(HttpMethod.POST, PARTICIPANTS_PATH)
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_MANAGE"))
+                    .requestMatchers(HttpMethod.GET, PARTICIPANTS_PATH + "/*")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_MANAGE"))
+                    .requestMatchers(HttpMethod.PUT, PARTICIPANTS_PATH + "/*")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_MANAGE"))
+                    .requestMatchers(HttpMethod.DELETE, PARTICIPANTS_PATH + "/*")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_MANAGE"))
+                    .requestMatchers(HttpMethod.POST, PARTICIPANTS_PATH + "/*/reactivate")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_MANAGE"))
+                    .requestMatchers(
+                        HttpMethod.GET,
+                        EXAMINATION_DETAILS_PATH,
+                        EXAMINATION_DETAILS_PATH + "/summary",
+                        EXAMINATION_DETAILS_PATH + "/export")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_SERVICE_READ"))
+                    .requestMatchers(HttpMethod.POST, EXAMINATION_DETAILS_PATH + "/imports")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_SERVICE_RECONCILE"))
+                    .requestMatchers(
+                        HttpMethod.GET, PAYMENT_SUMMARY_PATH, PAYMENT_SUMMARY_PATH + "/docx")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_REPORT_READ"))
                     .requestMatchers("/api/v1/**")
                     .hasAuthority("ACCOUNT_STAFF")
                     .anyRequest()

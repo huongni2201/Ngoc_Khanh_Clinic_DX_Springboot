@@ -11,7 +11,8 @@ Responses use the common envelope `{result, code, message, data}`; failures use 
 | `GET` list, `GET /import-template` | `HEALTH_EXAMINATION_PARTICIPANT_READ` |
 | `POST /imports` | `HEALTH_EXAMINATION_PARTICIPANT_IMPORT` |
 
-Granted to ADMIN and CLINIC_MANAGER by Flyway V003 (and the local seed). Permissions are a
+Granted to ADMIN and CLINIC_MANAGER by Flyway V003 (and the local seed). Manual add, detail, edit and
+cancel are in [participant manual add, edit and cancel](participant-manual-crud.md). Permissions are a
 login snapshot: sign in again after the migration.
 
 ## `GET /` - list

@@ -8,6 +8,11 @@
  <select id="findInBatch" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
  SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} AND id=#{id}
  </select>
+ <select id="findManyInBatchForUpdate" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
+ SELECT <include refid="columns"/> FROM public.health_examination_batch_participants
+ WHERE batch_id=#{batchId} AND id IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
+ ORDER BY id FOR UPDATE
+ </select>
  <select id="identityTakenByOther" resultType="boolean">
  SELECT EXISTS(SELECT 1 FROM public.health_examination_batch_participants
  WHERE batch_id=#{batchId} AND identification_number=#{identity}

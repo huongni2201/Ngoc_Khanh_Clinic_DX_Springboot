@@ -32,6 +32,42 @@ public record HealthExaminationBatchParticipantService(
         || rowVersion < 0) throw new IllegalArgumentException("Invalid reconciled service");
   }
 
+  /**
+   * Creates the reconciliation row of a service that staff just recorded as performed. The price
+   * snapshot is the batch service's current negotiated price; it is never changed afterwards.
+   *
+   * @param id identifier of the new row
+   * @param batchId batch the Participant and the service belong to
+   * @param batchParticipantId Participant the service was performed for
+   * @param batchService batch service that was performed
+   * @param actor account recording the service
+   * @param at time of the recording; also the creation time of the row
+   * @throws IllegalArgumentException when an argument is missing or the service is of another batch
+   */
+  public static HealthExaminationBatchParticipantService newPerformed(
+      AggregateId id,
+      AggregateId batchId,
+      AggregateId batchParticipantId,
+      HealthExaminationBatchService batchService,
+      AggregateId actor,
+      Instant at) {
+    if (batchService == null || !batchService.batchId().equals(batchId))
+      throw new IllegalArgumentException("Batch service must belong to the batch");
+    return new HealthExaminationBatchParticipantService(
+        id,
+        batchId,
+        batchParticipantId,
+        batchService.id(),
+        true,
+        null,
+        batchService.negotiatedPrice(),
+        actor,
+        at,
+        at,
+        at,
+        0);
+  }
+
   public HealthExaminationBatchParticipantService recordPerformed(
       boolean performed, AggregateId actor, Instant at) {
     return new HealthExaminationBatchParticipantService(
