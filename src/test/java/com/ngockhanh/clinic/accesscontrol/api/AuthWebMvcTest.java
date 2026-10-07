@@ -22,8 +22,10 @@ import com.ngockhanh.clinic.accesscontrol.application.response.LoginResult;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
+import com.ngockhanh.clinic.accesscontrol.application.port.EndpointPermissionCatalog;
+import com.ngockhanh.clinic.accesscontrol.application.port.EndpointPermissionCatalog.EndpointPermission;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.AccessControlWebConfiguration;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import jakarta.servlet.http.Cookie;
@@ -36,7 +38,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -51,8 +55,10 @@ import org.springframework.web.bind.annotation.RestController;
     excludeAutoConfiguration = UserDetailsServiceAutoConfiguration.class)
 @Import({
   SecurityConfiguration.class,
+  AccessControlWebConfiguration.class,
   ClockConfiguration.class,
-  AuthWebMvcTest.BusinessEndpoint.class
+  AuthWebMvcTest.BusinessEndpoint.class,
+  AuthWebMvcTest.StoredPermissions.class
 })
 @TestPropertySource(
     properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
@@ -65,6 +71,18 @@ class AuthWebMvcTest {
   @MockitoBean LoginUseCase login;
   @MockitoBean LogoutUseCase logout;
   @MockitoBean AuthenticateSessionUseCase authenticate;
+
+  /** The permissions table holds a permission only for the organization endpoint. */
+  @TestConfiguration
+  static class StoredPermissions {
+    @Bean
+    EndpointPermissionCatalog endpointPermissionCatalog() {
+      return () ->
+          List.of(
+              new EndpointPermission(
+                  "GET", "/api/v1/organizations/{organizationId}", "ORGANIZATION_VIEW"));
+    }
+  }
 
   @RestController
   static class BusinessEndpoint {
@@ -207,7 +225,7 @@ class AuthWebMvcTest {
   }
 
   @Test
-  void businessRoutesRequireAStaffAccountHoldingTheRulePermission() throws Exception {
+  void businessRoutesRequireAStaffAccountHoldingTheStoredPermission() throws Exception {
     String organization = "/api/v1/organizations/" + UUID.randomUUID();
     mvc.perform(get(organization))
         .andExpect(status().isUnauthorized())
@@ -230,14 +248,17 @@ class AuthWebMvcTest {
   }
 
   @Test
-  void routesWithoutAPermissionRuleAreDenied() throws Exception {
+  void endpointsWithoutAStoredPermissionAreDeniedAndUnknownRoutesAreNotFound() throws Exception {
     mvc.perform(get("/api/v1/test-business")).andExpect(status().isUnauthorized());
 
-    List<String> everyRulePermission =
-        EndpointPermissions.RULES.stream().map(EndpointPermissions.Rule::permission).toList();
-    when(authenticate.execute("manager")).thenReturn(principal("STAFF", everyRulePermission));
+    when(authenticate.execute("manager"))
+        .thenReturn(principal("STAFF", List.of("ORGANIZATION_VIEW", "ORGANIZATION_UPDATE")));
     mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "manager")))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value(403));
+    mvc.perform(get("/api/v1/no-such-route").cookie(new Cookie(COOKIE, "manager")))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value(404));
   }
 
   @Test

@@ -2,18 +2,22 @@ package com.ngockhanh.clinic.accesscontrol;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.ngockhanh.clinic.accesscontrol.application.port.EndpointPermissionCatalog;
+import com.ngockhanh.clinic.accesscontrol.application.port.EndpointPermissionCatalog.EndpointPermission;
 import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissionInterceptor;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
@@ -27,6 +31,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -66,6 +71,12 @@ class AuthIntegrationTest {
   @Autowired StringRedisTemplate redis;
   @Autowired SessionStore sessions;
   @Autowired ApplicationContext context;
+  @Autowired EndpointPermissionCatalog endpointPermissions;
+  @Autowired EndpointPermissionInterceptor endpointPermissionInterceptor;
+
+  @Autowired
+  @Qualifier("requestMappingHandlerMapping")
+  RequestMappingHandlerMapping controllerMappings;
 
   UUID accountId;
   String username;
@@ -107,12 +118,20 @@ class AuthIntegrationTest {
         roleCode);
   }
 
-  /** Calls the endpoint of a permission rule, with an Origin and an empty body for writes. */
-  private ResultActions call(EndpointPermissions.Rule rule, Cookie session) throws Exception {
-    var call = request(rule.method(), rule.pattern().replace("*", UUID.randomUUID().toString()));
-    if (rule.method() != HttpMethod.GET)
-      call.header("Origin", ORIGIN).contentType(MediaType.APPLICATION_JSON).content("{}");
-    return mvc.perform(call.cookie(session));
+  /**
+   * Calls a stored endpoint with a random ID for each path variable. Writes carry an Origin and an
+   * empty body of the media type the endpoint consumes, so that the request reaches the permission
+   * check instead of failing content negotiation first.
+   */
+  private ResultActions call(EndpointPermission endpoint, Cookie session) throws Exception {
+    var method = HttpMethod.valueOf(endpoint.httpMethod());
+    String uri = endpoint.endpoint().replaceAll("\\{[^}]+}", UUID.randomUUID().toString());
+    if (method == HttpMethod.GET) return mvc.perform(request(method, uri).cookie(session));
+    var call =
+        uri.endsWith("/imports")
+            ? multipart(method, uri)
+            : request(method, uri).contentType(MediaType.APPLICATION_JSON).content("{}");
+    return mvc.perform(call.header("Origin", ORIGIN).cookie(session));
   }
 
   private Cookie sessionCookie(ResultActions result) {
@@ -159,33 +178,44 @@ class AuthIntegrationTest {
 
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
+    var stored = endpointPermissions.findAll();
+    assertThat(stored).hasSize(14);
+
     Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
-      call(rule, withoutRole).andExpect(status().isForbidden());
+    for (EndpointPermission endpoint : stored) {
+      call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
     grantRole("CLINIC_MANAGER");
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
-      call(rule, withoutRole).andExpect(status().isForbidden());
+    for (EndpointPermission endpoint : stored) {
+      call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
     Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
-      int status = call(rule, manager).andReturn().getResponse().getStatus();
-      assertThat(status).as(rule.toString()).isNotIn(401, 403);
+    for (EndpointPermission endpoint : stored) {
+      int status = call(endpoint, manager).andReturn().getResponse().getStatus();
+      assertThat(status).as(endpoint.toString()).isNotIn(401, 403);
     }
   }
 
   @Test
-  void everyEndpointPermissionIsSeededForTheClinicManager() {
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
+  void everyBusinessEndpointHasExactlyOneStoredPermission() {
+    var mappings = controllerMappings.getHandlerMethods().keySet();
+
+    assertThat(endpointPermissionInterceptor.endpointsWithoutPermission(mappings)).isEmpty();
+    assertThat(endpointPermissionInterceptor.permissionsWithoutEndpoint(mappings)).isEmpty();
+  }
+
+  @Test
+  void everyStoredEndpointPermissionIsGrantedToTheClinicManager() {
+    for (EndpointPermission endpoint : endpointPermissions.findAll()) {
       assertThat(
               jdbc.queryForList(
                   "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
                       + " JOIN permissions p ON p.id = rp.permission_id WHERE p.code = ?",
                   String.class,
-                  rule.permission()))
-          .as(rule.permission())
+                  endpoint.permission()))
+          .as(endpoint.permission())
           .contains("CLINIC_MANAGER");
     }
   }

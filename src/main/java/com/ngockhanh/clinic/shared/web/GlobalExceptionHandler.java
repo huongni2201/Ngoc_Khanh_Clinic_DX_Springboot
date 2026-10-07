@@ -25,6 +25,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Slf4j
@@ -113,6 +115,11 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ResourceNotFoundException.class)
   ResponseEntity<ApiResponse<Void>> notFound(ResourceNotFoundException exception) {
     return error(HttpStatus.NOT_FOUND, exception.getMessage());
+  }
+
+  @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+  ResponseEntity<ApiResponse<Void>> unknownRoute(Exception exception) {
+    return error(HttpStatus.NOT_FOUND, "Resource not found");
   }
 
   @ExceptionHandler(ConcurrentUpdateException.class)

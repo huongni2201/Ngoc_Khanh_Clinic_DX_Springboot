@@ -12,10 +12,10 @@ Responses use the common envelope `{result, code, message, data}`; failures use 
 | `GET /import-template` | `PARTICIPANT_TEMPLATE_DOWNLOAD` |
 | `POST /imports` | `PARTICIPANT_IMPORT` |
 
-SRS Permission Matrix codes (ADR-0015), granted to CLINIC_MANAGER by Flyway V004 (and to the
-local ADMIN role by the local seed). The V003 codes `HEALTH_EXAMINATION_PARTICIPANT_READ` and
-`HEALTH_EXAMINATION_PARTICIPANT_IMPORT` are superseded and no longer checked. Permissions are a
-login snapshot: sign in again after the migration.
+SRS Permission Matrix codes (ADR-0015), granted to CLINIC_MANAGER by Flyway V004 and stored
+with their endpoints by V005; the local `admin` account holds CLINIC_MANAGER. V005 removed the
+V003 codes `HEALTH_EXAMINATION_PARTICIPANT_READ` and `HEALTH_EXAMINATION_PARTICIPANT_IMPORT`.
+Permissions are a login snapshot: sign in again after the migration.
 
 ## `GET /` - list
 

@@ -1,17 +1,11 @@
 -- Local-only repeatable access-control seed (loaded from application-local.yaml).
--- The demo staff account records its bootstrap ADMIN grant. Only the Participant roster permissions
--- of the SRS matrix (see V004) are granted to the local ADMIN and CLINIC_MANAGER roles.
+-- Roles, permissions and their grants come from V004/V005 (ADR-0015). The demo staff account
+-- `admin` receives the CLINIC_MANAGER and ADMINISTRATOR roles so that local runs can use the
+-- organization, batch, participant and catalog screens; it grants them to itself.
 
 INSERT INTO public.staff_members (staff_code, full_name, status)
 VALUES ('LOCAL_DEMO_STAFF', 'Local Demo Staff', 'ACTIVE')
 ON CONFLICT (staff_code) DO NOTHING;
-
-INSERT INTO public.roles (code, name, description)
-VALUES
-    ('USER', 'User', 'Local development role; no permissions are assigned.'),
-    ('ADMIN', 'Admin', 'Local development role; no permissions are assigned.'),
-    ('CLINIC_MANAGER', 'Clinic Manager', 'Local development role; no permissions are assigned.')
-ON CONFLICT (code) DO NOTHING;
 
 UPDATE public.accounts AS account
 SET username = 'admin', password_hash = '{bcrypt}$2a$10$jdFKPVm/lEHGPgMB5h5FZujxEMPq7ahPlqCuvWMVQy3PqZRaqtxO2', updated_at = CURRENT_TIMESTAMP
@@ -29,21 +23,22 @@ WHERE staff.staff_code = 'LOCAL_DEMO_STAFF'
   AND NOT EXISTS (SELECT 1 FROM public.accounts WHERE username = 'admin')
 ON CONFLICT (username) DO NOTHING;
 
+-- Earlier versions of this seed created the local-only roles ADMIN and USER.
+DELETE FROM public.account_roles
+WHERE role_id IN (SELECT id FROM public.roles WHERE code IN ('ADMIN', 'USER'));
+
+DELETE FROM public.role_permissions
+WHERE role_id IN (SELECT id FROM public.roles WHERE code IN ('ADMIN', 'USER'));
+
+DELETE FROM public.roles WHERE code IN ('ADMIN', 'USER');
+
 INSERT INTO public.account_roles (account_id, role_id, granted_by)
 SELECT account.id, role.id, account.id
 FROM public.accounts AS account
 JOIN public.staff_members AS staff
   ON staff.id = account.staff_member_id AND staff.staff_code = 'LOCAL_DEMO_STAFF'
-JOIN public.roles AS role ON role.code = 'ADMIN' AND role.active
+JOIN public.roles AS role ON role.code IN ('CLINIC_MANAGER', 'ADMINISTRATOR') AND role.active
 WHERE account.username = 'admin'
   AND account.account_type = 'STAFF'
   AND account.status = 'ACTIVE'
 ON CONFLICT (account_id, role_id) DO NOTHING;
-
-INSERT INTO public.role_permissions (role_id, permission_id)
-SELECT role.id, permission.id
-FROM public.roles AS role
-JOIN public.permissions AS permission
-  ON permission.code IN ('PARTICIPANT_VIEW', 'PARTICIPANT_TEMPLATE_DOWNLOAD', 'PARTICIPANT_IMPORT')
-WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')
-ON CONFLICT (role_id, permission_id) DO NOTHING;

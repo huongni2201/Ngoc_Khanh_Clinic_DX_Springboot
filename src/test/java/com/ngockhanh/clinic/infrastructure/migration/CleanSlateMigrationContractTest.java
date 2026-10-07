@@ -49,7 +49,9 @@ class CleanSlateMigrationContractTest {
               "V001__create_clean_slate_schema.sql",
               "V002__add_health_examination_batch_soft_delete.sql",
               "V003__add_participant_roster_permissions.sql",
-              "V004__seed_access_control_roles_and_permissions.sql");
+              "V004__seed_access_control_roles_and_permissions.sql",
+              "V005__add_permission_endpoints.sql",
+              "V006__grant_template_permissions_to_administrator.sql");
     }
     String sql = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
     var tables =

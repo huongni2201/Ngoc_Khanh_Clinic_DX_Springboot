@@ -51,5 +51,19 @@ class LocalCatalogSeedIntegrationTest {
                 "SELECT COUNT(DISTINCT service_type) FROM public.services WHERE code LIKE 'LOCAL_SVC_%'",
                 Integer.class))
         .isEqualTo(5);
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT role.code FROM public.account_roles grant_row
+                JOIN public.accounts account ON account.id = grant_row.account_id
+                JOIN public.roles role ON role.id = grant_row.role_id
+                WHERE account.username = 'admin'
+                """,
+                String.class))
+        .containsExactlyInAnyOrder("CLINIC_MANAGER", "ADMINISTRATOR");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.roles WHERE code IN ('ADMIN', 'USER')", Integer.class))
+        .isZero();
   }
 }

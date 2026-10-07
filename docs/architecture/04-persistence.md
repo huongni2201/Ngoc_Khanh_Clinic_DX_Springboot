@@ -21,6 +21,8 @@ contracts; see [model placement](../../PROJECT_RULES.md#9-domain-vs-persistence-
 Domain objects and API responses never expose persistence records or views.
 
 - Access control: accounts, staff members, account-role grants, roles and permissions.
+  A permission may name the endpoint it protects (`http_method`, `endpoint`
+  route template; V005, ADR-0015).
 - Catalog: departments, rooms, specialties, services, medicines and lab definitions.
 - Patient: patient master, allergies and conditions.
 - Encounter: encounters and assignment fields stored on each encounter.

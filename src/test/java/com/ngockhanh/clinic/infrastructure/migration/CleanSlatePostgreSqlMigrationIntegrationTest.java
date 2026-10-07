@@ -35,7 +35,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 
@@ -138,8 +138,9 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
   }
 
   /**
-   * V004 seeds the SRS Permission Matrix 4.4 (ADR-0015). The two V003 roster permissions are
-   * superseded by the matrix codes and stay ungranted on a fresh database.
+   * V004 seeds the SRS Permission Matrix 4.4; V005 replaces the V003 roster codes, adds four
+   * permissions for endpoints outside the matrix and stores the endpoint of 14 permissions; V006
+   * moves the document and notification template permissions to the Administrator (ADR-0015).
    */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
@@ -152,9 +153,9 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(108);
+        .isEqualTo(110);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(112);
+        .isEqualTo(116);
     assertThat(
             jdbc.queryForList(
                 """
@@ -162,8 +163,41 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 WHERE NOT EXISTS (SELECT 1 FROM public.role_permissions rp WHERE rp.permission_id = p.id)
                 """,
                 String.class))
-        .containsExactlyInAnyOrder(
-            "HEALTH_EXAMINATION_PARTICIPANT_READ", "HEALTH_EXAMINATION_PARTICIPANT_IMPORT");
+        .isEmpty();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM public.permissions WHERE code LIKE 'HEALTH\\_EXAMINATION\\_PARTICIPANT\\_%'",
+                Integer.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForList(
+                "SELECT code FROM public.permissions WHERE endpoint IS NOT NULL", String.class))
+        .hasSize(14)
+        .contains("ORGANIZATION_DELETE", "HEALTH_EXAMINATION_BATCH_DETAIL_VIEW", "SERVICE_CATALOG_VIEW");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'PARTICIPANT_IMPORT'",
+                String.class))
+        .isEqualTo(
+            "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports");
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO public.permissions (code, name, description, http_method, endpoint)"
+                        + " VALUES ('TEST_SAME_ENDPOINT', 'Test', 'Test', 'GET', '/api/v1/organizations')"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO public.permissions (code, name, description, http_method, endpoint)"
+                        + " VALUES ('TEST_BAD_METHOD', 'Test', 'Test', 'FETCH', '/api/v1/test')"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO public.permissions (code, name, description, http_method)"
+                        + " VALUES ('TEST_NO_ENDPOINT', 'Test', 'Test', 'GET')"))
+        .isInstanceOf(DataIntegrityViolationException.class);
     assertThat(
             jdbc.queryForList(
                 """
@@ -180,6 +214,10 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
     assertThat(rolesGranted(jdbc, "REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT"))
         .containsExactly("CLINIC_MANAGER");
     assertThat(rolesGranted(jdbc, "AUDIT_LOG_VIEW")).containsExactly("ADMINISTRATOR");
+    assertThat(rolesGranted(jdbc, "MASTER_DATA_DOCUMENT_TEMPLATE_MANAGE"))
+        .containsExactly("ADMINISTRATOR");
+    assertThat(rolesGranted(jdbc, "MASTER_DATA_NOTIFICATION_TEMPLATE_MANAGE"))
+        .containsExactly("ADMINISTRATOR");
   }
 
   private static List<String> rolesGranted(JdbcTemplate jdbc, String permission) {

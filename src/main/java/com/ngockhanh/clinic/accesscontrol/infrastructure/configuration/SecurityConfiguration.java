@@ -3,7 +3,6 @@ package com.ngockhanh.clinic.accesscontrol.infrastructure.configuration;
 import com.ngockhanh.clinic.accesscontrol.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.JsonSecurityErrorHandler;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.OriginCheckFilter;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.SessionCookieAuthenticationFilter;
@@ -25,9 +24,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * HTTP security: stateless session-cookie authentication, CORS and Origin checks for
- * state-changing requests (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints
- * without a rule in {@link EndpointPermissions} are denied.
+ * HTTP security: stateless session-cookie authentication and CORS and Origin checks for
+ * state-changing requests (ADR-0014). Business routes require a signed-in account here; the
+ * permission of each endpoint is checked from {@code public.permissions} by {@link
+ * com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissionInterceptor}
+ * (ADR-0015).
  */
 @Configuration
 @EnableWebSecurity
@@ -65,17 +66,16 @@ public class SecurityConfiguration {
         .addFilterBefore(originCheck, AnonymousAuthenticationFilter.class)
         .addFilterBefore(sessionAuthentication, AnonymousAuthenticationFilter.class)
         .authorizeHttpRequests(
-            requests -> {
-              requests
-                  .dispatcherTypeMatchers(DispatcherType.ERROR)
-                  .permitAll()
-                  .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
-                  .permitAll()
-                  .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
-                  .authenticated();
-              EndpointPermissions.apply(requests);
-              requests.anyRequest().denyAll();
-            });
+            requests ->
+                requests
+                    .dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
+                    .permitAll()
+                    .requestMatchers("/api/v1/**")
+                    .authenticated()
+                    .anyRequest()
+                    .denyAll());
     return http.build();
   }
 
