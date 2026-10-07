@@ -19,20 +19,14 @@ Use explicit expected versions on mutable configuration updates. A stale update 
 ## Authentication and authorization
 
 The `accesscontrol` module authenticates with an opaque session cookie whose ID
-maps to a server-side JSON session snapshot in Redis (no JWT). Business routes
-under `/api/v1/**` require a logged-in STAFF account; PATIENT accounts can log in
-but receive 403. The Participant list, template and import routes are the first
-guarded by permission (`HEALTH_EXAMINATION_PARTICIPANT_READ` and
-`HEALTH_EXAMINATION_PARTICIPANT_IMPORT`, granted to ADMIN and CLINIC_MANAGER by migration
-V003). Manual add, detail, edit, cancel and reactivate (`POST`, `GET`, `PUT`, `DELETE` on
-`.../participants[/{participantId}]` and `POST .../participants/{participantId}/reactivate`) need `HEALTH_EXAMINATION_PARTICIPANT_MANAGE`, granted to
-the same roles by V004; only that detail response carries the full CCCD. The permission set is a login snapshot, so an existing session must sign in again
-to receive them. The examination detail and report routes use `HEALTH_EXAMINATION_SERVICE_READ`,
-`HEALTH_EXAMINATION_SERVICE_RECONCILE` and `HEALTH_EXAMINATION_REPORT_READ`, granted to the same roles by V005
-([contract](../api/examination-details-and-report.md)). Per-endpoint RBAC for the other routes, rate limiting and revocation
-are not yet implemented and block go-live. Credentials and session IDs are never returned or
-logged. The decision is [ADR-0014](../adr/0014-session-cookie-redis-login.md);
-the HTTP contract is [login operations](../api/login.md).
+maps to a server-side JSON session snapshot in Redis (no JWT). Each business
+route has one rule in `EndpointPermissions` requiring a STAFF account and a
+permission of the SRS Permission Matrix, seeded by V004; routes without a rule
+are denied. Rate limiting and revocation are not yet implemented and block
+go-live. Credentials and session IDs are never returned or logged. The decisions
+are [ADR-0014](../adr/0014-session-cookie-redis-login.md) and
+[ADR-0015](../adr/0015-endpoint-permission-rbac.md); the HTTP contract is
+[login operations](../api/login.md).
 
 ## Audit and healthcare data
 

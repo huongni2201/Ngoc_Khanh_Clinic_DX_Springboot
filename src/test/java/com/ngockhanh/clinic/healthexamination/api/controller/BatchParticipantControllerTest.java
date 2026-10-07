@@ -38,7 +38,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.ReactivatePart
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateParticipantUseCase;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.time.Instant;
@@ -56,7 +55,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.json.JsonMapper;
 
 class BatchParticipantControllerTest {
   private static final String XLSX =
@@ -92,8 +90,7 @@ class BatchParticipantControllerTest {
                 new BatchParticipantController(
                     list, template, importer, create, detail, update, cancel, reactivate))
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
   }
 

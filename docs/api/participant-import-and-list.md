@@ -8,11 +8,13 @@ Responses use the common envelope `{result, code, message, data}`; failures use 
 
 | Route | Permission |
 |---|---|
-| `GET` list, `GET /import-template` | `HEALTH_EXAMINATION_PARTICIPANT_READ` |
-| `POST /imports` | `HEALTH_EXAMINATION_PARTICIPANT_IMPORT` |
+| `GET` list | `PARTICIPANT_VIEW` |
+| `GET /import-template` | `PARTICIPANT_TEMPLATE_DOWNLOAD` |
+| `POST /imports` | `PARTICIPANT_IMPORT` |
 
-Granted to ADMIN and CLINIC_MANAGER by Flyway V003 (and the local seed). Manual add, detail, edit and
-cancel are in [participant manual add, edit and cancel](participant-manual-crud.md). Permissions are a
+SRS Permission Matrix codes (ADR-0015), granted to CLINIC_MANAGER by Flyway V004 (and to the
+local ADMIN role by the local seed). The V003 codes `HEALTH_EXAMINATION_PARTICIPANT_READ` and
+`HEALTH_EXAMINATION_PARTICIPANT_IMPORT` are superseded and no longer checked. Permissions are a
 login snapshot: sign in again after the migration.
 
 ## `GET /` - list

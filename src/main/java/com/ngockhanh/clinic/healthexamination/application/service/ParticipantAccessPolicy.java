@@ -10,17 +10,26 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ParticipantAccessPolicy {
-  public static final String READ_PERMISSION = "HEALTH_EXAMINATION_PARTICIPANT_READ";
-  public static final String IMPORT_PERMISSION = "HEALTH_EXAMINATION_PARTICIPANT_IMPORT";
-  public static final String MANAGE_PERMISSION = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
+  public static final String READ_PERMISSION = "PARTICIPANT_VIEW";
+  public static final String TEMPLATE_DOWNLOAD_PERMISSION = "PARTICIPANT_TEMPLATE_DOWNLOAD";
+  public static final String IMPORT_PERMISSION = "PARTICIPANT_IMPORT";
 
   /**
-   * Requires permission to read the Participant roster of a batch and download its import template.
+   * Requires permission to read the Participant roster of a batch.
    *
    * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
    */
   public void requireRead(UserPrincipal principal) {
     require(principal, READ_PERMISSION);
+  }
+
+  /**
+   * Requires permission to download the Participant import template of a batch.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireTemplateDownload(UserPrincipal principal) {
+    require(principal, TEMPLATE_DOWNLOAD_PERMISSION);
   }
 
   /**
@@ -30,15 +39,6 @@ public class ParticipantAccessPolicy {
    */
   public void requireImport(UserPrincipal principal) {
     require(principal, IMPORT_PERMISSION);
-  }
-
-  /**
-   * Requires permission to add, view in full, edit and cancel a single Participant by hand.
-   *
-   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
-   */
-  public void requireManage(UserPrincipal principal) {
-    require(principal, MANAGE_PERMISSION);
   }
 
   private static void require(UserPrincipal principal, String permission) {

@@ -52,6 +52,8 @@ class CleanSlateMigrationContractTest {
               "V004__add_participant_manage_permission.sql",
               "V005__add_examination_detail_and_report_permissions.sql",
               "V006__add_service_reconciliation_import_type.sql");
+              "V003__add_participant_roster_permissions.sql",
+              "V004__seed_access_control_roles_and_permissions.sql");
     }
     String sql = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
     var tables =
@@ -92,30 +94,5 @@ class CleanSlateMigrationContractTest {
             "UNIQUE (batch_id, identification_number)",
             "FOREIGN KEY (batch_id, batch_day_id)",
             "FOREIGN KEY (batch_id, batch_service_id)");
-  }
-
-  @Test
-  void examinationDetailMigrationsOnlyAddPermissionsAndAnImportType() throws Exception {
-    Path directory = Path.of("src/main/resources/db/migration");
-    String permissions =
-        Files.readString(
-            directory.resolve("V005__add_examination_detail_and_report_permissions.sql"));
-    assertThat(permissions)
-        .contains(
-            "'HEALTH_EXAMINATION_SERVICE_READ'",
-            "'HEALTH_EXAMINATION_SERVICE_RECONCILE'",
-            "'HEALTH_EXAMINATION_REPORT_READ'",
-            "WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')")
-        .doesNotContain("DROP ", "DELETE ", "TRUNCATE ", "ALTER TABLE");
-
-    String importType =
-        Files.readString(directory.resolve("V006__add_service_reconciliation_import_type.sql"));
-    assertThat(importType)
-        .contains(
-            "DROP CONSTRAINT ck_import_jobs_type",
-            "'ORGANIZATION_PARTICIPANT'",
-            "'HEALTH_EXAMINATION_RESULT'",
-            "'HEALTH_EXAMINATION_SERVICE_RECONCILIATION'")
-        .doesNotContain("DROP TABLE", "DELETE ", "TRUNCATE ");
   }
 }

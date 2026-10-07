@@ -51,7 +51,7 @@ class GetParticipantImportTemplateUseCaseTest {
 
   @Test
   void rendersTheTemplateWithTheBatchVersionAndSortedDatesWithoutWritingAnything() {
-    var template = useCase.execute(organizationId, batchId, staff(READ));
+    var template = useCase.execute(organizationId, batchId, staff(TEMPLATE_DOWNLOAD));
 
     var data = ArgumentCaptor.forClass(ParticipantTemplateData.class);
     verify(writer).write(data.capture());
@@ -64,7 +64,7 @@ class GetParticipantImportTemplateUseCaseTest {
 
   @Test
   void requiresTheReadPermissionNotTheImportPermission() {
-    for (var principal : List.of(staff(), staff(IMPORT), patient()))
+    for (var principal : List.of(staff(), staff(READ), staff(IMPORT), patient()))
       assertThatThrownBy(() -> useCase.execute(organizationId, batchId, principal))
           .isInstanceOfSatisfying(
               ApplicationException.class,
@@ -76,7 +76,7 @@ class GetParticipantImportTemplateUseCaseTest {
   void reportsAMissingOrDeletedBatchAsNotFound() {
     when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, staff(READ)))
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, staff(TEMPLATE_DOWNLOAD)))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(writer);
   }
@@ -87,7 +87,7 @@ class GetParticipantImportTemplateUseCaseTest {
       when(batches.findDetails(organizationId, batchId, false))
           .thenReturn(
               Optional.of(details(batch(organizationId, batchId, status, 3, null, UUID.randomUUID()))));
-      assertThatThrownBy(() -> useCase.execute(organizationId, batchId, staff(READ)))
+      assertThatThrownBy(() -> useCase.execute(organizationId, batchId, staff(TEMPLATE_DOWNLOAD)))
           .isInstanceOf(ConflictException.class)
           .hasMessage("Batch does not accept Participant imports");
     }
@@ -99,7 +99,7 @@ class GetParticipantImportTemplateUseCaseTest {
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(inactiveOrganization(organizationId)));
 
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, staff(READ)))
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, staff(TEMPLATE_DOWNLOAD)))
         .isInstanceOf(ConflictException.class);
     verifyNoInteractions(writer);
   }

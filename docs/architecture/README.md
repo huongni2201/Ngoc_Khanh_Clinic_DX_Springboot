@@ -24,6 +24,7 @@ No schema representation claims every clinic feature or endpoint is implemented.
 
 The retained clean-slate decisions are
 [the module inventory](../adr/0012-clean-slate-module-boundaries.md),
-[the application/database contract](../adr/0013-clean-slate-application-contract.md) and
-[the session login protocol](../adr/0014-session-cookie-redis-login.md).
+[the application/database contract](../adr/0013-clean-slate-application-contract.md),
+[the session login protocol](../adr/0014-session-cookie-redis-login.md) and
+[per-endpoint permissions](../adr/0015-endpoint-permission-rbac.md).
 Older ADR files and architecture documents are removed.

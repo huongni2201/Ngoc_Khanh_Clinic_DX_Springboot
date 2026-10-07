@@ -28,7 +28,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.ListOrganizati
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.time.Instant;
@@ -535,8 +534,7 @@ class OrganizationControllerTest {
   private MockMvc mvc() {
     return MockMvcBuilders.standaloneSetup(controller)
         .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-        .setControllerAdvice(
-            new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+        .setControllerAdvice(new GlobalExceptionHandler())
         .build();
   }
 
