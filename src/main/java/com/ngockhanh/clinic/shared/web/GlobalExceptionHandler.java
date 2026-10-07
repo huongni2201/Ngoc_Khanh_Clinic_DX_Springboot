@@ -5,7 +5,6 @@ import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.CacheControl;
@@ -20,14 +19,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
-@RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
-  private final ApiResponseWriter responseWriter;
 
   @ExceptionHandler(ApplicationException.class)
   ResponseEntity<ApiResponse<Void>> application(ApplicationException exception) {
-    HttpStatus status = HttpStatus.valueOf(responseWriter.statusFor(exception));
+    HttpStatus status = statusFor(exception);
     var builder = ResponseEntity.status(status).cacheControl(CacheControl.noStore());
     if (exception.retryAfterSeconds() > 0) {
       builder.header("Retry-After", Long.toString(exception.retryAfterSeconds()));
@@ -100,6 +97,16 @@ public class GlobalExceptionHandler {
   ResponseEntity<ApiResponse<Void>> unexpected(Exception exception) {
     log.error("Unhandled request failure type={}", exception.getClass().getSimpleName());
     return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred");
+  }
+
+  private HttpStatus statusFor(ApplicationException exception) {
+    return switch (exception.type()) {
+      case INVALID_INPUT -> HttpStatus.BAD_REQUEST;
+      case UNAUTHENTICATED -> HttpStatus.UNAUTHORIZED;
+      case ACCESS_DENIED -> HttpStatus.FORBIDDEN;
+      case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+      case DEPENDENCY_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
+    };
   }
 
   private ResponseEntity<ApiResponse<Void>> error(HttpStatus status, String message) {

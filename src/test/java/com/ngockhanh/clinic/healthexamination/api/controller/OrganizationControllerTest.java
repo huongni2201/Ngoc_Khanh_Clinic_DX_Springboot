@@ -21,7 +21,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganiza
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import java.time.Instant;
 import java.util.List;
@@ -36,7 +35,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.json.JsonMapper;
 
 class OrganizationControllerTest {
 
@@ -281,8 +279,7 @@ class OrganizationControllerTest {
   private MockMvc mvc() {
     return MockMvcBuilders.standaloneSetup(controller)
         .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-        .setControllerAdvice(
-            new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+        .setControllerAdvice(new GlobalExceptionHandler())
         .build();
   }
 }

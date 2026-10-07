@@ -9,7 +9,6 @@ import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchSummaryResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.util.List;
@@ -22,7 +21,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.json.JsonMapper;
 
 class OrganizationBatchControllerTest {
   @AfterEach
@@ -65,8 +63,7 @@ class OrganizationBatchControllerTest {
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
 
     mvc.perform(
@@ -104,8 +101,7 @@ class OrganizationBatchControllerTest {
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
     String path = "/api/v1/organizations/" + org + "/health-examination-batches";
     String body =
@@ -157,8 +153,7 @@ class OrganizationBatchControllerTest {
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
     String body =
         """
@@ -186,8 +181,7 @@ class OrganizationBatchControllerTest {
         new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class));
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
     mvc.perform(
             post("/api/v1/organizations/" + UUID.randomUUID() + "/health-examination-batches")

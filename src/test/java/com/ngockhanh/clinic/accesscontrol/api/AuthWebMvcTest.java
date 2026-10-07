@@ -23,7 +23,6 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
 import java.util.List;
@@ -40,11 +39,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @WebMvcTest(controllers = {AuthController.class, AuthWebMvcTest.BusinessEndpoint.class})
-@Import({
-  SecurityConfiguration.class,
-  ApiResponseWriter.class,
-  AuthWebMvcTest.BusinessEndpoint.class
-})
+@Import({SecurityConfiguration.class, AuthWebMvcTest.BusinessEndpoint.class})
 @TestPropertySource(
     properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
 class AuthWebMvcTest {
