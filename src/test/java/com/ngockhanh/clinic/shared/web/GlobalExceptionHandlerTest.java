@@ -11,8 +11,7 @@ import org.springframework.http.ResponseEntity;
 import tools.jackson.databind.json.JsonMapper;
 
 class GlobalExceptionHandlerTest {
-  private final GlobalExceptionHandler handler =
-      new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build()));
+  private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
   @Test
   void mapsKnownFailuresAndHidesUnexpectedDetails() throws Exception {

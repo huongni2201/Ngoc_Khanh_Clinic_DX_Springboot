@@ -30,7 +30,6 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.ListHealthExam
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.math.BigDecimal;
@@ -48,7 +47,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.json.JsonMapper;
 
 class OrganizationBatchControllerTest {
   private final CreateHealthExaminationBatchUseCase create =
@@ -86,8 +84,7 @@ class OrganizationBatchControllerTest {
         MockMvcBuilders.standaloneSetup(
                 new OrganizationBatchController(create, get, update, list, delete))
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
   }
 

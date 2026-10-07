@@ -9,8 +9,9 @@ import java.util.UUID;
 
 /** Synthetic principals, rows and summaries for the Participant roster tests. */
 public final class ParticipantFixtures {
-  public static final String READ = "HEALTH_EXAMINATION_PARTICIPANT_READ";
-  public static final String IMPORT = "HEALTH_EXAMINATION_PARTICIPANT_IMPORT";
+  public static final String READ = "PARTICIPANT_VIEW";
+  public static final String TEMPLATE_DOWNLOAD = "PARTICIPANT_TEMPLATE_DOWNLOAD";
+  public static final String IMPORT = "PARTICIPANT_IMPORT";
 
   private ParticipantFixtures() {}
 
@@ -33,7 +34,8 @@ public final class ParticipantFixtures {
         .principalType("PATIENT")
         .roleAssignments(
             List.of(
-                new UserPrincipal.Assignment(UUID.randomUUID(), "USER", List.of(READ, IMPORT))))
+                new UserPrincipal.Assignment(
+                    UUID.randomUUID(), "USER", List.of(READ, TEMPLATE_DOWNLOAD, IMPORT))))
         .build();
   }
 

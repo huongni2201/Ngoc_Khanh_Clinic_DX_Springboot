@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.accesscontrol.infrastructure.configuration;
 import com.ngockhanh.clinic.accesscontrol.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.JsonSecurityErrorHandler;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.OriginCheckFilter;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.SessionCookieAuthenticationFilter;
@@ -16,35 +17,22 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.authorization.AuthorityAuthorizationManager;
-import org.springframework.security.authorization.AuthorizationManager;
-import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
-import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * HTTP security: stateless session-cookie authentication, CORS and Origin checks for state-changing
- * requests, and the default access rules (ADR-0014). Per-endpoint permission rules are added here
- * with {@code hasAuthority("PERM_<code>")}.
+ * HTTP security: stateless session-cookie authentication, CORS and Origin checks for
+ * state-changing requests (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints
+ * without a rule in {@link EndpointPermissions} are denied.
  */
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(AccessControlProperties.class)
 public class SecurityConfiguration {
-  private static final String PARTICIPANTS_PATH =
-      "/api/v1/organizations/*/health-examination-batches/*/participants";
-
-  /** A staff account that also holds the given permission; checked before the controller runs. */
-  private static AuthorizationManager<RequestAuthorizationContext> staffWith(String permission) {
-    return AuthorizationManagers.allOf(
-        AuthorityAuthorizationManager.<RequestAuthorizationContext>hasAuthority("ACCOUNT_STAFF"),
-        AuthorityAuthorizationManager.<RequestAuthorizationContext>hasAuthority(permission));
-  }
 
   @Bean
   SecurityFilterChain securityFilterChain(
@@ -77,24 +65,17 @@ public class SecurityConfiguration {
         .addFilterBefore(originCheck, AnonymousAuthenticationFilter.class)
         .addFilterBefore(sessionAuthentication, AnonymousAuthenticationFilter.class)
         .authorizeHttpRequests(
-            requests ->
-                requests
-                    .dispatcherTypeMatchers(DispatcherType.ERROR)
-                    .permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
-                    .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
-                    .authenticated()
-                    .requestMatchers(HttpMethod.GET, PARTICIPANTS_PATH)
-                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_READ"))
-                    .requestMatchers(HttpMethod.GET, PARTICIPANTS_PATH + "/import-template")
-                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_READ"))
-                    .requestMatchers(HttpMethod.POST, PARTICIPANTS_PATH + "/imports")
-                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_IMPORT"))
-                    .requestMatchers("/api/v1/**")
-                    .hasAuthority("ACCOUNT_STAFF")
-                    .anyRequest()
-                    .denyAll());
+            requests -> {
+              requests
+                  .dispatcherTypeMatchers(DispatcherType.ERROR)
+                  .permitAll()
+                  .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
+                  .permitAll()
+                  .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
+                  .authenticated();
+              EndpointPermissions.apply(requests);
+              requests.anyRequest().denyAll();
+            });
     return http.build();
   }
 

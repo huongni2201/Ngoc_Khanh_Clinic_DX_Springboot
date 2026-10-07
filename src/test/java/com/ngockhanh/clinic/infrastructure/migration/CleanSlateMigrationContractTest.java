@@ -48,7 +48,8 @@ class CleanSlateMigrationContractTest {
           .containsExactlyInAnyOrder(
               "V001__create_clean_slate_schema.sql",
               "V002__add_health_examination_batch_soft_delete.sql",
-              "V003__add_participant_roster_permissions.sql");
+              "V003__add_participant_roster_permissions.sql",
+              "V004__seed_access_control_roles_and_permissions.sql");
     }
     String sql = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
     var tables =

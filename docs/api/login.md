@@ -60,7 +60,7 @@ All errors use the `ApiResponse` error envelope with `Cache-Control: no-store`.
 |---|---|
 | 400 | malformed body or validation failure |
 | 401 | rejected credentials; missing, expired or duplicate session cookie |
-| 403 | Origin/Referer not allowed; account not allowed on the route (PATIENT on business routes) |
+| 403 | Origin/Referer not allowed; account type or permission missing for the route, or route without a permission rule ([ADR-0015](../adr/0015-endpoint-permission-rbac.md)) |
 | 503 | session store (Redis) unavailable |
 
 ## Redis keys

@@ -1,6 +1,6 @@
 -- Local-only repeatable access-control seed (loaded from application-local.yaml).
 -- The demo staff account records its bootstrap ADMIN grant. Only the Participant roster permissions
--- (see V003) are granted to the local ADMIN and CLINIC_MANAGER roles; no other permission is seeded.
+-- of the SRS matrix (see V004) are granted to the local ADMIN and CLINIC_MANAGER roles.
 
 INSERT INTO public.staff_members (staff_code, full_name, status)
 VALUES ('LOCAL_DEMO_STAFF', 'Local Demo Staff', 'ACTIVE')
@@ -44,6 +44,6 @@ INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT role.id, permission.id
 FROM public.roles AS role
 JOIN public.permissions AS permission
-  ON permission.code IN ('HEALTH_EXAMINATION_PARTICIPANT_READ', 'HEALTH_EXAMINATION_PARTICIPANT_IMPORT')
+  ON permission.code IN ('PARTICIPANT_VIEW', 'PARTICIPANT_TEMPLATE_DOWNLOAD', 'PARTICIPANT_IMPORT')
 WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')
 ON CONFLICT (role_id, permission_id) DO NOTHING;

@@ -45,14 +45,15 @@ public class GetParticipantImportTemplateUseCase {
    * @param organizationId owning organization
    * @param batchId batch identifier
    * @param principal authenticated staff account
-   * @throws ApplicationException of type {@code ACCESS_DENIED} without the read permission
+   * @throws ApplicationException of type {@code ACCESS_DENIED} without the template download
+   *     permission
    * @throws IllegalArgumentException when an identifier is null
    * @throws ResourceNotFoundException when the organization or the batch is not found
    * @throws ConflictException when the organization or batch does not accept Participant imports
    */
   public ParticipantImportTemplateResponse execute(
       UUID organizationId, UUID batchId, UserPrincipal principal) {
-    access.requireRead(principal);
+    access.requireTemplateDownload(principal);
     if (organizationId == null || batchId == null)
       throw new IllegalArgumentException("Organization ID and batch ID are required");
     var organization =

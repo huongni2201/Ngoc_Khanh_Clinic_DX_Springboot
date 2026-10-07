@@ -86,9 +86,9 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
 - Authorities: `ACCOUNT_STAFF` or `ACCOUNT_PATIENT` derived only from account
   type, plus `ROLE_<roleCode>` and `PERM_<permissionCode>`. Prefixes prevent a
   permission code from impersonating an account-type authority.
-- Until per-endpoint RBAC exists, `/api/v1/**` requires `ACCOUNT_STAFF`.
-  PATIENT accounts can log in and call `/api/v1/auth/me` but receive 403 on
-  business routes.
+- Business routes require the account type and permission defined by
+  [ADR-0015](0015-endpoint-permission-rbac.md); routes without a rule are denied.
+  PATIENT accounts can log in and call `/api/v1/auth/me`.
 
 ### Audit order
 
@@ -107,7 +107,7 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
 - [ ] Revocation: logout-all and automatic revocation on account lock or grant change.
 - [ ] CSRF: confirm Origin check plus SameSite=Lax suffices for the deployment, or
       add a CSRF token; configure production allowed origins.
-- [ ] Per-endpoint RBAC with `PERM_` authorities.
+- [x] Per-endpoint RBAC with `PERM_` authorities ([ADR-0015](0015-endpoint-permission-rbac.md)).
 
 ## Accepted risks
 

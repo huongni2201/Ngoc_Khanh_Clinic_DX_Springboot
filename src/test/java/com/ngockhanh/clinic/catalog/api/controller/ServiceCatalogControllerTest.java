@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogListQuery;
 import com.ngockhanh.clinic.catalog.application.response.ServiceCatalogItemResponse;
 import com.ngockhanh.clinic.catalog.application.usecase.ListServiceCatalogUseCase;
-import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.math.BigDecimal;
@@ -24,7 +23,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import tools.jackson.databind.json.JsonMapper;
 
 class ServiceCatalogControllerTest {
   private final ListServiceCatalogUseCase list = mock(ListServiceCatalogUseCase.class);
@@ -34,8 +32,7 @@ class ServiceCatalogControllerTest {
   void standaloneMvc() {
     mvc =
         MockMvcBuilders.standaloneSetup(new ServiceCatalogController(list))
-            .setControllerAdvice(
-                new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
   }
 
