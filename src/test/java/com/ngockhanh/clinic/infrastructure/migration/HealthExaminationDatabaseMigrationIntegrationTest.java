@@ -25,7 +25,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .locations("classpath:db/migration")
             .load();
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     var jdbc =
         new JdbcTemplate(
             new DriverManagerDataSource(

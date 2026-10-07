@@ -14,10 +14,10 @@ import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.util.List;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
-import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
@@ -25,6 +25,27 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import tools.jackson.databind.json.JsonMapper;
 
 class OrganizationBatchControllerTest {
+  @AfterEach
+  void clearSecurityContext() {
+    SecurityContextHolder.clearContext();
+  }
+
+  private static UsernamePasswordAuthenticationToken signedInAs(UUID actorId) {
+    var principal =
+        UserPrincipal.builder()
+            .userId(actorId)
+            .staffId(UUID.randomUUID())
+            .username("staff")
+            .principalType("STAFF")
+            .roleAssignments(List.of())
+            .idleExpiresAt(java.time.Instant.now())
+            .absoluteExpiresAt(java.time.Instant.now().plusSeconds(3600))
+            .build();
+    var authentication = new UsernamePasswordAuthenticationToken(principal, "test", List.of());
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+    return authentication;
+  }
+
   @Test
   void listReturnsPageForTheOrganizationInThePath() throws Exception {
     var list = mock(ListHealthExaminationBatchUseCase.class);
@@ -40,8 +61,7 @@ class OrganizationBatchControllerTest {
     when(list.execute(eq(organizationId), any(HealthExaminationBatchListQuery.class)))
         .thenReturn(page);
     var controller =
-        new OrganizationBatchController(
-            mock(CreateHealthExaminationBatchUseCase.class), list, new MockEnvironment());
+        new OrganizationBatchController(mock(CreateHealthExaminationBatchUseCase.class), list);
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -75,14 +95,12 @@ class OrganizationBatchControllerTest {
   }
 
   @Test
-  void createPassesLocalActorAndOnlyEnteredPriceAndRejectsBadInput() throws Exception {
+  void createPassesSignedInActorAndOnlyEnteredPriceAndRejectsBadInput() throws Exception {
     var create = mock(CreateHealthExaminationBatchUseCase.class);
     UUID actor = UUID.randomUUID(), org = UUID.randomUUID(), service = UUID.randomUUID();
-    var env = new MockEnvironment();
-    env.setActiveProfiles("local");
-    env.setProperty("clinic.health-examination.batch.mock-created-by", actor.toString());
+    signedInAs(actor);
     var controller =
-        new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class), env);
+        new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class));
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -133,24 +151,9 @@ class OrganizationBatchControllerTest {
     UUID actorId = UUID.randomUUID(),
         organizationId = UUID.randomUUID(),
         serviceId = UUID.randomUUID();
-    var principal =
-        UserPrincipal.builder()
-            .userId(actorId)
-            .staffId(UUID.randomUUID())
-            .patientId(null)
-            .username("staff")
-            .principalType("STAFF")
-            .roleAssignments(java.util.List.of())
-            .idleExpiresAt(java.time.Instant.now())
-            .absoluteExpiresAt(java.time.Instant.now().plusSeconds(3600))
-            .build();
-    var authentication =
-        new UsernamePasswordAuthenticationToken(principal, "test", java.util.List.of());
-    var environment = new MockEnvironment();
-    environment.setActiveProfiles("production");
+    var authentication = signedInAs(actorId);
     var controller =
-        new OrganizationBatchController(
-            create, mock(ListHealthExaminationBatchUseCase.class), environment);
+        new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class));
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
@@ -162,19 +165,12 @@ class OrganizationBatchControllerTest {
         {"batchCode":"B1","batchName":"Campaign","examinationSiteType":"CLINIC","examinationSiteName":"Clinic","examinationSiteAddress":"Address","examinationDates":["2026-10-04"],"services":[{"serviceId":"%s","negotiatedPrice":12.34}]}
         """
             .formatted(serviceId);
-    SecurityContextHolder.getContext().setAuthentication(authentication);
-    try {
-      mvc.perform(
-              post(
-                      "/api/v1/organizations/{organizationId}/health-examination-batches",
-                      organizationId)
-                  .principal(authentication)
-                  .contentType(MediaType.APPLICATION_JSON)
-                  .content(body))
-          .andExpect(status().isCreated());
-    } finally {
-      SecurityContextHolder.clearContext();
-    }
+    mvc.perform(
+            post("/api/v1/organizations/{organizationId}/health-examination-batches", organizationId)
+                .principal(authentication)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isCreated());
     var command =
         ArgumentCaptor.forClass(
             com.ngockhanh.clinic.healthexamination.application.command
@@ -186,12 +182,8 @@ class OrganizationBatchControllerTest {
   @Test
   void rejectsInvalidTransportBeforeCallingUseCases() throws Exception {
     var create = mock(CreateHealthExaminationBatchUseCase.class);
-    var env = new MockEnvironment();
-    env.setActiveProfiles("local");
-    env.setProperty(
-        "clinic.health-examination.batch.mock-created-by", UUID.randomUUID().toString());
     var controller =
-        new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class), env);
+        new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class));
     var mvc =
         MockMvcBuilders.standaloneSetup(controller)
             .setControllerAdvice(
@@ -206,34 +198,4 @@ class OrganizationBatchControllerTest {
     verifyNoInteractions(create);
   }
 
-  @Test
-  void mockActorIsDeniedOutsideLocalAndTest() {
-    var create = mock(CreateHealthExaminationBatchUseCase.class);
-    var env =
-        new MockEnvironment()
-            .withProperty(
-                "clinic.health-examination.batch.mock-created-by", UUID.randomUUID().toString());
-    env.setActiveProfiles("production");
-    var controller =
-        new OrganizationBatchController(create, mock(ListHealthExaminationBatchUseCase.class), env);
-    assertThatThrownBy(
-            () ->
-                controller.create(
-                    UUID.randomUUID(),
-                    new com.ngockhanh.clinic.healthexamination.api.request
-                        .HealthExaminationBatchRequest(
-                        "B1",
-                        "Batch",
-                        java.util.List.of(java.time.LocalDate.of(2026, 10, 4)),
-                        "CLINIC",
-                        "Clinic",
-                        "Address",
-                        java.util.List.of(
-                            new com.ngockhanh.clinic.healthexamination.api.request
-                                .HealthExaminationBatchRequest.ServicePriceRequest(
-                                UUID.randomUUID(), java.math.BigDecimal.ONE))),
-                    null))
-        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
-    verifyNoInteractions(create);
-  }
 }

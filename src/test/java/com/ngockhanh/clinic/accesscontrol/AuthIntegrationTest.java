@@ -3,10 +3,12 @@ package com.ngockhanh.clinic.accesscontrol;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -92,6 +95,23 @@ class AuthIntegrationTest {
     return mvc.perform(request);
   }
 
+  /** Grants a seeded role; the account grants it to itself because no administrator exists here. */
+  private void grantRole(String roleCode) {
+    jdbc.update(
+        "INSERT INTO account_roles(account_id,role_id,granted_by) SELECT ?, id, ? FROM roles WHERE code = ?",
+        accountId,
+        accountId,
+        roleCode);
+  }
+
+  /** Calls the endpoint of a permission rule, with an Origin and an empty body for writes. */
+  private ResultActions call(EndpointPermissions.Rule rule, Cookie session) throws Exception {
+    var call = request(rule.method(), rule.pattern().replace("*", UUID.randomUUID().toString()));
+    if (rule.method() != HttpMethod.GET)
+      call.header("Origin", ORIGIN).contentType(MediaType.APPLICATION_JSON).content("{}");
+    return mvc.perform(call.cookie(session));
+  }
+
   private Cookie sessionCookie(ResultActions result) {
     return result.andReturn().getResponse().getCookie(COOKIE);
   }
@@ -106,6 +126,7 @@ class AuthIntegrationTest {
 
   @Test
   void signInAuthenticatesLaterRequestsAndSignOutEndsTheSession() throws Exception {
+    grantRole("CLINIC_MANAGER");
     Cookie session = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     assertThat(session).isNotNull();
     assertThat(session.isHttpOnly()).isTrue();
@@ -123,6 +144,39 @@ class AuthIntegrationTest {
 
     assertThat(audits("ACCOUNT_LOGIN")).isEqualTo(1);
     assertThat(audits("ACCOUNT_LOGOUT")).isEqualTo(1);
+  }
+
+  @Test
+  void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
+    Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
+      call(rule, withoutRole).andExpect(status().isForbidden());
+    }
+
+    grantRole("CLINIC_MANAGER");
+    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
+      call(rule, withoutRole).andExpect(status().isForbidden());
+    }
+
+    Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
+      int status = call(rule, manager).andReturn().getResponse().getStatus();
+      assertThat(status).as(rule.toString()).isNotIn(401, 403);
+    }
+  }
+
+  @Test
+  void everyEndpointPermissionIsSeededForTheClinicManager() {
+    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
+      assertThat(
+              jdbc.queryForList(
+                  "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
+                      + " JOIN permissions p ON p.id = rp.permission_id WHERE p.code = ?",
+                  String.class,
+                  rule.permission()))
+          .as(rule.permission())
+          .contains("CLINIC_MANAGER");
+    }
   }
 
   @Test

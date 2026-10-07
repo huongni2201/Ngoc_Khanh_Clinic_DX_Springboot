@@ -45,7 +45,9 @@ class CleanSlateMigrationContractTest {
                   .filter(path -> path.toString().endsWith(".sql"))
                   .map(path -> path.getFileName().toString())
                   .toList())
-          .containsExactly("V001__create_clean_slate_schema.sql");
+          .containsExactlyInAnyOrder(
+              "V001__create_clean_slate_schema.sql",
+              "V002__seed_access_control_roles_and_permissions.sql");
     }
     String sql = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
     var tables =

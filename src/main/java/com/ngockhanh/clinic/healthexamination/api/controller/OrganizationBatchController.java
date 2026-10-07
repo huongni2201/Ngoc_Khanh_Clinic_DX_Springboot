@@ -11,9 +11,7 @@ import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.env.*;
 import org.springframework.http.*;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,14 +22,13 @@ import org.springframework.web.bind.annotation.*;
 public class OrganizationBatchController {
   private final CreateHealthExaminationBatchUseCase create;
   private final ListHealthExaminationBatchUseCase list;
-  private final Environment environment;
 
   /**
    * Creates a draft campaign with at least one examination day and contracted service prices.
    *
    * @param organizationId parent organization identifier
    * @param request campaign configuration
-   * @param principal authenticated actor, or the configured local/test mock actor
+   * @param principal authenticated staff principal
    * @return the persisted campaign
    */
   @PostMapping
@@ -50,7 +47,7 @@ public class OrganizationBatchController {
                 create.execute(
                     organizationId,
                     CreateHealthExaminationBatchCommand.builder()
-                        .createdBy(actor(principal))
+                        .createdBy(principal.userId())
                         .configuration(request.toCommand())
                         .build())));
   }
@@ -83,14 +80,5 @@ public class OrganizationBatchController {
                     .sortKey(request.getSortKey())
                     .sortBy(request.getSortBy())
                     .build())));
-  }
-
-  private UUID actor(UserPrincipal principal) {
-    if (principal != null && principal.userId() != null) return principal.userId();
-    if (environment.acceptsProfiles(Profiles.of("local", "test"))) {
-      String mock = environment.getProperty("clinic.health-examination.batch.mock-created-by");
-      if (mock != null) return UUID.fromString(mock);
-    }
-    throw new AccessDeniedException("An authenticated actor is required");
   }
 }

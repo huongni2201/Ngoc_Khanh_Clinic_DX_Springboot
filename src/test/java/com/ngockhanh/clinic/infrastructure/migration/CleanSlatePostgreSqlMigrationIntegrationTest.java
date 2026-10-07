@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.infrastructure.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.UUID;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 
@@ -82,6 +83,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 Integer.class))
         .isZero();
 
+    assertPermissionMatrixSeed(jdbc);
+
     UUID patientId =
         jdbc.queryForObject(
             """
@@ -122,5 +125,58 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForObject(
                 "SELECT action FROM public.audit_events WHERE id = ?", String.class, auditId))
         .isEqualTo("PATIENT_CREATED");
+  }
+
+  /** V002 seeds the SRS Permission Matrix 4.4 (ADR-0015). */
+  private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
+    assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
+        .containsExactlyInAnyOrder(
+            "PATIENT",
+            "RECEPTIONIST",
+            "GENERAL_PRACTITIONER",
+            "DIAGNOSTIC_DOCTOR",
+            "DATA_ENTRY_STAFF",
+            "CLINIC_MANAGER",
+            "ADMINISTRATOR");
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
+        .isEqualTo(106);
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
+        .isEqualTo(112);
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT p.code FROM public.permissions p
+                WHERE NOT EXISTS (SELECT 1 FROM public.role_permissions rp WHERE rp.permission_id = p.id)
+                """,
+                String.class))
+        .isEmpty();
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT DISTINCT r.code FROM public.role_permissions rp
+                JOIN public.roles r ON r.id = rp.role_id
+                JOIN public.permissions p ON p.id = rp.permission_id
+                WHERE (p.code LIKE 'OWN\\_%') <> (r.code = 'PATIENT')
+                """,
+                String.class))
+        .as("only PATIENT holds OWN_* permissions, and it holds nothing else")
+        .isEmpty();
+    assertThat(rolesGranted(jdbc, "PARTICIPANT_EXAMINATION_RECORD_VIEW"))
+        .containsExactlyInAnyOrder("GENERAL_PRACTITIONER", "DATA_ENTRY_STAFF", "CLINIC_MANAGER");
+    assertThat(rolesGranted(jdbc, "REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT"))
+        .containsExactly("CLINIC_MANAGER");
+    assertThat(rolesGranted(jdbc, "AUDIT_LOG_VIEW")).containsExactly("ADMINISTRATOR");
+  }
+
+  private static List<String> rolesGranted(JdbcTemplate jdbc, String permission) {
+    return jdbc.queryForList(
+        """
+        SELECT r.code FROM public.role_permissions rp
+        JOIN public.roles r ON r.id = rp.role_id
+        JOIN public.permissions p ON p.id = rp.permission_id
+        WHERE p.code = ?
+        """,
+        String.class,
+        permission);
   }
 }

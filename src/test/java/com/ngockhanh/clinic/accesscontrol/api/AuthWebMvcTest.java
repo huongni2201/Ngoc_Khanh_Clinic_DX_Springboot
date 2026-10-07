@@ -21,6 +21,7 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessio
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import jakarta.servlet.http.Cookie;
@@ -57,8 +58,13 @@ class AuthWebMvcTest {
 
   @RestController
   static class BusinessEndpoint {
+    @GetMapping("/api/v1/organizations/{organizationId}")
+    String organization() {
+      return "allowed";
+    }
+
     @GetMapping("/api/v1/test-business")
-    String read() {
+    String withoutPermissionRule() {
       return "allowed";
     }
   }
@@ -156,26 +162,46 @@ class AuthWebMvcTest {
   }
 
   @Test
-  void businessRoutesRequireAStaffAccount() throws Exception {
-    mvc.perform(get("/api/v1/test-business"))
+  void businessRoutesRequireAStaffAccountHoldingTheRulePermission() throws Exception {
+    String organization = "/api/v1/organizations/" + UUID.randomUUID();
+    mvc.perform(get(organization))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value(401));
 
-    when(authenticate.execute("staff")).thenReturn(principal("STAFF", List.of()));
-    mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "staff")))
+    when(authenticate.execute("manager"))
+        .thenReturn(principal("STAFF", List.of("ORGANIZATION_VIEW")));
+    mvc.perform(get(organization).cookie(new Cookie(COOKIE, "manager")))
         .andExpect(status().isOk());
 
-    when(authenticate.execute("patient")).thenReturn(principal("PATIENT", List.of()));
-    mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "patient")))
+    when(authenticate.execute("staff")).thenReturn(principal("STAFF", List.of("ORGANIZATION_UPDATE")));
+    mvc.perform(get(organization).cookie(new Cookie(COOKIE, "staff")))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value(403));
+
+    when(authenticate.execute("patient"))
+        .thenReturn(principal("PATIENT", List.of("ORGANIZATION_VIEW")));
+    mvc.perform(get(organization).cookie(new Cookie(COOKIE, "patient")))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void routesWithoutAPermissionRuleAreDenied() throws Exception {
+    mvc.perform(get("/api/v1/test-business")).andExpect(status().isUnauthorized());
+
+    List<String> everyRulePermission =
+        EndpointPermissions.RULES.stream().map(EndpointPermissions.Rule::permission).toList();
+    when(authenticate.execute("manager")).thenReturn(principal("STAFF", everyRulePermission));
+    mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "manager")))
+        .andExpect(status().isForbidden());
   }
 
   @Test
   void permissionNamedLikeAnAccountTypeDoesNotGrantStaffAccess() throws Exception {
     when(authenticate.execute("patient"))
-        .thenReturn(principal("PATIENT", List.of("ACCOUNT_STAFF")));
-    mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "patient")))
+        .thenReturn(principal("PATIENT", List.of("ACCOUNT_STAFF", "ORGANIZATION_VIEW")));
+    mvc.perform(
+            get("/api/v1/organizations/" + UUID.randomUUID())
+                .cookie(new Cookie(COOKIE, "patient")))
         .andExpect(status().isForbidden());
   }
 
