@@ -23,7 +23,7 @@ class PostgreSqlMigrationIntegrationTest {
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .locations("classpath:db/migration")
             .load();
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
     flyway.validate();
     var jdbc =
         new JdbcTemplate(
@@ -36,6 +36,7 @@ class PostgreSqlMigrationIntegrationTest {
     assertColumn(jdbc, "appointments", "doctor_id", "uuid");
     assertColumn(jdbc, "import_jobs", "confirmed_result", "jsonb");
     assertColumn(jdbc, "health_examination_batch_participants", "identification_number", "text");
+    assertColumn(jdbc, "health_examination_batches", "deleted_at", "timestamp with time zone");
     assertThat(
             jdbc.queryForObject(
                 "SELECT numeric_precision FROM information_schema.columns WHERE table_schema='public' AND table_name='services' AND column_name='unit_price'",

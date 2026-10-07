@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.accounts}. */
+@Builder
 public record AccountRecord(
     UUID id,
     String accountType,

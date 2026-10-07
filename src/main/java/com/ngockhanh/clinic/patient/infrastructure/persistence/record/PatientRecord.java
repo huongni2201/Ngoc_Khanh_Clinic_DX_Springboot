@@ -3,8 +3,10 @@ package com.ngockhanh.clinic.patient.infrastructure.persistence.record;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.patients}. */
+@Builder
 public record PatientRecord(
     UUID id,
     String patientCode,

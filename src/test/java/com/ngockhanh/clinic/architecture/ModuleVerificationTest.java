@@ -77,7 +77,7 @@ class ModuleVerificationTest {
   }
 
   @Test
-  void healthExaminationHasOnlyTheCleanSlateAggregateRootsAndTheirRepositories() {
+  void healthExaminationHasOnlyTheCleanSlateAggregateRootsAndSupportedRepositories() {
     assertThat(
             applicationClasses.stream()
                 .filter(
@@ -105,8 +105,7 @@ class ModuleVerificationTest {
         .containsExactlyInAnyOrder(
             "OrganizationRepository",
             "HealthExaminationBatchRepository",
-            "HealthExaminationBatchParticipantRepository",
-            "HealthExaminationRecordRepository");
+            "HealthExaminationBatchParticipantRepository");
   }
 
   @Test

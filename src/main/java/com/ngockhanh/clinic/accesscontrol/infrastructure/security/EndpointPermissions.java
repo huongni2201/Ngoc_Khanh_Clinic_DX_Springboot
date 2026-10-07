@@ -7,7 +7,7 @@ import org.springframework.security.config.annotation.web.configurers.AuthorizeH
 
 /**
  * Permission required by each business endpoint, using the codes of the SRS Permission Matrix 4.4
- * seeded by V002 (ADR-0015). Every new {@code /api/v1} endpoint needs a rule here; endpoints without
+ * seeded by V004 (ADR-0015). Every new {@code /api/v1} endpoint needs a rule here; endpoints without
  * one are denied. Permissions are those captured in the session at sign-in.
  */
 public final class EndpointPermissions {
@@ -17,6 +17,7 @@ public final class EndpointPermissions {
 
   public static final List<Rule> RULES =
       List.of(
+          new Rule(HttpMethod.GET, "/api/v1/organizations", "ORGANIZATION_SEARCH"),
           new Rule(HttpMethod.GET, "/api/v1/organizations/*", "ORGANIZATION_VIEW"),
           new Rule(HttpMethod.POST, "/api/v1/organizations", "ORGANIZATION_CREATE"),
           new Rule(HttpMethod.PUT, "/api/v1/organizations/*", "ORGANIZATION_UPDATE"),
@@ -27,7 +28,27 @@ public final class EndpointPermissions {
           new Rule(
               HttpMethod.POST,
               "/api/v1/organizations/*/health-examination-batches",
-              "HEALTH_EXAMINATION_BATCH_CREATE"));
+              "HEALTH_EXAMINATION_BATCH_CREATE"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*",
+              "HEALTH_EXAMINATION_BATCH_VIEW"),
+          new Rule(
+              HttpMethod.PUT,
+              "/api/v1/organizations/*/health-examination-batches/*",
+              "HEALTH_EXAMINATION_BATCH_UPDATE"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/participants",
+              "PARTICIPANT_VIEW"),
+          new Rule(
+              HttpMethod.GET,
+              "/api/v1/organizations/*/health-examination-batches/*/participants/import-template",
+              "PARTICIPANT_TEMPLATE_DOWNLOAD"),
+          new Rule(
+              HttpMethod.POST,
+              "/api/v1/organizations/*/health-examination-batches/*/participants/imports",
+              "PARTICIPANT_IMPORT"));
 
   private EndpointPermissions() {}
 

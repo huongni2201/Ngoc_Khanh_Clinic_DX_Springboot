@@ -9,8 +9,7 @@ import lombok.experimental.Accessors;
 
 /** Stable visit identity. Administrative and clinical versions are separate history records. */
 @Getter
-@Accessors(fluent = true)
-public final class HealthExaminationRecord {
+public class HealthExaminationRecord {
   private final AggregateId id;
   private final AggregateId batchParticipantId;
   private final AggregateId encounterId;

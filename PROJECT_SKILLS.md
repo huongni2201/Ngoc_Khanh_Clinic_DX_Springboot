@@ -1,112 +1,47 @@
-# Ngọc Khánh Clinic Backend — Project Skills Guide
+# Ngọc Khánh Clinic Backend — Skill Routing
 
-Use skills only when their workflow fits the current task and repository stack.
-Read a selected skill's `SKILL.md` before applying it. Project rules and accepted
-ADRs override generic examples; a skill cannot authorize a business-contract change.
+Follow [AGENTS.md](AGENTS.md) for precedence and lookup. Read only task-relevant
+skills. [PROJECT_RULES.md](PROJECT_RULES.md) overrides generic examples/templates.
 
-## Start with the task
+## Bundled local skills
 
-1. Read `PROJECT_RULES.md`, this guide, relevant ADRs and architecture sections.
-2. Identify the owning module, supported behavior and verifiable acceptance criteria.
-3. Select the smallest relevant set of skills from the table below. This is a
-   routing guide, not a checklist requiring every skill on every change.
-4. Inspect current code and callers, implement the authorized change, and run the
-   checks required by `PROJECT_RULES.md` and the affected architecture contracts.
-5. Report actual evidence, skipped/failed checks and unresolved requirements.
+These links resolve inside this repository; no installation is needed.
 
-When `.codegraph/` exists, use CodeGraph first to locate/understand code. Use
-Context7 for current library/API/configuration questions as directed by AGENTS;
-ordinary domain reasoning, refactoring and rule review do not need a library lookup.
-Existing code and generated examples never override the clean-slate contract.
-
-## Skills by task
-
-| Task | Relevant skills | Project-specific boundary |
+| Task | Local skill | Boundary |
 |---|---|---|
-| Focused implementation/refactoring | `karpathy-guidelines`, `codebase-design` when changing a seam | Keep the smallest cohesive change; preserve explicit ports and required DTO boundaries. |
-| Domain or workflow change | `domain-modeling`; `architecture-patterns` when layering changes | Read ADR-0013 and current workflows; retain Participant terminology. |
-| Long-lived architecture decision | `architecture-decision-records` | ADRs cover lasting decisions, not routine class/method extraction. |
-| REST contract design | `api-design-principles` | Versioned REST; no invented fields, permissions, statuses or GraphQL. |
-| PostgreSQL schema/query work | `postgresql-table-design`, `sql-optimization-patterns` as relevant | PostgreSQL 18 + MyBatis, approved schema, Flyway, actual integration tests. |
-| Error mapping/integration failure | `error-handling-patterns` | Preserve safe error categories and root causes; no catch-all successful responses. |
-| Bug diagnosis | `diagnosing-bugs` | Trace root cause and supported callers before changing behavior. |
-| Test-first business change | `tdd` | Cover business outcomes, invariants, authorization and required retry/concurrency behavior. |
-| Diff/PR review | `code-review` when base and specification are available | Review standards and specification; do not mislabel a diff review as a whole-repo audit. |
-| Explicit threat-model request | `security-threat-model` | Use its actual supported workflow; security-relevant work alone does not invoke a full threat model. |
-| Agent-facing rules/docs | `writing-for-agents` when available | Keep one owning policy and links; remove contradictions and stale pointers. |
-| Code formatting | `codefmt` when available | Scope to changed files and the configured formatter; do not reformat unrelated work. |
+| Endpoint/use case | [nkc-backend-use-case](.agents/skills/nkc-backend-use-case/SKILL.md) | Current source references; task-required roles only. |
+| Focused implementation/refactoring | [karpathy-guidelines](.agents/skills/karpathy-guidelines/SKILL.md) | Preserve required ports and DTO boundaries. |
+| Interface/seam design | [codebase-design](.agents/skills/codebase-design/SKILL.md) | Deep modules without generic CRUD scaffolding. |
+| Domain/workflow | [domain-modeling](.agents/skills/domain-modeling/SKILL.md) | Accepted workflows and terminology. |
+| Layering | [architecture-patterns](.agents/skills/architecture-patterns/SKILL.md) | Current modular monolith and published contracts. |
+| Lasting decision | [architecture-decision-records](.agents/skills/architecture-decision-records/SKILL.md) | Routine extraction needs no ADR. |
+| REST design | [api-design-principles](.agents/skills/api-design-principles/SKILL.md) | Actual envelope/pagination; adapt concepts to Java, not bundled Python examples. |
+| Bug diagnosis | [diagnosing-bugs](.agents/skills/diagnosing-bugs/SKILL.md) | Supported callers and root cause. |
+| Explicit test-first work | [tdd](.agents/skills/tdd/SKILL.md) | Observable business/security/concurrency outcomes. |
 
-For Java/Spring security review, use the current
-[API/security architecture](docs/architecture/05-api-and-security.md), accepted
-ADRs, current official documentation when API facts are needed, and authorization
-tests. Review patient access, permission checks, CSRF/session behavior, safe errors,
-logging and audit according to the actual supported contract.
+## Optional session skills
 
-## Compatibility and availability
+The following names refer to the active session catalog, **not** bundled
+`.agents/skills/` directories. Use only when present and relevant:
 
-Project-local copies under `.agents/skills/` were recorded on 2026-09-24:
-`architecture-decision-records`, `architecture-patterns`, `codebase-design`,
-`domain-modeling`, `api-design-principles`, `diagnosing-bugs`, `tdd`, and
-`karpathy-guidelines`. These are local copies, not a latest-release claim.
-`error-handling-patterns` was recorded in the parent workspace's `.agents/skills/`;
-check availability when working outside that workspace. Check the active skill
-catalog before selecting optional skills; do not install tools just to satisfy
-this guide.
-
-| Capability | Restriction / supported alternative |
+| Task | Optional catalog skill |
 |---|---|
-| `run-tests` | The available skill targets Gradle. Use this repository's Maven wrapper directly; do not apply its Gradle commands. |
-| `coverage` | Check the installed skill's build-tool support and project configuration first; do not apply Gradle recipes or add a plugin merely to obtain a percentage. |
-| `security-best-practices` | The available skill supports Python, JavaScript/TypeScript and Go, not Java/Spring. Use the security-review route above. |
-| `setup-pre-commit` | Its Node/Husky workflow is not the backend default. Use existing Java/Maven checks; hooks are optional work requiring a concrete request. |
-| CRUD/JPA/mapper generators | Do not introduce JPA/Hibernate or generic CRUD scaffolding. MyBatis adapters and domain ports follow the approved architecture. |
-| Simplification skills | Removing ceremony does not authorize removing repository/external ports, authorization, audit, transactions or tests. A boundary may have one implementation. |
-| Frontend/Python/backend platform skills | Do not apply unrelated stacks to this backend. |
+| PostgreSQL schema/query | postgresql-table-design; sql-optimization-patterns |
+| Failure mapping | error-handling-patterns |
+| Diff/PR review with base/spec | code-review |
+| Explicit threat model | security-threat-model |
+| Agent instructions/skills | writing-for-agents; skill-creator |
+| Formatting changed source | codefmt |
 
-## Review focus
+Do not install tools to satisfy this table. If absent, follow the owning policy
+and existing configured tooling.
 
-For an affected flow, check:
+## Stack compatibility
 
-- domain/module boundaries, published cross-module contracts and mapper isolation;
-- the owner of validation, authorization, transaction, audit and concurrency rules;
-- SQL/schema compatibility, bounded queries and absence of N+1 behavior;
-- [application Javadoc](PROJECT_RULES.md#application-comments-and-javadoc) and
-  [logging](PROJECT_RULES.md#27-logging), including safe fields and commit wording;
-- observable tests, supported callers and public API documentation;
-- the focused diff, preserved worktree changes and actual verification evidence.
-
-The [2026-10-04 migration review](docs/reviews/2026-10-04-clean-slate-migration-review.md)
-is a dated record of findings and checks, not proof of current implementation
-status. Recheck a finding against the current tree before acting on it.
-
-## Verification
-
-Use the Maven wrapper, following the current required checks in
-[PROJECT_RULES.md](PROJECT_RULES.md#36-definition-of-done):
-
-```powershell
-.\mvnw.cmd test
-.\mvnw.cmd verify
-```
-
-For removed/moved classes or mapper resources, follow the clean-output guidance
-in [testing and operations](docs/architecture/06-testing-and-operations.md).
-PostgreSQL/MyBatis integration needs PostgreSQL 18 Testcontainers; relevant
-accesscontrol integration also needs Redis. Report skips/environment failures explicitly.
-Use existing coverage facilities when requested to identify missing behavioral
-coverage; a percentage does not replace critical workflow tests.
-
-## Suggested task prompt
-
-```text
-Read AGENTS.md, PROJECT_RULES.md, PROJECT_SKILLS.md, relevant accepted ADRs and
-current architecture/contracts for this task. Identify the owning module and
-acceptance criteria, inspect existing code/callers, then make the smallest cohesive
-change. Preserve Java 25 / Spring Boot 4 / PostgreSQL 18 / MyBatis and module boundaries.
-Use wrapper scalar types and List<T>/ArrayList<T> for ordered business collections,
-following PROJECT_RULES.md's null-safety and technical exceptions.
-Apply application Javadoc and safe logging rules to changed use cases. Preserve
-unrelated worktree changes. Do not invent business contracts or add speculative
-abstractions/files. Run required checks and report changed files/modules, API and
-migration impact, tests actually run, unresolved conflicts and remaining risks.
-```
+This is Maven: run the wrapper under [definition of done](PROJECT_RULES.md#36-definition-of-done).
+Gradle-only run-tests/coverage recipes are inapplicable; do not add a coverage
+plugin just to obtain a number. Java security uses
+[API/security](docs/architecture/05-api-and-security.md) and access tests;
+security-best-practices does not cover Java.
+No JPA/CRUD generator, Node/Husky backend default or removal of required ports,
+authorization, audit, transactions and tests for simplification.

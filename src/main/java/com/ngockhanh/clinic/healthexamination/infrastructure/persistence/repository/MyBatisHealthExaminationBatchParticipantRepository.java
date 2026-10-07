@@ -3,6 +3,9 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.reposi
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.*;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ReconciliationStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
@@ -29,30 +32,50 @@ public class MyBatisHealthExaminationBatchParticipantRepository
         .map(r -> domain(r, mapper.findServices(List.of(r.id()))));
   }
 
+  @Override
+  public Optional<HealthExaminationBatchParticipant> findInBatch(
+      AggregateId batchId, AggregateId id) {
+    return Optional.ofNullable(mapper.findInBatch(batchId.value(), id.value()))
+        .map(r -> domain(r, mapper.findServices(List.of(r.id()))));
+  }
+
+  @Override
+  public void insert(HealthExaminationBatchParticipant participant) {
+    if (mapper.insertMany(List.of(record(participant))) != 1)
+      throw new IllegalStateException("Participant was not inserted");
+  }
+
+  @Override
+  public boolean identityTakenByOther(
+      AggregateId batchId, IdentificationNumber identity, AggregateId excludeId) {
+    return mapper.identityTakenByOther(batchId.value(), identity.value(), value(excludeId));
+  }
+
   public void save(HealthExaminationBatchParticipant p, long expectedVersion) {
     if (mapper.update(record(p), expectedVersion) != 1) throw new ConcurrentUpdateException();
     if (p.services().isEmpty()) return;
     var existing =
-        mapper.findServices(List.of(p.id().value())).stream()
+        mapper.findServices(List.of(p.getId().value())).stream()
             .map(HealthExaminationParticipantServiceRecord::id)
             .collect(Collectors.toSet());
     var rows =
         p.services().stream()
             .map(
                 s ->
-                    new HealthExaminationParticipantServiceRecord(
-                        s.id().value(),
-                        s.batchId().value(),
-                        s.batchParticipantId().value(),
-                        s.batchServiceId().value(),
-                        s.performed(),
-                        value(s.serviceRequestId()),
-                        s.unitPriceSnapshot().amount(),
-                        s.recordedBy().value(),
-                        s.recordedAt(),
-                        s.createdAt(),
-                        s.updatedAt(),
-                        s.rowVersion()))
+                    HealthExaminationParticipantServiceRecord.builder()
+                        .id(s.id().value())
+                        .batchId(s.batchId().value())
+                        .batchParticipantId(s.batchParticipantId().value())
+                        .batchServiceId(s.batchServiceId().value())
+                        .isPerformed(s.performed())
+                        .serviceRequestId(value(s.serviceRequestId()))
+                        .unitPriceSnapshot(s.unitPriceSnapshot().amount())
+                        .recordedBy(s.recordedBy().value())
+                        .recordedAt(s.recordedAt())
+                        .createdAt(s.createdAt())
+                        .updatedAt(s.updatedAt())
+                        .rowVersion(s.rowVersion())
+                        .build())
             .toList();
     var added = rows.stream().filter(r -> !existing.contains(r.id())).toList();
     var changed = rows.stream().filter(r -> existing.contains(r.id())).toList();
@@ -60,6 +83,29 @@ public class MyBatisHealthExaminationBatchParticipantRepository
       throw new IllegalStateException("Participant services were not inserted");
     if (!changed.isEmpty() && mapper.updateServices(changed) != changed.size())
       throw new ConcurrentUpdateException();
+  }
+
+  @Override
+  public void insertMany(List<HealthExaminationBatchParticipant> participants) {
+    if (participants.isEmpty()) return;
+    var rows =
+        participants.stream()
+            .map(MyBatisHealthExaminationBatchParticipantRepository::record)
+            .toList();
+    if (mapper.insertMany(rows) != rows.size())
+      throw new IllegalStateException("Participants were not inserted");
+  }
+
+  @Override
+  public List<IdentificationNumber> findExistingIdentities(
+      AggregateId batchId, List<IdentificationNumber> identities) {
+    if (identities.isEmpty()) return List.of();
+    return mapper
+        .findExistingIdentities(
+            batchId.value(), identities.stream().map(IdentificationNumber::value).toList())
+        .stream()
+        .map(IdentificationNumber::of)
+        .toList();
   }
 
   private static HealthExaminationBatchParticipant domain(
@@ -117,36 +163,37 @@ public class MyBatisHealthExaminationBatchParticipantRepository
 
   private static HealthExaminationBatchParticipantRecord record(
       HealthExaminationBatchParticipant p) {
-    var r = p.roster();
-    return new HealthExaminationBatchParticipantRecord(
-        p.id().value(),
-        p.batchId().value(),
-        p.batchDayId().value(),
-        r.participantCode(),
-        r.fullName(),
-        r.dateOfBirth(),
-        r.sex(),
-        r.identificationNumber().value(),
-        r.phone(),
-        r.email(),
-        r.departmentName(),
-        r.positionName(),
-        value(p.patientId()),
-        p.rosterStatus().name(),
-        p.attendanceStatus().name(),
-        p.actualExaminationDate(),
-        value(p.attendanceRecordedBy()),
-        p.attendanceRecordedAt(),
-        p.attendanceNote(),
-        p.reconciliationStatus().name(),
-        value(p.reconciledBy()),
-        p.reconciledAt(),
-        value(p.importJobId()),
-        p.sourceRowNumber(),
-        p.preparedAt(),
-        p.createdAt(),
-        p.updatedAt(),
-        p.rowVersion());
+    var r = p.getRoster();
+    return HealthExaminationBatchParticipantRecord.builder()
+        .id(p.getId().value())
+        .batchId(p.getBatchId().value())
+        .batchDayId(p.getBatchDayId().value())
+        .participantCode(r.participantCode())
+        .fullName(r.fullName())
+        .dateOfBirth(r.dateOfBirth())
+        .sex(r.sex())
+        .identificationNumber(r.identificationNumber().value())
+        .phone(r.phone())
+        .email(r.email())
+        .departmentName(r.departmentName())
+        .positionName(r.positionName())
+        .patientId(value(p.getPatientId()))
+        .rosterStatus(p.getRosterStatus().name())
+        .attendanceStatus(p.getAttendanceStatus().name())
+        .actualExaminationDate(p.getActualExaminationDate())
+        .attendanceRecordedBy(value(p.getAttendanceRecordedBy()))
+        .attendanceRecordedAt(p.getAttendanceRecordedAt())
+        .attendanceNote(p.getAttendanceNote())
+        .serviceReconciliationStatus(p.getReconciliationStatus().name())
+        .servicesReconciledBy(value(p.getReconciledBy()))
+        .servicesReconciledAt(p.getReconciledAt())
+        .importJobId(value(p.getImportJobId()))
+        .sourceRowNumber(p.getSourceRowNumber())
+        .preparedAt(p.getPreparedAt())
+        .createdAt(p.getCreatedAt())
+        .updatedAt(p.getUpdatedAt())
+        .rowVersion(p.getRowVersion())
+        .build();
   }
 
   private static AggregateId id(UUID id) {

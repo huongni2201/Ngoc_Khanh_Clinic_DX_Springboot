@@ -35,7 +35,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 
@@ -43,6 +43,17 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         new JdbcTemplate(
             new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name IN ('organization_type', 'contact_position', 'code')",
+                Integer.class))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu USING (constraint_catalog, constraint_schema, constraint_name, table_name) WHERE tc.table_schema = 'public' AND tc.table_name = 'organizations' AND tc.constraint_type = 'UNIQUE' AND kcu.column_name = 'tax_code'",
+                Integer.class))
+        .isEqualTo(1);
 
     assertThat(
             jdbc.queryForList(
@@ -83,7 +94,6 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 Integer.class))
         .isZero();
 
-    assertPermissionMatrixSeed(jdbc);
 
     UUID patientId =
         jdbc.queryForObject(
@@ -127,7 +137,10 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         .isEqualTo("PATIENT_CREATED");
   }
 
-  /** V002 seeds the SRS Permission Matrix 4.4 (ADR-0015). */
+  /**
+   * V004 seeds the SRS Permission Matrix 4.4 (ADR-0015). The two V003 roster permissions are
+   * superseded by the matrix codes and stay ungranted on a fresh database.
+   */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
         .containsExactlyInAnyOrder(
@@ -139,7 +152,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(106);
+        .isEqualTo(108);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
         .isEqualTo(112);
     assertThat(
@@ -149,7 +162,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 WHERE NOT EXISTS (SELECT 1 FROM public.role_permissions rp WHERE rp.permission_id = p.id)
                 """,
                 String.class))
-        .isEmpty();
+        .containsExactlyInAnyOrder(
+            "HEALTH_EXAMINATION_PARTICIPANT_READ", "HEALTH_EXAMINATION_PARTICIPANT_IMPORT");
     assertThat(
             jdbc.queryForList(
                 """

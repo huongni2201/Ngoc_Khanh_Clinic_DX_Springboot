@@ -2,12 +2,14 @@
 
 ## Required checks
 
-Run the project Maven wrapper:
+For runtime/build changes, run the project Maven wrapper (verify includes test):
 
 ```powershell
-.\mvnw.cmd test
 .\mvnw.cmd verify
 ```
+
+Documentation/skill/hygiene-only changes verify links/anchors, skill resources,
+contracts and git diffs under [definition of done](../../PROJECT_RULES.md#36-definition-of-done).
 
 Domain tests cover lifecycle/identity/pricing/history without Spring. Application
 and API tests cover orchestration, input, authorization, response fields and errors.

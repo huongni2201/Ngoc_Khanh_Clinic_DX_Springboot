@@ -25,7 +25,8 @@ infrastructure -> domain repository ports / application ports
 Each context uses `api`, `application`, `domain`, `infrastructure` only where
 needed. Root package is `com.ngockhanh.clinic`; Java module name is
 `healthexamination`, without underscores. API requests map to application
-commands/queries. Use cases return application responses; controllers add status
+commands/queries in the API adapter (controller or request conversion method);
+application never imports API types. Use cases return application responses; controllers add status
 and the shared envelope. Infrastructure implements persistence and external ports.
 
 Domain has no Spring, MyBatis, JDBC, HTTP, Jackson or external SDK dependency.

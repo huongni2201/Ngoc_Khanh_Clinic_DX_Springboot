@@ -2,6 +2,8 @@ package com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.repository
 
 import com.ngockhanh.clinic.accesscontrol.domain.entity.UserAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountStatus;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.StaffMemberStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleGrant;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
@@ -32,9 +34,9 @@ public class MyBatisUserAccountRepository implements UserAccountRepository {
             AccountType.from(row.accountType()).orElse(null),
             row.username(),
             row.passwordHash(),
-            row.status(),
+            AccountStatus.valueOf(row.status()),
             row.staffMemberId(),
-            row.staffStatus(),
+            row.staffStatus() == null ? null : StaffMemberStatus.valueOf(row.staffStatus()),
             row.patientId(),
             toGrants(mapper.findActiveGrants(row.accountId()))));
   }

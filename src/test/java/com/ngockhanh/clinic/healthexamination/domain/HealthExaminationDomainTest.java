@@ -37,17 +37,17 @@ class HealthExaminationDomainTest {
   @Test
   void preparationAttendanceAndReconciliationAreIndependent() {
     var p = participant();
-    assertThat(p.patientId()).isNull();
-    assertThat(p.attendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+    assertThat(p.getPatientId()).isNull();
+    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
     p.prepare(id(8), NOW);
-    assertThat(p.attendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
     p.recordAttendance(AttendanceStatus.ATTENDED, LocalDate.of(2026, 10, 4), id(6), NOW, null);
     p.reconcileServices(List.of(), scope(id(11)), id(6), NOW);
-    assertThat(p.reconciliationStatus()).isEqualTo(ReconciliationStatus.RECONCILED);
+    assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.RECONCILED);
     assertThat(p.services()).isEmpty();
     p.moveToDay(id(4));
-    assertThat(p.patientId()).isEqualTo(id(8));
-    assertThat(p.actualExaminationDate()).isEqualTo(LocalDate.of(2026, 10, 4));
+    assertThat(p.getPatientId()).isEqualTo(id(8));
+    assertThat(p.getActualExaminationDate()).isEqualTo(LocalDate.of(2026, 10, 4));
   }
 
   @Test
@@ -60,7 +60,7 @@ class HealthExaminationDomainTest {
         .isInstanceOf(IllegalArgumentException.class);
     p.prepare(id(8), NOW);
     p.prepare(id(8), NOW.plusSeconds(2));
-    assertThat(p.preparedAt()).isEqualTo(NOW);
+    assertThat(p.getPreparedAt()).isEqualTo(NOW);
     assertThatThrownBy(() -> p.prepare(id(9), NOW)).isInstanceOf(DomainRuleViolation.class);
   }
 
@@ -90,8 +90,8 @@ class HealthExaminationDomainTest {
     r.start();
     r.complete(NOW);
     r.issue(NOW);
-    assertThat(r.status()).isEqualTo(HealthExaminationRecordStatus.ISSUED);
-    assertThat(r.mrn()).isEqualTo("MRN-1");
+    assertThat(r.getStatus()).isEqualTo(HealthExaminationRecordStatus.ISSUED);
+    assertThat(r.getMrn()).isEqualTo("MRN-1");
     assertThatThrownBy(() -> r.cancel(NOW, "Correction")).isInstanceOf(DomainRuleViolation.class);
   }
 

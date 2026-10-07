@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.integration.infrastructure.persistence.mapper.ParticipantImportMyBatisMapper">
+ <insert id="insertReservation">
+ INSERT INTO public.idempotency_keys (id, scope, actor_key, request_key, request_hash, status, created_at, expires_at)
+ VALUES (#{r.id}, #{r.scope}, #{r.actorKey}, #{r.requestKey}, #{r.requestHash}, 'PROCESSING', #{r.createdAt}, #{r.expiresAt})
+ ON CONFLICT (scope, actor_key, request_key) DO NOTHING
+ </insert>
+ <select id="findReservationForUpdate" resultType="com.ngockhanh.clinic.integration.infrastructure.persistence.record.IdempotencyKeyRecord">
+ SELECT id, scope, actor_key, request_key, request_hash, status, result_resource_type, result_resource_id,
+ CAST(result_summary AS text) AS result_summary, created_at, completed_at, expires_at
+ FROM public.idempotency_keys
+ WHERE scope = #{scope} AND actor_key = #{actorKey} AND request_key = #{requestKey}
+ FOR UPDATE
+ </select>
+ <update id="completeReservation">
+ UPDATE public.idempotency_keys
+ SET status = 'COMPLETED', result_resource_type = #{resourceType}, result_resource_id = #{resourceId},
+ result_summary = CAST(#{summary} AS jsonb), completed_at = #{completedAt}
+ WHERE id = #{id} AND status = 'PROCESSING'
+ </update>
+ <insert id="insertJob">
+ INSERT INTO public.import_jobs (id, import_type, batch_id, configuration, status, created_by, created_at)
+ VALUES (#{j.id}, #{j.importType}, #{j.batchId}, CAST(#{j.configuration} AS jsonb), 'VALIDATED', #{j.createdBy}, #{j.createdAt})
+ </insert>
+ <insert id="insertRows">
+ INSERT INTO public.import_rows (id, job_id, row_number, normalized_payload, created_at) VALUES
+ <foreach collection="rows" item="r" separator=",">(#{r.id}, #{r.jobId}, #{r.rowNumber}, CAST(#{r.normalizedPayload} AS jsonb), #{r.createdAt})</foreach>
+ </insert>
+ <update id="markRowsCommitted">
+ UPDATE public.import_rows AS r
+ SET committed_resource_type = v.resource_type, committed_resource_id = v.resource_id
+ FROM (VALUES
+ <foreach collection="rows" item="c" separator=",">(CAST(#{c.rowNumber} AS integer), CAST(#{c.resourceType} AS text), CAST(#{c.resourceId} AS uuid))</foreach>
+ ) AS v(rn, resource_type, resource_id)
+ WHERE r.job_id = #{jobId} AND r.row_number = v.rn
+ </update>
+ <update id="confirmJob">
+ UPDATE public.import_jobs
+ SET status = 'CONFIRMED', confirmed_by = created_by, confirmed_at = #{confirmedAt},
+ confirmed_result = CAST(#{result} AS jsonb), row_version = row_version + 1
+ WHERE id = #{id} AND row_version = #{expectedVersion} AND status = 'VALIDATED'
+ </update>
+</mapper>

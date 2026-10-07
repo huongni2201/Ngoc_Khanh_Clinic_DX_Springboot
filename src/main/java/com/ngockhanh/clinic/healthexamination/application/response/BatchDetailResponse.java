@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.response;
 
+import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDetails;
 import java.math.BigDecimal;
 import java.time.*;
@@ -31,13 +32,22 @@ public record BatchDetailResponse(
   public record ServiceResponse(
       UUID id,
       UUID serviceId,
+      String serviceCode,
+      String serviceName,
       BigDecimal referencePriceSnapshot,
       BigDecimal negotiatedPrice,
       int displayOrder,
       boolean active,
       long rowVersion) {}
 
-  public static BatchDetailResponse from(BatchDetails d) {
+  /**
+   * Maps stored batch details to the response.
+   *
+   * @param catalog catalog services keyed by id; a service missing from it gets a {@code null} code
+   *     and name
+   */
+  public static BatchDetailResponse from(
+      BatchDetails d, Map<UUID, ServiceCatalogQuery.Service> catalog) {
     var b = d.batch();
     return BatchDetailResponse.builder()
         .id(b.id().value())
@@ -70,6 +80,8 @@ public record BatchDetailResponse(
                         ServiceResponse.builder()
                             .id(s.id().value())
                             .serviceId(s.serviceId().value())
+                            .serviceCode(serviceOf(catalog, s.serviceId().value(), true))
+                            .serviceName(serviceOf(catalog, s.serviceId().value(), false))
                             .referencePriceSnapshot(s.referencePriceSnapshot().amount())
                             .negotiatedPrice(s.negotiatedPrice().amount())
                             .displayOrder(s.displayOrder())
@@ -78,6 +90,13 @@ public record BatchDetailResponse(
                             .build())
                 .toList())
         .build();
+  }
+
+  private static String serviceOf(
+      Map<UUID, ServiceCatalogQuery.Service> catalog, UUID serviceId, boolean code) {
+    var service = catalog.get(serviceId);
+    if (service == null) return null;
+    return code ? service.code() : service.name();
   }
 
   @Builder

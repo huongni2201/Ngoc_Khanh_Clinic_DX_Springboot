@@ -1,1060 +1,494 @@
 # Ngọc Khánh Clinic Backend — Project Rules
 
-> Mandatory backend engineering rules for NKC-DX. A later accepted ADR or explicitly newer source-of-truth document may supersede a rule.
+> Owning backend technical policy. MUST is required; SHOULD is a default whose
+> exceptions need a concrete reason in the change. Unqualified rules are mandatory.
 
 ## 1. Product and Business Baseline
 
-The backend supports a real outpatient clinic and corporate health-check workflow.
-
-Current source-of-truth documents:
-
-The owner-selected clean-slate design and `V001__create_clean_slate_schema.sql`
-are the current business/schema contract (ADR-0013). Earlier FINAL documents and
-ADRs remain historical references where superseded. Read ADR-0013 for the changed
-identity, roster, pricing, snapshots, release and concurrency contracts.
-
-Do not infer domain behavior from UI mockups when these documents define the rule.
-
-If code, UI, and documentation disagree, identify the conflict before changing business behavior.
-
----
+Use [AGENTS.md](AGENTS.md#source-of-truth-and-workflow) for source precedence.
+Accepted ADRs define intended behavior; current handlers/DTOs define available
+HTTP contracts. Identify disagreements before changing dependent behavior.
+[Domain workflows](docs/architecture/03-domain-and-workflows.md) own business
+invariants; [API inventory](docs/api/clean-slate-migration.md) owns route availability.
+Schema records and UI mockups do not authorize unsupported workflows.
 
 ## 2. Approved Stack
 
-```text
-Java                 25
-Spring Boot          4.x
-Spring Framework     7.x
-PostgreSQL           18
-MyBatis              4.x Spring Boot starter
-Spring Modulith      2.x
-Maven
-Flyway
-JUnit 5
-AssertJ
-Mockito
-Testcontainers
-```
-
-Persistence stack is **MyBatis + PostgreSQL 18**.
-
-Forbidden by default:
-
-```text
-JPA
-Hibernate
-Spring Data JPA
-H2 as PostgreSQL substitute
-```
-
-Any core stack change requires an ADR.
-
----
+Java 25; Spring Boot 4 / Framework 7; PostgreSQL 18; MyBatis 4.x starter;
+Spring Modulith 2.x; Maven; Flyway; JUnit 5, AssertJ, Mockito, Testcontainers.
+Persistence is MyBatis + PostgreSQL. No JPA/Hibernate/Spring Data JPA or H2 as
+a PostgreSQL substitute. Core stack changes require an ADR.
 
 ## 3. Root Package
 
-Canonical package:
-
-```text
-com.ngockhanh.clinic
-```
-
-Java package names must be lowercase and must not contain underscores.
-
----
+Root: `com.ngockhanh.clinic`. Java packages are lowercase without underscores.
 
 ## 4. Modular Monolith
 
-The application is one deployable Spring Boot application with explicit bounded contexts.
-
-Canonical bounded contexts:
-
-```text
-accesscontrol
-patient
-catalog
-encounter
-clinical
-billing
-diagnostics
-healthexamination
-document
-prescription
-notification
-integration
-appointment
-portal
-audit
-shared
-```
-
-ADR-0012 defines the clean-slate module inventory: fourteen business contexts,
-the supporting audit context, and shared technical code. Keep `healthexamination`
-as the Java module name even though the source design uses `health_examination`.
-
-This is not a Maven multi-module project unless an ADR later changes that decision.
-
-Do not split into microservices during MVP.
-
----
+One deployable application, not a Maven multi-module project or microservices MVP.
+[ADR-0012](docs/adr/0012-clean-slate-module-boundaries.md) owns the inventory:
+identity, patient, catalog, encounter, clinical, billing, diagnostics,
+healthexamination, document, prescription, notification, integration,
+appointment, portal; supporting audit; shared technical code.
+Keep `healthexamination` as the Java name.
 
 ## 5. DDD Layering Per Module
 
-Use, as needed:
+Create only roles required by the task. Canonical layout for new business flows:
 
 ```text
 <module>/
 ├── api/
+│   ├── controller/                    XxxController
+│   └── request/                       XxxRequest
 ├── application/
+│   ├── command/                       CreateXxxCommand, UpdateXxxCommand
+│   ├── query/                         GetXxxQuery, XxxListQuery; read contracts
+│   ├── response/                      XxxResponse
+│   ├── usecase/                       CreateXxxUseCase, GetXxxUseCase, ListXxxUseCase
+│   ├── port/                          external/application ports when needed
+│   └── exception/                     application failures when needed
 ├── domain/
+│   ├── aggregate/                     aggregate roots; create/restore factories
+│   ├── entity/                        owned entities
+│   ├── valueobject/                   immutable value objects
+│   ├── enums/                         domain enums
+│   ├── repository/                    XxxRepository ports; domain read contracts
+│   ├── event/                         domain events when needed
+│   └── exception/                     invariant violations
 └── infrastructure/
+    ├── persistence/
+    │   ├── record/                    XxxRecord; one existing table per record
+    │   ├── mapper/                    XxxMyBatisMapper
+    │   ├── repository/                MyBatisXxxRepository
+    │   ├── converter/                 XxxPersistenceConverter
+    │   └── view/                      XxxView; SQL projections/join results
+    └── <existing adapter package>/    external adapters/configuration
 ```
 
-### `api`
-
-Owns:
-
-```text
-REST controllers
-request DTOs
-HTTP mapping
-transport validation
-```
-
-Must not own business rules or SQL.
-
-### `application`
-
-Owns:
-
-```text
-use cases
-command/query handlers or application services
-transaction boundaries
-authorization orchestration where applicable
-cross-aggregate orchestration
-mapping between transport/application/domain models
-response DTOs in application/response
-```
-
-### `domain`
-
-Owns:
-
-```text
-aggregates
-entities
-value objects
-domain services
-domain events
-repository ports
-domain exceptions
-invariants
-```
-
-The domain should be framework-light and persistence-ignorant.
-
-### `infrastructure`
-
-Owns:
-
-```text
-MyBatis mappers
-persistence records
-repository adapters
-SQL-specific mapping
-external API adapters
-SMS/payment/device integrations
-technical configuration
-```
-
----
+API owns HTTP mapping and structural validation. Application owns use cases,
+transactions, authorization orchestration, cross-aggregate coordination and
+command/query/domain/read-contract → response mapping. Domain owns invariants,
+aggregates, entities, value objects, services, events and repository ports;
+it remains framework-light and persistence-ignorant. Infrastructure owns SQL,
+records, adapters and technical configuration.
+Reuse existing supported contracts; do not rename modules wholesale to fit examples.
 
 ## 6. Dependency Direction
 
-Allowed:
-
-```text
-api -> application
-application -> domain
-infrastructure -> domain
-bootstrap/configuration -> all required adapters
-```
-
-Forbidden:
-
-```text
-domain -> application
-domain -> api
-domain -> MyBatis
-domain -> infrastructure/database driver
-domain -> HTTP DTO
-controller -> mapper
-controller -> repository implementation
-application -> another module's mapper
-```
-
----
+Allowed: api → application; application → domain; infrastructure → domain and
+deliberately published application ports/read contracts; bootstrap → adapters.
+Domain imports no application, API, infrastructure, MyBatis, database-driver or
+HTTP DTO concerns. Application imports no `api.*` or foreign mappers.
+Controllers call use cases, not repositories/mappers, and own no business rules,
+SQL or transactions.
 
 ## 7. Module Encapsulation
 
-Treat each bounded context as an internal module.
-
-Cross-module access must go through a deliberately exposed public contract.
-
-Prefer:
-
-```text
-application facade/interface
-published event
-explicit read/query contract
-```
-
-Never import another module's:
-
-```text
-infrastructure.*
-internal.*
-persistence.*
-mapper.*
-record.*
-```
-
-Never join another bounded context's tables from a mapper merely because SQL makes it easy. If a cross-context read model is genuinely required, design it explicitly and document ownership.
-
-Spring Modulith verification is mandatory for structural regression protection.
-
----
+Cross-module access uses published application facades, events or explicit
+read/query contracts. No imports of foreign infrastructure/internal/persistence/
+mapper/record packages. Cross-context joins require documented read-model
+ownership, not convenience. Spring Modulith verification protects these boundaries.
 
 ## 8. `shared` Rules
 
-`shared` is only for truly cross-cutting technical code.
-
-Allowed examples:
-
-```text
-shared/config
-shared/security
-shared/exception
-shared/idempotency
-shared/web
-shared/time
-```
-
-Do not put domain concepts in `shared`.
-
-Audit contracts and persistence belong to `audit`; consumers use the published
-`audit::recording` interface rather than a shared audit package (ADR-0012).
-
-Forbidden examples:
-
-```text
-shared/PatientUtils
-shared/HealthCheckService
-shared/BillingHelper
-shared/CommonDomain
-```
-
-If code has business meaning, it belongs to the owning bounded context.
-
----
+Shared contains cross-cutting technical config/security/errors/idempotency/web/time.
+Business concepts belong to their context. Audit contracts and storage belong
+to `audit`; consumers use `audit::recording` (ADR-0012).
 
 ## 9. Domain vs Persistence Model
 
-Persistence records and domain models must not be conflated.
-
-Example:
+Keep domain models separate from table records:
 
 ```text
-patient/domain/model/Patient.java
+patient/domain/aggregate/Patient.java
 patient/domain/repository/PatientRepository.java
-
 patient/infrastructure/persistence/record/PatientRecord.java
-patient/infrastructure/persistence/mapper/PatientMapper.java
+patient/infrastructure/persistence/mapper/PatientMyBatisMapper.java
 patient/infrastructure/persistence/repository/MyBatisPatientRepository.java
 ```
 
-Each file in `infrastructure/persistence/record` represents rows of exactly one
-existing database table. Reuse its table record; do not add summary, reference,
-join-result, or screen-specific record files here. This convention does not add JPA.
+Each persistence record represents exactly one existing table. Reuse its record;
+summary/reference/join/screen shapes belong in `infrastructure/persistence/view`
+with suffix `View`. Map SQL views inside the adapter to the owning port's typed
+read contract: `domain/repository` for domain ports, `application/query` for
+application read ports. Those contracts never import infrastructure. Published
+reads still obey module boundaries.
 
-Repository adapters coordinate SQL mapper calls. Converters map table records to
-domain aggregates, entities, or explicit read contracts, and back. Converters do
-not query the database. Restore aggregates with all required owned state; use read
-contracts instead of incomplete aggregates for read-only summaries.
+Adapters coordinate SQL. Pure converters map records ↔ domain/read contracts
+without querying. Restore complete aggregates; use read contracts for summaries.
+Domain never depends on MyBatis annotations.
 
-Reuse existing files/folders. A private converter nested in its repository and a
-read contract nested in its owning interface are allowed when needed to avoid new
-files. Do not generate new files or folders without explicit authorization.
-
-`Patient` should reflect business behavior and invariants.
-
-Do not make the domain model depend on MyBatis annotations.
-
----
+Creating cohesive files inside the canonical tree, existing adapter/test packages,
+mapper resources and Flyway directory is part of an authorized task. This includes
+converters, read models, tests and migrations; no separate file approval is needed.
+Reuse matching responsibilities. Nested types are for local concepts, not file-count
+workarounds. New top-level modules/layers need an approved contract.
 
 ## 10. MyBatis Rules
 
-Use MyBatis only inside infrastructure.
-
-Mapper location:
-
-```text
-src/main/resources/mapper/<module>/*.xml
-```
-
-Recommended for non-trivial queries:
-
-```text
-XML mapper
-```
-
-Annotations are acceptable only for small, obvious SQL where they improve readability.
-
-Rules:
-
-- Never use `${...}` for untrusted values.
-- Prefer `#{...}` parameter binding.
-- Avoid `SELECT *`.
-- Select only columns required by the persistence/read model.
-- Define deterministic ordering for paginated queries.
-- Avoid N+1 query patterns.
-- Batch intentionally when importing large employee rosters.
-- Keep business branching out of SQL when it belongs in domain/application logic.
-- PostgreSQL-specific behavior must be covered by integration tests.
-
----
+Infrastructure only. XML resources: `src/main/resources/mapper/<module>/*.xml`.
+Prefer XML for non-trivial SQL; annotations may serve small obvious queries.
+Bind values with `#{...}`; never interpolate untrusted `${...}`.
+Select required columns, use stable pagination ordering, avoid N+1 loops and
+batch supported bulk writes. Business branching stays at its owning layer.
+PostgreSQL-specific SQL requires integration tests.
 
 ## 11. PostgreSQL 18 Rules
 
-Clean-slate conventions (ADR-0013):
+[ADR-0013](docs/adr/0013-clean-slate-application-contract.md) owns conventions:
 
 ```text
-table names       plural snake_case
-column names      snake_case
-primary key       id where defined; retain schema-defined composite keys
-foreign key       <entity>_id
-time              `timestamptz(3)`; Java `Instant`; values represent UTC instants
-money             numeric(14,2)
-text              text or varchar(n), preserving documented length limits
-public UUID       uuid where specified
-concurrency       application-incremented bigint `row_version`, compared on update
+tables          plural snake_case
+columns         snake_case
+primary keys    id where defined; retain actual composite keys
+foreign keys    <entity>_id
+time            timestamptz(3); Java Instant; UTC instants
+money           numeric(14,2); Java BigDecimal
+text            text/varchar(n) with documented lengths
+public UUID     uuid where specified
+concurrency     bigint row_version; SQL compares and increments
 ```
 
-Use database constraints for true invariants.
-
-Examples:
-
-```text
-UNIQUE identification_number
-NOT NULL required identity fields
-foreign keys
-check constraints where appropriate
-unique business codes
-```
-
-Indexes must be justified by real query patterns.
-
----
+Use required FK/UK/NOT NULL/check constraints. Preserve exact CCCD as text and
+documented business-code uniqueness. Justify indexes with real query patterns.
 
 ## 12. Flyway Rules
 
-All schema changes use Flyway.
-
-Location:
-
-```text
-src/main/resources/db/migration/
-```
-
-Naming:
-
-```text
-V<version>__<description>.sql
-```
-
-Rules:
-
-- Never use application auto-DDL in production.
-- Never edit an already-applied shared migration.
-- Add a new migration for every subsequent schema change.
-- Fresh installations apply `V001__create_clean_slate_schema.sql`. Existing databases with the former V001-V003 history require a separate data-conversion plan; do not reuse that history with this baseline.
-- Include required FK/UK/check/index definitions in migrations.
-- Migration rollback strategy must be considered for destructive changes.
-- Destructive production data changes require explicit review.
-
----
+All schema changes use `src/main/resources/db/migration/V<version>__<description>.sql`.
+Never edit applied shared migrations or use runtime auto-DDL in production.
+Fresh installs apply the full chain. The clean-slate V001 cannot replace former
+V001–V003 history on deployed databases; conversion follows
+[deployment policy](docs/architecture/06-testing-and-operations.md#deployment).
+Include required constraints/indexes. Destructive production data changes require
+explicit review and a considered recovery strategy.
 
 ## 13. Identity and Patient Rules
 
-Current MVP:
-
-```text
-identification_number = mandatory patient identifier; CCCD is the current business/document label
-```
-
-Rules:
-
-- Exact CCCD lookup before Patient creation.
-- `patients.identification_number` must be unique.
-- No passport/identity-type abstraction in baseline.
-- No fuzzy duplicate merge by name/phone in baseline.
-- Do not create `patient_contacts`, `patient_addresses`, or `patient_merge_history` unless requirements explicitly reintroduce them.
-- Patient historical clinical/financial data is not hard-deleted.
-
----
+Follow [account authentication](docs/architecture/03-domain-and-workflows.md#account-authentication)
+and [patient identity](docs/architecture/03-domain-and-workflows.md#patient-identity).
 
 ## 14. Health Examination Rules
 
-Organization owns Batches. Each Batch has at least one BatchDay and a maximum
-service scope. Batch participants are independent roster snapshots; there is no
-organization-level Participant aggregate or table.
-
-- Preserve CCCD as text; a participant is not automatically a Patient.
-- Prepare/link Patient and Encounter only in an authorized preparation use case,
-  using exact CCCD. Import never creates them.
-- Batch states are DRAFT, READY, FINALIZED and CLOSED; sites are CLINIC or
-  ORGANIZATION_SITE. Date bounds derive from BatchDays.
-- Reference price is captured from catalog on service addition; negotiated price
-  is entered for the batch. Later batch price changes preserve performed-item
-  snapshots unless an explicit audited repricing use case changes them.
-- Staff reconciliation records performed items within batch service scope; it
-  is independent of Doctor orders. Attendance and reconciliation have their own
-  states. Preserve historical rows when a performed selection is withdrawn.
-- Import validates the entire file before storing a VALIDATED job or any staging.
-  Duplicates within the file or batch reject it; confirm inserts only new rows
-  atomically and retries return the stored result.
-- Selected BatchDay IDs and approved allocations are captured in staging.
-  Confirmation does not reallocate. Manual day changes preserve prepared links.
-- The record's mrn is shared across its forms. Administrative snapshots and
-  clinical record versions are separate typed models, immutable after issue.
-- The backend does not enforce age eligibility; see `docs/architecture/03-domain-and-workflows.md`.
-- Verify versions and audit sensitive mutations in the application transaction.
-
----
+Follow [Organization/Batch](docs/architecture/03-domain-and-workflows.md#organization-and-batch),
+[Batch Participant](docs/architecture/03-domain-and-workflows.md#batch-participant)
+and [record history](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
+[Participant Excel import and list](docs/architecture/03-domain-and-workflows.md#participant-excel-import-and-list)
+(restored 2026-10-06 as one add-only, all-or-nothing endpoint; the removed multi-step
+template/preview/confirm/cancel workflow stays removed). HTTP contract:
+[participant import and list](docs/api/participant-import-and-list.md).
 
 ## 15. Encounter and Diagnostic Progress Rules
 
-Encounter, ServiceRequest and Result have their own lifecycles. Diagnostic progress and worklists
-are derived from Encounter, OrderRound, ServiceRequest, ServiceAuthorization, performing location
-and Result. Do not create Journey/JourneyStage or a separate CLS state machine.
-
-Do not introduce reception/exam queue tickets or a return queue ticket.
-Doctor review readiness follows completion of required requests and results.
-
----
+Derive worklists/progress from owned visit/order/authorization/result records
+under [current workflows](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
+No parallel queue-stage state machine.
 
 ## 16. Orders and Payment
 
-One Encounter may have multiple Order Rounds.
-
-Pattern:
-
-```text
-Order Round 1
--> payment authorization
--> diagnostic execution
--> results
-
-Order Round N+1
--> payment authorization
--> diagnostic execution
--> results
-```
-
-Doctor creates Service Requests.
-
-Receptionist handles current baseline payment collection.
-
-Do not bypass the payment gate for a billable diagnostic service unless a documented authorization/exemption rule permits it.
-
-Financial records are immutable/history-preserving according to the table design.
-
----
+Preserve payment authorization, multiple OrderRounds, Doctor ordering and
+baseline Front Desk collection under
+[current workflows](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
 
 ## 17. Clinical and Diagnostic Results
 
-Rules:
-
-- Final clinical/diagnostic data is not hard-deleted.
-- Final results are versioned/corrected; do not silently overwrite history.
-- Result finalization must enforce role/permission rules.
-- A result must remain traceable to the correct Service Request and Encounter.
-- Partial vs final result state must be explicit.
-- File attachments must not be treated as the sole structured clinical result when structured data exists.
-
----
+Preserve final versions, permissions, traceability and immutable history under
+[current workflows](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
 
 ## 18. Prescription Rules
 
-Prescription issuance is history-preserving.
-
-Issued prescriptions must not be overwritten in place.
-
-Inventory/dispensing is outside the current core baseline unless requirements explicitly add it.
-
----
+Preserve [issued versions](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
+Inventory/dispensing requires an explicit new business contract.
 
 ## 19. API Contract
 
-Base:
+Base: `/api/v1`. Resource endpoints and explicit domain-command actions expose
+transport DTOs, not persistence records/domain internals.
+Map `api/request` → `application/command` or `application/query` in the controller
+or request's `toCommand()/toQuery()`. Simple path IDs may stay scalar.
+Use cases return `application/response`; controllers add status/envelope only.
+Commands without results may return `void`.
 
-```text
-/api/v1
+### Envelope, errors and pagination
+
+Reuse `shared.web.ApiResponse`, `PageResponse`, `GlobalExceptionHandler` and
+`ApiResponseWriter`. Wire examples:
+
+```json
+{"result":"OK","code":200,"data":{"items":[],"page":1,"size":10,"totalElements":0,"totalPages":0}}
 ```
 
-Prefer resource-oriented endpoints and explicit action endpoints only for true domain commands.
+```json
+{"result":"NG","code":409,"message":"Record was changed by another request"}
+```
 
-Do not expose persistence table shapes directly.
+`code` matches numeric HTTP status; `result` is OK/NG; null message/data are omitted.
+No separate public string error code, field-error list or trace ID exists.
+`ConcurrentUpdateException.errorCode()` is internal. New wire fields require an
+explicit contract change. Failed business commands never return HTTP 200.
 
-HTTP/API DTOs are transport contracts, not domain entities.
+| Category | Current exception / handler | Status |
+|---|---|---|
+| Structural/malformed input | Bean Validation, malformed JSON/type, IllegalArgumentException | 400 |
+| Authentication | ApplicationException.Type.UNAUTHENTICATED | 401 |
+| Forbidden | ApplicationException.Type.ACCESS_DENIED, AccessDeniedException | 403 |
+| Not found | ResourceNotFoundException | 404 |
+| Unsupported method | HttpRequestMethodNotSupportedException | 405 |
+| Identity conflict | DuplicateKeyException | 409 |
+| Business rule | BusinessRuleException, module DomainException subclasses | 409 |
+| Lost update | ConcurrentUpdateException | 409 |
+| Rate limit | ApplicationException.Type.RATE_LIMITED | 429 |
+| Dependency unavailable | ApplicationException.Type.DEPENDENCY_UNAVAILABLE | 503 |
+| Unexpected failure | Central fallback | 500 |
 
-Structured input belongs in `api/request`, then maps to `application/command` or
-`application/query`. Simple path IDs may remain scalar parameters. Use cases return
-payload DTOs from `application/response`; controllers use those directly and add
-only HTTP status and the shared envelope. No domain-to-response mapping belongs in
-controllers. Commands with no result may return `void`.
+`shared.exception.ApplicationException` covers typed input/auth/access/rate/
+dependency failures, not all exceptions. Reuse existing failure types; new domain
+failures SHOULD use `<Rule>Exception` in `domain/exception` with the module base.
+Keep safe public messages and causes internal. Errors use Cache-Control: no-store;
+positive retry delays use Retry-After.
 
-Use consistent pagination, validation, and error shapes.
-
-Never return HTTP 200 for failed business commands.
-
----
+Lists reuse `shared.constants.PaginationConstants`: page starts at 1 (default 1),
+size defaults to 10 (max 100), sortBy ASC/DESC (default ASC), sortKey defaults to id.
+Allowlist each endpoint's sort/search fields and stable tie-breaker.
+`PageResponse`: items, page, size, totalElements, totalPages; empty → zero pages.
+HTTP DTOs own bounds/defaults; supported non-HTTP callers use one validated
+application contract.
 
 ## 20. Application Services / Use Cases
 
-Application services coordinate work; they do not become giant domain-script classes.
+New operations use `application/usecase/<Verb><Concept>UseCase` with one public
+`execute`. Published facades delegate to focused use cases. Collaborators belong
+outside `usecase`, in an existing application service package as needed.
+The formerly misplaced `BatchDraftEditor` is not a naming precedent. Source work
+in progress has removed its file while some tests still reference it; see
+[code follow-ups](docs/maintenance/code-follow-ups.md) before treating old examples as current.
 
-They may:
-
-```text
-load aggregates
-check permissions
-invoke domain behavior
-save through ports
-publish events
-coordinate modules through public contracts
-own transaction scope
-```
-
-They should not:
-
-```text
-contain SQL
-directly manipulate another module's tables
-duplicate aggregate invariants
-format print HTML
-parse arbitrary HTTP concerns
-```
+Use cases load, authorize, invoke domain behavior, persist through ports, coordinate
+published contracts and own transactions. No SQL, foreign-table manipulation,
+duplicated invariants, HTTP parsing or print-HTML formatting.
 
 ### Application comments and Javadoc
 
-For new or changed application use cases, write concise English class Javadoc
-stating the business operation. Document each public use-case entry point and
-published application contract with its behavior, `@param` for every parameter,
-`@return` for a non-void result, and `@throws` for caller-actionable failures.
-When implementing a documented interface, inherit its contract and document only
-implementation-specific guarantees; do not copy the same Javadoc twice.
+New/changed use cases have concise English class Javadoc naming the operation.
+Public entry points/published contracts document behavior, every @param, non-void
+@return and caller-actionable @throws. Inherit documented interface contracts;
+add only implementation-specific guarantees.
 
-Describe relevant guarantees: required caller authorization, resource scope,
-atomic writes/audit, expected-version conflicts, retry/idempotency behavior and
-external side effects. Document only guarantees actually enforced by the current
-flow. A caller-provided actor ID alone is not proof of authorization. A method
-return inside an enclosing transaction does not guarantee that transaction committed.
-
-Use short inline comments for non-obvious reasons, such as why confirmed retries
-precede version checks, why reviewed day assignments stay frozen, or why an audit
-failure must roll back writes. Link the relevant ADR/contract when it explains a
-decision; keep the essential reason beside the code. Improve names/control flow
-before adding a comment that merely paraphrases the next statement.
-
-Private methods, trivial accessors, and command/query/response fields need comments
-only for semantics not evident from their names/types. Update comments with behavior;
-remove obsolete or commented-out code. TODOs must name a concrete missing contract
-or tracked follow-up and must never disguise successful fake behavior.
-
----
+Document only enforced authorization, resource scope, atomic writes/audit,
+expected-version conflicts, idempotency and external effects. Actor IDs do not
+prove permission; return inside a transaction does not prove commit.
+Inline comments explain non-obvious ordering/history/rollback reasons and link
+the relevant contract. Trivial accessors/fields need comments only for hidden
+semantics. Update comments with behavior; TODOs name a concrete missing contract
+or tracked follow-up and never disguise fake success.
 
 ## 21. Transaction Rules
 
-Use `@Transactional` on application methods that represent atomic use cases.
-
-Keep transactions as short as practical.
-
-Do not hold a DB transaction open while calling slow external services unless explicitly required.
-
-Use outbox/event patterns for reliable post-commit integration.
-
-Do not place `@Transactional` on controllers.
-
----
+Atomic application methods use `@Transactional`, never controllers. Keep scope
+bounded; slow external calls need an explicit reason to occur inside a DB
+transaction. Required audit shares the business transaction. Durable external
+effects use outbox/post-commit dispatch.
 
 ## 22. Concurrency
 
-Use explicit optimistic concurrency where required.
-
-For PostgreSQL `row_version` tables:
-
-- read current version;
-- update with version predicate or equivalent mapper contract;
-- detect zero-row update;
-- return a conflict rather than silently overwrite.
-
-Never implement last-write-wins for sensitive clinical/financial edits without an explicit rule.
-
----
+Required mutable writes compare expected row_version, increment on success and
+detect zero-row updates as conflicts. No silent overwrite of sensitive clinical/
+financial changes. Update predicates and public expected-version fields agree.
 
 ## 23. Idempotency
 
-Use idempotency for commands/callbacks where retries or double clicks can create duplicates.
-
-Important examples:
-
-```text
-Encounter creation
-payment callback
-integration inbound message
-bulk print job creation where duplicate jobs matter
-notification dispatch
-```
-
-Use `idempotency_keys` where consistent with the schema.
-
----
+Preserve required idempotency for duplicate-sensitive creation, payment callbacks,
+inbound integration, print jobs and notification dispatch. Use `idempotency_keys`
+where the schema contract supports it; do not infer a public workflow from storage.
 
 ## 24. Outbox and External Integration
 
-For reliable external side effects:
-
-```text
-business transaction
-+
-outbox record
-COMMIT
-+
-async/scheduled dispatcher
-```
-
-External integration adapters belong to `integration` or the owning infrastructure layer.
-
-External codes must use documented mapping tables/contracts.
-
-Never embed vendor-specific codes throughout domain logic.
-
----
+Business changes and required outbox rows commit together; leased/idempotent
+dispatch follows commit. Adapters live in integration or owning infrastructure.
+Vendor codes stay behind documented mapping contracts, outside domain logic.
 
 ## 25. Security / RBAC
 
-Authorization is enforced by backend.
-
-Frontend role visibility is never sufficient authorization.
-
-Use explicit permissions rather than scattering role-name checks when permissions are defined by the domain.
-
-Protect:
-
-```text
-patient search/read
-clinical edit/finalize
-billing/payment actions
-corporate data
-admin/configuration
-audit access
-```
-
-Principle of least privilege applies.
-
----
+[API/security](docs/architecture/05-api-and-security.md#authentication-and-authorization)
+owns current policy and profile behavior. Backend authorization is mandatory;
+frontend visibility and actor IDs grant no permission. Use explicit defined
+permissions for patient, clinical, billing, corporate, admin and audit access.
+Production omits local/test profiles. Mixed-profile handling and the existing
+controller actor fallback need code fixes in
+[the follow-up list](docs/maintenance/code-follow-ups.md).
 
 ## 26. Audit
 
-Sensitive mutation paths must produce audit records according to project requirements.
-
-Audit should capture enough context to answer:
-
-```text
-who
-what
-when
-which record
-which action
-relevant before/after metadata when appropriate
-```
-
-Do not put secret/token material or unnecessarily complete clinical payloads in audit logs.
-
----
+Use audit::recording and append-only audit_events. Required sensitive mutations
+capture account actor, action, resource type/ID, occurredAt and concise safe
+metadata, including relevant before/after values. Audit failure rolls back business
+writes. No secrets/tokens or unnecessary complete clinical payloads.
 
 ## 27. Logging
 
-Controllers and application use cases use `@Slf4j` and parameterized logs with
-stable English event descriptions and named fields. Application owns meaningful
-use-case events; controllers add only useful HTTP context. Keep domain objects,
-DTOs and pure converters free of operational logging. A logger annotation does
-not require entry/exit logs on every method.
+Controllers/use cases use @Slf4j and parameterized English events with named
+fields. Application owns operation events; HTTP adds useful request context.
+Domain, DTOs and pure converters have no operational logging. No compulsory
+entry/exit log for every method.
 
 | Level | Use |
 |---|---|
-| DEBUG | Useful read/request diagnostics, expected validation/conflicts and idempotent replays; omit routine noise. |
-| INFO | Meaningful mutation milestones, summarized once per operation. |
-| WARN | Recoverable dependency/degraded behavior or security signals that need attention. |
-| ERROR | Unexpected failure requiring investigation, at the boundary that handles it. |
+| DEBUG | Useful reads, validation/conflicts and idempotent replays |
+| INFO | Meaningful mutation milestone, summarized once |
+| WARN | Recoverable degradation or actionable security signal |
+| ERROR | Unexpected failure, once at the handling boundary |
 
-Log only allowlisted operational fields needed for diagnosis: internal resource
-IDs, existing correlation ID, counts, durations, versions, and safe outcome/error
-codes. IDs are still sensitive metadata; log only those needed. Never serialize
-request/response/command/query/domain objects, raw search text, uploaded rows,
-filenames, names, contact details, CCCD, clinical content, credentials, session
-cookies, tokens or payment secrets. Parameterized placeholders do not sanitize
-values. Reuse validated correlation context when available rather than generating
-a new ID per layer or passing logging-only parameters through domain contracts.
+Allowlist only needed internal IDs, existing correlation ID, counts, durations,
+versions and safe outcome codes. IDs remain sensitive metadata. Placeholders
+do not sanitize. Never serialize request/response/command/query/domain objects,
+raw search text, rows, filenames, names, contact details, CCCD, clinical content,
+credentials, cookies, tokens or payment secrets.
+Reuse validated correlation context; avoid new logging-only domain parameters.
 
-Inside a transaction, describe a completed step explicitly as pending commit,
-for example `Organization insert executed; commit pending: organizationId={}`.
-Do not report committed/succeeded merely because a repository call returned.
-If committed-outcome logging is required, emit it only after confirmed commit;
-do not add an event/outbox framework solely for a log statement. Logs are not
-the audit trail; required business audit still commits with business writes.
-
-Unexpected failures are logged once by the handling HTTP/job/integration boundary.
-Intermediate methods propagate or translate while preserving the cause; do not
-catch, log and rethrow at every layer. Expected validation/conflict outcomes do
-not need ERROR stack traces. Raw exception messages, SQL-driver details and nested
-causes can contain healthcare data: use safe codes/context in operational logs
-and only include diagnostics whose redaction and access controls are established.
-Preserve the original cause internally even when it cannot safely be logged.
-
-For bulk imports, log a bounded summary such as job ID, accepted/rejected counts
-and elapsed time, not one INFO line per participant. Use existing logging and
-correlation facilities; avoid generic logging wrappers or timing AOP without a
-demonstrated need. Test redaction or event behavior when it is a requirement;
-do not snapshot ordinary log wording or require a logger test for every use case.
-
----
+Inside transactions use pending-commit wording, e.g.
+`Organization insert executed; commit pending: organizationId={}`.
+Committed-success logs require confirmed commit. Logs do not replace audit;
+do not add an event framework just for logging.
+Propagate/translate preserving causes; avoid repeated catch/log/rethrow.
+Expected conflicts need no ERROR stack trace. Raw causes and SQL messages may
+contain health data; only established redacted/access-controlled diagnostics may
+be logged. Bulk work logs bounded summaries, not per-participant INFO.
+Test required redaction/event behavior, not ordinary wording for every use case.
 
 ## 28. Secrets and Configuration
 
-Use profile/config separation:
-
-```text
-application.yml
-application-local.yml
-application-test.yml
-environment variables / secret store
-```
-
-Do not commit real:
-
-```text
-DB passwords
-JWT secrets
-SMS credentials
-payment credentials
-integration API keys
-```
-
-Do not include secrets in test snapshots or logs.
-
----
+Environment/approved secret storage owns real DB/JWT/SMS/payment/integration
+credentials. Never commit them or include them in snapshots/logs.
+Use existing profile configuration; production omits local/test. See
+[deployment](docs/architecture/06-testing-and-operations.md#deployment).
 
 ## 29. Validation
 
-Use Bean Validation for transport-level structural validation.
-
-Business validation belongs in domain/application rules.
-
-Examples:
-
-```text
-@NotBlank fullName           transport/basic
-subset of batch services     domain invariant
-payment authorization        business rule
-```
-
-Do not duplicate the same business rule in controller, application service, and domain object.
-
----
+Bean Validation owns HTTP structure; domain/application owns business
+preconditions. Keep each rule at its owner, with required DB constraints.
+Do not duplicate rules across controller, application and aggregate.
 
 ## 30. Search
 
-Do not add Elasticsearch for MVP.
-
-Use PostgreSQL indexes and well-designed queries first.
-
-Patient search must follow requirement-defined fields and authorization.
-
-Search endpoints need pagination and bounded result sizes.
-
-Do not implement `%keyword%` scans over large tables without reviewing indexes/query plan.
-
----
+Use PostgreSQL and requirement-defined authorized fields for MVP; no Elasticsearch.
+Bound/paginate results and review indexes/query plans before large wildcard scans.
 
 ## 31. Performance
 
-Optimize measured bottlenecks, but prevent obvious problems:
-
-- no N+1 mapper loops;
-- no unbounded list endpoints;
-- batch Excel import writes;
-- server-side pagination;
-- proper indexes;
-- avoid loading full clinical history when a summary/read model is enough;
-- avoid giant transactions;
-- use projection/read models for operational screens where appropriate.
-
-Do not introduce Redis/search brokers merely for hypothetical future scale.
-
----
+Use bounded projections/pagination, justified indexes and supported bulk SQL.
+Avoid N+1 loops, full histories for summary screens and giant transactions.
+Add caches/search brokers only for measured needs.
 
 ## 32. Testing Rules
 
-### Unit
+Domain invariants run without Spring. Application/API tests verify observable
+orchestration, validation, access, statuses, envelope/serialization and exposed
+idempotency. PostgreSQL 18 Testcontainers prove real MyBatis/Flyway/constraints/
+transactions; H2, mocks and schema text tests cannot prove SQL/rollback.
+Spring Modulith verifies inventory, published interfaces and layer separation.
 
-Test pure domain invariants without Spring when possible.
-
-### Application
-
-Test use-case orchestration and transactional behavior.
-
-### Persistence
-
-Use PostgreSQL 18 Testcontainers for MyBatis integration tests.
-
-Never use H2 as proof that PostgreSQL SQL is correct.
-
-### Module
-
-Use Spring Modulith:
-
-```java
-ApplicationModules.of(NgocKhanhClinicBackendApplication.class).verify();
-```
-
-Add module integration tests for important boundaries.
-
-### API
-
-Test:
-
-```text
-validation
-authorization
-status codes
-error contract
-serialization
-idempotency where exposed
-```
-
----
+Test classes: `<Subject>Test` or `<Subject>IntegrationTest`; new methods SHOULD use
+lowerCamelCase behaviors (e.g. rejectsStaleVersionBeforeMutation). Preserve unrelated
+test names. Existing checks include ModuleVerificationTest,
+PersistenceRecordContractTest, CleanSlateMigrationContractTest,
+HealthExaminationApiSurfaceTest and GlobalExceptionHandlerTest.
+These prove their assertions, not universal policy compliance.
 
 ## 33. Test Data
 
-Use builders/fixtures under test code.
-
-Production runtime must not depend on fake data.
-
-Developer seed data must be clearly isolated and must never execute in production accidentally.
-
-Never use real patient data in automated tests.
-
----
+Test fixtures/builders use synthetic data under test code. Runtime never depends
+on fake data. Developer seeds are isolated from production; no real patient data
+in automated tests.
 
 ## 34. Code Quality
 
-Avoid:
+Keep orchestration readable: load/check → domain → persist/audit → response,
+with required ordering/transactions intact. Extract real responsibilities;
+required repository/external ports remain valid with one implementation.
+Generic base CRUD/services/pass-through layers need a concrete benefit.
+Use the configured formatter; keep unrelated cleanup/type migrations separate.
+Tests assert observable outcomes and failures; mocks do not prove commit/SQL.
 
-```text
-God service classes
-generic BaseService CRUD hierarchies
-generic repository abstractions with no domain meaning
-reflection-heavy magic
-deep inheritance
-static mutable state
-catch-all exceptions
-boolean parameter explosions
-massive switch statements for domain workflows when a clearer model exists
-```
-
-Prefer cohesive, explicit code.
-
-Extract shared implementation for a real repeated concept; introduce boundary
-ports when the architecture requires them, even with one current implementation.
-
-### Readability and change scope
-
-- Keep a use case readable as orchestration: load/check, invoke domain behavior,
-  persist/audit, map its result. Preserve business-required ordering and transaction
-  scope; extract a method only when its name captures a cohesive operation.
-- Prefer guard clauses, descriptive names and straightforward loops when they
-  clarify branching or mutation. Use streams for clear transformations, not hidden
-  persistence calls or state changes. Line count alone is not a quality target.
-- Introduce abstractions for a real responsibility or boundary. Domain repository
-  ports and external-system ports remain valid with one implementation; generic
-  service interfaces, base classes and pass-through layers need a concrete benefit.
-- Keep validation at its owning boundary; required database constraints and
-  authorization checks are not redundant merely because the frontend also checks.
-- Use the existing formatter/import conventions. Remove dead code introduced by
-  the current change; keep unrelated cleanup and broad type migrations separate.
-- Make tests assert observable outcomes, invariants and meaningful failure paths.
-  A unit test with mocks cannot prove commit/rollback, SQL or concurrency behavior;
-  use the documented integration tests for those guarantees.
-
-Outside domain, prefer Lombok `@RequiredArgsConstructor` for final dependencies and
-Lombok for useful DTO boilerplate. Existing Java records do not need redundant
-constructors. Avoid generated `toString()` on sensitive DTOs. Domain may use Lombok
-but must preserve invariant-enforcing constructors, factories, and business methods.
+Outside domain prefer Lombok @RequiredArgsConstructor for final dependencies and
+useful DTO boilerplate. Avoid generated sensitive toString. Domain may use Lombok
+only while preserving invariant-enforcing factories/constructors/business methods.
 
 ### DTO construction
 
-For new or changed DTOs, prefer Lombok `@Builder` and construct instances with
-`DtoType.builder().field(value).build()` rather than direct `new DtoType(...)`
-calls. Apply this preference to request, response, command/query and integration
-DTOs, including test fixtures. Preserve required-value validation, defaults,
-defensive copies and serialization/deserialization contracts.
-
-Keep an existing constructor or factory when it is required by a framework or
-enforces validation/invariants that a builder would bypass. Existing Java records
-may remain records; apply `@Builder` when changing their construction without
-converting them to classes solely for this rule. Migrate affected construction
-sites within the current change; keep unrelated DTO migrations separate.
+For new/changed DTOs prefer Lombok @Builder, including fixtures, while preserving
+required-value validation, defaults, defensive copies and serialization.
+Builders alone do not validate completeness. Required response/read values SHOULD
+be checked in constructors/factories. HTTP validation stays at its owner; do not
+copy constraints into commands merely to compensate for a builder.
+Keep framework-required/invariant constructors/factories. Existing records stay
+records; do not convert solely for builders. Migrate only affected call sites.
 
 ### Agent workflow
 
-Before editing, identify the owning module, active contract, supported callers and
-observable acceptance criteria. Read the relevant architecture sections instead
-of loading unrelated documents or invoking every available skill. Reuse current
-capabilities before proposing dependencies, frameworks or new files; the file
-creation restriction in section 9 still applies.
-
-Preserve existing worktree changes. Keep each diff tied to the requested outcome,
-including comments and documentation. Treat existing code as evidence, not authority
-over accepted contracts. Report conflicts with exact sources and stop only the
-dependent business change; continue independent authorized work.
-
-Review the final diff against the acceptance criteria, use the verification rules
-in section 36, and report commands actually run plus failures/skips. Record lasting
-rules in their owning document and link to them elsewhere instead of copying whole
-policies. Plans/reviews describe work and evidence; they do not silently supersede
-accepted ADRs or current business contracts.
+[AGENTS.md](AGENTS.md#source-of-truth-and-workflow) owns lookup and workflow.
+Preserve existing worktree changes. Stop only changes dependent on an unresolved
+contract; continue independent authorized work. Record lasting rules once and link
+elsewhere. Plans/reviews/templates never silently supersede accepted contracts.
 
 ### Java types and collections
 
-Use wrapper types rather than primitive declarations in new or changed Java code:
-`Integer` for `int`, `Long` for `long`, `Short` for `short`, `Byte` for `byte`,
-`Double` for `double`, `Float` for `float`, `Boolean` for `boolean`, and
-`Character` for `char`. This applies to fields, record components, parameters,
-return values and local variables in production code and corresponding tests.
-Keep domain-specific value objects and `BigDecimal` for money.
+Use wrappers for nullable values, including nullable DTO/record fields and SQL
+columns. Use primitives for local counters/flags and required non-null scalar
+values when compatible with the owning transport/persistence/framework contract.
+Keep domain value objects and BigDecimal for money. Do not migrate declarations
+unrelated to the task.
 
-Required values remain required, including SQL `NOT NULL` columns. Use `@NotNull`
-on required HTTP wrapper fields; numeric bounds alone do not reject null. Keep
-domain/application preconditions at their existing owning boundary. Resolve null
-before unboxing, arithmetic, ordering or boolean conditions. Use `equals` or
-`Objects.equals` for wrapper value comparisons; never use `==`/`!=` between
-wrappers. Use `Boolean.TRUE.equals(value)` only when null legitimately means false.
+Required wrapper HTTP fields need @NotNull; numeric bounds alone permit null.
+Resolve null before unboxing/arithmetic/order/boolean conditions. Compare wrappers
+by equals/Objects.equals, never reference ==/!=. Boolean.TRUE.equals is appropriate
+only when null legitimately means false. A type change updates callers, MyBatis,
+null/equality behavior and affected record assertions together.
 
-Declare ordered business collections as `List<T>` and use `new ArrayList<>()`
-for mutable storage, for example `List<Integer> rowNumbers = new ArrayList<>();`.
-Do not use `int[]`, `long[]`, `Integer[]`, `String[]` or other arrays to represent
-business lists. Use `List.of`, `List.copyOf` or `Stream.toList` for immutable
-results; copy into an `ArrayList` before mutation. Preserve defensive copies and
-existing mutability contracts. Keep `Set` for uniqueness and `Map` for keyed lookup.
-Do not replace single-element scalar arrays with single-element lists: use
-wrapper fields on the owning listener/state object instead. Atomic types require
-an actual concurrency need, not merely a lambda capture workaround.
-
-Technical exceptions are limited to Java/JDK/library contracts that require a
-primitive or array: overridden signatures, annotation elements and their
-compile-time primitive constants, the JVM entry point, and binary/crypto/I/O
-buffers or PostgreSQL `bytea` (`byte[]`). Confine unavoidable arrays such as
-`String.split` results to the adapter operation; expose business lists as `List<T>`.
-Primitive literals, casts and unavoidable unboxing at these boundaries are valid.
-Explain non-obvious exceptions locally; do not blanket-exempt infrastructure or tests.
-
-Apply this rule when adding or changing declarations. Existing primitive/list-array
-declarations are migration debt, not approved examples. A type migration must
-update callers, equality/null behavior, MyBatis contracts and affected tests
-together, including schema-record type assertions. Do not perform an unrelated
-repository-wide replacement as part of a focused change.
-
----
+Ordered business collections use List<T>, ArrayList for mutation and List.of/
+List.copyOf/Stream.toList for immutable results. Preserve defensive copies and
+mutability. Set expresses uniqueness; Map expresses keyed lookup. Arrays remain
+appropriate for JDK/framework contracts, annotations, JVM entry point and binary/
+crypto/I/O/bytea buffers; confine incidental arrays to adapters.
+Use listener/state fields for captured scalars and atomic types only for actual
+concurrency.
 
 ## 35. ADR Policy
 
-Create an ADR for long-lived decisions such as:
-
-```text
-module boundary changes
-core stack changes
-auth/token strategy
-transaction/event strategy
-outbox strategy
-document rendering architecture
-file storage architecture
-integration strategy
-major database identity changes
-```
-
-Do not create ADRs for routine implementation details.
-
----
+ADRs cover lasting module/stack/auth/transaction/outbox/document-rendering/
+storage/integration/database-identity decisions. Routine extraction needs no ADR.
 
 ## 36. Definition of Done
 
-Before completion:
+Runtime/build changes run the wrapper (verify includes test):
 
-```text
-./mvnw test
+```powershell
+.\mvnw.cmd verify
+```
+
+```bash
 ./mvnw verify
 ```
 
-And when applicable:
+Run applicable PostgreSQL/Redis integration, module, security and migration
+startup checks. Clean stale target output after source/XML removal or movement.
+Report failures and unavailable Docker/Redis/skips; never claim unrun checks passed.
 
-```text
-PostgreSQL Testcontainers integration tests
-Spring Modulith verification
-security tests
-migration startup test
-```
+Documentation/skill/ignore/line-ending-policy changes without runtime/build edits
+verify local links/anchors, skill resources, contract consistency and git diffs.
+A line-ending policy change does not authorize repository-wide renormalization.
+Completion requires no missing migration/public-contract documentation, broken
+module boundary, UI-only invariant or introduced secret/fake production behavior.
 
-The task is not done if:
+## 37. Implementation References
 
-- required tests fail;
-- a migration is missing;
-- a public contract changed without documentation;
-- an invariant exists only in UI;
-- module boundaries are violated;
-- secrets/mock production behavior were introduced.
-
----
-
-## 37. Implementation Order
-
-For a new backend, prefer:
-
-```text
-1. Foundation/config
-2. PostgreSQL 18 + Flyway
-3. global errors/security/audit primitives
-4. Patient
-5. Catalog
-6. Encounter
-7. Clinical
-8. Billing/Order Round
-9. Diagnostics
-10. Health Check
-11. Documents/printing
-12. Prescription
-13. Notification
-14. External integration
-```
-
-Use `healthexamination` as the reference for package structure, request/command/query/response boundaries, use cases, domain repository ports, and MyBatis adapters. Apply project rules and accepted ADRs when reusing a pattern; existing code is not an exception to those rules.
-
----
+For new endpoints/use cases, read
+[nkc-backend-use-case](.agents/skills/nkc-backend-use-case/SKILL.md) and its
+[source reference index](.agents/skills/nkc-backend-use-case/references/organization-flow.md).
+Current organization code supplies concrete vocabulary/contracts, not blanket
+approval. Recheck types/equality, DTOs, validation, Javadoc, logging, authorization
+and transaction/audit claims. Never copy a local/test actor fallback into new flows.
 
 ## Final Principle
 
-Business correctness and data traceability are more important than reducing the number of classes or writing fewer SQL statements.
-
-Prefer explicit DDD boundaries, reliable PostgreSQL constraints, auditable clinical/financial history, and testable use cases over framework shortcuts.
+Preserve business correctness, traceability, explicit ownership, PostgreSQL
+constraints and auditable history. Class/statement counts are not correctness.

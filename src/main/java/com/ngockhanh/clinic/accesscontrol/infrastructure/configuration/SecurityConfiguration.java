@@ -9,8 +9,7 @@ import com.ngockhanh.clinic.accesscontrol.infrastructure.security.OriginCheckFil
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.SessionCookieAuthenticationFilter;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.UserPasswordEncoder;
 import jakarta.servlet.DispatcherType;
-import java.time.Clock;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,12 +20,14 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * HTTP security: stateless session-cookie authentication, Origin checks for state-changing requests
- * (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints without a rule in {@link
- * EndpointPermissions} are denied.
+ * HTTP security: stateless session-cookie authentication, CORS and Origin checks for
+ * state-changing requests (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints
+ * without a rule in {@link EndpointPermissions} are denied.
  */
 @Configuration
 @EnableWebSecurity
@@ -39,10 +40,20 @@ public class SecurityConfiguration {
       AccessControlProperties properties,
       AuthenticateSessionUseCase authenticateSession,
       JsonSecurityErrorHandler errors) {
+    var corsConfiguration = new CorsConfiguration();
+    corsConfiguration.setAllowedOrigins(properties.allowedOrigins());
+    corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
+    corsConfiguration.setAllowedHeaders(List.of("Accept", "Content-Type", "Idempotency-Key"));
+    corsConfiguration.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
+    corsConfiguration.setAllowCredentials(true);
+    var corsConfigurationSource = new UrlBasedCorsConfigurationSource();
+    corsConfigurationSource.registerCorsConfiguration("/api/**", corsConfiguration);
+
     var originCheck = new OriginCheckFilter(properties.allowedOrigins(), errors);
     var sessionAuthentication =
         new SessionCookieAuthenticationFilter(authenticateSession, properties.cookieName(), errors);
-    http.csrf(csrf -> csrf.disable())
+    http.cors(cors -> cors.configurationSource(corsConfigurationSource))
+        .csrf(csrf -> csrf.disable())
         .formLogin(form -> form.disable())
         .httpBasic(basic -> basic.disable())
         .logout(logout -> logout.disable())
@@ -86,11 +97,5 @@ public class SecurityConfiguration {
   @Bean
   SessionCookieFactory sessionCookieFactory(AccessControlProperties properties) {
     return new SessionCookieFactory(properties.cookieName(), properties.cookieSecure());
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
-  Clock clock() {
-    return Clock.systemUTC();
   }
 }

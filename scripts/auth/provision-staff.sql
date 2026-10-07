@@ -20,7 +20,7 @@ INSERT INTO public.accounts (id, account_type, staff_member_id, status, username
 SELECT $1, 'STAFF', s.id, 'ACTIVE', $3, $4
 FROM public.staff_members s WHERE s.id = $2 AND s.status = 'ACTIVE';
 
--- Roles and their permissions are seeded by V002 (ADR-0015); look up $2 with
+-- Roles and their permissions are seeded by V004 (ADR-0015); look up $2 with
 -- SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'.
 -- $1 staff account; $2 existing active role; $3 granting account.
 -- Grants use the (account_id, role_id) primary key, with no location/time scopes.

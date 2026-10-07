@@ -33,3 +33,8 @@ build/
 .vscode/
 .mvn
 .m2
+.superpowers/
+
+
+
+.env.prod

@@ -12,6 +12,10 @@ spring:
       timeout: 2s
   application:
     name: ngoc_khanh_clinic_backend
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
   type-handlers-package: com.ngockhanh.clinic.shared.infrastructure.mybatis

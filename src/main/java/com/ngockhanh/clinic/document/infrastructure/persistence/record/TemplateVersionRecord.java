@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.template_versions}. */
+@Builder
 public record TemplateVersionRecord(
     UUID id,
     UUID templateId,

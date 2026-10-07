@@ -17,7 +17,7 @@ actor may perform each action.
 
 ### Seed
 
-- `V002__seed_access_control_roles_and_permissions.sql` seeds the whole matrix:
+- `V004__seed_access_control_roles_and_permissions.sql` seeds the whole matrix:
   seven roles (`PATIENT`, `RECEPTIONIST`, `GENERAL_PRACTITIONER`,
   `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
   one permission per matrix row and one `role_permissions` row per non-"No" cell.
@@ -27,7 +27,7 @@ actor may perform each action.
   may use them, so their routes are `permitAll` or `authenticated`.
 - A "Restricted n" cell grants the permission. The use case enforces footnote n
   (scope, state) when it is implemented.
-- The seed creates no accounts. Matrix changes require a new migration; V002 is
+- The seed creates no accounts. Matrix changes require a new migration; V004 is
   never edited.
 
 ### Enforcement

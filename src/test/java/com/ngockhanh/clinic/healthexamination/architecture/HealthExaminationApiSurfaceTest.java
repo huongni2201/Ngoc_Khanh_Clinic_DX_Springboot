@@ -19,11 +19,19 @@ class HealthExaminationApiSurfaceTest {
 
   private static final Set<String> ALLOWED_MAPPINGS =
       Set.of(
+          "GET /api/v1/organizations",
           "GET /api/v1/organizations/{organizationId}",
           "POST /api/v1/organizations",
           "PUT /api/v1/organizations/{organizationId}",
+          "DELETE /api/v1/organizations/{organizationId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches");
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
+          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
+          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template",
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports");
 
   private static final Set<String> REMOVED_MAPPINGS =
       Set.of(
@@ -33,12 +41,7 @@ class HealthExaminationApiSurfaceTest {
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/rows",
           "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/preview",
           "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/confirm",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel",
-          "GET /api/v1/organizations",
-          "DELETE /api/v1/organizations/{organizationId}",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants");
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel");
 
   @Test
   void healthExaminationMappingsStayWithinTheApprovedUseCases() {
@@ -56,6 +59,8 @@ class HealthExaminationApiSurfaceTest {
 
     return scanner.findCandidateComponents(MODULE_PACKAGE).stream()
         .map(candidate -> ClassUtils.resolveClassName(candidate.getBeanClassName(), classLoader))
+        // Count only top-level production controllers in the published API surface.
+        .filter(controllerType -> !controllerType.isMemberClass())
         .flatMap(
             controllerType ->
                 java.util.Arrays.stream(controllerType.getDeclaredMethods())

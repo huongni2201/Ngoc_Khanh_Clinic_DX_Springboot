@@ -16,10 +16,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.ApplicationContext;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -63,6 +65,7 @@ class AuthIntegrationTest {
   @Autowired PasswordEncoder passwords;
   @Autowired StringRedisTemplate redis;
   @Autowired SessionStore sessions;
+  @Autowired ApplicationContext context;
 
   UUID accountId;
   String username;
@@ -122,6 +125,14 @@ class AuthIntegrationTest {
         Integer.class,
         accountId,
         action);
+  }
+
+  @Test
+  void productionContextHasNoDefaultUserOrLoginPage() throws Exception {
+    assertThat(context.getBeansOfType(UserDetailsService.class)).isEmpty();
+    mvc.perform(get("/login")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/auth/me").header("Authorization", "Basic dXNlcjpwYXNzd29yZA=="))
+        .andExpect(status().isUnauthorized());
   }
 
   @Test

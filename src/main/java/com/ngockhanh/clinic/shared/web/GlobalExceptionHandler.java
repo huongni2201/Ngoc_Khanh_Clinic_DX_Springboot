@@ -3,8 +3,11 @@ package com.ngockhanh.clinic.shared.web;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
+import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
+import com.ngockhanh.clinic.shared.exception.UnsupportedFileTypeException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.CacheControl;
@@ -12,11 +15,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 @Slf4j
@@ -38,6 +46,37 @@ public class GlobalExceptionHandler {
   })
   ResponseEntity<ApiResponse<Void>> malformedRequest(RuntimeException exception) {
     return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  }
+
+  @ExceptionHandler({ServletRequestBindingException.class, MissingServletRequestPartException.class})
+  ResponseEntity<ApiResponse<Void>> missingRequestInput(Exception exception) {
+    return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  }
+
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  ResponseEntity<ApiResponse<Void>> uploadTooLarge(MaxUploadSizeExceededException exception) {
+    return error(HttpStatus.CONTENT_TOO_LARGE, "Upload exceeds the permitted size");
+  }
+
+  @ExceptionHandler(MultipartException.class)
+  ResponseEntity<ApiResponse<Void>> malformedMultipart(MultipartException exception) {
+    return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  }
+
+  @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+  ResponseEntity<ApiResponse<Void>> unsupportedMediaType(
+      HttpMediaTypeNotSupportedException exception) {
+    return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported request content type");
+  }
+
+  @ExceptionHandler(UnsupportedFileTypeException.class)
+  ResponseEntity<ApiResponse<Void>> unsupportedFile(UnsupportedFileTypeException exception) {
+    return error(HttpStatus.UNSUPPORTED_MEDIA_TYPE, exception.getMessage());
+  }
+
+  @ExceptionHandler(ConflictException.class)
+  ResponseEntity<ApiResponse<Void>> conflict(ConflictException exception) {
+    return error(HttpStatus.CONFLICT, exception.getMessage());
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

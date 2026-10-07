@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.catalog.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.departments}. */
+@Builder
 public record DepartmentRecord(
     UUID id,
     String code,

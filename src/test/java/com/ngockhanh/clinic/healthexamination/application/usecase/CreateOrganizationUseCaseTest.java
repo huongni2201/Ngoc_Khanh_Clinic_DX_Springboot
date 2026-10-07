@@ -11,24 +11,20 @@ import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganiza
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.json.JsonMapper;
 
 class CreateOrganizationUseCaseTest {
-  private CreateOrganizationCommand command(String code, String taxCode) {
+  private CreateOrganizationCommand command(String taxCode) {
     return CreateOrganizationCommand.builder()
-        .code(code)
         .name("School")
-        .organizationType("SCHOOL")
         .taxCode(taxCode)
         .phone("0901")
         .email("school@example.test")
         .address("Address")
         .contactFullName("Contact")
-        .contactPosition(null)
         .contactPhone("0902")
         .contactEmail("contact@example.test")
         .build();
@@ -39,17 +35,20 @@ class CreateOrganizationUseCaseTest {
     var repo = mock(OrganizationRepository.class);
     var audit = mock(AuditWriter.class);
     UUID actor = UUID.randomUUID();
-    var result = new CreateOrganizationUseCase(repo, audit).execute(command("S1", null), actor);
+    var result = new CreateOrganizationUseCase(repo, audit).execute(command(null), actor);
     var captured = ArgumentCaptor.forClass(Organization.class);
     verify(repo).save(captured.capture());
-    assertThat(result.code()).isEqualTo("S1");
-    assertThat(result.organizationType()).isEqualTo("SCHOOL");
     assertThat(result.phone()).isEqualTo("0901");
     assertThat(result.contactPhone()).isEqualTo("0902");
     assertThat(result.taxCode()).isNull();
     verify(audit)
         .record(
-            actor, "CREATE_ORGANIZATION", "ORGANIZATION", result.id(), null, Map.of("code", "S1"));
+            actor,
+            "CREATE_ORGANIZATION",
+            "ORGANIZATION",
+            result.id(),
+            null,
+            java.util.Collections.singletonMap("taxCode", null));
   }
 
   @Test
@@ -61,7 +60,7 @@ class CreateOrganizationUseCaseTest {
     var writer = new MyBatisAuditWriter(mapper, json);
     UUID actor = UUID.randomUUID();
 
-    var result = new CreateOrganizationUseCase(repo, writer).execute(command("S1", null), actor);
+    var result = new CreateOrganizationUseCase(repo, writer).execute(command("TAX-01"), actor);
 
     var event = ArgumentCaptor.forClass(AuditEventRecord.class);
     verify(mapper).insert(event.capture());
@@ -76,7 +75,7 @@ class CreateOrganizationUseCaseTest {
     assertThat(recorded.id().version()).isEqualTo(7);
     var metadata = json.readTree(recorded.metadata());
     assertThat(metadata.get("before").isEmpty()).isTrue();
-    assertThat(metadata.get("after").get("code").asString()).isEqualTo("S1");
+    assertThat(metadata.get("after").get("taxCode").asString()).isEqualTo("TAX-01");
     assertThat(metadata.get("after").size()).isEqualTo(1);
   }
 
@@ -90,40 +89,89 @@ class CreateOrganizationUseCaseTest {
     assertThatThrownBy(
             () ->
                 new CreateOrganizationUseCase(repo, writer)
-                    .execute(command("S1", null), UUID.randomUUID()))
+                    .execute(command("TAX-01"), UUID.randomUUID()))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("Audit not saved");
   }
 
   @Test
-  void rejectsDuplicateOrganizationCode() {
+  void rejectsDuplicateTaxCode() {
     var repo = mock(OrganizationRepository.class);
     var audit = mock(AuditWriter.class);
-    when(repo.existsByCode("S1", null)).thenReturn(true);
+    when(repo.existsByTaxCode("TAX-01", null)).thenReturn(true);
     assertThatThrownBy(
             () ->
                 new CreateOrganizationUseCase(repo, audit)
-                    .execute(command("S1", null), UUID.randomUUID()))
+                    .execute(command("TAX-01"), UUID.randomUUID()))
         .isInstanceOf(DuplicateOrganizationIdentity.class);
     verify(repo, never()).save(any());
     verifyNoInteractions(audit);
   }
 
   @Test
-  void allowsTheSameTaxCodeForDifferentOrganizations() {
+  void allowsOrganizationsWithoutTaxCodes() {
     var repo = mock(OrganizationRepository.class);
     var audit = mock(AuditWriter.class);
-    when(repo.existsByCode(anyString(), isNull())).thenReturn(false);
     var create = new CreateOrganizationUseCase(repo, audit);
     UUID actor = UUID.randomUUID();
 
-    var first = create.execute(command("S1", "SHARED-TAX"), actor);
-    var second = create.execute(command("S2", "SHARED-TAX"), actor);
+    var first = create.execute(command(null), actor);
+    var second = create.execute(command(null), actor);
 
-    assertThat(first.taxCode()).isEqualTo("SHARED-TAX");
-    assertThat(second.taxCode()).isEqualTo("SHARED-TAX");
+    assertThat(first.taxCode()).isNull();
+    assertThat(second.taxCode()).isNull();
     verify(repo, times(2)).save(any());
     verify(audit, times(2))
         .record(eq(actor), eq("CREATE_ORGANIZATION"), any(), any(), isNull(), any());
+  }
+
+  @Test
+  void rejectsNullCommandAndNullActor() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    var create = new CreateOrganizationUseCase(repo, audit);
+
+    assertThatThrownBy(() -> create.execute(null, UUID.randomUUID()))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> create.execute(command(null), null))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(repo, audit);
+  }
+
+  @Test
+  void createsActiveOrganizationAtVersionZero() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+
+    var result =
+        new CreateOrganizationUseCase(repo, audit).execute(command(null), UUID.randomUUID());
+
+    assertThat(result.status()).isEqualTo("ACTIVE");
+    assertThat(result.rowVersion()).isZero();
+    assertThat(result.id()).isNotNull();
+  }
+
+  @Test
+  void invalidDetailsAreRejectedWithoutWriteOrAudit() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+    var create = new CreateOrganizationUseCase(repo, audit);
+    UUID actor = UUID.randomUUID();
+
+    assertThatThrownBy(() -> create.execute(command("T".repeat(51)), actor))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(repo, never()).save(any());
+    verifyNoInteractions(audit);
+  }
+
+  @Test
+  void blankTaxCodeBecomesNull() {
+    var repo = mock(OrganizationRepository.class);
+    var audit = mock(AuditWriter.class);
+
+    var result =
+        new CreateOrganizationUseCase(repo, audit).execute(command("   "), UUID.randomUUID());
+
+    assertThat(result.taxCode()).isNull();
   }
 }

@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.accesscontrol.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
@@ -8,6 +9,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -22,24 +24,36 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
+import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import jakarta.servlet.http.Cookie;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@WebMvcTest(controllers = {AuthController.class, AuthWebMvcTest.BusinessEndpoint.class})
-@Import({SecurityConfiguration.class, AuthWebMvcTest.BusinessEndpoint.class})
+@WebMvcTest(
+    controllers = {AuthController.class, AuthWebMvcTest.BusinessEndpoint.class},
+    excludeAutoConfiguration = UserDetailsServiceAutoConfiguration.class)
+@Import({
+  SecurityConfiguration.class,
+  ClockConfiguration.class,
+  AuthWebMvcTest.BusinessEndpoint.class
+})
 @TestPropertySource(
     properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
 class AuthWebMvcTest {
@@ -47,6 +61,7 @@ class AuthWebMvcTest {
   private static final String ORIGIN = "https://app.test";
 
   @Autowired MockMvc mvc;
+  @Autowired ApplicationContext context;
   @MockitoBean LoginUseCase login;
   @MockitoBean LogoutUseCase logout;
   @MockitoBean AuthenticateSessionUseCase authenticate;
@@ -84,6 +99,20 @@ class AuthWebMvcTest {
   }
 
   @Test
+  void securityAndSharedConfigurationProvideOneUtcClock() {
+    assertThat(context.getBeansOfType(Clock.class)).hasSize(1);
+    assertThat(context.getBean(Clock.class).getZone()).isEqualTo(ZoneOffset.UTC);
+  }
+
+  @Test
+  void defaultUserAndFormLoginAreUnavailable() throws Exception {
+    assertThat(context.getBeansOfType(UserDetailsService.class)).isEmpty();
+    mvc.perform(get("/login")).andExpect(status().isUnauthorized());
+    mvc.perform(get("/api/v1/auth/me").header("Authorization", "Basic dXNlcjpwYXNzd29yZA=="))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void loginSetsOnlyAnOpaqueSessionCookie() throws Exception {
     when(login.execute(any()))
         .thenReturn(
@@ -98,6 +127,13 @@ class AuthWebMvcTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\" staff \",\"password\":\" secret \"}"))
         .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN))
+        .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+        .andExpect(
+            header()
+                .string(
+                    "Access-Control-Expose-Headers",
+                    allOf(containsString("Content-Disposition"), containsString("Retry-After"))))
         .andExpect(jsonPath("$.data.principalType").value("STAFF"))
         .andExpect(jsonPath("$.data.sessionId").doesNotExist())
         .andExpect(
@@ -117,6 +153,20 @@ class AuthWebMvcTest {
             argThat(
                 command ->
                     command.username().equals(" staff ") && command.password().equals(" secret ")));
+  }
+
+  @Test
+  void loginPreflightAllowsConfiguredOriginAndCredentials() throws Exception {
+    mvc.perform(
+            options("/api/v1/auth/login")
+                .header("Origin", ORIGIN)
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "content-type"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Access-Control-Allow-Origin", ORIGIN))
+        .andExpect(header().string("Access-Control-Allow-Credentials", "true"))
+        .andExpect(header().string("Access-Control-Allow-Methods", containsString("POST")))
+        .andExpect(header().string("Access-Control-Allow-Headers", containsString("content-type")));
   }
 
   @Test
