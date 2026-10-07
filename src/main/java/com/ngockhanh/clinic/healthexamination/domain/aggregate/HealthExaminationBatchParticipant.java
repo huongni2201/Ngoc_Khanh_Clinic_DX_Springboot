@@ -1,6 +1,9 @@
 package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ReconciliationStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.exception.ServiceOutsideBatchScope;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -14,24 +17,7 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 
 @Getter
-@Accessors(fluent = true)
-public final class HealthExaminationBatchParticipant {
-  public enum RosterStatus {
-    ACTIVE,
-    CANCELLED
-  }
-
-  public enum AttendanceStatus {
-    UNCONFIRMED,
-    ATTENDED,
-    ABSENT
-  }
-
-  public enum ReconciliationStatus {
-    PENDING,
-    RECONCILED
-  }
-
+public class HealthExaminationBatchParticipant {
   public record Roster(
       String participantCode,
       String fullName,
@@ -42,13 +28,16 @@ public final class HealthExaminationBatchParticipant {
       String email,
       String departmentName,
       String positionName) {
+    /** Accepted values of the participant's sex. */
+    public static final List<String> SEX_VALUES = List.of("MALE", "FEMALE", "OTHER", "UNKNOWN");
+
     public Roster {
       if (fullName == null
           || fullName.isBlank()
           || fullName.length() > 200
           || dateOfBirth == null
           || sex == null
-          || !List.of("MALE", "FEMALE", "OTHER", "UNKNOWN").contains(sex)
+          || !SEX_VALUES.contains(sex)
           || identificationNumber == null
           || departmentName == null
           || departmentName.isBlank()
@@ -75,7 +64,7 @@ public final class HealthExaminationBatchParticipant {
   private final AggregateId id;
   private final AggregateId batchId;
   private AggregateId batchDayId;
-  private final Roster roster;
+  private Roster roster;
   private AggregateId patientId;
   private RosterStatus rosterStatus;
   private AttendanceStatus attendanceStatus;
@@ -228,6 +217,44 @@ public final class HealthExaminationBatchParticipant {
     attendanceRecordedBy = actor;
     attendanceRecordedAt = at;
     attendanceNote = note;
+  }
+
+  /**
+   * Replaces the roster details of an active Participant. Attendance, reconciliation and the
+   * Patient link are untouched.
+   *
+   * @throws DomainRuleViolation when the Participant is cancelled, or the identification number
+   *     changes after the Participant was linked to a Patient
+   * @throws IllegalArgumentException when the roster is missing
+   */
+  public void updateRoster(Roster next) {
+    requireActive();
+    if (next == null) throw new IllegalArgumentException("Roster is required");
+    if (patientId != null && !roster.identificationNumber().equals(next.identificationNumber()))
+      throw new DomainRuleViolation("Identification number is locked after visit preparation");
+    roster = next;
+  }
+
+  /**
+   * Cancels an active Participant. Nothing but the roster status changes; the row, its provenance
+   * and its history are kept.
+   *
+   * @throws DomainRuleViolation when the Participant is already cancelled, was prepared for a
+   *     visit, has attended, or has its services reconciled
+   */
+  public void cancel() {
+    requireActive();
+    if (preparedAt != null
+        || attendanceStatus == AttendanceStatus.ATTENDED
+        || reconciliationStatus == ReconciliationStatus.RECONCILED)
+      throw new DomainRuleViolation(
+          "Participant cannot be cancelled after preparation or attendance");
+    rosterStatus = RosterStatus.CANCELLED;
+  }
+
+  /** Whether the Participant was added by hand rather than created by an Excel import. */
+  public boolean isManual() {
+    return importJobId == null;
   }
 
   public void moveToDay(AggregateId day) {

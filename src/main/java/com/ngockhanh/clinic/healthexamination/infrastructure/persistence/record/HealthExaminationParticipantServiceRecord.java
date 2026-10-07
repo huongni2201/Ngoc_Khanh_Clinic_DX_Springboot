@@ -3,8 +3,10 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** A row in public.health_examination_participant_services. */
+@Builder
 public record HealthExaminationParticipantServiceRecord(
     UUID id,
     UUID batchId,

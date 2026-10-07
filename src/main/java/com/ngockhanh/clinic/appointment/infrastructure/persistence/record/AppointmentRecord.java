@@ -2,8 +2,10 @@ package com.ngockhanh.clinic.appointment.infrastructure.persistence.record;
 
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Builder;
 
 /** Persistence row of {@code public.appointments}. */
+@Builder
 public record AppointmentRecord(
     UUID id,
     UUID patientId,

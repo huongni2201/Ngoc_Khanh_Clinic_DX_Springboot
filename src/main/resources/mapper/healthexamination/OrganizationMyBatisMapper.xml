@@ -1,9 +1,30 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.OrganizationMyBatisMapper">
- <sql id="columns">id,code,name,organization_type,tax_code,phone,email,address,contact_full_name,contact_position,contact_phone,contact_email,status,created_at,updated_at,row_version</sql>
+ <sql id="columns">id,name,tax_code,phone,email,address,contact_full_name,contact_phone,contact_email,status,created_at,updated_at,row_version</sql>
  <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.OrganizationRecord">SELECT <include refid="columns"/> FROM public.organizations WHERE id=#{id}</select>
- <select id="existsByCode" resultType="boolean">SELECT EXISTS(SELECT 1 FROM public.organizations WHERE code=#{code} <if test="excludedId != null">AND id!=#{excludedId}</if>)</select>
- <insert id="insert">INSERT INTO public.organizations(id,code,name,organization_type,tax_code,phone,email,address,contact_full_name,contact_position,contact_phone,contact_email,status) VALUES (#{id},#{code},#{name},#{organizationType},#{taxCode},#{phone},#{email},#{address},#{contactFullName},#{contactPosition},#{contactPhone},#{contactEmail},#{status})</insert>
- <update id="update">UPDATE public.organizations SET code=#{organization.code},name=#{organization.name},organization_type=#{organization.organizationType},tax_code=#{organization.taxCode},phone=#{organization.phone},email=#{organization.email},address=#{organization.address},contact_full_name=#{organization.contactFullName},contact_position=#{organization.contactPosition},contact_phone=#{organization.contactPhone},contact_email=#{organization.contactEmail},status=#{organization.status},updated_at=CURRENT_TIMESTAMP,row_version=row_version+1 WHERE id=#{organization.id} AND row_version=#{expectedRowVersion}</update>
+ <select id="existsByTaxCode" resultType="boolean">SELECT EXISTS(SELECT 1 FROM public.organizations WHERE tax_code=#{taxCode} <if test="excludedId != null">AND id!=#{excludedId}</if>)</select>
+ <insert id="insert">INSERT INTO public.organizations(id,name,tax_code,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES (#{id},#{name},#{taxCode},#{phone},#{email},#{address},#{contactFullName},#{contactPhone},#{contactEmail},#{status})</insert>
+ <update id="update">UPDATE public.organizations SET name=#{organization.name},tax_code=#{organization.taxCode},phone=#{organization.phone},email=#{organization.email},address=#{organization.address},contact_full_name=#{organization.contactFullName},contact_phone=#{organization.contactPhone},contact_email=#{organization.contactEmail},status=#{organization.status},updated_at=CURRENT_TIMESTAMP,row_version=row_version+1 WHERE id=#{organization.id} AND row_version=#{expectedRowVersion}</update>
+ <sql id="searchPredicate">
+  <where>
+   status=#{status}
+   <if test="pattern != null">AND (tax_code ILIKE #{pattern} ESCAPE '\' OR name ILIKE #{pattern} ESCAPE '\')</if>
+  </where>
+ </sql>
+ <select id="search" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.OrganizationRecord">
+  SELECT <include refid="columns"/> FROM public.organizations
+  <include refid="searchPredicate"/>
+  ORDER BY
+  <choose>
+   <when test="sortKey == 'taxCode' and sortBy == 'DESC'">tax_code DESC, id DESC</when>
+   <when test="sortKey == 'taxCode'">tax_code ASC, id ASC</when>
+   <when test="sortKey == 'name' and sortBy == 'DESC'">name DESC, id DESC</when>
+   <when test="sortKey == 'name'">name ASC, id ASC</when>
+   <when test="sortBy == 'DESC'">id DESC</when>
+   <otherwise>id ASC</otherwise>
+  </choose>
+  LIMIT #{limit} OFFSET #{offset}
+ </select>
+ <select id="count" resultType="long">SELECT COUNT(*) FROM public.organizations <include refid="searchPredicate"/></select>
 </mapper>

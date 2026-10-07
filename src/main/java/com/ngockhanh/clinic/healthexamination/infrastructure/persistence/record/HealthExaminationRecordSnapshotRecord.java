@@ -3,8 +3,10 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import lombok.Builder;
 
 /** A row in public.health_examination_record_snapshots. */
+@Builder
 public record HealthExaminationRecordSnapshotRecord(
     UUID id,
     UUID healthExaminationRecordId,

@@ -8,8 +8,7 @@ import com.ngockhanh.clinic.accesscontrol.infrastructure.security.OriginCheckFil
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.SessionCookieAuthenticationFilter;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.UserPasswordEncoder;
 import jakarta.servlet.DispatcherType;
-import java.time.Clock;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,20 +16,35 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * HTTP security: stateless session-cookie authentication, Origin checks for state-changing requests
- * and the default access rules (ADR-0014). Per-endpoint permission rules are added here with {@code
- * hasAuthority("PERM_<code>")}.
+ * HTTP security: stateless session-cookie authentication, CORS and Origin checks for state-changing
+ * requests, and the default access rules (ADR-0014). Per-endpoint permission rules are added here
+ * with {@code hasAuthority("PERM_<code>")}.
  */
 @Configuration
 @EnableWebSecurity
 @EnableConfigurationProperties(AccessControlProperties.class)
 public class SecurityConfiguration {
+  private static final String PARTICIPANTS_PATH =
+      "/api/v1/organizations/*/health-examination-batches/*/participants";
+
+  /** A staff account that also holds the given permission; checked before the controller runs. */
+  private static AuthorizationManager<RequestAuthorizationContext> staffWith(String permission) {
+    return AuthorizationManagers.allOf(
+        AuthorityAuthorizationManager.<RequestAuthorizationContext>hasAuthority("ACCOUNT_STAFF"),
+        AuthorityAuthorizationManager.<RequestAuthorizationContext>hasAuthority(permission));
+  }
 
   @Bean
   SecurityFilterChain securityFilterChain(
@@ -38,10 +52,20 @@ public class SecurityConfiguration {
       AccessControlProperties properties,
       AuthenticateSessionUseCase authenticateSession,
       JsonSecurityErrorHandler errors) {
+    var corsConfiguration = new CorsConfiguration();
+    corsConfiguration.setAllowedOrigins(properties.allowedOrigins());
+    corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
+    corsConfiguration.setAllowedHeaders(List.of("Accept", "Content-Type", "Idempotency-Key"));
+    corsConfiguration.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
+    corsConfiguration.setAllowCredentials(true);
+    var corsConfigurationSource = new UrlBasedCorsConfigurationSource();
+    corsConfigurationSource.registerCorsConfiguration("/api/**", corsConfiguration);
+
     var originCheck = new OriginCheckFilter(properties.allowedOrigins(), errors);
     var sessionAuthentication =
         new SessionCookieAuthenticationFilter(authenticateSession, properties.cookieName(), errors);
-    http.csrf(csrf -> csrf.disable())
+    http.cors(cors -> cors.configurationSource(corsConfigurationSource))
+        .csrf(csrf -> csrf.disable())
         .formLogin(form -> form.disable())
         .httpBasic(basic -> basic.disable())
         .logout(logout -> logout.disable())
@@ -61,6 +85,12 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
                     .authenticated()
+                    .requestMatchers(HttpMethod.GET, PARTICIPANTS_PATH)
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_READ"))
+                    .requestMatchers(HttpMethod.GET, PARTICIPANTS_PATH + "/import-template")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_READ"))
+                    .requestMatchers(HttpMethod.POST, PARTICIPANTS_PATH + "/imports")
+                    .access(staffWith("PERM_HEALTH_EXAMINATION_PARTICIPANT_IMPORT"))
                     .requestMatchers("/api/v1/**")
                     .hasAuthority("ACCOUNT_STAFF")
                     .anyRequest()
@@ -86,11 +116,5 @@ public class SecurityConfiguration {
   @Bean
   SessionCookieFactory sessionCookieFactory(AccessControlProperties properties) {
     return new SessionCookieFactory(properties.cookieName(), properties.cookieSecure());
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
-  Clock clock() {
-    return Clock.systemUTC();
   }
 }

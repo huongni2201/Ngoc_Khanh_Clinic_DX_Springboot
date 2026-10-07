@@ -15,4 +15,15 @@ public class MyBatisServiceCatalogQuery implements ServiceCatalogQuery {
     if (ids.isEmpty()) return List.of();
     return mapper.findByIds(ids);
   }
+
+  @Override
+  public List<ServiceItem> findActivePage(
+      String pattern, long offset, int limit, String sortKey, String sortBy) {
+    return mapper.findActivePage(pattern, offset, limit, sortKey, sortBy);
+  }
+
+  @Override
+  public long countActive(String pattern) {
+    return mapper.countActive(pattern);
+  }
 }

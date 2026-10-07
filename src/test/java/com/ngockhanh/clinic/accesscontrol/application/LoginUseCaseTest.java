@@ -19,7 +19,9 @@ import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
 import com.ngockhanh.clinic.accesscontrol.application.response.LoginResult;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.entity.UserAccount;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.StaffMemberStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleGrant;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
@@ -57,7 +59,7 @@ class LoginUseCaseTest {
           new SessionPolicy(Duration.ofMinutes(30), Duration.ofHours(8)),
           Clock.fixed(now, ZoneOffset.UTC));
 
-  private UserAccount staff(String status) {
+  private UserAccount staff(AccountStatus status) {
     return new UserAccount(
         accountId,
         AccountType.STAFF,
@@ -65,7 +67,7 @@ class LoginUseCaseTest {
         HASH,
         status,
         UUID.randomUUID(),
-        "ACTIVE",
+        StaffMemberStatus.ACTIVE,
         null,
         List.of(new RoleGrant(UUID.randomUUID(), "DOCTOR", List.of("ORGANIZATION_READ"))));
   }
@@ -81,7 +83,7 @@ class LoginUseCaseTest {
 
   @Test
   void successAuditsBeforeStoringSessionAndReturnsPrincipal() {
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("ACTIVE")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.ACTIVE)));
 
     LoginResult result = login.execute(command(PASSWORD, null));
 
@@ -107,10 +109,10 @@ class LoginUseCaseTest {
     when(accounts.findByUsername("staff")).thenReturn(Optional.empty());
     String unknown = failureMessage(command(PASSWORD, null));
 
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("ACTIVE")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.ACTIVE)));
     String wrongPassword = failureMessage(command("wrong", null));
 
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("DISABLED")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.DISABLED)));
     String inactive = failureMessage(command(PASSWORD, null));
 
     assertThat(unknown).isEqualTo(wrongPassword).isEqualTo(inactive);
@@ -119,28 +121,28 @@ class LoginUseCaseTest {
 
   @Test
   void failedSignInOfExistingAccountIsAuditedWithTheAccountAsActor() {
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("ACTIVE")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.ACTIVE)));
     failureMessage(command("wrong", null));
     verify(audit).record(accountId, "ACCOUNT_LOGIN_FAILED", now, correlation);
   }
 
   @Test
   void vietnamesePasswordLongerThan72BytesIsAnInvalidSignIn() {
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("ACTIVE")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.ACTIVE)));
     assertThatThrownBy(() -> login.execute(command("ậA".repeat(19), null)))
         .isInstanceOf(AuthenticationFailure.class);
   }
 
   @Test
   void previousBrowserSessionIsEndedBeforeSignIn() {
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("ACTIVE")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.ACTIVE)));
     login.execute(command(PASSWORD, "old-session"));
     verify(sessions).delete("old-session");
   }
 
   @Test
   void auditFailurePreventsSessionCreation() {
-    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff("ACTIVE")));
+    when(accounts.findByUsername("staff")).thenReturn(Optional.of(staff(AccountStatus.ACTIVE)));
     doThrow(new IllegalStateException("Audit not saved"))
         .when(audit)
         .record(accountId, "ACCOUNT_LOGIN", now, correlation);
@@ -161,7 +163,7 @@ class LoginUseCaseTest {
                     AccountType.PATIENT,
                     "staff",
                     HASH,
-                    "ACTIVE",
+                    AccountStatus.ACTIVE,
                     null,
                     null,
                     patientId,

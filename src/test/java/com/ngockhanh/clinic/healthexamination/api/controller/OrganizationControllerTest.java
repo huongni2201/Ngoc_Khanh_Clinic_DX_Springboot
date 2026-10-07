@@ -5,7 +5,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -15,14 +17,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.api.request.UpdateOrganizationRequest;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.DeleteOrganizationCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.ListOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.CreateOrganizationUseCase;
-import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteOrganizationUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizationByIdUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.ListOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
+import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.web.ApiResponseWriter;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
+import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -41,18 +49,26 @@ import tools.jackson.databind.json.JsonMapper;
 class OrganizationControllerTest {
 
   private CreateOrganizationUseCase createOrganizationUseCase;
-  private GetOrganizationUseCase getOrganizationUseCase;
+  private GetOrganizationByIdUseCase getOrganizationUseCase;
   private UpdateOrganizationUseCase updateOrganizationUseCase;
+  private ListOrganizationUseCase listOrganizationUseCase;
+  private DeleteOrganizationUseCase deleteOrganizationUseCase;
   private OrganizationController controller;
 
   @BeforeEach
   void setUp() {
     createOrganizationUseCase = mock(CreateOrganizationUseCase.class);
-    getOrganizationUseCase = mock(GetOrganizationUseCase.class);
+    getOrganizationUseCase = mock(GetOrganizationByIdUseCase.class);
     updateOrganizationUseCase = mock(UpdateOrganizationUseCase.class);
+    listOrganizationUseCase = mock(ListOrganizationUseCase.class);
+    deleteOrganizationUseCase = mock(DeleteOrganizationUseCase.class);
     controller =
         new OrganizationController(
-            createOrganizationUseCase, getOrganizationUseCase, updateOrganizationUseCase);
+            createOrganizationUseCase,
+            getOrganizationUseCase,
+            updateOrganizationUseCase,
+            listOrganizationUseCase,
+            deleteOrganizationUseCase);
   }
 
   @Test
@@ -67,7 +83,6 @@ class OrganizationControllerTest {
             .address("123 Street")
             .contactFullName("Nguyen Van A")
             .contactPhone("0901234567")
-            .contactPosition("Manager")
             .status("ACTIVE")
             .build();
 
@@ -94,12 +109,18 @@ class OrganizationControllerTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       """
-                      {"code":"C1","name":"Clinic Corp","organizationType":"COMPANY","taxCode":"TAX-01","phone":"0901","email":"org@example.test","address":"123 Street","contactFullName":"Nguyen Van A","contactPosition":"Manager","contactPhone":"0901234567","contactEmail":"contact@example.test"}
+                      {"name":"Clinic Corp","taxCode":"TAX-01","phone":"0901","email":"org@example.test","address":"123 Street","contactFullName":"Nguyen Van A","contactPhone":"0901234567","contactEmail":"contact@example.test"}
                       """))
           .andExpect(status().isCreated())
           .andExpect(jsonPath("$.code").value(HttpStatus.CREATED.value()))
           .andExpect(jsonPath("$.message").value("Organization created"))
-          .andExpect(jsonPath("$.data.id").value(orgId.toString()));
+          .andExpect(jsonPath("$.data.id").value(orgId.toString()))
+          .andExpect(
+              result -> assertOrganizationDataHasNoCode(result.getResponse().getContentAsString()))
+          .andExpect(
+              result ->
+                  assertThat(result.getResponse().getContentAsString())
+                      .doesNotContain("\"organizationType\"", "\"contactPosition\""));
     } finally {
       SecurityContextHolder.clearContext();
     }
@@ -113,7 +134,6 @@ class OrganizationControllerTest {
     assertThat(captured.address()).isEqualTo("123 Street");
     assertThat(captured.contactFullName()).isEqualTo("Nguyen Van A");
     assertThat(captured.contactPhone()).isEqualTo("0901234567");
-    assertThat(captured.contactPosition()).isEqualTo("Manager");
   }
 
   @Test
@@ -178,8 +198,6 @@ class OrganizationControllerTest {
     UUID orgId = UUID.randomUUID();
     UpdateOrganizationRequest request =
         UpdateOrganizationRequest.builder()
-            .code("C1")
-            .organizationType("COMPANY")
             .phone("0901")
             .email("org@example.test")
             .contactEmail("contact@example.test")
@@ -189,7 +207,6 @@ class OrganizationControllerTest {
             .address("456 Avenue")
             .contactFullName("Tran Van B")
             .contactPhone("0987654321")
-            .contactPosition("Director")
             .build();
 
     OrganizationResponse expectedResponse =
@@ -200,7 +217,6 @@ class OrganizationControllerTest {
             .address("456 Avenue")
             .contactFullName("Tran Van B")
             .contactPhone("0987654321")
-            .contactPosition("Director")
             .status("ACTIVE")
             .build();
 
@@ -219,12 +235,18 @@ class OrganizationControllerTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       """
-                      {"code":"C1","name":"Clinic Corp New","organizationType":"COMPANY","taxCode":"TAX-02","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPosition":"Director","contactPhone":"0987654321","contactEmail":"contact@example.test","rowVersion":3}
+                      {"name":"Clinic Corp New","taxCode":"TAX-02","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPhone":"0987654321","contactEmail":"contact@example.test","rowVersion":3}
                       """))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.code").value(HttpStatus.OK.value()))
           .andExpect(jsonPath("$.message").value("Organization updated"))
-          .andExpect(jsonPath("$.data.id").value(orgId.toString()));
+          .andExpect(jsonPath("$.data.id").value(orgId.toString()))
+          .andExpect(
+              result -> assertOrganizationDataHasNoCode(result.getResponse().getContentAsString()))
+          .andExpect(
+              result ->
+                  assertThat(result.getResponse().getContentAsString())
+                      .doesNotContain("\"organizationType\"", "\"contactPosition\""));
     } finally {
       SecurityContextHolder.clearContext();
     }
@@ -239,7 +261,6 @@ class OrganizationControllerTest {
     assertThat(captured.address()).isEqualTo("456 Avenue");
     assertThat(captured.contactFullName()).isEqualTo("Tran Van B");
     assertThat(captured.contactPhone()).isEqualTo("0987654321");
-    assertThat(captured.contactPosition()).isEqualTo("Director");
   }
 
   @Test
@@ -255,7 +276,7 @@ class OrganizationControllerTest {
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       """
-                      {"code":"C1","name":"Clinic Corp New","organizationType":"COMPANY","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPhone":"0987654321","contactEmail":"contact@example.test"}
+                      {"name":"Clinic Corp New","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPhone":"0987654321","contactEmail":"contact@example.test"}
                       """))
           .andExpect(status().isBadRequest())
           .andExpect(jsonPath("$.result").value("NG"));
@@ -263,6 +284,239 @@ class OrganizationControllerTest {
       SecurityContextHolder.clearContext();
     }
     org.mockito.Mockito.verifyNoInteractions(updateOrganizationUseCase);
+  }
+
+  @Test
+  void createRejectsInvalidEmailBeforeTheUseCase() throws Exception {
+    withPrincipal(
+        UUID.randomUUID(),
+        () ->
+            mvc()
+                .perform(
+                    post("/api/v1/organizations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {"name":"Clinic Corp","phone":"0901","email":"not-an-email","address":"123 Street","contactFullName":"Nguyen Van A","contactPhone":"0901234567","contactEmail":"contact@example.test"}
+                            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.result").value("NG")));
+    verifyNoInteractions(createOrganizationUseCase);
+  }
+
+  @Test
+  void getRejectsMalformedUuid() throws Exception {
+    mvc()
+        .perform(get("/api/v1/organizations/{organizationId}", "not-a-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.result").value("NG"));
+    verifyNoInteractions(getOrganizationUseCase);
+  }
+
+  @Test
+  void updateRejectsNegativeRowVersion() throws Exception {
+    withPrincipal(
+        UUID.randomUUID(),
+        () ->
+            mvc()
+                .perform(
+                    put("/api/v1/organizations/{organizationId}", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {"name":"Clinic Corp","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPhone":"0987654321","contactEmail":"contact@example.test","rowVersion":-1}
+                            """))
+                .andExpect(status().isBadRequest()));
+    verifyNoInteractions(updateOrganizationUseCase);
+  }
+
+  @Test
+  void updateMapsStaleVersionToConflict() throws Exception {
+    UUID actorId = UUID.randomUUID();
+    when(updateOrganizationUseCase.execute(
+            any(UUID.class), any(UpdateOrganizationCommand.class), eq(actorId)))
+        .thenThrow(new ConcurrentUpdateException());
+
+    withPrincipal(
+        actorId,
+        () ->
+            mvc()
+                .perform(
+                    put("/api/v1/organizations/{organizationId}", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                            """
+                            {"name":"Clinic Corp","phone":"0901","email":"org@example.test","address":"456 Avenue","contactFullName":"Tran Van B","contactPhone":"0987654321","contactEmail":"contact@example.test","rowVersion":1}
+                            """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(HttpStatus.CONFLICT.value())));
+  }
+
+  @Test
+  void listUsesDefaultsAndReturnsPageEnvelope() throws Exception {
+    UUID orgId = UUID.randomUUID();
+    when(listOrganizationUseCase.execute(any(ListOrganizationCommand.class)))
+        .thenReturn(
+            PageResponse.<OrganizationResponse>builder()
+                .items(
+                    List.of(
+                        OrganizationResponse.builder()
+                            .id(orgId)
+                            .name("Clinic Corp")
+                            .status("ACTIVE")
+                            .build()))
+                .page(1)
+                .size(10)
+                .totalElements(1)
+                .totalPages(1)
+                .build());
+
+    mvc()
+        .perform(get("/api/v1/organizations"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.code").value(HttpStatus.OK.value()))
+        .andExpect(jsonPath("$.data.items[0].id").value(orgId.toString()))
+        .andExpect(jsonPath("$.data.page").value(1))
+        .andExpect(jsonPath("$.data.size").value(10))
+        .andExpect(jsonPath("$.data.totalElements").value(1))
+        .andExpect(jsonPath("$.data.totalPages").value(1));
+
+    ArgumentCaptor<ListOrganizationCommand> captor =
+        ArgumentCaptor.forClass(ListOrganizationCommand.class);
+    verify(listOrganizationUseCase).execute(captor.capture());
+    assertThat(captor.getValue().page()).isEqualTo(1);
+    assertThat(captor.getValue().size()).isEqualTo(10);
+    assertThat(captor.getValue().sortKey()).isEqualTo("id");
+    assertThat(captor.getValue().sortBy()).isEqualTo("ASC");
+    assertThat(captor.getValue().searchKey()).isNull();
+  }
+
+  @Test
+  void listBindsQueryParametersIntoTheCommand() throws Exception {
+    when(listOrganizationUseCase.execute(any(ListOrganizationCommand.class)))
+        .thenReturn(
+            PageResponse.<OrganizationResponse>builder()
+                .items(List.of())
+                .page(2)
+                .size(5)
+                .totalElements(0)
+                .totalPages(0)
+                .build());
+
+    mvc()
+        .perform(
+            get("/api/v1/organizations")
+                .param("page", "2")
+                .param("size", "5")
+                .param("searchKey", "clinic")
+                .param("sortKey", "name")
+                .param("sortBy", "DESC"))
+        .andExpect(status().isOk());
+
+    ArgumentCaptor<ListOrganizationCommand> captor =
+        ArgumentCaptor.forClass(ListOrganizationCommand.class);
+    verify(listOrganizationUseCase).execute(captor.capture());
+    assertThat(captor.getValue())
+        .isEqualTo(new ListOrganizationCommand(2, 5, "clinic", "name", "DESC"));
+  }
+
+  @Test
+  void listRejectsInvalidQueryParametersBeforeTheUseCase() throws Exception {
+    for (var query :
+        List.of("page=0", "size=0", "size=101", "sortKey=status", "sortBy=sideways", "page=abc")) {
+      String[] pair = query.split("=");
+      mvc()
+          .perform(get("/api/v1/organizations").param(pair[0], pair[1]))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.result").value("NG"));
+    }
+    verifyNoInteractions(listOrganizationUseCase);
+  }
+
+  @Test
+  void deleteBindsPrincipalAndVersionAndReturnsEmptyNoContent() throws Exception {
+    UUID orgId = UUID.randomUUID();
+    UUID actorId = UUID.randomUUID();
+
+    withPrincipal(
+        actorId,
+        () ->
+            mvc()
+                .perform(
+                    delete("/api/v1/organizations/{organizationId}", orgId)
+                        .param("rowVersion", "4"))
+                .andExpect(status().isNoContent())
+                .andExpect(
+                    result -> assertThat(result.getResponse().getContentAsString()).isEmpty()));
+
+    verify(deleteOrganizationUseCase)
+        .execute(
+            eq(orgId), eq(DeleteOrganizationCommand.builder().rowVersion(4L).build()), eq(actorId));
+  }
+
+  @Test
+  void deleteRequiresNonNegativeRowVersion() throws Exception {
+    UUID orgId = UUID.randomUUID();
+
+    withPrincipal(
+        UUID.randomUUID(),
+        () -> {
+          mvc()
+              .perform(delete("/api/v1/organizations/{organizationId}", orgId))
+              .andExpect(status().isBadRequest());
+          mvc()
+              .perform(
+                  delete("/api/v1/organizations/{organizationId}", orgId).param("rowVersion", "-1"))
+              .andExpect(status().isBadRequest());
+          mvc()
+              .perform(
+                  delete("/api/v1/organizations/{organizationId}", orgId)
+                      .param("rowVersion", "abc"))
+              .andExpect(status().isBadRequest());
+        });
+    verifyNoInteractions(deleteOrganizationUseCase);
+  }
+
+  @Test
+  void deleteMapsMissingOrganizationAndStaleVersionToCentralResponses() throws Exception {
+    UUID missing = UUID.randomUUID();
+    UUID stale = UUID.randomUUID();
+    org.mockito.Mockito.doThrow(new ResourceNotFoundException("Organization"))
+        .when(deleteOrganizationUseCase)
+        .execute(eq(missing), any(DeleteOrganizationCommand.class), any(UUID.class));
+    org.mockito.Mockito.doThrow(new ConcurrentUpdateException())
+        .when(deleteOrganizationUseCase)
+        .execute(eq(stale), any(DeleteOrganizationCommand.class), any(UUID.class));
+
+    withPrincipal(
+        UUID.randomUUID(),
+        () -> {
+          mvc()
+              .perform(
+                  delete("/api/v1/organizations/{organizationId}", missing)
+                      .param("rowVersion", "0"))
+              .andExpect(status().isNotFound());
+          mvc()
+              .perform(
+                  delete("/api/v1/organizations/{organizationId}", stale).param("rowVersion", "0"))
+              .andExpect(status().isConflict());
+        });
+  }
+
+  @FunctionalInterface
+  private interface ThrowingRunnable {
+    void run() throws Exception;
+  }
+
+  private void withPrincipal(UUID userId, ThrowingRunnable action) throws Exception {
+    SecurityContextHolder.getContext()
+        .setAuthentication(
+            new UsernamePasswordAuthenticationToken(principal(userId), "test", List.of()));
+    try {
+      action.run();
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
   }
 
   private UserPrincipal principal(UUID userId) {
@@ -284,5 +538,10 @@ class OrganizationControllerTest {
         .setControllerAdvice(
             new GlobalExceptionHandler(new ApiResponseWriter(JsonMapper.builder().build())))
         .build();
+  }
+
+  private static void assertOrganizationDataHasNoCode(String responseBody) throws Exception {
+    assertThat(JsonMapper.builder().build().readTree(responseBody).get("data").has("code"))
+        .isFalse();
   }
 }

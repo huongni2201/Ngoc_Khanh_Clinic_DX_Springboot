@@ -5,10 +5,11 @@ import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBat
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.*;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
-public final class HealthExaminationBatch {
+public class HealthExaminationBatch {
   private final AggregateId id;
   private final AggregateId organizationId;
   private String code;
@@ -18,6 +19,7 @@ public final class HealthExaminationBatch {
   private List<HealthExaminationBatchService> services;
   private BatchStatus status;
   private final long rowVersion;
+  private Instant deletedAt;
 
   private HealthExaminationBatch(
       AggregateId id,
@@ -28,13 +30,15 @@ public final class HealthExaminationBatch {
       List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services,
       BatchStatus status,
-      long rowVersion) {
+      long rowVersion,
+      Instant deletedAt) {
     if (id == null || organizationId == null || status == null || rowVersion < 0)
       throw new IllegalArgumentException("Invalid batch");
     this.id = id;
     this.organizationId = organizationId;
     this.status = status;
     this.rowVersion = rowVersion;
+    this.deletedAt = deletedAt;
     configure(code, name, site, days, services);
   }
 
@@ -47,7 +51,7 @@ public final class HealthExaminationBatch {
       List<HealthExaminationBatchDay> days,
       List<HealthExaminationBatchService> services) {
     return new HealthExaminationBatch(
-        id, organizationId, code, name, site, days, services, BatchStatus.DRAFT, 0);
+        id, organizationId, code, name, site, days, services, BatchStatus.DRAFT, 0, null);
   }
 
   public static HealthExaminationBatch restoreConfiguration(
@@ -60,8 +64,23 @@ public final class HealthExaminationBatch {
       List<HealthExaminationBatchService> services,
       BatchStatus status,
       long rowVersion) {
+    return restoreConfiguration(
+        id, organizationId, code, name, site, days, services, status, rowVersion, null);
+  }
+
+  public static HealthExaminationBatch restoreConfiguration(
+      AggregateId id,
+      AggregateId organizationId,
+      String code,
+      String name,
+      ExaminationSite site,
+      List<HealthExaminationBatchDay> days,
+      List<HealthExaminationBatchService> services,
+      BatchStatus status,
+      long rowVersion,
+      Instant deletedAt) {
     return new HealthExaminationBatch(
-        id, organizationId, code, name, site, days, services, status, rowVersion);
+        id, organizationId, code, name, site, days, services, status, rowVersion, deletedAt);
   }
 
   private void configure(
@@ -111,6 +130,56 @@ public final class HealthExaminationBatch {
                 Comparator.comparingInt(HealthExaminationBatchService::displayOrder)
                     .thenComparing(s -> s.id().value()))
             .toList();
+  }
+
+  /**
+   * Replaces the whole configuration of a draft batch.
+   *
+   * <p>The identifier, organization, status and row version are not changed here; the repository
+   * increments the version when the change is stored.
+   *
+   * @throws DomainRuleViolation when the batch is deleted or not a draft, or the services are
+   *     invalid
+   * @throws IllegalArgumentException when the code, name, site or days are invalid
+   */
+  public void updateDraft(
+      String code,
+      String name,
+      ExaminationSite site,
+      List<HealthExaminationBatchDay> days,
+      List<HealthExaminationBatchService> services) {
+    requireDraft();
+    configure(code, name, site, days, services);
+  }
+
+  /**
+   * Marks a draft batch as deleted at the given time. The batch and its history are kept.
+   *
+   * @throws DomainRuleViolation when the batch is already deleted or is not a draft
+   * @throws IllegalArgumentException when the time is missing
+   */
+  public void softDelete(Instant at) {
+    if (at == null) throw new IllegalArgumentException("Deletion time is required");
+    requireDraft();
+    deletedAt = at;
+  }
+
+  /**
+   * Checks that the batch is a draft that has not been deleted.
+   *
+   * @throws DomainRuleViolation otherwise
+   */
+  public void requireDraft() {
+    if (deletedAt != null) throw new DomainRuleViolation("Batch is deleted");
+    if (status != BatchStatus.DRAFT) throw new DomainRuleViolation("Batch is not a draft");
+  }
+
+  /**
+   * Whether new Participants may still be added to the roster: only a batch that is not deleted
+   * and is a draft or ready accepts them.
+   */
+  public boolean acceptsParticipantImport() {
+    return deletedAt == null && (status == BatchStatus.DRAFT || status == BatchStatus.READY);
   }
 
   public void markReady() {
@@ -176,5 +245,14 @@ public final class HealthExaminationBatch {
 
   public long rowVersion() {
     return rowVersion;
+  }
+
+  /** Time the batch was soft-deleted, or {@code null} while it is not deleted. */
+  public Instant deletedAt() {
+    return deletedAt;
+  }
+
+  public boolean isDeleted() {
+    return deletedAt != null;
   }
 }

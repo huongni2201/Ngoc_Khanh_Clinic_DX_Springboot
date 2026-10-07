@@ -25,7 +25,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
             .locations("classpath:db/migration")
             .load();
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
     var jdbc =
         new JdbcTemplate(
             new DriverManagerDataSource(
@@ -41,7 +41,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
             staff);
     UUID organization =
         jdbc.queryForObject(
-            "INSERT INTO public.organizations(code,name,organization_type,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES ('ORG','Test Organization','COMPANY','000','test@example.invalid','Test Address','Test Contact','000','contact@example.invalid','ACTIVE') RETURNING id",
+            "INSERT INTO public.organizations(name,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES ('Test Organization','000','test@example.invalid','Test Address','Test Contact','000','contact@example.invalid','ACTIVE') RETURNING id",
             UUID.class);
     UUID batch = insertBatch(jdbc, organization, account, "B1");
     UUID otherBatch = insertBatch(jdbc, organization, account, "B2");

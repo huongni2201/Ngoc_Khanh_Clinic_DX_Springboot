@@ -31,9 +31,12 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
   depends on the published shared ID generator, without accesscontrol persistence access.
 - Document query contracts expose template lookup without leaking table records.
 
-The Excel roster import contract and its runtime staging adapters were removed
-on 2026-10-05. Integration retains ownership of import tables and schema records
-for historical data; it no longer publishes `integration::imports`. Foreign keys
+The multi-step Excel roster import contract and its staging adapters were removed
+on 2026-10-05. On 2026-10-06 `integration::imports` was restored with a single-step
+contract (`ParticipantImportStore`: idempotency reservation, a VALIDATED job with its rows, then confirmation);
+Integration still owns import tables. The Excel reader and template writer
+(Apache POI) live in `healthexamination` infrastructure, so POI never reaches
+domain or application code. Foreign keys
 preserve relational integrity without granting Java modules cross-context access.
 
 Use direct public application contracts for synchronous coordination, in-process

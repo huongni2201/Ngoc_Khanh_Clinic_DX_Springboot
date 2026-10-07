@@ -7,10 +7,9 @@ create missing modules, and remove surplus modules for the new database.
 
 ## Context
 
-The clean-slate design defines fourteen business contexts and the supporting
-audit context. The Java application currently has twelve business contexts and
-the technical shared module. Appointment persistence belongs to encounter and
-audit contracts and adapters belong to shared.
+The clean-slate design defines fourteen business contexts, supporting audit and
+shared technical code. Each persisted concept needs one owning bounded context
+and deliberate public contracts for cross-module communication.
 
 The owner retained Participant terminology and selected one database with the
 public application schema. SQL schema names do not define Java package names.
@@ -22,12 +21,13 @@ public application schema. SQL schema names do not define Java package names.
   `diagnostics`, `healthexamination`, `document`, `prescription`,
   `notification`, `integration`, `appointment`, `portal`, `audit`, `shared`.
 - Keep `healthexamination`; Java packages do not contain underscores.
-- Add `appointment`, `portal`, and `audit`. Move the existing AppointmentRecord
-  into appointment, and move audit contracts, adapters, mappers, and their XML
-  resources into audit. Declare portal with module metadata until a supported
-  portal use case requires implementation; do not generate empty layer trees.
-- Publish AuthAudit and AuditWriter through `audit::recording`, in
-  `audit.application.port`. Consumers use the public audit recording boundary; the supported authentication/session protocol is described in the current API/security architecture.
+- Appointment owns its persistence; audit owns its contracts, adapters, mappers
+  and XML resources. Portal implementation follows supported release use cases;
+  do not generate empty layer trees.
+- Publish only `AuditWriter` through `audit::recording`, in
+  `audit.application.port`, for business, authentication and session events.
+  Consumers use this public recording boundary; the supported authentication/session
+  protocol is described in the current API/security architecture.
 - Audit may depend on `shared::id-generator`. Shared must not depend on audit or
   contain audit persistence. Retain shared for generic technical contracts.
 - Do not introduce a reporting module. Reports remain queries owned by their
@@ -37,19 +37,16 @@ public application schema. SQL schema names do not define Java package names.
 
 ## Consequences
 
-Implementation update — 2026-10-05: the owner requested one audit contract for
-all flows. `audit::recording` now publishes only `AuditWriter`; it handles business,
-authentication and session events through one persistence adapter and insert method.
-The former authentication-only contract and duplicate mapper/adapter are removed.
+Owner amendment — 2026-10-05: one audit contract handles all flows through one
+persistence adapter and insert method.
 Occurrence time, correlation context, before/after metadata and caller-owned
 transaction/compensation behavior remain specific to each flow.
 
-Consumers, MyBatis namespaces, mapper scan configuration, and tests use the new
-packages. HTTP routes and domain rules do not change in this package migration.
-The audit persistence adapter now writes the clean-slate `audit_events` shape;
+Consumers, MyBatis namespaces, mapper scan configuration, and tests use the owning
+packages. The audit persistence adapter writes the clean-slate `audit_events` shape;
 [ADR-0013](0013-clean-slate-application-contract.md) extends the clean-slate
 contract through the remaining records, SQL, domain, use cases and APIs.
-No database migration is added by this decision.
+This ownership decision requires no database migration.
 
 Adding modules does not claim that all of their database contracts or use cases
 are implemented.
