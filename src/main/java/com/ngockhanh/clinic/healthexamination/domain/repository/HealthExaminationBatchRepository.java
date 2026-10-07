@@ -72,7 +72,7 @@ public interface HealthExaminationBatchRepository {
       String batchName,
       LocalDate startDate,
       LocalDate endDate,
-      String status,
+      BatchStatus status,
       Instant createdAt,
       Instant updatedAt,
       long rowVersion) {}

@@ -11,8 +11,6 @@ import com.ngockhanh.clinic.healthexamination.application.command.DeleteHealthEx
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchConfigurationAssembler;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchDetailResponseMapper;
 import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetHealthExaminationBatchByIdUseCase;
@@ -69,8 +67,6 @@ class HealthExaminationBatchCrudIntegrationTest {
     UpdateHealthExaminationBatchUseCase.class,
     ListHealthExaminationBatchUseCase.class,
     DeleteHealthExaminationBatchUseCase.class,
-    BatchConfigurationAssembler.class,
-    BatchDetailResponseMapper.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisHealthExaminationBatchRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository

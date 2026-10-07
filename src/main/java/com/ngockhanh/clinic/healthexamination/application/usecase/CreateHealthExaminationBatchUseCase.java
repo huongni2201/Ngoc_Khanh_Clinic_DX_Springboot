@@ -1,18 +1,31 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
+import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchConfigurationAssembler;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchDetailResponseMapper;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository.BatchDetails;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.ExaminationSite;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,10 +43,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CreateHealthExaminationBatchUseCase {
+  private static final String CURRENCY = "VND";
+
   private final OrganizationRepository organizations;
   private final HealthExaminationBatchRepository batches;
-  private final BatchConfigurationAssembler assembler;
-  private final BatchDetailResponseMapper responses;
+  private final ServiceCatalogQuery catalog;
   private final AuditWriter audit;
 
   /**
@@ -54,31 +68,39 @@ public class CreateHealthExaminationBatchUseCase {
         || command == null
         || command.configuration() == null
         || actor == null)
-      throw new IllegalArgumentException("Organization ID, configuration, and creator are required");
+      throw new IllegalArgumentException(
+          "Organization ID, configuration, and creator are required");
     var organization =
         organizations
             .findById(AggregateId.of(organizationId))
             .orElseThrow(() -> new ResourceNotFoundException("Organization"));
-    if (!"ACTIVE".equals(organization.status()))
+    if (organization.status() != OrganizationStatus.ACTIVE)
       throw new DomainRuleViolation("Organization is not active");
 
     var batchId = new AggregateId(UuidV7Generator.generate());
-    var configuration = assembler.forCreate(batchId, command.configuration());
+    var configuration = command.configuration();
+    var site =
+        new ExaminationSite(
+            siteType(configuration.examinationSiteType()),
+            configuration.examinationSiteName(),
+            configuration.examinationSiteAddress());
+    var days = days(configuration.examinationDates());
+    var services = services(batchId, configuration.services());
     var batch =
         HealthExaminationBatch.createDraft(
             batchId,
             organization.id(),
             configuration.batchCode(),
             configuration.batchName(),
-            configuration.site(),
-            configuration.days(),
-            configuration.services());
+            site,
+            days,
+            services);
     batches.insert(batch, actor);
     var stored =
         batches
             .findDetails(organizationId, batchId.value(), false)
             .orElseThrow(() -> new IllegalStateException("Created batch could not be read back"));
-    var response = responses.toResponse(stored);
+    var response = toResponse(stored);
     audit.record(
         actor,
         "CREATE_HEALTH_EXAMINATION_BATCH",
@@ -98,5 +120,67 @@ public class CreateHealthExaminationBatchUseCase {
         response.days().size(),
         response.services().size());
     return response;
+  }
+
+  private static ExaminationSiteType siteType(String value) {
+    if (value == null) throw new IllegalArgumentException("Examination site type is required");
+    return ExaminationSiteType.valueOf(value);
+  }
+
+  private static List<HealthExaminationBatchDay> days(List<LocalDate> dates) {
+    if (dates == null || dates.isEmpty())
+      throw new IllegalArgumentException("At least one examination date is required");
+    Set<LocalDate> seen = new HashSet<>();
+    List<HealthExaminationBatchDay> days = new ArrayList<>();
+    for (LocalDate date : dates) {
+      if (date == null || !seen.add(date))
+        throw new IllegalArgumentException("Examination dates must be present and distinct");
+      days.add(new HealthExaminationBatchDay(UuidV7Generator.generate(), date));
+    }
+    return days;
+  }
+
+  private List<HealthExaminationBatchService> services(
+      AggregateId batchId, List<BatchConfiguration.ServicePrice> requested) {
+    if (requested == null || requested.isEmpty())
+      throw new IllegalArgumentException("At least one service is required");
+
+    Set<UUID> seen = new HashSet<>();
+    for (var item : requested) {
+      if (item == null || item.serviceId() == null || item.negotiatedPrice() == null)
+        throw new IllegalArgumentException("Service and negotiated price are required");
+      if (!seen.add(item.serviceId())) throw new DomainRuleViolation("Duplicate batch service");
+    }
+    Map<UUID, ServiceCatalogQuery.Service> catalogServices = new HashMap<>();
+    for (var service : catalog.findByIds(seen)) catalogServices.put(service.id(), service);
+
+    List<HealthExaminationBatchService> services = new ArrayList<>();
+    int displayOrder = 1;
+    for (var item : requested) {
+      Money negotiated = new Money(item.negotiatedPrice(), CURRENCY);
+      var found = catalogServices.get(item.serviceId());
+      if (found == null || !found.active())
+        throw new DomainRuleViolation("Service is not available for a batch");
+      services.add(
+          new HealthExaminationBatchService(
+              new AggregateId(UuidV7Generator.generate()),
+              new AggregateId(item.serviceId()),
+              batchId,
+              new Money(found.unitPrice(), CURRENCY),
+              negotiated,
+              displayOrder++,
+              true,
+              0));
+    }
+    return services;
+  }
+
+  private BatchDetailResponse toResponse(BatchDetails details) {
+    Set<UUID> serviceIds = new HashSet<>();
+    details.batch().services().forEach(service -> serviceIds.add(service.serviceId().value()));
+    Map<UUID, ServiceCatalogQuery.Service> byId = new HashMap<>();
+    if (!serviceIds.isEmpty())
+      catalog.findByIds(serviceIds).forEach(service -> byId.put(service.id(), service));
+    return BatchDetailResponse.from(details, byId);
   }
 }

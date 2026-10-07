@@ -28,7 +28,7 @@ public record OrganizationResponse(
         .contactFullName(organization.contactFullName())
         .contactPhone(organization.contactPhone())
         .contactEmail(organization.contactEmail())
-        .status(organization.status())
+        .status(organization.status().name())
         .rowVersion(organization.rowVersion())
         .build();
   }

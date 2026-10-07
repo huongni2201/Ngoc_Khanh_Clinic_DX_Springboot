@@ -21,8 +21,12 @@ Use explicit expected versions on mutable configuration updates. A stale update 
 The `accesscontrol` module authenticates with an opaque session cookie whose ID
 maps to a server-side JSON session snapshot in Redis (no JWT). Business routes
 under `/api/v1/**` require a logged-in STAFF account; PATIENT accounts can log in
-but receive 403. Per-endpoint RBAC, rate limiting and revocation are not yet
-implemented and block go-live. Credentials and session IDs are never returned or
+but receive 403. The Participant list, template and import routes are the first
+guarded by permission (`HEALTH_EXAMINATION_PARTICIPANT_READ` and
+`HEALTH_EXAMINATION_PARTICIPANT_IMPORT`, granted to ADMIN and CLINIC_MANAGER by migration
+V003); the permission set is a login snapshot, so an existing session must sign in again
+to receive them. Per-endpoint RBAC for the other routes, rate limiting and revocation
+are not yet implemented and block go-live. Credentials and session IDs are never returned or
 logged. The decision is [ADR-0014](../adr/0014-session-cookie-redis-login.md);
 the HTTP contract is [login operations](../api/login.md).
 

@@ -28,7 +28,10 @@ class HealthExaminationApiSurfaceTest {
           "POST /api/v1/organizations/{organizationId}/health-examination-batches",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
           "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}");
+          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template",
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports");
 
   private static final Set<String> REMOVED_MAPPINGS =
       Set.of(
@@ -38,8 +41,7 @@ class HealthExaminationApiSurfaceTest {
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/rows",
           "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/preview",
           "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/confirm",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants");
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel");
 
   @Test
   void healthExaminationMappingsStayWithinTheApprovedUseCases() {

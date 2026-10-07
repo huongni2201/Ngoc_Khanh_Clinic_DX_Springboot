@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -276,7 +277,7 @@ class ListHealthExaminationBatchUseCaseTest {
         "Campaign " + code,
         startDate,
         startDate,
-        "DRAFT",
+        BatchStatus.DRAFT,
         Instant.parse("2026-10-04T00:00:00Z"),
         Instant.parse("2026-10-04T00:00:00Z"),
         7L);

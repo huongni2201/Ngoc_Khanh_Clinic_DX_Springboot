@@ -1,30 +1,86 @@
-package com.ngockhanh.clinic.healthexamination.application.service;
+package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import static com.ngockhanh.clinic.healthexamination.BatchFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
+import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-class BatchConfigurationAssemblerTest {
+class BatchConfigurationUseCaseTest {
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
-  private final BatchConfigurationAssembler assembler = new BatchConfigurationAssembler(catalog);
+  private final OrganizationRepository organizations = mock(OrganizationRepository.class);
+  private final HealthExaminationBatchRepository batches =
+      mock(HealthExaminationBatchRepository.class);
+  private final AuditWriter audit = mock(AuditWriter.class);
+  private final CreateHealthExaminationBatchUseCase create =
+      new CreateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
+  private final UpdateHealthExaminationBatchUseCase update =
+      new UpdateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
+  private final UUID organizationId = UUID.randomUUID();
+  private final UUID actor = UUID.randomUUID();
+
+  private HealthExaminationBatch create(BatchConfiguration configuration) {
+    when(organizations.findById(new AggregateId(organizationId)))
+        .thenReturn(Optional.of(organization(organizationId)));
+    var inserted = ArgumentCaptor.forClass(HealthExaminationBatch.class);
+    when(batches.findDetails(eq(organizationId), any(), eq(false)))
+        .thenAnswer(
+            call -> {
+              verify(batches).insert(inserted.capture(), eq(actor));
+              return Optional.of(details(inserted.getValue()));
+            });
+    create.execute(
+        organizationId,
+        CreateHealthExaminationBatchCommand.builder().configuration(configuration).build(),
+        actor);
+    return inserted.getValue();
+  }
+
+  private HealthExaminationBatch update(
+      HealthExaminationBatch current, BatchConfiguration configuration) {
+    var owner = current.organizationId().value();
+    var id = current.id().value();
+    when(organizations.findById(current.organizationId()))
+        .thenReturn(Optional.of(organization(owner)));
+    when(batches.findDetails(owner, id, true)).thenReturn(Optional.of(details(current)));
+    when(batches.findDetails(owner, id, false)).thenReturn(Optional.of(details(current)));
+    update.execute(
+        owner,
+        id,
+        UpdateHealthExaminationBatchCommand.builder()
+            .configuration(configuration)
+            .rowVersion(current.rowVersion())
+            .build(),
+        actor);
+    verify(batches).update(current, current.rowVersion());
+    return current;
+  }
+
   private final AggregateId batchId = new AggregateId(UUID.randomUUID());
 
   private static ServiceCatalogQuery.Service catalogService(UUID id, boolean active, String price) {
@@ -48,17 +104,18 @@ class BatchConfigurationAssemblerTest {
   void createsDaysAndServicesWithNewIdsAndCatalogPriceSnapshots() {
     UUID first = UUID.randomUUID(), second = UUID.randomUUID();
     when(catalog.findByIds(Set.of(first, second)))
-        .thenReturn(List.of(catalogService(first, true, "200"), catalogService(second, true, "300")));
+        .thenReturn(
+            List.of(catalogService(first, true, "200"), catalogService(second, true, "300")));
     var configuration =
         with(configuration(first, second), b -> b.examinationDates(List.of(SECOND_DAY, FIRST_DAY)));
 
-    var assembled = assembler.forCreate(batchId, configuration);
+    var assembled = create(configuration);
 
-    assertThat(assembled.batchCode()).isEqualTo("B1");
+    assertThat(assembled.code()).isEqualTo("B1");
     assertThat(assembled.site().type()).isEqualTo(ExaminationSiteType.CLINIC);
     assertThat(assembled.days())
         .extracting(HealthExaminationBatchDay::examinationDate)
-        .containsExactly(SECOND_DAY, FIRST_DAY);
+        .containsExactly(FIRST_DAY, SECOND_DAY);
     assertThat(assembled.days()).extracting(HealthExaminationBatchDay::id).doesNotHaveDuplicates();
     assertThat(assembled.services())
         .extracting(s -> s.serviceId().value())
@@ -77,7 +134,7 @@ class BatchConfigurationAssemblerTest {
     assertThat(assembled.services())
         .allSatisfy(
             s -> {
-              assertThat(s.batchId()).isEqualTo(batchId);
+              assertThat(s.batchId()).isEqualTo(assembled.id());
               assertThat(s.rowVersion()).isZero();
               assertThat(s.active()).isTrue();
             });
@@ -91,46 +148,36 @@ class BatchConfigurationAssemblerTest {
     var valid = configuration(service);
 
     assertThatThrownBy(
-            () ->
-                assembler.forCreate(
-                    batchId, with(valid, b -> b.examinationDates(List.of(FIRST_DAY, FIRST_DAY)))))
+            () -> create(with(valid, b -> b.examinationDates(List.of(FIRST_DAY, FIRST_DAY)))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> assembler.forCreate(batchId, with(valid, b -> b.examinationDates(List.of()))))
+    assertThatThrownBy(() -> create(with(valid, b -> b.examinationDates(List.of()))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> assembler.forCreate(batchId, with(valid, b -> b.examinationDates(null))))
+    assertThatThrownBy(() -> create(with(valid, b -> b.examinationDates(null))))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(
             () ->
-                assembler.forCreate(
-                    batchId,
+                create(
                     with(
                         valid,
-                        b -> b.examinationDates(java.util.Arrays.asList(FIRST_DAY, (LocalDate) null)))))
+                        b ->
+                            b.examinationDates(
+                                java.util.Arrays.asList(FIRST_DAY, (LocalDate) null)))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () ->
-                assembler.forCreate(batchId, with(valid, b -> b.examinationSiteType("COMPANY"))))
+    assertThatThrownBy(() -> create(with(valid, b -> b.examinationSiteType("COMPANY"))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> assembler.forCreate(batchId, with(valid, b -> b.examinationSiteType(null))))
+    assertThatThrownBy(() -> create(with(valid, b -> b.examinationSiteType(null))))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> assembler.forCreate(batchId, with(valid, b -> b.services(List.of()))))
+    assertThatThrownBy(() -> create(with(valid, b -> b.services(List.of()))))
         .isInstanceOf(IllegalArgumentException.class);
     for (String invalidPrice : List.of("-1.00", "1.234", "1000000000000")) {
       assertThatThrownBy(
-              () ->
-                  assembler.forCreate(
-                      batchId, with(valid, b -> b.services(List.of(price(service, invalidPrice))))))
+              () -> create(with(valid, b -> b.services(List.of(price(service, invalidPrice))))))
           .as(invalidPrice)
           .isInstanceOf(IllegalArgumentException.class);
     }
     assertThatThrownBy(
             () ->
-                assembler.forCreate(
-                    batchId,
+                create(
                     with(
                         valid,
                         b ->
@@ -152,11 +199,11 @@ class BatchConfigurationAssemblerTest {
         .thenReturn(List.of(catalogService(inactive, false, "200")));
     when(catalog.findByIds(Set.of(missing))).thenReturn(List.of());
 
-    assertThatThrownBy(() -> assembler.forCreate(batchId, configuration(active, active)))
+    assertThatThrownBy(() -> create(configuration(active, active)))
         .isInstanceOf(DomainRuleViolation.class);
-    assertThatThrownBy(() -> assembler.forCreate(batchId, configuration(inactive)))
+    assertThatThrownBy(() -> create(configuration(inactive)))
         .isInstanceOf(DomainRuleViolation.class);
-    assertThatThrownBy(() -> assembler.forCreate(batchId, configuration(missing)))
+    assertThatThrownBy(() -> create(configuration(missing)))
         .isInstanceOf(DomainRuleViolation.class);
   }
 
@@ -192,8 +239,7 @@ class BatchConfigurationAssemblerTest {
                 List.of(withVersion),
                 current.status(),
                 current.rowVersion());
-    when(catalog.findByIds(Set.of(added)))
-        .thenReturn(List.of(catalogService(added, true, "500")));
+    when(catalog.findByIds(Set.of(added))).thenReturn(List.of(catalogService(added, true, "500")));
     var replacement =
         BatchConfiguration.builder()
             .batchCode("B2")
@@ -205,14 +251,14 @@ class BatchConfigurationAssemblerTest {
             .services(List.of(price(added, "70"), price(kept, "50")))
             .build();
 
-    var assembled = assembler.forUpdate(stored, replacement);
+    var previousDayIds = stored.days().stream().map(HealthExaminationBatchDay::id).toList();
+    var assembled = update(stored, replacement);
 
     assertThat(assembled.days())
         .extracting(HealthExaminationBatchDay::examinationDate)
         .containsExactly(SECOND_DAY, LocalDate.of(2026, 10, 6));
     assertThat(assembled.days().getFirst().id()).isEqualTo(keptDay.id());
-    assertThat(assembled.days().getLast().id())
-        .isNotIn(current.days().stream().map(HealthExaminationBatchDay::id).toList());
+    assertThat(assembled.days().getLast().id()).isNotIn(previousDayIds);
     var newService = assembled.services().getFirst();
     var retained = assembled.services().getLast();
     assertThat(newService.serviceId().value()).isEqualTo(added);
@@ -225,19 +271,19 @@ class BatchConfigurationAssemblerTest {
     assertThat(retained.displayOrder()).isEqualTo(2);
     assertThat(retained.active()).isFalse();
     assertThat(retained.rowVersion()).isEqualTo(3);
-    // only the added service is looked up: a kept service is not blocked by catalog changes
+    // Only additions use current catalog prices; display lookups do not replace stored snapshots.
     verify(catalog).findByIds(Set.of(added));
   }
 
   @Test
-  void updateWithOnlyKeptServicesDoesNotQueryTheCatalog() {
+  void updateWithOnlyKeptServicesUsesCatalogOnlyForDisplay() {
     UUID kept = UUID.randomUUID();
     var current = draftBatch(UUID.randomUUID(), batchId.value(), 0, kept);
 
-    var assembled = assembler.forUpdate(current, configuration(kept));
+    var assembled = update(current, configuration(kept));
 
     assertThat(assembled.services().getFirst().id()).isEqualTo(current.services().getFirst().id());
-    verifyNoInteractions(catalog);
+    verify(catalog, org.mockito.Mockito.times(2)).findByIds(Set.of(kept));
   }
 
   @Test

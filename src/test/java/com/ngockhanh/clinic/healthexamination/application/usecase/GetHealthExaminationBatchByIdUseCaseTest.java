@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchDetailResponseMapper;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -24,8 +23,7 @@ class GetHealthExaminationBatchByIdUseCaseTest {
       mock(HealthExaminationBatchRepository.class);
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
   private final GetHealthExaminationBatchByIdUseCase useCase =
-      new GetHealthExaminationBatchByIdUseCase(
-          organizations, batches, new BatchDetailResponseMapper(catalog));
+      new GetHealthExaminationBatchByIdUseCase(organizations, batches, catalog);
   private final UUID organizationId = UUID.randomUUID();
   private final UUID batchId = UUID.randomUUID();
 
@@ -79,7 +77,8 @@ class GetHealthExaminationBatchByIdUseCaseTest {
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(inactiveOrganization(organizationId)));
     when(batches.findDetails(organizationId, batchId, false))
-        .thenReturn(Optional.of(details(draftBatch(organizationId, batchId, 0, UUID.randomUUID()))));
+        .thenReturn(
+            Optional.of(details(draftBatch(organizationId, batchId, 0, UUID.randomUUID()))));
 
     assertThat(useCase.execute(organizationId, batchId).id()).isEqualTo(batchId);
   }

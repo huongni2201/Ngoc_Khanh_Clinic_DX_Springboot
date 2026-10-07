@@ -95,8 +95,7 @@ public class OrganizationController {
             .sortBy(request.getSortBy())
             .build();
 
-    return ResponseEntity.ok(
-        ApiResponse.success(HttpStatus.OK.value(), listOrganizationUseCase.execute(command)));
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), listOrganizationUseCase.execute(command)));
   }
 
   /**
@@ -110,8 +109,7 @@ public class OrganizationController {
 
     log.debug("Get organization request: organizationId={}", organizationId);
 
-    return ResponseEntity.ok(
-        ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
+    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
   }
 
   /**
@@ -142,8 +140,7 @@ public class OrganizationController {
             .rowVersion(request.rowVersion())
             .build();
 
-    OrganizationResponse response =
-        updateOrganizationUseCase.execute(organizationId, command, principal.userId());
+    OrganizationResponse response = updateOrganizationUseCase.execute(organizationId, command, principal.userId());
 
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), "Organization updated", response));

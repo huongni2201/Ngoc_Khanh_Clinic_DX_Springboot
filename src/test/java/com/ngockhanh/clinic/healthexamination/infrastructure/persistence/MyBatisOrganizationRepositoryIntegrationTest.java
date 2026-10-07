@@ -15,6 +15,7 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.GetOrganizatio
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateOrganizationUseCase;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
@@ -301,7 +302,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
         "Contact",
         "0902",
         "c@example.test",
-        status,
+        OrganizationStatus.valueOf(status),
         0);
   }
 
@@ -372,7 +373,8 @@ class MyBatisOrganizationRepositoryIntegrationTest {
     var page = listOrganizations.execute(ListOrganizationCommand.builder().build());
 
     assertThat(page.items()).extracting("taxCode").containsExactlyInAnyOrder("A1", "A2");
-    assertThat(page.items()).allSatisfy(o -> assertThat(o.status()).isEqualTo("ACTIVE"));
+    assertThat(page.items())
+        .allSatisfy(o -> assertThat(o.status()).isEqualTo(OrganizationStatus.ACTIVE));
     assertThat(page.totalElements()).isEqualTo(2);
     assertThat(page.totalPages()).isEqualTo(1);
   }
@@ -550,7 +552,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
         id, DeleteOrganizationCommand.builder().rowVersion(0L).build(), actor);
 
     var stored = organizations.findById(first.id()).orElseThrow();
-    assertThat(stored.status()).isEqualTo("INACTIVE");
+    assertThat(stored.status()).isEqualTo(OrganizationStatus.INACTIVE);
     assertThat(stored.rowVersion()).isEqualTo(1);
     assertThat(stored.name()).isEqualTo(first.name());
     assertThatThrownBy(() -> getOrganization.execute(id))

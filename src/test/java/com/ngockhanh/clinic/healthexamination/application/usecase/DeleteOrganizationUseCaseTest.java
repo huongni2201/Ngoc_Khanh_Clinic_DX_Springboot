@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
@@ -32,7 +33,7 @@ class DeleteOrganizationUseCaseTest {
   private final DeleteOrganizationUseCase useCase =
       new DeleteOrganizationUseCase(repository, audit);
 
-  private Organization organization(String status, long version) {
+  private Organization organization(OrganizationStatus status, long version) {
     return Organization.restore(
         id,
         "School",
@@ -55,12 +56,13 @@ class DeleteOrganizationUseCaseTest {
   void deactivatesWithExpectedVersionAndAuditsBeforeAndAfter() {
     when(repository.findById(id))
         .thenReturn(
-            Optional.of(organization("ACTIVE", 3)), Optional.of(organization("INACTIVE", 4)));
+            Optional.of(organization(OrganizationStatus.ACTIVE, 3)),
+            Optional.of(organization(OrganizationStatus.INACTIVE, 4)));
 
     useCase.execute(id.value(), command(3L), actor);
 
     verify(repository)
-        .update(argThat(o -> "INACTIVE".equals(o.status()) && o.rowVersion() == 3), eq(3L));
+        .update(argThat(o -> o.status() == OrganizationStatus.INACTIVE && o.rowVersion() == 3), eq(3L));
     verify(audit)
         .record(
             actor,
@@ -73,7 +75,7 @@ class DeleteOrganizationUseCaseTest {
 
   @Test
   void alreadyInactiveWithCurrentVersionIsANoOp() {
-    when(repository.findById(id)).thenReturn(Optional.of(organization("INACTIVE", 4)));
+    when(repository.findById(id)).thenReturn(Optional.of(organization(OrganizationStatus.INACTIVE, 4)));
 
     useCase.execute(id.value(), command(4L), actor);
 
@@ -83,7 +85,7 @@ class DeleteOrganizationUseCaseTest {
 
   @Test
   void alreadyInactiveWithStaleVersionIsAConflict() {
-    when(repository.findById(id)).thenReturn(Optional.of(organization("INACTIVE", 4)));
+    when(repository.findById(id)).thenReturn(Optional.of(organization(OrganizationStatus.INACTIVE, 4)));
 
     assertThatThrownBy(() -> useCase.execute(id.value(), command(3L), actor))
         .isInstanceOf(ConcurrentUpdateException.class);
@@ -93,7 +95,7 @@ class DeleteOrganizationUseCaseTest {
 
   @Test
   void staleVersionIsRejectedBeforeMutation() {
-    when(repository.findById(id)).thenReturn(Optional.of(organization("ACTIVE", 3)));
+    when(repository.findById(id)).thenReturn(Optional.of(organization(OrganizationStatus.ACTIVE, 3)));
 
     assertThatThrownBy(() -> useCase.execute(id.value(), command(2L), actor))
         .isInstanceOf(ConcurrentUpdateException.class);
@@ -103,7 +105,7 @@ class DeleteOrganizationUseCaseTest {
 
   @Test
   void versionLostBetweenReadAndWriteIsAConflictWithoutAudit() {
-    when(repository.findById(id)).thenReturn(Optional.of(organization("ACTIVE", 3)));
+    when(repository.findById(id)).thenReturn(Optional.of(organization(OrganizationStatus.ACTIVE, 3)));
     doThrow(new ConcurrentUpdateException()).when(repository).update(any(), eq(3L));
 
     assertThatThrownBy(() -> useCase.execute(id.value(), command(3L), actor))

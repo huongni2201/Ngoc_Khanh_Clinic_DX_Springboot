@@ -34,7 +34,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 

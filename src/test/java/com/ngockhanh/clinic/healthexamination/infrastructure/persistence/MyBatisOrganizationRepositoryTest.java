@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.OrganizationMyBatisMapper;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository.MyBatisOrganizationRepository;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,9 @@ class MyBatisOrganizationRepositoryTest {
     when(mapper.count("ACTIVE", pattern)).thenReturn(offset + 1);
     when(mapper.search("ACTIVE", pattern, "name", "DESC", 100, offset)).thenReturn(List.of());
 
-    var result = repository.search(Integer.MAX_VALUE, 100, "100%_\\", "name", "DESC", "ACTIVE");
+    var result =
+        repository.search(
+            Integer.MAX_VALUE, 100, "100%_\\", "name", "DESC", OrganizationStatus.ACTIVE);
 
     verify(mapper).search("ACTIVE", pattern, "name", "DESC", 100, offset);
     assertThat(result.items()).isEmpty();
@@ -40,7 +43,7 @@ class MyBatisOrganizationRepositoryTest {
     var repository = new MyBatisOrganizationRepository(mapper);
     when(mapper.count("ACTIVE", null)).thenReturn(total);
 
-    var result = repository.search(9, 10, null, "id", "ASC", "ACTIVE");
+    var result = repository.search(9, 10, null, "id", "ASC", OrganizationStatus.ACTIVE);
 
     verify(mapper, never()).search("ACTIVE", null, "id", "ASC", 10, 80L);
     assertThat(result.items()).isEmpty();

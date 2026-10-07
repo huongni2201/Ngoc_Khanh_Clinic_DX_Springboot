@@ -78,6 +78,13 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Roster import scope
 
+Owner amendment — 2026-10-06: a single-step roster import is restored together with a
+Participant list and template download, as defined in
+[participant import and list](../api/participant-import-and-list.md). It is
+add-only and all-or-nothing, keeps one `import_jobs` row (VALIDATED, then CONFIRMED) with
+`import_rows` and provenance on every created Participant, and is guarded by dedicated
+permissions. The multi-step preview/confirm/cancel workflow below stays removed.
+
 Owner amendment — 2026-10-05: the backend Excel roster import workflow is removed.
 No template/upload/preview/confirm/cancel runtime contracts or staging adapters
 are supported. Integration retains import tables and schema records for historical
@@ -99,7 +106,7 @@ See [the API removal contract](../api/clean-slate-migration.md#removed-excel-ros
 ## Consequences
 
 Clients use the clean-slate organization fields, batch dates/days and expected
-versions. The removed roster-import routes have no handlers. Unsupported old states or columns cannot be silently aliased.
+versions. The removed roster-import routes (preview, confirm, cancel) have no handlers; only the single-step routes of the 2026-10-06 amendment exist. Unsupported old states or columns cannot be silently aliased.
 Existing local seed data and tests must use the full clean-slate migration.
 
 Schema records do not mean every module has a complete HTTP workflow. This change

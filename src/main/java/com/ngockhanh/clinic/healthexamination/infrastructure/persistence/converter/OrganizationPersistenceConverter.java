@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.converter;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.OrganizationRecord;
 
@@ -17,7 +18,7 @@ public final class OrganizationPersistenceConverter {
         record.contactFullName(),
         record.contactPhone(),
         record.contactEmail(),
-        record.status(),
+        OrganizationStatus.valueOf(record.status()),
         record.rowVersion());
   }
 
@@ -32,7 +33,7 @@ public final class OrganizationPersistenceConverter {
         .contactFullName(organization.contactFullName())
         .contactPhone(organization.contactPhone())
         .contactEmail(organization.contactEmail())
-        .status(organization.status())
+        .status(organization.status().name())
         .createdAt(null)
         .updatedAt(null)
         .rowVersion(organization.rowVersion())

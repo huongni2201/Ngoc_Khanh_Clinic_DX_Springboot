@@ -56,7 +56,7 @@ Base path: `/api/v1/organizations/{organizationId}/health-examination-batches`.
 
 | Hành vi | Method / suffix | Request | Response thành công |
 |---|---|---|---|
-| create | POST base path | CreateHealthExaminationBatchRequest | 201 + ApiResponse<BatchDetailResponse> + Location |
+| create | POST base path | CreateHealthExaminationBatchRequest | 201 + ApiResponse<BatchDetailResponse> |
 | getById | GET /{batchId} | Path IDs | 200 + ApiResponse<BatchDetailResponse> |
 | update | PUT /{batchId} | UpdateHealthExaminationBatchRequest | 200 + ApiResponse<BatchDetailResponse> |
 | list | GET base path | HealthExaminationBatchListRequest | 200 + ApiResponse<PageResponse<BatchSummaryResponse>> |
@@ -100,7 +100,7 @@ Ví dụ POST:
 
 PUT gửi cùng cấu hình và thêm `"rowVersion": 0`. Không nhận trạng thái, createdBy, referencePriceSnapshot, displayOrder hoặc ID của BatchDay/BatchService từ client.
 
-Create trả `Location` trỏ tới route detail của batch vừa tạo. Detail giữ cấu trúc hiện có: ID, organizationId, code/name, days, date bounds, site, status, createdBy, timestamps, rowVersion, services. Service detail có ID nội bộ, serviceId, hai loại giá, displayOrder, active và rowVersion.
+Create trả HTTP 201 kèm body chi tiết batch (không có header `Location`). Detail giữ cấu trúc hiện có: ID, organizationId, code/name, days, date bounds, site, status, createdBy, timestamps, rowVersion, services. Service detail có ID nội bộ, serviceId, hai loại giá, displayOrder, active và rowVersion.
 
 ### 2.2. List
 
@@ -168,7 +168,7 @@ DeleteHealthExaminationBatchUseCase
 - Dùng `BatchConfiguration` trong application/command cho phần cấu hình dùng chung của create/update; nested `ServicePrice` mang serviceId và negotiatedPrice. HTTP JSON vẫn phẳng như mục 2, không thêm wrapper configuration trên wire.
 - Tách create/update request, dùng chung `ServicePriceRequest`; loại request cũ sau khi chuyển hết caller/test.
 - Tái sử dụng list request/query, detail/summary response. Copy phòng vệ các List trong command/response; giữ kiểu record hiện có và Lombok builder phù hợp.
-- Nếu cần cộng tác dùng chung cho dựng/cập nhật cấu hình, đặt `BatchConfigurationAssembler` trong application/service, không đặt helper vào usecase. Assembler gọi published catalog query và ghép entities, không sở hữu transaction/audit.
+- Theo yêu cầu chủ dự án ngày 2026-10-06, Create/Update/Get use case gọi published catalog query trực tiếp. Việc dựng cấu hình và bổ sung tên dịch vụ cho response nằm trong phương thức private của từng use case; không giữ `BatchConfigurationAssembler`, `BatchDetailResponseMapper` hoặc `AssembledConfiguration` riêng.
 - Invariant ngày/service trùng, cấu hình tối thiểu và trạng thái sửa thuộc domain. Bean Validation chỉ kiểm tra cấu trúc HTTP; application kiểm tra organization, catalog, reference và concurrency theo trách nhiệm riêng.
 
 ### 3.2. Create
@@ -300,7 +300,7 @@ ALTER TABLE public.health_examination_batches
 - [ ] Viết test create/get/list theo contract; triển khai assembler, domain factory, 3 use case và controller mappings tương ứng.
 - [ ] Dùng catalog published query, UUIDv7, insert header/children và audit cùng transaction.
 - [ ] Hoàn thiện mapping projection, detail và pagination/search/sort ổn định; giữ scope organization.
-- [ ] Test PostgreSQL duplicate code, rollback children, snapshot giá và count/items; test HTTP 201/Location/200/envelope.
+- [ ] Test PostgreSQL duplicate code, rollback children, snapshot giá và count/items; test HTTP 201/200/envelope.
 
 **Đầu ra:** Tạo và đọc được batch DRAFT; organization INACTIVE chỉ chặn create.
 
@@ -358,7 +358,7 @@ ALTER TABLE public.health_examination_batches
 | Architecture | Modulith, record/schema, API surface | Ownership và named interfaces hợp lệ |
 | Migration | DB mới và V001 có dữ liệu trước migration | Khởi động được, row cũ chưa bị xóa |
 
-Các test class dự kiến gồm: `HealthExaminationBatchCrudTest`, `BatchConfigurationAssemblerTest`, test riêng cho 5 use case, `OrganizationBatchControllerTest`, `OrganizationBatchSecurityTest`, `HealthExaminationBatchCrudIntegrationTest`, integration test của `BatchHistoryQuery`, và các architecture test hiện hành.
+Các test class dự kiến gồm: `HealthExaminationBatchCrudTest`, `BatchConfigurationUseCaseTest`, test riêng cho 5 use case, `OrganizationBatchControllerTest`, `OrganizationBatchSecurityTest`, `HealthExaminationBatchCrudIntegrationTest`, integration test của `BatchHistoryQuery`, và các architecture test hiện hành.
 
 Các lỗi dễ bỏ sót phải có bằng chứng test: giữ inactive catalog service đã thêm; Participant CANCELLED vẫn chặn xóa; swap displayOrder có unique constraint; deleted batch không thể được writer đang chờ khóa nhận thêm Participant; audit lỗi không để version/deleted_at thay đổi.
 

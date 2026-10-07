@@ -1,6 +1,8 @@
 package com.ngockhanh.clinic.accesscontrol.domain.entity;
 
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountStatus;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.StaffMemberStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleGrant;
 import java.util.List;
 import java.util.UUID;
@@ -14,13 +16,11 @@ public record UserAccount(
     AccountType accountType,
     String username,
     String passwordHash,
-    String status,
+    AccountStatus status,
     UUID staffMemberId,
-    String staffStatus,
+    StaffMemberStatus staffStatus,
     UUID patientId,
     List<RoleGrant> roles) {
-  private static final String ACTIVE = "ACTIVE";
-
   public UserAccount {
     if (id == null) throw new IllegalArgumentException("Account id is required");
     roles = roles == null ? List.of() : List.copyOf(roles);
@@ -32,9 +32,10 @@ public record UserAccount(
    * empty.
    */
   public Boolean eligible() {
-    if (!ACTIVE.equals(status) || accountType == null) return false;
+    if (status != AccountStatus.ACTIVE || accountType == null) return false;
     return switch (accountType) {
-      case STAFF -> staffMemberId != null && patientId == null && ACTIVE.equals(staffStatus);
+      case STAFF ->
+          staffMemberId != null && patientId == null && staffStatus == StaffMemberStatus.ACTIVE;
       case PATIENT -> patientId != null && staffMemberId == null;
     };
   }

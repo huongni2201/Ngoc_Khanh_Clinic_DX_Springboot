@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.healthexamination.application.command.ListOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
 import com.ngockhanh.clinic.shared.web.PageResponse;
@@ -25,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ListOrganizationUseCase {
   static final int MAX_SEARCH_KEY_LENGTH = 100;
   private static final Set<String> SORT_KEYS = Set.of("id", "taxCode", "name");
-  private static final String ACTIVE = "ACTIVE";
+  private static final OrganizationStatus ACTIVE = OrganizationStatus.ACTIVE;
 
   private final OrganizationRepository organizations;
 

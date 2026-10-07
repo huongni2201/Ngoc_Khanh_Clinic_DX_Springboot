@@ -1,10 +1,10 @@
 package com.ngockhanh.clinic.healthexamination.domain.aggregate;
 
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import java.util.Set;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 
 /** Aggregate root for an organization and its identity, contact, and lifecycle invariants. */
-public final class Organization {
+public class Organization {
   private final AggregateId id;
   private String name;
   private String taxCode;
@@ -14,7 +14,7 @@ public final class Organization {
   private String contactFullName;
   private String contactPhone;
   private String contactEmail;
-  private String status;
+  private OrganizationStatus status;
   private final long rowVersion;
 
   private Organization(
@@ -27,11 +27,9 @@ public final class Organization {
       String contactFullName,
       String contactPhone,
       String contactEmail,
-      String status,
+      OrganizationStatus status,
       long rowVersion) {
-    if (id == null
-        || rowVersion < 0
-        || !Set.of("ACTIVE", "INACTIVE").contains(status == null ? "" : status))
+    if (id == null || status == null || rowVersion < 0)
       throw new IllegalArgumentException("Invalid organization");
     this.id = id;
     this.name = required(name, 300);
@@ -66,7 +64,7 @@ public final class Organization {
         contactFullName,
         contactPhone,
         contactEmail,
-        "ACTIVE",
+        OrganizationStatus.ACTIVE,
         0);
   }
 
@@ -80,7 +78,7 @@ public final class Organization {
       String contactFullName,
       String contactPhone,
       String contactEmail,
-      String status,
+      OrganizationStatus status,
       long rowVersion) {
     return new Organization(
         id,
@@ -126,7 +124,7 @@ public final class Organization {
   }
 
   public void deactivate() {
-    status = "INACTIVE";
+    status = OrganizationStatus.INACTIVE;
   }
 
   public AggregateId id() {
@@ -165,7 +163,7 @@ public final class Organization {
     return contactEmail;
   }
 
-  public String status() {
+  public OrganizationStatus status() {
     return status;
   }
 

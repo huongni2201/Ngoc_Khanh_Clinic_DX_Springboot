@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.converter.OrganizationPersistenceConverter;
@@ -46,14 +47,19 @@ public class MyBatisOrganizationRepository implements OrganizationRepository {
 
   @Override
   public PageResponse<Organization> search(
-      int page, int size, String searchKey, String sortKey, String sortBy, String status) {
+      int page,
+      int size,
+      String searchKey,
+      String sortKey,
+      String sortBy,
+      OrganizationStatus status) {
     long offset = ((long) page - 1) * size;
     String pattern = likePattern(searchKey);
-    long total = mapper.count(status, pattern);
+    long total = mapper.count(status.name(), pattern);
     List<Organization> items =
         total == 0 || offset >= total
             ? List.of()
-            : mapper.search(status, pattern, sortKey, sortBy, size, offset).stream()
+            : mapper.search(status.name(), pattern, sortKey, sortBy, size, offset).stream()
                 .map(converter::toDomain)
                 .toList();
     return PageResponse.<Organization>builder()

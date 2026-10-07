@@ -5,13 +5,24 @@
  <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
  SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE id=#{id}
  </select>
+ <select id="findInBatch" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
+ SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE batch_id=#{batchId} AND id=#{id}
+ </select>
+ <select id="identityTakenByOther" resultType="boolean">
+ SELECT EXISTS(SELECT 1 FROM public.health_examination_batch_participants
+ WHERE batch_id=#{batchId} AND identification_number=#{identity}
+ <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>)
+ </select>
  <select id="findServices" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord">
  SELECT id,batch_id,batch_participant_id,batch_service_id,is_performed,service_request_id,unit_price_snapshot,recorded_by,recorded_at,created_at,updated_at,row_version
  FROM public.health_examination_participant_services WHERE batch_participant_id IN <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
  ORDER BY id
  </select>
  <update id="update">UPDATE public.health_examination_batch_participants SET
- row_version=row_version+1,updated_at=CURRENT_TIMESTAMP,batch_day_id=#{p.batchDayId},patient_id=#{p.patientId},prepared_at=#{p.preparedAt},roster_status=#{p.rosterStatus},
+ row_version=row_version+1,updated_at=CURRENT_TIMESTAMP,batch_day_id=#{p.batchDayId},
+ participant_code=#{p.participantCode},full_name=#{p.fullName},date_of_birth=#{p.dateOfBirth},sex=#{p.sex},
+ identification_number=#{p.identificationNumber},phone=#{p.phone},email=#{p.email},
+ department_name=#{p.departmentName},position_name=#{p.positionName},patient_id=#{p.patientId},prepared_at=#{p.preparedAt},roster_status=#{p.rosterStatus},
  attendance_status=#{p.attendanceStatus},actual_examination_date=#{p.actualExaminationDate},attendance_recorded_by=#{p.attendanceRecordedBy},
  attendance_recorded_at=#{p.attendanceRecordedAt},attendance_note=#{p.attendanceNote},service_reconciliation_status=#{p.serviceReconciliationStatus},
  services_reconciled_by=#{p.servicesReconciledBy},services_reconciled_at=#{p.servicesReconciledAt}
@@ -33,4 +44,54 @@
  </foreach>) AS v(id,batch_id,participant_id,service_id,performed,request_id,actor,recorded_at,version)
  WHERE s.id=v.id AND s.batch_id=v.batch_id AND s.batch_participant_id=v.participant_id AND s.batch_service_id=v.service_id AND s.row_version=v.version
  </update>
+
+ <insert id="insertMany">
+ INSERT INTO public.health_examination_batch_participants (<include refid="columns"/>) VALUES
+ <foreach collection="items" item="p" separator=",">(#{p.id},#{p.batchId},#{p.batchDayId},#{p.participantCode},#{p.fullName},#{p.dateOfBirth},#{p.sex},#{p.identificationNumber},
+ #{p.phone},#{p.email},#{p.departmentName},#{p.positionName},#{p.patientId},#{p.rosterStatus},#{p.attendanceStatus},#{p.actualExaminationDate},
+ #{p.attendanceRecordedBy},#{p.attendanceRecordedAt},#{p.attendanceNote},#{p.serviceReconciliationStatus},#{p.servicesReconciledBy},#{p.servicesReconciledAt},
+ #{p.importJobId},#{p.sourceRowNumber},#{p.preparedAt},#{p.createdAt},#{p.updatedAt},#{p.rowVersion})</foreach>
+ </insert>
+ <select id="findExistingIdentities" resultType="java.lang.String">
+ SELECT identification_number FROM public.health_examination_batch_participants
+ WHERE batch_id=#{batchId} AND identification_number IN <foreach collection="identities" item="identity" open="(" close=")" separator=",">#{identity}</foreach>
+ </select>
+ <select id="batchInScope" resultType="boolean">
+ SELECT EXISTS(SELECT 1 FROM public.health_examination_batches WHERE id=#{batchId} AND organization_id=#{organizationId} AND deleted_at IS NULL)
+ </select>
+ <sql id="summaryFilter">
+ p.batch_id=#{batchId}
+ <if test="searchPattern != null">AND (LOWER(p.full_name) LIKE #{searchPattern} ESCAPE chr(92) OR LOWER(COALESCE(p.participant_code,'')) LIKE #{searchPattern} ESCAPE chr(92)
+ OR LOWER(p.department_name) LIKE #{searchPattern} ESCAPE chr(92) OR LOWER(p.position_name) LIKE #{searchPattern} ESCAPE chr(92))</if>
+ <if test="identificationNumber != null">AND p.identification_number=#{identificationNumber}</if>
+ <if test="batchDayId != null">AND p.batch_day_id=#{batchDayId}</if>
+ <if test="rosterStatus != null">AND p.roster_status=#{rosterStatus}</if>
+ <if test="attendanceStatus != null">AND p.attendance_status=#{attendanceStatus}</if>
+ <if test="reconciliationStatus != null">AND p.service_reconciliation_status=#{reconciliationStatus}</if>
+ </sql>
+ <select id="countSummaries" resultType="long">
+ SELECT COUNT(*) FROM public.health_examination_batch_participants p WHERE <include refid="summaryFilter"/>
+ </select>
+ <select id="findSummaries" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ParticipantSummaryView">
+ SELECT p.id,p.batch_id,p.batch_day_id,d.examination_date,p.participant_code,p.full_name,p.date_of_birth,p.sex,p.identification_number,
+ p.department_name,p.position_name,p.roster_status,p.attendance_status,p.service_reconciliation_status AS reconciliation_status,
+ p.actual_examination_date,p.prepared_at,p.row_version
+ FROM public.health_examination_batch_participants p
+ JOIN public.health_examination_batch_days d ON d.batch_id=p.batch_id AND d.id=p.batch_day_id
+ WHERE <include refid="summaryFilter"/>
+ ORDER BY
+ <choose>
+  <when test="sortKey == 'fullName' and sortBy == 'DESC'">p.full_name DESC, p.id DESC</when>
+  <when test="sortKey == 'fullName'">p.full_name ASC, p.id ASC</when>
+  <when test="sortKey == 'participantCode' and sortBy == 'DESC'">p.participant_code DESC NULLS LAST, p.id DESC</when>
+  <when test="sortKey == 'participantCode'">p.participant_code ASC NULLS LAST, p.id ASC</when>
+  <when test="sortKey == 'examinationDate' and sortBy == 'DESC'">d.examination_date DESC, p.id DESC</when>
+  <when test="sortKey == 'examinationDate'">d.examination_date ASC, p.id ASC</when>
+  <when test="sortKey == 'createdAt' and sortBy == 'DESC'">p.created_at DESC, p.id DESC</when>
+  <when test="sortKey == 'createdAt'">p.created_at ASC, p.id ASC</when>
+  <when test="sortBy == 'DESC'">p.id DESC</when>
+  <otherwise>p.id ASC</otherwise>
+ </choose>
+ LIMIT #{limit} OFFSET #{offset}
+ </select>
 </mapper>

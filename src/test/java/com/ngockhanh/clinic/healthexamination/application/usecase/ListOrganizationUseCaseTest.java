@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.healthexamination.application.command.ListOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.web.PageResponse;
@@ -37,19 +38,19 @@ class ListOrganizationUseCaseTest {
 
   @Test
   void appliesDefaultsAndOnlyAsksForActiveOrganizations() {
-    when(repository.search(1, 10, null, "id", "ASC", "ACTIVE"))
+    when(repository.search(1, 10, null, "id", "ASC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(), 1, 10, 0, 0));
 
     var result = useCase.execute(ListOrganizationCommand.builder().build());
 
-    verify(repository).search(1, 10, null, "id", "ASC", "ACTIVE");
+    verify(repository).search(1, 10, null, "id", "ASC", OrganizationStatus.ACTIVE);
     assertThat(result.page()).isEqualTo(1);
     assertThat(result.size()).isEqualTo(10);
   }
 
   @Test
   void normalizesSearchKeyAndSortDirection() {
-    when(repository.search(3, 25, "clinic", "name", "DESC", "ACTIVE"))
+    when(repository.search(3, 25, "clinic", "name", "DESC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(), 3, 25, 0, 0));
 
     useCase.execute(
@@ -61,24 +62,24 @@ class ListOrganizationUseCaseTest {
             .sortBy("desc")
             .build());
 
-    verify(repository).search(3, 25, "clinic", "name", "DESC", "ACTIVE");
+    verify(repository).search(3, 25, "clinic", "name", "DESC", OrganizationStatus.ACTIVE);
   }
 
   @Test
   void blankSearchKeyMeansNoSearch() {
-    when(repository.search(1, 10, null, "id", "ASC", "ACTIVE"))
+    when(repository.search(1, 10, null, "id", "ASC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(), 1, 10, 0, 0));
 
     useCase.execute(ListOrganizationCommand.builder().searchKey("   ").build());
 
-    verify(repository).search(1, 10, null, "id", "ASC", "ACTIVE");
+    verify(repository).search(1, 10, null, "id", "ASC", OrganizationStatus.ACTIVE);
   }
 
   @Test
   void mapsItemsAndPreservesPaginationMetadata() {
     var first = organization("A1");
     var second = organization("A2");
-    when(repository.search(2, 10, null, "id", "ASC", "ACTIVE"))
+    when(repository.search(2, 10, null, "id", "ASC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(first, second), 2, 10, 25, 3));
 
     var result = useCase.execute(ListOrganizationCommand.builder().page(2).size(10).build());
@@ -92,7 +93,7 @@ class ListOrganizationUseCaseTest {
 
   @Test
   void emptyDatasetHasZeroTotalPages() {
-    when(repository.search(1, 10, null, "id", "ASC", "ACTIVE"))
+    when(repository.search(1, 10, null, "id", "ASC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(), 1, 10, 0, 0));
 
     var result = useCase.execute(ListOrganizationCommand.builder().build());
@@ -104,7 +105,7 @@ class ListOrganizationUseCaseTest {
 
   @Test
   void pageBeyondTheEndKeepsTotalsOfTheFilteredResult() {
-    when(repository.search(9, 10, null, "id", "ASC", "ACTIVE"))
+    when(repository.search(9, 10, null, "id", "ASC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(), 9, 10, 11, 2));
 
     var result = useCase.execute(ListOrganizationCommand.builder().page(9).size(10).build());
@@ -166,14 +167,14 @@ class ListOrganizationUseCaseTest {
 
   @Test
   void acceptsMaximumPageNumber() {
-    when(repository.search(Integer.MAX_VALUE, 100, null, "id", "ASC", "ACTIVE"))
+    when(repository.search(Integer.MAX_VALUE, 100, null, "id", "ASC", OrganizationStatus.ACTIVE))
         .thenReturn(new PageResponse<>(List.of(), Integer.MAX_VALUE, 100, 0, 0));
 
     var result =
         useCase.execute(
             ListOrganizationCommand.builder().page(Integer.MAX_VALUE).size(100).build());
 
-    verify(repository).search(Integer.MAX_VALUE, 100, null, "id", "ASC", "ACTIVE");
+    verify(repository).search(Integer.MAX_VALUE, 100, null, "id", "ASC", OrganizationStatus.ACTIVE);
     assertThat(result.page()).isEqualTo(Integer.MAX_VALUE);
   }
 }

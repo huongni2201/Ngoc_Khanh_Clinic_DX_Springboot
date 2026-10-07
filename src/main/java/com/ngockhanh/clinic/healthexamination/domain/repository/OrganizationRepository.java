@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.domain.repository;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.util.Optional;
@@ -30,5 +31,10 @@ public interface OrganizationRepository {
    * @return the requested page, retaining totals even when the page is past the last page
    */
   PageResponse<Organization> search(
-      int page, int size, String searchKey, String sortKey, String sortBy, String status);
+      int page,
+      int size,
+      String searchKey,
+      String sortKey,
+      String sortBy,
+      OrganizationStatus status);
 }

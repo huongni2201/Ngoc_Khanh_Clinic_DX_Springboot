@@ -173,8 +173,10 @@ and [patient identity](docs/architecture/03-domain-and-workflows.md#patient-iden
 Follow [Organization/Batch](docs/architecture/03-domain-and-workflows.md#organization-and-batch),
 [Batch Participant](docs/architecture/03-domain-and-workflows.md#batch-participant)
 and [record history](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
-[Excel roster import is removed](docs/architecture/03-domain-and-workflows.md#removed-roster-import);
-historical schema records do not authorize restoring it.
+[Participant Excel import and list](docs/architecture/03-domain-and-workflows.md#participant-excel-import-and-list)
+(restored 2026-10-06 as one add-only, all-or-nothing endpoint; the removed multi-step
+template/preview/confirm/cancel workflow stays removed). HTTP contract:
+[participant import and list](docs/api/participant-import-and-list.md).
 
 ## 15. Encounter and Diagnostic Progress Rules
 

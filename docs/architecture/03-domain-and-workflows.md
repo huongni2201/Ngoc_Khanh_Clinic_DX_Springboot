@@ -80,12 +80,21 @@ batch services and their negotiated price. Existing identity, historical price
 and established ServiceRequest links cannot change through reconciliation. Keep
 unchecked rows with is_performed=false; save header/items atomically with versions.
 
-## Removed roster import
+## Participant Excel import and list
 
-The owner removed the backend Excel roster import workflow on 2026-10-05.
-No template, upload, preview, confirm or cancel use case remains. See
-[the API removal contract](../api/clean-slate-migration.md#removed-excel-roster-import).
-Existing participant provenance and import history remain in the unchanged schema.
+The multi-step import workflow (template, upload, preview, confirm, cancel) was removed
+on 2026-10-05 and stays removed. On 2026-10-06 the owner restored a single-step flow
+for one Organization/Batch; the HTTP contract is
+[participant import and list](../api/participant-import-and-list.md).
+
+- Add-only: existing Participants are never updated or cancelled. A CCCD already in the
+  batch (any roster status) is rejected.
+- All-or-nothing in one transaction: batch lock, organization/state recheck, idempotency
+  reserve or replay, expected `rowVersion` check, dedupe, VALIDATED import job and rows,
+  Participant inserts in chunks, job confirmed, key completed, audit.
+- Only DRAFT/READY batches of an ACTIVE organization accept an import.
+- The list masks the CCCD; the full number is never returned and never logged.
+- Existing participant provenance and import history remain in the schema.
 
 ## Record history and other contexts
 

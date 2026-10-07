@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
 
-public final class HealthExaminationBatch {
+public class HealthExaminationBatch {
   private final AggregateId id;
   private final AggregateId organizationId;
   private String code;
@@ -172,6 +172,14 @@ public final class HealthExaminationBatch {
   public void requireDraft() {
     if (deletedAt != null) throw new DomainRuleViolation("Batch is deleted");
     if (status != BatchStatus.DRAFT) throw new DomainRuleViolation("Batch is not a draft");
+  }
+
+  /**
+   * Whether new Participants may still be added to the roster: only a batch that is not deleted
+   * and is a draft or ready accepts them.
+   */
+  public boolean acceptsParticipantImport() {
+    return deletedAt == null && (status == BatchStatus.DRAFT || status == BatchStatus.READY);
   }
 
   public void markReady() {

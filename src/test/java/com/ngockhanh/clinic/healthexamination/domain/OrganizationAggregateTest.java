@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class OrganizationAggregateTest {
     assertThat(organization.id()).isEqualTo(id);
     assertThat(organization.name()).isEqualTo("Clinic Two");
     assertThat(organization.taxCode()).isEqualTo("TAX-2");
-    assertThat(organization.status()).isEqualTo("ACTIVE");
+    assertThat(organization.status()).isEqualTo(OrganizationStatus.ACTIVE);
     assertThat(organization.rowVersion()).isZero();
   }
 

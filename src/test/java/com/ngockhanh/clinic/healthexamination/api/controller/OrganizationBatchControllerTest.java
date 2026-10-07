@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -132,12 +131,11 @@ class OrganizationBatchControllerTest {
   }
 
   @Test
-  void createReturns201WithLocationAndPassesPrincipalUserIdAsActor() throws Exception {
+  void createReturns201AndPassesPrincipalUserIdAsActor() throws Exception {
     when(create.execute(eq(organizationId), any(), eq(actor))).thenReturn(detail(0));
 
     mvc.perform(post(collection()).contentType(MediaType.APPLICATION_JSON).content(body("")))
         .andExpect(status().isCreated())
-        .andExpect(header().string("Location", "http://localhost" + item()))
         .andExpect(jsonPath("$.code").value(201))
         .andExpect(jsonPath("$.data.id").value(batchId.toString()))
         .andExpect(jsonPath("$.data.rowVersion").value(0));

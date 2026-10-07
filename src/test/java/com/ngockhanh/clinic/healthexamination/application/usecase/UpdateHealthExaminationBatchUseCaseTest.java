@@ -18,8 +18,6 @@ import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchConfigurationAssembler;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchDetailResponseMapper;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
@@ -47,15 +45,9 @@ class UpdateHealthExaminationBatchUseCaseTest {
   private final HealthExaminationBatchRepository batches =
       mock(HealthExaminationBatchRepository.class);
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
-  private final ServiceCatalogQuery displayCatalog = mock(ServiceCatalogQuery.class);
   private final AuditWriter audit = mock(AuditWriter.class);
   private final UpdateHealthExaminationBatchUseCase useCase =
-      new UpdateHealthExaminationBatchUseCase(
-          organizations,
-          batches,
-          new BatchConfigurationAssembler(catalog),
-          new BatchDetailResponseMapper(displayCatalog),
-          audit);
+      new UpdateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
   private final UUID organizationId = UUID.randomUUID();
   private final UUID batchId = UUID.randomUUID();
   private final UUID actor = UUID.randomUUID();
@@ -130,12 +122,15 @@ class UpdateHealthExaminationBatchUseCaseTest {
                 new ServiceCatalogQuery.Service(added, "S2", "New", true, new BigDecimal("500"))));
     storedAfterUpdate();
 
-    var response = useCase.execute(organizationId, batchId, command(replacement(added, kept), 3L), actor);
+    var response =
+        useCase.execute(organizationId, batchId, command(replacement(added, kept), 3L), actor);
 
     var updated = ArgumentCaptor.forClass(HealthExaminationBatch.class);
     var order = inOrder(batches, audit);
     order.verify(batches).findReferencedDayIds(eq(batchId), eq(Set.of(removedDay.id())));
-    order.verify(batches).findReferencedBatchServiceIds(eq(batchId), eq(Set.of(removedService.id().value())));
+    order
+        .verify(batches)
+        .findReferencedBatchServiceIds(eq(batchId), eq(Set.of(removedService.id().value())));
     order.verify(batches).update(updated.capture(), eq(3L));
     assertThat(updated.getValue().code()).isEqualTo("B2");
     assertThat(updated.getValue().days())
@@ -178,7 +173,7 @@ class UpdateHealthExaminationBatchUseCaseTest {
 
     verify(batches).update(any(), eq(3L));
     assertThat(response.rowVersion()).isEqualTo(4);
-    verifyNoInteractions(catalog);
+    verify(catalog, org.mockito.Mockito.times(2)).findByIds(Set.of(kept, dropped));
   }
 
   @Test
@@ -193,7 +188,8 @@ class UpdateHealthExaminationBatchUseCaseTest {
 
   @Test
   void aBatchThatIsNotADraftCannotBeUpdated() {
-    for (BatchStatus status : List.of(BatchStatus.READY, BatchStatus.FINALIZED, BatchStatus.CLOSED)) {
+    for (BatchStatus status :
+        List.of(BatchStatus.READY, BatchStatus.FINALIZED, BatchStatus.CLOSED)) {
       when(batches.findDetails(organizationId, batchId, true))
           .thenReturn(
               Optional.of(details(batch(organizationId, batchId, status, 3, null, kept, dropped))));
@@ -230,7 +226,8 @@ class UpdateHealthExaminationBatchUseCaseTest {
         configuration(kept).toBuilder().examinationDates(List.of(FIRST_DAY, SECOND_DAY)).build();
 
     assertThatThrownBy(
-            () -> useCase.execute(organizationId, batchId, command(keepsDaysDropsService, 3L), actor))
+            () ->
+                useCase.execute(organizationId, batchId, command(keepsDaysDropsService, 3L), actor))
         .isInstanceOf(DomainRuleViolation.class);
 
     verify(batches, never()).update(any(), anyLong());

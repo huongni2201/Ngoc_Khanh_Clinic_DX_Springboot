@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -29,7 +30,7 @@ class OrganizationCrudUseCaseTest {
         "Contact",
         "0902",
         "c@example.test",
-        "ACTIVE",
+        OrganizationStatus.ACTIVE,
         version);
   }
 
@@ -162,7 +163,11 @@ class OrganizationCrudUseCaseTest {
 
     verify(repo)
         .update(
-            argThat(o -> o.taxCode() == null && "ACTIVE".equals(o.status()) && id.equals(o.id())),
+            argThat(
+                o ->
+                    o.taxCode() == null
+                        && o.status() == OrganizationStatus.ACTIVE
+                        && id.equals(o.id())),
             eq(3L));
   }
 

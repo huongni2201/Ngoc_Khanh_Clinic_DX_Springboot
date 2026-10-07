@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
@@ -16,7 +17,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class GetOrganizationByIdUseCaseTest {
-  private Organization organization(AggregateId id, String status, long version) {
+  private Organization organization(AggregateId id, OrganizationStatus status, long version) {
     return Organization.restore(
         id,
         "Clinic Partner",
@@ -36,7 +37,8 @@ class GetOrganizationByIdUseCaseTest {
     UUID organizationId = UUID.randomUUID();
     AggregateId id = AggregateId.of(organizationId);
     var organizations = mock(OrganizationRepository.class);
-    when(organizations.findById(id)).thenReturn(Optional.of(organization(id, "ACTIVE", 4)));
+    when(organizations.findById(id))
+        .thenReturn(Optional.of(organization(id, OrganizationStatus.ACTIVE, 4)));
 
     var response = new GetOrganizationByIdUseCase(organizations).execute(organizationId);
 
@@ -59,7 +61,8 @@ class GetOrganizationByIdUseCaseTest {
     UUID organizationId = UUID.randomUUID();
     AggregateId id = AggregateId.of(organizationId);
     var organizations = mock(OrganizationRepository.class);
-    when(organizations.findById(id)).thenReturn(Optional.of(organization(id, "INACTIVE", 2)));
+    when(organizations.findById(id))
+        .thenReturn(Optional.of(organization(id, OrganizationStatus.INACTIVE, 2)));
 
     assertThatThrownBy(() -> new GetOrganizationByIdUseCase(organizations).execute(organizationId))
         .isInstanceOf(ResourceNotFoundException.class);

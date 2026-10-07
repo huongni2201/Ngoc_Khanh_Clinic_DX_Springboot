@@ -172,8 +172,7 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
     Map<UUID, HealthExaminationBatchServiceRecord> existing = new HashMap<>();
     for (var row : mapper.findServices(batchId)) existing.put(row.id(), row);
     var target = batch.services();
-    Set<UUID> targetIds =
-        target.stream().map(s -> s.id().value()).collect(Collectors.toSet());
+    Set<UUID> targetIds = target.stream().map(s -> s.id().value()).collect(Collectors.toSet());
 
     List<UUID> removed = existing.keySet().stream().filter(id -> !targetIds.contains(id)).toList();
     if (!removed.isEmpty() && mapper.deleteServices(batchId, removed) != removed.size())
@@ -254,7 +253,7 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
                     v.batchName(),
                     v.startDate(),
                     v.endDate(),
-                    v.status(),
+                    BatchStatus.valueOf(v.status()),
                     v.createdAt(),
                     v.updatedAt(),
                     v.rowVersion()))

@@ -13,6 +13,3 @@ clinic:
   auth:
     cookie-secure: false
     allowed-origins: http://localhost:3000
-  health-examination:
-    batch:
-      mock-created-by: 01990000-0000-7000-8000-000000000001

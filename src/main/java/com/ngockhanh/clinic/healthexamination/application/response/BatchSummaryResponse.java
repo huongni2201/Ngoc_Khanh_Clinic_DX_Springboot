@@ -23,7 +23,7 @@ public record BatchSummaryResponse(
         .batchName(b.batchName())
         .startDate(b.startDate())
         .endDate(b.endDate())
-        .status(b.status())
+        .status(b.status().name())
         .createdAt(b.createdAt())
         .updatedAt(b.updatedAt())
         .rowVersion(b.rowVersion())

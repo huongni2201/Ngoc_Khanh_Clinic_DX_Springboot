@@ -16,8 +16,6 @@ import static org.mockito.Mockito.when;
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchConfigurationAssembler;
-import com.ngockhanh.clinic.healthexamination.application.service.BatchDetailResponseMapper;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
@@ -41,15 +39,9 @@ class CreateHealthExaminationBatchUseCaseTest {
   private final HealthExaminationBatchRepository batches =
       mock(HealthExaminationBatchRepository.class);
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
-  private final ServiceCatalogQuery displayCatalog = mock(ServiceCatalogQuery.class);
   private final AuditWriter audit = mock(AuditWriter.class);
   private final CreateHealthExaminationBatchUseCase useCase =
-      new CreateHealthExaminationBatchUseCase(
-          organizations,
-          batches,
-          new BatchConfigurationAssembler(catalog),
-          new BatchDetailResponseMapper(displayCatalog),
-          audit);
+      new CreateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
   private final UUID organizationId = UUID.randomUUID();
   private final UUID actor = UUID.randomUUID();
   private final UUID service = UUID.randomUUID();
@@ -177,8 +169,7 @@ class CreateHealthExaminationBatchUseCaseTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> useCase.execute(organizationId, command(null), actor))
         .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> useCase.execute(organizationId, command(configuration(service)), null))
+    assertThatThrownBy(() -> useCase.execute(organizationId, command(configuration(service)), null))
         .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(organizations, batches, audit);
   }
@@ -208,7 +199,9 @@ class CreateHealthExaminationBatchUseCaseTest {
         .thenReturn(
             List.of(new ServiceCatalogQuery.Service(service, "S1", "Exam", true, BigDecimal.TEN)));
     var past =
-        configuration(service).toBuilder().examinationDates(List.of(LocalDate.of(2001, 1, 1))).build();
+        configuration(service).toBuilder()
+            .examinationDates(List.of(LocalDate.of(2001, 1, 1)))
+            .build();
 
     assertThat(useCase.execute(organizationId, command(past), actor).startDate())
         .isEqualTo(LocalDate.of(2001, 1, 1));

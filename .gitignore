@@ -34,3 +34,7 @@ build/
 .mvn
 .m2
 .superpowers/
+
+
+
+.env.prod

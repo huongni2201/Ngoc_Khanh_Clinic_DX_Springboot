@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
@@ -38,7 +39,7 @@ public class GetOrganizationByIdUseCase {
     Organization organization =
         organizations
             .findById(AggregateId.of(id))
-            .filter(found -> "ACTIVE".equals(found.status()))
+            .filter(found -> found.status() == OrganizationStatus.ACTIVE)
             .orElseThrow(() -> new ResourceNotFoundException("Organization"));
 
     log.debug("Organization retrieved: organizationId={}", id);

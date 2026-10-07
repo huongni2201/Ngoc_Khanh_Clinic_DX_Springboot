@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.audit.application.port.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteOrganizationCommand;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
@@ -53,12 +54,12 @@ public class DeleteOrganizationUseCase {
             .findById(AggregateId.of(id))
             .orElseThrow(() -> new ResourceNotFoundException("Organization"));
     if (expectedVersion != current.rowVersion()) throw new ConcurrentUpdateException();
-    if ("INACTIVE".equals(current.status())) {
+    if (current.status() == OrganizationStatus.INACTIVE) {
       log.debug("Organization already inactive: organizationId={}", id);
       return;
     }
 
-    String previousStatus = current.status();
+    String previousStatus = current.status().name();
     current.deactivate();
     organizations.update(current, expectedVersion);
     var deactivated = organizations.findById(current.id()).orElseThrow();
@@ -68,7 +69,7 @@ public class DeleteOrganizationUseCase {
         "ORGANIZATION",
         deactivated.id().value(),
         Map.of("status", previousStatus, "rowVersion", current.rowVersion()),
-        Map.of("status", deactivated.status(), "rowVersion", deactivated.rowVersion()));
+        Map.of("status", deactivated.status().name(), "rowVersion", deactivated.rowVersion()));
     log.info(
         "Organization deactivation pending commit: organizationId={}", deactivated.id().value());
   }
