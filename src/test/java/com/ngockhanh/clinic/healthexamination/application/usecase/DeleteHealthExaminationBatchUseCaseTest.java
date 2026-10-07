@@ -14,7 +14,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
@@ -56,7 +56,8 @@ class DeleteHealthExaminationBatchUseCaseTest {
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(organization(organizationId)));
     when(batches.findDetails(organizationId, batchId, true))
-        .thenReturn(Optional.of(details(draftBatch(organizationId, batchId, 2, UUID.randomUUID()))));
+        .thenReturn(
+            Optional.of(details(draftBatch(organizationId, batchId, 2, UUID.randomUUID()))));
   }
 
   private static DeleteHealthExaminationBatchCommand version(Long rowVersion) {
@@ -106,9 +107,12 @@ class DeleteHealthExaminationBatchUseCaseTest {
 
   @Test
   void onlyADraftCanBeDeleted() {
-    for (BatchStatus status : List.of(BatchStatus.READY, BatchStatus.FINALIZED, BatchStatus.CLOSED)) {
+    for (BatchStatus status :
+        List.of(BatchStatus.READY, BatchStatus.FINALIZED, BatchStatus.CLOSED)) {
       when(batches.findDetails(organizationId, batchId, true))
-          .thenReturn(Optional.of(details(batch(organizationId, batchId, status, 2, null, UUID.randomUUID()))));
+          .thenReturn(
+              Optional.of(
+                  details(batch(organizationId, batchId, status, 2, null, UUID.randomUUID()))));
 
       assertThatThrownBy(() -> useCase.execute(organizationId, batchId, version(2L), actor))
           .as(status.name())

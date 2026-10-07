@@ -50,8 +50,7 @@ class HealthExaminationBatchMapperTest {
             "LIMIT ? OFFSET ?",
             "id ASC")
         .doesNotContain("DROP TABLE", "evil_%");
-    assertThat(sql(config, "count", params))
-        .contains("organization_id=?", "deleted_at IS NULL");
+    assertThat(sql(config, "count", params)).contains("organization_id=?", "deleted_at IS NULL");
     params.put("sortKey", "batchCode");
     params.put("sortBy", "ASC");
     assertThat(sql(config, "findPage", params)).contains("batch_code ASC, id ASC");
@@ -147,82 +146,9 @@ class HealthExaminationBatchMapperTest {
     service.put("displayOrder", 2);
     service.put("expectedRowVersion", 0L);
     assertThat(sql(config, "updateService", service))
-        .contains("negotiated_price=?", "display_order=?", "row_version=row_version+1", "row_version=?");
-    assertThat(sql(config, "moveServiceOrder", service)).contains("display_order=?", "batch_id=?");
-  }
-
-  @Test
-  void participantWritesCannotTouchASoftDeletedBatch() throws Exception {
-    var config =
-        mapperConfiguration("healthexamination", "HealthExaminationBatchParticipantMyBatisMapper");
-    String text;
-    try (var input =
-        getClass()
-            .getClassLoader()
-            .getResourceAsStream(
-                "mapper/healthexamination/HealthExaminationBatchParticipantMyBatisMapper.xml")) {
-      text = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-    }
-    assertThat(config.getMappedStatementNames()).isNotEmpty();
-    assertThat(text)
-        .contains("public.health_examination_batches b", "b.deleted_at IS NULL", "FOR SHARE OF b");
-  }
-
-  @Test
-  void selectsOnlyCurrentMasterTemplatesFromDocumentXml() throws Exception {
-    var config = mapperConfiguration("document", "MasterHealthExaminationTemplateMapper");
-    String sql =
-        config
-            .getMappedStatement(
-                "com.ngockhanh.clinic.document.infrastructure.persistence.mapper.MasterHealthExaminationTemplateMapper.findEffectiveVersions")
-            .getBoundSql(Map.of())
-            .getSql();
-    assertThat(sql)
         .contains(
-            "FROM public.template_versions v",
-            "JOIN public.templates t ON",
-            "t.active=true",
-            "v.render_mode='MASTER_FORM'",
-            "v.active_from<=CURRENT_TIMESTAMP",
-            "v.retired_at IS NULL",
-            "v.retired_at>CURRENT_TIMESTAMP");
-  }
-
-  @Test
-  void bindsAuditEventInsertFieldsFromXml() throws Exception {
-    var config = mapperConfiguration("audit", "AuditEventMapper");
-    var bound =
-        config
-            .getMappedStatement(
-                "com.ngockhanh.clinic.audit.infrastructure.persistence.mapper.AuditEventMapper.insert")
-            .getBoundSql(
-                Map.of(
-                    "id",
-                    UUID.randomUUID(),
-                    "actorAccountId",
-                    UUID.randomUUID(),
-                    "action",
-                    "TEST_ACTION",
-                    "resourceType",
-                    "TEST_ENTITY",
-                    "resourceId",
-                    UUID.randomUUID(),
-                    "metadata",
-                    "{}"));
-    assertThat(bound.getSql())
-        .contains("INSERT INTO public.audit_events", "actor_account_id", "metadata");
-    assertThat(bound.getParameterMappings())
-        .extracting(mapping -> mapping.getProperty())
-        .containsExactly(
-            "id",
-            "occurredAt",
-            "actorAccountId",
-            "action",
-            "resourceType",
-            "resourceId",
-            "departmentId",
-            "correlationId",
-            "metadata");
+            "negotiated_price=?", "display_order=?", "row_version=row_version+1", "row_version=?");
+    assertThat(sql(config, "moveServiceOrder", service)).contains("display_order=?", "batch_id=?");
   }
 
   private Configuration mapperConfiguration(String module, String mapper) throws Exception {

@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.audit.infrastructure.persistence.repository;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.audit.infrastructure.persistence.mapper.AuditEventMapper;
 import com.ngockhanh.clinic.audit.infrastructure.persistence.record.AuditEventRecord;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;

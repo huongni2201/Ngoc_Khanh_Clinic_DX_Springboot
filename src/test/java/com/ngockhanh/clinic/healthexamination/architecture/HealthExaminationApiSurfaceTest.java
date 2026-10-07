@@ -17,6 +17,9 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class HealthExaminationApiSurfaceTest {
   private static final String MODULE_PACKAGE = "com.ngockhanh.clinic.healthexamination";
 
+  private static final String BATCH =
+      "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}";
+
   private static final Set<String> ALLOWED_MAPPINGS =
       Set.of(
           "GET /api/v1/organizations",
@@ -31,7 +34,18 @@ class HealthExaminationApiSurfaceTest {
           "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants",
           "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports");
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports",
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants",
+          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}",
+          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}",
+          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}",
+          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/reactivate",
+          "GET " + BATCH + "/examination-details",
+          "GET " + BATCH + "/examination-details/summary",
+          "GET " + BATCH + "/examination-details/export",
+          "POST " + BATCH + "/examination-details/imports",
+          "GET " + BATCH + "/reports/payment-summary",
+          "GET " + BATCH + "/reports/payment-summary/docx");
 
   private static final Set<String> REMOVED_MAPPINGS =
       Set.of(

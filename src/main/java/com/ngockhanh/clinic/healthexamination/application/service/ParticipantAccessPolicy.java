@@ -13,6 +13,10 @@ public class ParticipantAccessPolicy {
   public static final String READ_PERMISSION = "PARTICIPANT_VIEW";
   public static final String TEMPLATE_DOWNLOAD_PERMISSION = "PARTICIPANT_TEMPLATE_DOWNLOAD";
   public static final String IMPORT_PERMISSION = "PARTICIPANT_IMPORT";
+  public static final String CREATE_PERMISSION = "PARTICIPANT_CREATE";
+  public static final String UPDATE_PERMISSION = "PARTICIPANT_UPDATE";
+  public static final String REMOVE_PERMISSION = "PARTICIPANT_REMOVE";
+  public static final String REACTIVATE_PERMISSION = "PARTICIPANT_REACTIVATE";
 
   /**
    * Requires permission to read the Participant roster of a batch.
@@ -41,6 +45,46 @@ public class ParticipantAccessPolicy {
     require(principal, IMPORT_PERMISSION);
   }
 
+  /**
+   * Requires permission to add a Participant manually.
+   *
+   * @param principal authenticated caller
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireCreate(UserPrincipal principal) {
+    require(principal, CREATE_PERMISSION);
+  }
+
+  /**
+   * Requires permission to update a Participant.
+   *
+   * @param principal authenticated caller
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireUpdate(UserPrincipal principal) {
+    require(principal, UPDATE_PERMISSION);
+  }
+
+  /**
+   * Requires permission to cancel a Participant.
+   *
+   * @param principal authenticated caller
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireRemove(UserPrincipal principal) {
+    require(principal, REMOVE_PERMISSION);
+  }
+
+  /**
+   * Requires permission to reactivate a cancelled Participant.
+   *
+   * @param principal authenticated caller
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireReactivate(UserPrincipal principal) {
+    require(principal, REACTIVATE_PERMISSION);
+  }
+
   private static void require(UserPrincipal principal, String permission) {
     boolean allowed =
         principal != null
@@ -50,7 +94,6 @@ public class ParticipantAccessPolicy {
                 .anyMatch(role -> role.permissions().contains(permission));
     if (!allowed)
       throw new ApplicationException(
-          ApplicationException.Type.ACCESS_DENIED,
-          "You are not authorized to perform this action");
+          ApplicationException.Type.ACCESS_DENIED, "You are not authorized to perform this action");
   }
 }

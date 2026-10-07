@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.service;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantWorkbook;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;

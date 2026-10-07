@@ -1,8 +1,8 @@
 package com.ngockhanh.clinic.accesscontrol.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.exception.AuthenticationFailure;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionSnapshot;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionSnapshot;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
 import java.time.Clock;

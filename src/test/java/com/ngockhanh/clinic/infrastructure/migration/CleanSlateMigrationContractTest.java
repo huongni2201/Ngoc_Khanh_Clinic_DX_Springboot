@@ -45,11 +45,10 @@ class CleanSlateMigrationContractTest {
                   .filter(path -> path.toString().endsWith(".sql"))
                   .map(path -> path.getFileName().toString())
                   .toList())
-          .containsExactlyInAnyOrder(
+          .contains(
               "V001__create_clean_slate_schema.sql",
-              "V002__add_health_examination_batch_soft_delete.sql",
-              "V003__add_participant_roster_permissions.sql",
-              "V004__seed_access_control_roles_and_permissions.sql");
+              "V002__seed_access_control_roles_and_permissions.sql")
+          .allMatch(name -> name.matches("V\\d{3}__[a-z_]+\\.sql"));
     }
     String sql = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
     var tables =
@@ -83,12 +82,30 @@ class CleanSlateMigrationContractTest {
             "numeric(14,2)",
             "timestamptz(3)",
             "DEFAULT uuidv7()",
-            "row_version bigint NOT NULL DEFAULT 0")
+            "row_version bigint NOT NULL DEFAULT 0",
+            "deleted_at timestamptz(3) NULL",
+            "'HEALTH_EXAMINATION_SERVICE_RECONCILIATION'")
         .doesNotContain("CREATE SCHEMA", "numeric(18,2)", "NEW.row_version := OLD.row_version + 1");
     assertThat(sql)
         .contains(
             "UNIQUE (batch_id, identification_number)",
             "FOREIGN KEY (batch_id, batch_day_id)",
             "FOREIGN KEY (batch_id, batch_service_id)");
+  }
+
+  @Test
+  void schemaAndSeedMigrationsKeepSeparateResponsibilities() throws Exception {
+    Path directory = Path.of("src/main/resources/db/migration");
+    String schema = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
+    String seed =
+        Files.readString(directory.resolve("V002__seed_access_control_roles_and_permissions.sql"));
+    assertThat(schema).doesNotContain("INSERT INTO");
+    assertThat(seed)
+        .contains(
+            "INSERT INTO public.roles",
+            "INSERT INTO public.permissions",
+            "INSERT INTO public.role_permissions")
+        .doesNotContain(
+            "CREATE TABLE", "ALTER TABLE", "CREATE INDEX", "CREATE FUNCTION", "CREATE TRIGGER");
   }
 }

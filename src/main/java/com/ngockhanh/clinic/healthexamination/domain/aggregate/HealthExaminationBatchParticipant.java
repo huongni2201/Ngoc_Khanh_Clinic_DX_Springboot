@@ -13,6 +13,8 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 
@@ -252,6 +254,24 @@ public class HealthExaminationBatchParticipant {
     rosterStatus = RosterStatus.CANCELLED;
   }
 
+  /**
+   * Returns a cancelled Participant to the active roster. Only the roster status changes; the row,
+   * its provenance, attendance and reconciliation stay as they were at cancellation.
+   *
+   * @throws DomainRuleViolation when the Participant is not cancelled, or (defensively) was
+   *     prepared, attended or reconciled
+   */
+  public void reactivate() {
+    if (rosterStatus != RosterStatus.CANCELLED)
+      throw new DomainRuleViolation("Participant is not cancelled");
+    if (preparedAt != null
+        || attendanceStatus == AttendanceStatus.ATTENDED
+        || reconciliationStatus == ReconciliationStatus.RECONCILED)
+      throw new DomainRuleViolation(
+          "Participant cannot be reactivated after preparation or attendance");
+    rosterStatus = RosterStatus.ACTIVE;
+  }
+
   /** Whether the Participant was added by hand rather than created by an Excel import. */
   public boolean isManual() {
     return importJobId == null;
@@ -320,6 +340,22 @@ public class HealthExaminationBatchParticipant {
     return services.values().stream()
         .sorted(java.util.Comparator.comparing(s -> s.id().value().toString()))
         .toList();
+  }
+
+  /**
+   * Identifiers of the batch services whose reconciliation row is recorded as performed. Rows that
+   * were unchecked ({@code performed = false}) are kept but are not part of the result.
+   */
+  public Set<AggregateId> performedBatchServiceIds() {
+    return services.values().stream()
+        .filter(HealthExaminationBatchParticipantService::performed)
+        .map(HealthExaminationBatchParticipantService::batchServiceId)
+        .collect(Collectors.toUnmodifiableSet());
+  }
+
+  /** Identifiers of every batch service that has a reconciliation row, performed or not. */
+  public Set<AggregateId> reconciledBatchServiceIds() {
+    return Set.copyOf(services.keySet());
   }
 
   private void requireActive() {

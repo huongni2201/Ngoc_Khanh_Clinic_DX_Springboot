@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.ExaminationDetailMyBatisMapper">
+ <sql id="rowColumns">
+ p.id,p.participant_code,p.full_name,p.date_of_birth,p.sex,p.identification_number,p.department_name,p.position_name,
+ d.examination_date,p.attendance_status,p.actual_examination_date,p.service_reconciliation_status AS reconciliation_status,p.row_version
+ </sql>
+ <select id="batchInScope" resultType="boolean">
+ SELECT EXISTS(SELECT 1 FROM public.health_examination_batches WHERE id=#{batchId} AND organization_id=#{organizationId} AND deleted_at IS NULL)
+ </select>
+ <sql id="rowFilter">
+ p.batch_id=#{batchId}
+ <if test="searchPattern != null">AND (LOWER(p.full_name) LIKE #{searchPattern} ESCAPE chr(92) OR LOWER(COALESCE(p.participant_code,'')) LIKE #{searchPattern} ESCAPE chr(92)
+ OR LOWER(p.department_name) LIKE #{searchPattern} ESCAPE chr(92))</if>
+ <if test="rosterStatus != null">AND p.roster_status=#{rosterStatus}</if>
+ <if test="attendanceStatus != null">AND p.attendance_status=#{attendanceStatus}</if>
+ <if test="reconciliationStatus != null">AND p.service_reconciliation_status=#{reconciliationStatus}</if>
+ </sql>
+ <select id="countRows" resultType="long">
+ SELECT COUNT(*) FROM public.health_examination_batch_participants p WHERE <include refid="rowFilter"/>
+ </select>
+ <select id="findRows" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDetailRowView">
+ SELECT <include refid="rowColumns"/>
+ FROM public.health_examination_batch_participants p
+ JOIN public.health_examination_batch_days d ON d.batch_id=p.batch_id AND d.id=p.batch_day_id
+ WHERE <include refid="rowFilter"/>
+ ORDER BY
+ <choose>
+  <when test="sortKey == 'fullName' and sortBy == 'DESC'">p.full_name DESC, p.id DESC</when>
+  <when test="sortKey == 'fullName'">p.full_name ASC, p.id ASC</when>
+  <when test="sortKey == 'participantCode' and sortBy == 'DESC'">p.participant_code DESC NULLS LAST, p.id DESC</when>
+  <when test="sortKey == 'participantCode'">p.participant_code ASC NULLS LAST, p.id ASC</when>
+  <when test="sortKey == 'examinationDate' and sortBy == 'DESC'">d.examination_date DESC, p.id DESC</when>
+  <when test="sortKey == 'examinationDate'">d.examination_date ASC, p.id ASC</when>
+  <when test="sortBy == 'DESC'">p.id DESC</when>
+  <otherwise>p.id ASC</otherwise>
+ </choose>
+ LIMIT #{limit} OFFSET #{offset}
+ </select>
+ <select id="findPerformedServices" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PerformedServiceView">
+ SELECT batch_participant_id, batch_service_id
+ FROM public.health_examination_participant_services
+ WHERE is_performed AND batch_participant_id IN <foreach collection="participantIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+ ORDER BY batch_participant_id, batch_service_id
+ </select>
+ <select id="findActiveRowsForExport" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDetailRowView">
+ SELECT <include refid="rowColumns"/>
+ FROM public.health_examination_batch_participants p
+ JOIN public.health_examination_batch_days d ON d.batch_id=p.batch_id AND d.id=p.batch_day_id
+ WHERE p.batch_id=#{batchId} AND p.roster_status='ACTIVE'
+ ORDER BY d.examination_date ASC, p.participant_code ASC NULLS LAST, p.full_name ASC, p.id ASC
+ </select>
+ <select id="findPerformedServicesOfActiveParticipants" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PerformedServiceView">
+ SELECT ps.batch_participant_id, ps.batch_service_id
+ FROM public.health_examination_participant_services ps
+ JOIN public.health_examination_batch_participants p ON p.batch_id=ps.batch_id AND p.id=ps.batch_participant_id
+ WHERE ps.batch_id=#{batchId} AND ps.is_performed AND p.roster_status='ACTIVE'
+ ORDER BY ps.batch_participant_id, ps.batch_service_id
+ </select>
+ <select id="countActiveParticipants" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationCountView">
+ SELECT COUNT(*) AS registered,
+ COUNT(*) FILTER (WHERE attendance_status='UNCONFIRMED') AS unconfirmed,
+ COUNT(*) FILTER (WHERE attendance_status='ATTENDED') AS attended,
+ COUNT(*) FILTER (WHERE attendance_status='ABSENT') AS absent,
+ COUNT(*) FILTER (WHERE service_reconciliation_status='RECONCILED') AS reconciled,
+ COUNT(*) FILTER (WHERE attendance_status='ATTENDED' AND service_reconciliation_status='PENDING') AS pending_reconciliation
+ FROM public.health_examination_batch_participants
+ WHERE batch_id=#{batchId} AND roster_status='ACTIVE'
+ </select>
+ <select id="aggregatePerformedServices" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ServiceAmountView">
+ SELECT ps.batch_service_id, ps.unit_price_snapshot AS unit_price, COUNT(*) AS examined_count
+ FROM public.health_examination_participant_services ps
+ JOIN public.health_examination_batch_participants p ON p.batch_id=ps.batch_id AND p.id=ps.batch_participant_id
+ WHERE ps.batch_id=#{batchId} AND ps.is_performed AND p.roster_status='ACTIVE'
+ GROUP BY ps.batch_service_id, ps.unit_price_snapshot
+ ORDER BY ps.batch_service_id, ps.unit_price_snapshot
+ </select>
+</mapper>

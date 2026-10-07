@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.domain.repository;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +20,18 @@ public interface HealthExaminationBatchParticipantRepository {
 
   /** Loads a Participant only when it belongs to the given batch. */
   Optional<HealthExaminationBatchParticipant> findInBatch(AggregateId batchId, AggregateId id);
+
+  /**
+   * Loads the given Participants of one batch with their reconciliation rows, locking every
+   * Participant row until the transaction ends. The rows are locked in identifier order, so two
+   * concurrent callers cannot deadlock on the same set. Identifiers that do not belong to the batch
+   * are simply absent from the result; the caller decides what that means.
+   *
+   * <p>One query reads the headers and one reads all the reconciliation rows, whatever the number
+   * of Participants.
+   */
+  List<HealthExaminationBatchParticipant> findManyInBatchForUpdate(
+      AggregateId batchId, Collection<AggregateId> ids);
 
   /**
    * Inserts one Participant. A duplicate identification number in the batch, whatever the roster

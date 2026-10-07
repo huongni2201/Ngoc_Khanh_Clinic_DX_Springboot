@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.application.response.OrganizationResponse;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;

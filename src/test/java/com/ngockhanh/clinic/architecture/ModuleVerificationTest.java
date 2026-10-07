@@ -8,15 +8,15 @@ import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
-import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
 
 class ModuleVerificationTest {
-  private final JavaClasses applicationClasses =
+  private static final JavaClasses applicationClasses =
       new ClassFileImporter()
-          .withImportOption(new ImportOption.DoNotIncludeTests())
-          .importPackages("com.ngockhanh.clinic");
+          // Import production output directly; test paths vary between Maven and IDE builds.
+          .importUrl(
+              NgocKhanhClinicApplication.class.getProtectionDomain().getCodeSource().getLocation());
 
   @Test
   void modulesRespectTheirPublishedBoundaries() {

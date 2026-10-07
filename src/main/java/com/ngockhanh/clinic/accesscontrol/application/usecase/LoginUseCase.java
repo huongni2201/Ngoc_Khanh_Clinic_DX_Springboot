@@ -2,13 +2,13 @@ package com.ngockhanh.clinic.accesscontrol.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.command.LoginCommand;
 import com.ngockhanh.clinic.accesscontrol.application.exception.AuthenticationFailure;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionSnapshot;
-import com.ngockhanh.clinic.accesscontrol.application.port.SessionStore;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionSnapshot;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
 import com.ngockhanh.clinic.accesscontrol.application.response.LoginResult;
 import com.ngockhanh.clinic.accesscontrol.domain.entity.UserAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;

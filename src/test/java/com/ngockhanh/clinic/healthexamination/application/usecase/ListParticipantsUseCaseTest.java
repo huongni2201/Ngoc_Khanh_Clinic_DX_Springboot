@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.ngockhanh.clinic.healthexamination.application.port.ParticipantListReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantListReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantListCriteria;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantListQuery;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantPage;
@@ -46,7 +46,8 @@ class ListParticipantsUseCaseTest {
       assertThatThrownBy(() -> useCase.execute(organizationId, batchId, query, principal))
           .isInstanceOfSatisfying(
               ApplicationException.class,
-              denied -> assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
+              denied ->
+                  assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
     assertThatThrownBy(() -> useCase.execute(organizationId, batchId, query, null))
         .isInstanceOf(ApplicationException.class);
     verifyNoInteractions(reader);
@@ -133,8 +134,7 @@ class ListParticipantsUseCaseTest {
   void masksTheIdentificationNumberAndKeepsTheTotals() {
     when(reader.readPage(eq(organizationId), eq(batchId), any()))
         .thenReturn(
-            Optional.of(
-                new ParticipantPage(List.of(summary("012345678901"), summary("123")), 21)));
+            Optional.of(new ParticipantPage(List.of(summary("012345678901"), summary("123")), 21)));
 
     var page =
         useCase.execute(

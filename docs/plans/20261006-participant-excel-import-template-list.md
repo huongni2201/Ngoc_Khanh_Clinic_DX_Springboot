@@ -203,7 +203,7 @@ Các con số sau là resource budget khởi điểm, không phải business rul
 | Dòng dữ liệu | 1..1.000; vùng nhập chỉ trong dòng Excel 2..1.001 |
 | Cột nhập | Đúng 10 cột |
 | Text mỗi cell | <= 500 ký tự; full_name vẫn <= 200 |
-| ZIP package | <= 128 entries, từng entry <= 16 MiB, tổng giải nén <= 32 MiB |
+| ZIP package | <= 128 entries, từng entry <= 64 MiB, tổng giải nén <= 128 MiB (nâng từ 16/32 MiB để file chi tiết khám 10.000 dòng × 30 dịch vụ ≈ 16,3 MB cho sheet XML vẫn nhập lại được) |
 | Insert chunk | 200 Participant/chunk trong cùng transaction |
 
 Giữ POI ZIP-bomb ratio protection; cấu hình giới hạn static một lần lúc bootstrap, không thay đổi per-request. Kiểm tra tổng package size/entry count trước XSSFWorkbook; không coi giới hạn số dòng hay `setMaxTextSize` là giới hạn tổng memory workbook. Shared strings/styles cũng cần nằm trong archive budgets. Parser phải giới hạn sparse row index, không chỉ đếm row có dữ liệu.

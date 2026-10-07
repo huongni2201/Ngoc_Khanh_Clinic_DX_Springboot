@@ -27,6 +27,32 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
 
   @Test
   void migratesCleanSlateIntoPublicAndEnforcesPatientAndAuditConstraints() {
+    Flyway schemaFlyway =
+        Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .locations("classpath:db/migration")
+            .target("1")
+            .load();
+    assertThat(schemaFlyway.migrate().migrationsExecuted).isEqualTo(1);
+    JdbcTemplate jdbc =
+        new JdbcTemplate(
+            new DriverManagerDataSource(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+    for (String table : List.of("roles", "permissions", "role_permissions")) {
+      assertThat(jdbc.queryForObject("SELECT count(*) FROM public." + table, Integer.class))
+          .as("V001 creates %s without seed data", table)
+          .isZero();
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_batches' AND column_name = 'deleted_at'",
+                String.class))
+        .isEqualTo("timestamp with time zone");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'public.import_jobs'::regclass AND conname = 'ck_import_jobs_type'",
+                String.class))
+        .contains("HEALTH_EXAMINATION_SERVICE_RECONCILIATION");
     Flyway flyway =
         Flyway.configure()
             .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
@@ -35,14 +61,16 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
+    flyway.migrate();
+    assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
-
-    JdbcTemplate jdbc =
-        new JdbcTemplate(
-            new DriverManagerDataSource(
-                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+    assertThat(
+            jdbc.queryForList(
+                "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
+                String.class))
+        .contains("001", "002");
+    assertPermissionMatrixSeed(jdbc);
 
     assertThat(
             jdbc.queryForObject(
@@ -94,7 +122,6 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 Integer.class))
         .isZero();
 
-
     UUID patientId =
         jdbc.queryForObject(
             """
@@ -138,8 +165,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
   }
 
   /**
-   * V004 seeds the SRS Permission Matrix 4.4 (ADR-0015). The two V003 roster permissions are
-   * superseded by the matrix codes and stay ungranted on a fresh database.
+   * V002 seeds the SRS Permission Matrix 4.4 (ADR-0015) and current endpoint permissions. The two
+   * legacy roster permissions are superseded by the matrix codes and stay ungranted.
    */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
@@ -152,9 +179,9 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(108);
+        .isEqualTo(114);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(112);
+        .isEqualTo(118);
     assertThat(
             jdbc.queryForList(
                 """
@@ -180,6 +207,20 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
     assertThat(rolesGranted(jdbc, "REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT"))
         .containsExactly("CLINIC_MANAGER");
     assertThat(rolesGranted(jdbc, "AUDIT_LOG_VIEW")).containsExactly("ADMINISTRATOR");
+    for (String permission :
+        List.of(
+            "PARTICIPANT_CREATE",
+            "PARTICIPANT_REACTIVATE",
+        "HEALTH_EXAMINATION_PARTICIPANT_MANAGE",
+        "PARTICIPANT_CREATE",
+        "PARTICIPANT_REACTIVATE",
+            "HEALTH_EXAMINATION_SERVICE_READ",
+            "HEALTH_EXAMINATION_SERVICE_RECONCILE",
+            "HEALTH_EXAMINATION_REPORT_READ",
+            "PARTICIPANT_CREATE",
+            "PARTICIPANT_REACTIVATE")) {
+      assertThat(rolesGranted(jdbc, permission)).containsExactly("CLINIC_MANAGER");
+    }
   }
 
   private static List<String> rolesGranted(JdbcTemplate jdbc, String permission) {

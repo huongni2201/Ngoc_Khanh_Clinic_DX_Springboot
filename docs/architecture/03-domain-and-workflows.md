@@ -80,6 +80,23 @@ batch services and their negotiated price. Existing identity, historical price
 and established ServiceRequest links cannot change through reconciliation. Keep
 unchecked rows with is_performed=false; save header/items atomically with versions.
 
+## Participant manual changes
+
+Owner decision 2026-10-07; the HTTP contract is
+[participant manual add, edit, cancel and reactivate](../api/participant-manual-crud.md).
+
+- One Participant is added, edited or cancelled by hand in a DRAFT/READY batch of an ACTIVE
+  organization. Cancelling sets roster CANCELLED; there is no physical delete. A cancelled Participant is
+  reactivated (CANCELLED → ACTIVE) on the same row, never re-added.
+- The `(batch_id, identification_number)` rule covers every roster status, so a cancelled
+  Participant keeps its CCCD reserved.
+- The CCCD is locked once `patient_id` is set. A Participant that was prepared, attended or
+  reconciled cannot be cancelled, and such a row cannot be reactivated either (defensive guard).
+  Reactivation changes only the roster status, plus the examination day when the caller picks
+  another one; attendance, reconciliation and import provenance are kept.
+- Changes use the Participant `rowVersion`, lock batch then Participant, and audit in the same
+  transaction without personal data. The batch `rowVersion` does not change.
+
 ## Participant Excel import and list
 
 The multi-step import workflow (template, upload, preview, confirm, cancel) was removed
@@ -129,3 +146,14 @@ versions; issued representations retain those references. Backend render audit
 records DOCUMENT_RENDERED, not proof that a browser print dialog printed paper.
 Notification/outbox use deduplication and leases for durable post-commit delivery.
 These storage contracts do not claim unsupported workflows have public endpoints.
+
+## Examination details and payment report
+
+A Participant's performed services are `HealthExaminationBatchParticipantService` rows (price snapshot per row).
+`reconcileServices` keeps existing rows when a service is unchecked (`is_performed=false`), adds new rows only for
+performed active services at the negotiated price, and moves the Participant to RECONCILED; ATTENDED needs an
+actual date. "Pending reconciliation" means ATTENDED and PENDING. The screen status labels are derived in the
+frontend; the backend adds no parallel state machine. The payment report groups performed rows of the ACTIVE roster
+by (batch service, price snapshot), `amount = unit price × count`, and is provisional while the batch is not
+FINALIZED/CLOSED. Business "today" is Asia/Ho_Chi_Minh. See
+[examination details and report](../api/examination-details-and-report.md).

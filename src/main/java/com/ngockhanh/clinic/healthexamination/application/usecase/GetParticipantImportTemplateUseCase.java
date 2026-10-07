@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.healthexamination.application.port.ParticipantTemplateWriter;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantTemplateWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantTemplateData;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportTemplateResponse;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantAccessPolicy;

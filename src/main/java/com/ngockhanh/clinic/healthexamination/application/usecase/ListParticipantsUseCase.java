@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.healthexamination.application.port.ParticipantListReader;
+import com.ngockhanh.clinic.healthexamination.application.port.out.ParticipantListReader;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantListCriteria;
 import com.ngockhanh.clinic.healthexamination.application.query.ParticipantListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantSummaryResponse;

@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;

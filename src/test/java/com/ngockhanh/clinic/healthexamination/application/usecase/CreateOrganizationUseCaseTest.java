@@ -3,10 +3,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.ngockhanh.clinic.audit.application.port.AuditWriter;
-import com.ngockhanh.clinic.audit.infrastructure.persistence.mapper.AuditEventMapper;
-import com.ngockhanh.clinic.audit.infrastructure.persistence.record.AuditEventRecord;
-import com.ngockhanh.clinic.audit.infrastructure.persistence.repository.MyBatisAuditWriter;
+import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateOrganizationCommand;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DuplicateOrganizationIdentity;
@@ -14,7 +11,6 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepo
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import tools.jackson.databind.json.JsonMapper;
 
 class CreateOrganizationUseCaseTest {
   private CreateOrganizationCommand command(String taxCode) {
@@ -52,46 +48,17 @@ class CreateOrganizationUseCaseTest {
   }
 
   @Test
-  void sharedWriterKeepsBusinessSnapshotsAndDatabaseAssignedTime() {
+  void propagatesAuditFailure() {
     var repo = mock(OrganizationRepository.class);
-    var mapper = mock(AuditEventMapper.class);
-    when(mapper.insert(any())).thenReturn(1);
-    var json = JsonMapper.builder().build();
-    var writer = new MyBatisAuditWriter(mapper, json);
-    UUID actor = UUID.randomUUID();
-
-    var result = new CreateOrganizationUseCase(repo, writer).execute(command("TAX-01"), actor);
-
-    var event = ArgumentCaptor.forClass(AuditEventRecord.class);
-    verify(mapper).insert(event.capture());
-    var recorded = event.getValue();
-    assertThat(recorded.actorAccountId()).isEqualTo(actor);
-    assertThat(recorded.action()).isEqualTo("CREATE_ORGANIZATION");
-    assertThat(recorded.resourceType()).isEqualTo("ORGANIZATION");
-    assertThat(recorded.resourceId()).isEqualTo(result.id());
-    assertThat(recorded.occurredAt()).isNull();
-    assertThat(recorded.correlationId()).isNull();
-    assertThat(recorded.departmentId()).isNull();
-    assertThat(recorded.id().version()).isEqualTo(7);
-    var metadata = json.readTree(recorded.metadata());
-    assertThat(metadata.get("before").isEmpty()).isTrue();
-    assertThat(metadata.get("after").get("taxCode").asString()).isEqualTo("TAX-01");
-    assertThat(metadata.get("after").size()).isEqualTo(1);
-  }
-
-  @Test
-  void sharedWriterPropagatesBusinessAuditInsertFailure() {
-    var repo = mock(OrganizationRepository.class);
-    var mapper = mock(AuditEventMapper.class);
-    when(mapper.insert(any())).thenReturn(0);
-    var writer = new MyBatisAuditWriter(mapper, JsonMapper.builder().build());
+    var audit = mock(AuditWriter.class);
+    var failure = new IllegalStateException("Audit unavailable");
+    doThrow(failure).when(audit).record(any(), any(), any(), any(), any(), any());
 
     assertThatThrownBy(
             () ->
-                new CreateOrganizationUseCase(repo, writer)
+                new CreateOrganizationUseCase(repo, audit)
                     .execute(command("TAX-01"), UUID.randomUUID()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Audit not saved");
+        .isSameAs(failure);
   }
 
   @Test

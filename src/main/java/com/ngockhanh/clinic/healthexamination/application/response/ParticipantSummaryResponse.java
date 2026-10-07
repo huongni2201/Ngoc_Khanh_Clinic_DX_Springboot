@@ -54,7 +54,7 @@ public record ParticipantSummaryResponse(
   }
 
   /** Replaces every character but the last four with {@code *}; short values are fully masked. */
-  static String mask(String identificationNumber) {
+  public static String mask(String identificationNumber) {
     int length = identificationNumber.length();
     int visible = length <= VISIBLE_TAIL ? 0 : VISIBLE_TAIL;
     return "*".repeat(length - visible) + identificationNumber.substring(length - visible);
