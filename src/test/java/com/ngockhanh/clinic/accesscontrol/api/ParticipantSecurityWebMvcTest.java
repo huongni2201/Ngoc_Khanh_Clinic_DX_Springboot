@@ -75,7 +75,7 @@ class ParticipantSecurityWebMvcTest {
         "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants";
 
     @Bean
-    UserLoginMyBatisMapper endpointPermissions() {
+    UserLoginMyBatisMapper endpointPermissionMapper() {
       var mapper = mock(UserLoginMyBatisMapper.class);
       when(mapper.findEndpointPermissions())
           .thenReturn(

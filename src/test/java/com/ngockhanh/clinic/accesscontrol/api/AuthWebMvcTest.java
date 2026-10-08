@@ -75,7 +75,7 @@ class AuthWebMvcTest {
   @TestConfiguration
   static class StoredEndpointPermissions {
     @Bean
-    UserLoginMyBatisMapper endpointPermissions() {
+    UserLoginMyBatisMapper endpointPermissionMapper() {
       var mapper = mock(UserLoginMyBatisMapper.class);
       when(mapper.findEndpointPermissions())
           .thenReturn(

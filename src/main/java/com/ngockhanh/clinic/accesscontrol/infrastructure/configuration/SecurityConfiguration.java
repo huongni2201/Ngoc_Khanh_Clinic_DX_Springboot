@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -42,16 +43,8 @@ public class SecurityConfiguration {
       AccessControlProperties properties,
       AuthenticateSessionUseCase authenticateSession,
       JsonSecurityErrorHandler errors,
-      UserLoginMyBatisMapper permissions) {
-    var corsConfiguration = new CorsConfiguration();
-    corsConfiguration.setAllowedOrigins(properties.allowedOrigins());
-    corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
-    corsConfiguration.setAllowedHeaders(List.of("Accept", "Content-Type", "Idempotency-Key"));
-    corsConfiguration.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
-    corsConfiguration.setAllowCredentials(true);
-    var corsConfigurationSource = new UrlBasedCorsConfigurationSource();
-    corsConfigurationSource.registerCorsConfiguration("/api/**", corsConfiguration);
-
+      EndpointPermissions endpointPermissions,
+      CorsConfigurationSource corsConfigurationSource) {
     var originCheck = new OriginCheckFilter(properties.allowedOrigins(), errors);
     var sessionAuthentication =
         new SessionCookieAuthenticationFilter(authenticateSession, properties.cookieName(), errors);
@@ -62,9 +55,12 @@ public class SecurityConfiguration {
         .logout(logout -> logout.disable())
         .requestCache(cache -> cache.disable())
         .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(
-            exceptions -> exceptions.authenticationEntryPoint(errors).accessDeniedHandler(errors))
+            exceptions -> exceptions
+                .authenticationEntryPoint(errors)
+                .accessDeniedHandler(errors))
         .addFilterBefore(originCheck, AnonymousAuthenticationFilter.class)
         .addFilterBefore(sessionAuthentication, AnonymousAuthenticationFilter.class)
         .authorizeHttpRequests(
@@ -77,10 +73,29 @@ public class SecurityConfiguration {
                     .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
                     .authenticated()
                     .requestMatchers("/api/v1/**")
-                    .access(new EndpointPermissions(permissions.findEndpointPermissions()))
+                    .access(endpointPermissions)
                     .anyRequest()
                     .denyAll());
     return http.build();
+  }
+
+  /** Endpoint permissions stored in {@code public.permissions}, read once at startup. */
+  @Bean
+  EndpointPermissions endpointPermissions(UserLoginMyBatisMapper permissions) {
+    return new EndpointPermissions(permissions.findEndpointPermissions());
+  }
+
+  @Bean
+  CorsConfigurationSource corsConfigurationSource(AccessControlProperties properties) {
+    var corsConfiguration = new CorsConfiguration();
+    corsConfiguration.setAllowedOrigins(properties.allowedOrigins());
+    corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
+    corsConfiguration.setAllowedHeaders(List.of("Accept", "Content-Type", "Idempotency-Key"));
+    corsConfiguration.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
+    corsConfiguration.setAllowCredentials(true);
+    var corsConfigurationSource = new UrlBasedCorsConfigurationSource();
+    corsConfigurationSource.registerCorsConfiguration("/api/**", corsConfiguration);
+    return corsConfigurationSource;
   }
 
   @Bean
