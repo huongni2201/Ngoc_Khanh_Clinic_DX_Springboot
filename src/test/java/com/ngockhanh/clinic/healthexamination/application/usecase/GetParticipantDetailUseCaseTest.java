@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.IMPORT;
-import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.READ;
+import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.DETAIL_READ;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.staff;
 import static com.ngockhanh.clinic.healthexamination.RosterFixtures.NOW;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 
 class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
   GetParticipantDetailUseCaseTest() {
-    super("PARTICIPANT_VIEW");
+    super("PARTICIPANT_DETAIL_VIEW");
   }
 
   private final GetParticipantDetailUseCase useCase =
@@ -49,7 +49,7 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
     var participant = stored(2);
     givenStored(participant);
 
-    var detail = useCase.execute(organizationId, batchId, participant.getId().value(), staff(READ));
+    var detail = useCase.execute(organizationId, batchId, participant.getId().value(), staff(DETAIL_READ));
 
     assertThat(detail.identificationNumber()).isEqualTo(IDENTIFICATION);
     assertThat(detail.identificationNumberMasked()).isEqualTo("********8901");

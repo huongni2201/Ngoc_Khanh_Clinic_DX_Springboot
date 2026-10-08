@@ -323,3 +323,66 @@ JOIN public.permissions AS permission
       'HEALTH_EXAMINATION_REPORT_READ')
 WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')
 ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+-- Endpoint of each permission (ADR-0015). A permission protects at most one endpoint, named by its
+-- HTTP method and the route template declared by the controller. Endpoints that shared a permission
+-- received their own one below; these and the delete/catalog permissions are not in the SRS matrix yet.
+INSERT INTO public.permissions (code, name, description)
+VALUES
+    ('ORGANIZATION_DELETE', 'Delete organization', 'Organization. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('HEALTH_EXAMINATION_BATCH_DETAIL_VIEW', 'View examination batch details', 'Health Examination Batch. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('HEALTH_EXAMINATION_BATCH_DELETE', 'Delete examination batch', 'Health Examination Batch. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('PARTICIPANT_DETAIL_VIEW', 'View batch participant details', 'Participant. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('HEALTH_EXAMINATION_SERVICE_SUMMARY_READ', 'Read health examination service summary', 'Summary of the Participant by service matrix of a batch. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('HEALTH_EXAMINATION_SERVICE_EXPORT', 'Export health examination service details', 'Export the Participant by service matrix of a batch to Excel. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('HEALTH_EXAMINATION_REPORT_EXPORT', 'Export health examination payment report', 'Export the payment summary of a batch to Word. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('SERVICE_CATALOG_VIEW', 'View service catalog', 'Clinic Master Data. Not in the SRS Permission Matrix 4.4 yet.')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO public.role_permissions (role_id, permission_id)
+SELECT role.id, permission.id
+FROM public.roles AS role
+JOIN public.permissions AS permission
+  ON permission.code IN (
+      'ORGANIZATION_DELETE',
+      'HEALTH_EXAMINATION_BATCH_DETAIL_VIEW',
+      'HEALTH_EXAMINATION_BATCH_DELETE',
+      'PARTICIPANT_DETAIL_VIEW',
+      'HEALTH_EXAMINATION_SERVICE_SUMMARY_READ',
+      'HEALTH_EXAMINATION_SERVICE_EXPORT',
+      'HEALTH_EXAMINATION_REPORT_EXPORT',
+      'SERVICE_CATALOG_VIEW')
+WHERE role.code = 'CLINIC_MANAGER'
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+UPDATE public.permissions AS permission
+SET http_method = endpoint_map.http_method, endpoint = endpoint_map.endpoint
+FROM (
+    VALUES
+        ('ORGANIZATION_SEARCH', 'GET', '/api/v1/organizations'),
+        ('ORGANIZATION_CREATE', 'POST', '/api/v1/organizations'),
+        ('ORGANIZATION_VIEW', 'GET', '/api/v1/organizations/{organizationId}'),
+        ('ORGANIZATION_UPDATE', 'PUT', '/api/v1/organizations/{organizationId}'),
+        ('ORGANIZATION_DELETE', 'DELETE', '/api/v1/organizations/{organizationId}'),
+        ('HEALTH_EXAMINATION_BATCH_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches'),
+        ('HEALTH_EXAMINATION_BATCH_CREATE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches'),
+        ('HEALTH_EXAMINATION_BATCH_DETAIL_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
+        ('HEALTH_EXAMINATION_BATCH_UPDATE', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
+        ('HEALTH_EXAMINATION_BATCH_DELETE', 'DELETE', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
+        ('PARTICIPANT_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants'),
+        ('PARTICIPANT_CREATE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants'),
+        ('PARTICIPANT_TEMPLATE_DOWNLOAD', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template'),
+        ('PARTICIPANT_IMPORT', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports'),
+        ('PARTICIPANT_DETAIL_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
+        ('PARTICIPANT_UPDATE', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
+        ('PARTICIPANT_REMOVE', 'DELETE', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
+        ('PARTICIPANT_REACTIVATE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/reactivate'),
+        ('HEALTH_EXAMINATION_SERVICE_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details'),
+        ('HEALTH_EXAMINATION_SERVICE_SUMMARY_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/summary'),
+        ('HEALTH_EXAMINATION_SERVICE_EXPORT', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/export'),
+        ('HEALTH_EXAMINATION_SERVICE_RECONCILE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/imports'),
+        ('HEALTH_EXAMINATION_REPORT_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary'),
+        ('HEALTH_EXAMINATION_REPORT_EXPORT', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary/docx'),
+        ('SERVICE_CATALOG_VIEW', 'GET', '/api/v1/catalog/services')
+) AS endpoint_map(code, http_method, endpoint)
+WHERE permission.code = endpoint_map.code;

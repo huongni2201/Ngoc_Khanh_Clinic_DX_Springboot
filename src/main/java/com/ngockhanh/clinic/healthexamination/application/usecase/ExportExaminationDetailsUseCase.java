@@ -73,7 +73,7 @@ public class ExportExaminationDetailsUseCase {
   @Transactional(isolation = Isolation.REPEATABLE_READ)
   public ExaminationDetailExportResponse execute(
       UUID organizationId, UUID batchId, UserPrincipal principal) {
-    access.requireServiceRead(principal);
+    access.requireServiceExport(principal);
     if (organizationId == null || batchId == null)
       throw new IllegalArgumentException("Organization ID and batch ID are required");
     organizations

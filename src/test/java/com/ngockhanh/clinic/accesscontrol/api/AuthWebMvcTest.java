@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -23,7 +24,8 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessio
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import jakarta.servlet.http.Cookie;
@@ -35,8 +37,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -52,7 +56,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Import({
   SecurityConfiguration.class,
   ClockConfiguration.class,
-  AuthWebMvcTest.BusinessEndpoint.class
+  AuthWebMvcTest.BusinessEndpoint.class,
+  AuthWebMvcTest.StoredEndpointPermissions.class
 })
 @TestPropertySource(
     properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
@@ -65,6 +70,24 @@ class AuthWebMvcTest {
   @MockitoBean LoginUseCase login;
   @MockitoBean LogoutUseCase logout;
   @MockitoBean AuthenticateSessionUseCase authenticate;
+
+  /** The permissions table names only the organization endpoint. */
+  @TestConfiguration
+  static class StoredEndpointPermissions {
+    @Bean
+    UserLoginMyBatisMapper endpointPermissions() {
+      var mapper = mock(UserLoginMyBatisMapper.class);
+      when(mapper.findEndpointPermissions())
+          .thenReturn(
+              List.of(
+                  PermissionRecord.builder()
+                      .code("ORGANIZATION_VIEW")
+                      .httpMethod("GET")
+                      .endpoint("/api/v1/organizations/{organizationId}")
+                      .build()));
+      return mapper;
+    }
+  }
 
   @RestController
   static class BusinessEndpoint {
@@ -233,9 +256,8 @@ class AuthWebMvcTest {
   void routesWithoutAPermissionRuleAreDenied() throws Exception {
     mvc.perform(get("/api/v1/test-business")).andExpect(status().isUnauthorized());
 
-    List<String> everyRulePermission =
-        EndpointPermissions.RULES.stream().map(EndpointPermissions.Rule::permission).toList();
-    when(authenticate.execute("manager")).thenReturn(principal("STAFF", everyRulePermission));
+    when(authenticate.execute("manager"))
+        .thenReturn(principal("STAFF", List.of("ORGANIZATION_VIEW", "ORGANIZATION_UPDATE")));
     mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "manager")))
         .andExpect(status().isForbidden());
   }

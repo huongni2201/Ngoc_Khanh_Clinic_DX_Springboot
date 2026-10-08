@@ -8,6 +8,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import com.ngockhanh.clinic.healthexamination.ParticipantFixtures;
 import com.ngockhanh.clinic.healthexamination.api.controller.BatchParticipantController;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportTemplateResponse;
@@ -24,7 +26,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -40,7 +44,11 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 @WebMvcTest(
     controllers = BatchParticipantController.class,
     excludeAutoConfiguration = UserDetailsServiceAutoConfiguration.class)
-@Import({SecurityConfiguration.class, ClockConfiguration.class})
+@Import({
+  SecurityConfiguration.class,
+  ClockConfiguration.class,
+  ParticipantSecurityWebMvcTest.StoredEndpointPermissions.class
+})
 @TestPropertySource(
     properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
 class ParticipantSecurityWebMvcTest {
@@ -59,6 +67,34 @@ class ParticipantSecurityWebMvcTest {
       """;
   private static final String ORIGIN = "https://app.test";
   private static final String COOKIE = "__Host-NKC_SESSION";
+
+  /** The roster endpoints and their permissions as stored in {@code public.permissions}. */
+  @TestConfiguration
+  static class StoredEndpointPermissions {
+    private static final String ROSTER =
+        "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants";
+
+    @Bean
+    UserLoginMyBatisMapper endpointPermissions() {
+      var mapper = mock(UserLoginMyBatisMapper.class);
+      when(mapper.findEndpointPermissions())
+          .thenReturn(
+              List.of(
+                  endpoint("GET", "", "PARTICIPANT_VIEW"),
+                  endpoint("GET", "/{participantId}", "PARTICIPANT_DETAIL_VIEW"),
+                  endpoint("GET", "/import-template", "PARTICIPANT_TEMPLATE_DOWNLOAD"),
+                  endpoint("POST", "/imports", "PARTICIPANT_IMPORT"),
+                  endpoint("POST", "", "PARTICIPANT_CREATE"),
+                  endpoint("PUT", "/{participantId}", "PARTICIPANT_UPDATE"),
+                  endpoint("DELETE", "/{participantId}", "PARTICIPANT_REMOVE"),
+                  endpoint("POST", "/{participantId}/reactivate", "PARTICIPANT_REACTIVATE")));
+      return mapper;
+    }
+
+    private static PermissionRecord endpoint(String method, String path, String code) {
+      return PermissionRecord.builder().code(code).httpMethod(method).endpoint(ROSTER + path).build();
+    }
+  }
 
   @Autowired MockMvc mvc;
   @MockitoBean AuthenticateSessionUseCase authenticate;
@@ -85,7 +121,7 @@ class ParticipantSecurityWebMvcTest {
   static Stream<Route> routes() {
     return Stream.of(
         new Route("list", "PARTICIPANT_VIEW", 200, () -> get(BASE)),
-        new Route("detail", "PARTICIPANT_VIEW", 200, () -> get(ITEM)),
+        new Route("detail", "PARTICIPANT_DETAIL_VIEW", 200, () -> get(ITEM)),
         new Route(
             "template", "PARTICIPANT_TEMPLATE_DOWNLOAD", 200, () -> get(BASE + "/import-template")),
         new Route(

@@ -48,8 +48,19 @@ while continuing to reject patient accounts receiving staff roles.
 
 ### Enforcement
 
-- `EndpointPermissions` (accesscontrol infrastructure) is the single list of
-  rules: HTTP method, path pattern and permission code.
+- Each endpoint is stored with its permission: `permissions.http_method` and
+  `permissions.endpoint` hold the HTTP method and the controller route template,
+  such as `/api/v1/organizations/{organizationId}`. A permission protects at
+  most one endpoint, and `(http_method, endpoint)` is unique. No rule list exists
+  in code: `EndpointPermissions` reads the stored endpoints once at startup and
+  the most specific matching template decides; changing them needs a restart.
+- Endpoints that shared a permission received their own:
+  `HEALTH_EXAMINATION_BATCH_DETAIL_VIEW`, `PARTICIPANT_DETAIL_VIEW`,
+  `HEALTH_EXAMINATION_SERVICE_SUMMARY_READ`, `HEALTH_EXAMINATION_SERVICE_EXPORT`
+  and `HEALTH_EXAMINATION_REPORT_EXPORT`; `ORGANIZATION_DELETE`,
+  `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW` cover endpoints
+  that had none. All eight belong to `CLINIC_MANAGER` and must be added to the
+  SRS matrix.
 - A staff rule requires both `ACCOUNT_STAFF` and `PERM_<code>`, so a permission
   granted to another account type never opens a staff endpoint. Patient-portal
   routes will require `ACCOUNT_PATIENT` with `PERM_OWN_*`.
@@ -65,9 +76,11 @@ while continuing to reject patient accounts receiving staff roles.
 
 ## Consequences
 
-- Each new endpoint must add a rule, or it returns 403; tests fail early.
-- Existing endpoints: organization view/create/update and health examination
-  batch view/create, all granted to `CLINIC_MANAGER`.
+- Each new endpoint needs a stored permission with its method and route, or it
+  returns 403.
+- The 25 business endpoints are granted to `CLINIC_MANAGER`.
+- In the `local` profile only, the local seed grants every permission to
+  `ADMINISTRATOR` to ease manual testing.
 - The local/test mock batch actor is removed; batch creation uses the signed-in
   principal.
 - Permissions without endpoints are seeded but unused until their use cases ship.

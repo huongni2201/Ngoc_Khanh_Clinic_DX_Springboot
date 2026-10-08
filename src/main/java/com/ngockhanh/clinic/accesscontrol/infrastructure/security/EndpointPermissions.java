@@ -1,114 +1,64 @@
 package com.ngockhanh.clinic.accesscontrol.infrastructure.security;
 
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
+import java.util.Comparator;
 import java.util.List;
+import java.util.function.Supplier;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationManager;
+import org.springframework.security.authorization.AuthorizationResult;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 /**
- * Permission required by each business endpoint, using the codes of the SRS Permission Matrix 4.4
- * seeded by V004 (ADR-0015). Every new {@code /api/v1} endpoint needs a rule here; endpoints
- * without one are denied. Permissions are those captured in the session at sign-in.
+ * Authorizes business endpoints with the permissions stored in {@code public.permissions}
+ * (ADR-0015): each permission names one endpoint by HTTP method and controller route template. A
+ * request is allowed when it matches a stored endpoint and the account is STAFF and holds that
+ * permission; the most specific template wins. Requests matching no stored endpoint are denied.
+ * Endpoints are read once at startup; permissions are those captured in the session at sign-in.
  */
-public final class EndpointPermissions {
+public final class EndpointPermissions
+    implements AuthorizationManager<RequestAuthorizationContext> {
 
-  /** Staff endpoint, matched by HTTP method and path pattern, and the permission it requires. */
-  public record Rule(HttpMethod method, String pattern, String permission) {}
+  private record Endpoint(PathPattern template, PathPatternRequestMatcher matcher, String permission) {}
 
-  public static final List<Rule> RULES =
-      List.of(
-          new Rule(HttpMethod.GET, "/api/v1/organizations", "ORGANIZATION_SEARCH"),
-          new Rule(HttpMethod.GET, "/api/v1/organizations/*", "ORGANIZATION_VIEW"),
-          new Rule(HttpMethod.POST, "/api/v1/organizations", "ORGANIZATION_CREATE"),
-          new Rule(HttpMethod.PUT, "/api/v1/organizations/*", "ORGANIZATION_UPDATE"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches",
-              "HEALTH_EXAMINATION_BATCH_VIEW"),
-          new Rule(
-              HttpMethod.POST,
-              "/api/v1/organizations/*/health-examination-batches",
-              "HEALTH_EXAMINATION_BATCH_CREATE"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*",
-              "HEALTH_EXAMINATION_BATCH_VIEW"),
-          new Rule(
-              HttpMethod.PUT,
-              "/api/v1/organizations/*/health-examination-batches/*",
-              "HEALTH_EXAMINATION_BATCH_UPDATE"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/participants",
-              "PARTICIPANT_VIEW"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/participants/import-template",
-              "PARTICIPANT_TEMPLATE_DOWNLOAD"),
-          new Rule(
-              HttpMethod.POST,
-              "/api/v1/organizations/*/health-examination-batches/*/participants/imports",
-              "PARTICIPANT_IMPORT"),
-          new Rule(
-              HttpMethod.POST,
-              "/api/v1/organizations/*/health-examination-batches/*/participants",
-              "PARTICIPANT_CREATE"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/participants/*",
-              "PARTICIPANT_VIEW"),
-          new Rule(
-              HttpMethod.PUT,
-              "/api/v1/organizations/*/health-examination-batches/*/participants/*",
-              "PARTICIPANT_UPDATE"),
-          new Rule(
-              HttpMethod.DELETE,
-              "/api/v1/organizations/*/health-examination-batches/*/participants/*",
-              "PARTICIPANT_REMOVE"),
-          new Rule(
-              HttpMethod.POST,
-              "/api/v1/organizations/*/health-examination-batches/*/participants/*/reactivate",
-              "PARTICIPANT_REACTIVATE"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/examination-details",
-              "HEALTH_EXAMINATION_SERVICE_READ"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/examination-details/summary",
-              "HEALTH_EXAMINATION_SERVICE_READ"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/examination-details/export",
-              "HEALTH_EXAMINATION_SERVICE_READ"),
-          new Rule(
-              HttpMethod.POST,
-              "/api/v1/organizations/*/health-examination-batches/*/examination-details/imports",
-              "HEALTH_EXAMINATION_SERVICE_RECONCILE"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/reports/payment-summary",
-              "HEALTH_EXAMINATION_REPORT_READ"),
-          new Rule(
-              HttpMethod.GET,
-              "/api/v1/organizations/*/health-examination-batches/*/reports/payment-summary/docx",
-              "HEALTH_EXAMINATION_REPORT_READ"));
-
-  private EndpointPermissions() {}
+  private final List<Endpoint> endpoints;
 
   /**
-   * Requires a STAFF account holding the rule's permission, so a permission granted to another
-   * account type never opens a staff endpoint.
-   *
-   * @param requests authorization rules being configured
+   * @param permissions permissions that name an endpoint
    */
-  public static void apply(
-      AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry
-          requests) {
-    for (Rule rule : RULES) {
-      requests
-          .requestMatchers(rule.method(), rule.pattern())
-          .hasAllAuthorities("ACCOUNT_STAFF", "PERM_" + rule.permission());
-    }
+  public EndpointPermissions(List<PermissionRecord> permissions) {
+    this.endpoints =
+        permissions.stream()
+            .map(
+                permission ->
+                    new Endpoint(
+                        PathPatternParser.defaultInstance.parse(permission.endpoint()),
+                        PathPatternRequestMatcher.pathPattern(
+                            HttpMethod.valueOf(permission.httpMethod()), permission.endpoint()),
+                        permission.code()))
+            .sorted(Comparator.comparing(Endpoint::template, PathPattern.SPECIFICITY_COMPARATOR))
+            .toList();
+  }
+
+  @Override
+  public AuthorizationResult authorize(
+      Supplier<? extends Authentication> authentication, RequestAuthorizationContext context) {
+    String permission =
+        endpoints.stream()
+            .filter(endpoint -> endpoint.matcher().matches(context.getRequest()))
+            .map(Endpoint::permission)
+            .findFirst()
+            .orElse(null);
+    if (permission == null) return new AuthorizationDecision(false);
+    List<String> authorities =
+        authentication.get().getAuthorities().stream().map(GrantedAuthority::getAuthority).toList();
+    return new AuthorizationDecision(
+        authorities.contains("ACCOUNT_STAFF") && authorities.contains("PERM_" + permission));
   }
 }

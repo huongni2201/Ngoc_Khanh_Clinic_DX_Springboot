@@ -180,7 +180,12 @@ CREATE TABLE public.permissions (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     code varchar(120) NOT NULL UNIQUE,
     name varchar(200) NOT NULL,
-    description text NOT NULL
+    description text NOT NULL,
+    http_method varchar(10) NULL,
+    endpoint varchar(300) NULL,
+    CONSTRAINT ck_permissions_endpoint_pair CHECK ((http_method IS NULL) = (endpoint IS NULL)),
+    CONSTRAINT ck_permissions_http_method CHECK (http_method IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')),
+    CONSTRAINT uq_permissions_http_method_endpoint UNIQUE (http_method, endpoint)
 );
 
 CREATE TABLE public.accounts (
