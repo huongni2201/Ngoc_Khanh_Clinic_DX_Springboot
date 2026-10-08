@@ -49,7 +49,8 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
     var participant = stored(2);
     givenStored(participant);
 
-    var detail = useCase.execute(organizationId, batchId, participant.getId().value(), staff(DETAIL_READ));
+    var detail =
+        useCase.execute(organizationId, batchId, participant.getId().value(), staff(DETAIL_READ));
 
     assertThat(detail.identificationNumber()).isEqualTo(IDENTIFICATION);
     assertThat(detail.identificationNumberMasked()).isEqualTo("********8901");

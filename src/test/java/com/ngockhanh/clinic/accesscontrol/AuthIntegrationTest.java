@@ -116,7 +116,7 @@ class AuthIntegrationTest {
   private ResultActions call(PermissionRecord endpoint, Cookie session) throws Exception {
     var method = HttpMethod.valueOf(endpoint.httpMethod());
     var call =
-        request(method, endpoint.endpoint().replaceAll("\\{[^}]+}",UUID.randomUUID().toString()));
+        request(method, endpoint.endpoint().replaceAll("\\{[^}]+}", UUID.randomUUID().toString()));
     if (method != HttpMethod.GET)
       call.header("Origin", ORIGIN).contentType(MediaType.APPLICATION_JSON).content("{}");
     return mvc.perform(call.cookie(session));

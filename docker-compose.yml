@@ -23,7 +23,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-nkclinic}
       POSTGRES_USER: ${POSTGRES_USER:-nkclinic}
       # Development-only fallback; set POSTGRES_PASSWORD outside local development.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-12345678}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:

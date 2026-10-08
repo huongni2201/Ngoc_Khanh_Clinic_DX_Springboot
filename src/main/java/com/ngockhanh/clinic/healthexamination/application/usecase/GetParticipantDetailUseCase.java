@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Reads one Participant in full, including the complete identification number, phone and email, for
- * the edit form. The caller must hold PARTICIPANT_DETAIL_VIEW. A cancelled Participant is returned too,
- * with its status. It takes no lock and does not depend on the batch status.
+ * the edit form. The caller must hold PARTICIPANT_DETAIL_VIEW. A cancelled Participant is returned
+ * too, with its status. It takes no lock and does not depend on the batch status.
  */
 @Slf4j
 @Service
