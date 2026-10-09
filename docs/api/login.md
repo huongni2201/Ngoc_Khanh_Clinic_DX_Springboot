@@ -81,7 +81,7 @@ All errors use the `ApiResponse` error envelope with `Cache-Control: no-store`.
 | `clinic.auth.absolute-timeout` | — | `8h` (at most 12h) |
 | `clinic.auth.cookie-secure` | `NKC_AUTH_COOKIE_SECURE` | `true` (`false` in `local`) |
 | `clinic.auth.allowed-origins` | `NKC_AUTH_ALLOWED_ORIGINS` (comma-separated) | empty (`http://localhost:3000` in `local`) |
-| `clinic.auth.test-role-full-access` | — | `false` (`true` in `local`); permits ROLE_TEST to bypass HTTP endpoint rules |
+| `clinic.auth.test-role-full-access` | — | Legacy setting, currently unused; it does not bypass endpoint permission checks |
 
 With an empty origin list every state-changing request, including sign-in, is
 rejected. Production must set `NKC_AUTH_ALLOWED_ORIGINS` and keep

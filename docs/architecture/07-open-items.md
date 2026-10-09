@@ -1,26 +1,18 @@
 # Open implementation and decision items
 
-Reviewed against the worktree on 2026-10-08. This page replaces the unfinished
+Reviewed against the worktree on 2026-10-09. This page replaces the unfinished
 endpoint-authorization and document-template implementation plans. It records
 remaining work, not accepted permissions, schema changes or deployed features.
 
 ## Endpoint authorization
 
-`EndpointPermissions` has 22 rules for 25 mapped business operations. Normal
-HTTP authorization denies the three operations below; the local TEST option can
-bypass HTTP rules, so local success does not demonstrate production availability.
-
-| Mapped operation | Missing contract or implementation |
-|---|---|
-| DELETE Organization | Select the permission and its role grants for deactivation |
-| DELETE Batch | Select the permission and its role grants for draft soft deletion |
-| GET `/api/v1/catalog/services` | Select the permission for reading the service catalog, then add its route rule |
-
-The removed plan suggested `ORGANIZATION_DEACTIVATE`,
-`HEALTH_EXAMINATION_BATCH_DELETE` and reuse of
-`MASTER_DATA_SERVICE_CATALOG_MANAGE`. These are proposals, not approved mappings.
-Existing batch CANCEL permission describes another action and cannot silently
-authorize soft deletion.
+`EndpointPermissions` reads the 25 business endpoint mappings stored by V002 at
+startup under [ADR-0015](../adr/0015-endpoint-permission-rbac.md). The former route
+gaps are closed: Organization DELETE uses `ORGANIZATION_DELETE`, Batch DELETE uses
+`HEALTH_EXAMINATION_BATCH_DELETE`, and catalog service lookup uses
+`SERVICE_CATALOG_VIEW`. All are granted to CLINIC_MANAGER. Local TEST and
+ADMINISTRATOR accounts receive all permissions from the local seed and use the
+same HTTP checks; no role bypasses unmapped endpoints.
 
 Organization/Batch writes currently accept an actor UUID; their reads and catalog
 reads do not receive a principal. HTTP rules protect mapped requests, but direct
@@ -31,7 +23,7 @@ protect non-HTTP callers under the accepted action/scope contracts as well.
 V002 still contains legacy Participant permission codes and grant clauses for
 `ADMIN`; the role matrix uses `ADMINISTRATOR`, and runtime Participant routes use
 `PARTICIPANT_*`. Do not treat the legacy grants as runtime permission mappings or
-silently grant additional actions to ADMINISTRATOR.
+infer production grants from the local-only all-permission grants.
 
 Completion requires an accepted method/path/account-type/permission/grant matrix,
 matching HTTP and application enforcement, and coverage of all business mappings.
@@ -44,7 +36,8 @@ refresh on sign-in; automatic revocation on grant change is still missing.
 The session mechanism and per-endpoint rules exist. Login rate limiting,
 logout-all/automatic revocation and production Origin/CSRF review remain open in
 [ADR-0014](../adr/0014-session-cookie-redis-login.md#go-live-blockers).
-Application authorization and the three route gaps above also remain unfinished.
+Equivalent authorization for direct Organization/Batch/catalog application callers
+also remains unfinished; the former HTTP route gaps are closed.
 
 ## Official document issuance
 

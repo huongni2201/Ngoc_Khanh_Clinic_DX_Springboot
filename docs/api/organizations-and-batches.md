@@ -1,6 +1,6 @@
 # Organization and health-examination batch API
 
-Reviewed against the current controllers/requests on 2026-10-08. Owning module:
+Reviewed against the current controllers/requests and stored permissions on 2026-10-09. Owning module:
 `healthexamination`. Responses use [the common envelope and pagination](../../PROJECT_RULES.md#envelope-errors-and-pagination).
 All route IDs are UUIDs. PUT replaces the editable fields and requires the last
 read `rowVersion` (integer >= 0); stale versions return 409.
@@ -15,7 +15,7 @@ Base path: `/api/v1/organizations`.
 | GET `/{organizationId}` | 200 Organization | `ORGANIZATION_VIEW` |
 | POST collection | 201 Organization | `ORGANIZATION_CREATE` |
 | PUT `/{organizationId}` | 200 Organization | `ORGANIZATION_UPDATE` |
-| DELETE `/{organizationId}?rowVersion={n}` | Handler returns 204 | No HTTP rule; denied under normal authorization |
+| DELETE `/{organizationId}?rowVersion={n}` | 204 | `ORGANIZATION_DELETE` |
 
 Create/PUT fields:
 
@@ -46,10 +46,10 @@ Base path: `/api/v1/organizations/{organizationId}/health-examination-batches`.
 | Method/path | Success | Required STAFF permission |
 |---|---|---|
 | GET collection | 200 page of batch summaries | `HEALTH_EXAMINATION_BATCH_VIEW` |
-| GET `/{batchId}` | 200 batch detail | `HEALTH_EXAMINATION_BATCH_VIEW` |
+| GET `/{batchId}` | 200 batch detail | `HEALTH_EXAMINATION_BATCH_DETAIL_VIEW` |
 | POST collection | 201 batch detail | `HEALTH_EXAMINATION_BATCH_CREATE` |
 | PUT `/{batchId}` | 200 batch detail | `HEALTH_EXAMINATION_BATCH_UPDATE` |
-| DELETE `/{batchId}?rowVersion={n}` | Handler returns 204 | No HTTP rule; denied under normal authorization |
+| DELETE `/{batchId}?rowVersion={n}` | 204 | `HEALTH_EXAMINATION_BATCH_DELETE` |
 
 Create/PUT fields:
 
@@ -90,8 +90,8 @@ to move a batch to READY, FINALIZED or CLOSED.
 ## Authorization limits
 
 V002 grants the mapped Organization/Batch permissions above to CLINIC_MANAGER.
-The local TEST option can bypass HTTP rules, including the two DELETE gaps;
-it does not establish production permissions. Current Organization/Batch use
-cases also lack equivalent principal-based permission checks for direct callers.
+The local seed additionally grants every permission to TEST and ADMINISTRATOR;
+these roles use the same endpoint checks. Current Organization/Batch use cases
+still lack equivalent principal-based permission checks for direct callers.
 See [Open items](../architecture/07-open-items.md#endpoint-authorization) before
 using a mapped handler as evidence that an operation is production-ready.

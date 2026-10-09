@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted — 2026-10-07. Closes the RBAC go-live blocker of
-[ADR-0014](0014-session-cookie-redis-login.md).
+Accepted — 2026-10-07. Establishes per-endpoint HTTP RBAC for
+[ADR-0014](0014-session-cookie-redis-login.md). Remaining application authorization
+gaps are tracked in [Open items](../architecture/07-open-items.md#endpoint-authorization).
 
 ## Context
 
@@ -18,7 +19,7 @@ actor may perform each action.
 ### Seed
 
 - Owner amendment — 2026-10-07: the fresh-database migrations are consolidated
-  into schema V001 and seed V002. `V002__seed_access_control_roles_and_permissions.sql`
+  into schema V001 and seed V002. `V002__seed_roles_and_permissions.sql`
   seeds the whole matrix:
   seven roles (`PATIENT`, `RECEPTIONIST`, `GENERAL_PRACTITIONER`,
   `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
@@ -34,7 +35,7 @@ actor may perform each action.
 
 ### Participant permission amendment — 2026-10-07
 
-The owner selected separate permissions for manual Participant operations: VIEW
+The owner selected separate permissions for manual Participant operations: DETAIL_VIEW
 for detail, CREATE for manual add, UPDATE for edit, REMOVE for cancel and
 REACTIVATE for reactivation. All codes start with `PARTICIPANT_`. The consolidated
 V002 seed grants CREATE and REACTIVATE only to CLINIC_MANAGER. Runtime application
@@ -43,7 +44,8 @@ not accepted.
 See [the manual Participant contract](../api/participant-manual-crud.md).
 
 Owner amendment — 2026-10-07: patient accounts receive only the `PATIENT` role;
-an active STAFF account is required as `granted_by`. V004 enforces this pairing
+an active STAFF account is required as `granted_by`. The former V004 amendment,
+consolidated into V001 for fresh databases under ADR-0013, enforces this pairing
 while continuing to reject patient accounts receiving staff roles.
 
 ### Enforcement
@@ -80,7 +82,8 @@ while continuing to reject patient accounts receiving staff roles.
   returns 403.
 - The 25 business endpoints are granted to `CLINIC_MANAGER`.
 - In the `local` profile only, the local seed grants every permission to
-  `ADMINISTRATOR` to ease manual testing.
+  `TEST` and `ADMINISTRATOR` to ease manual testing. Both use the same endpoint
+  checks; no role bypasses unmapped endpoints.
 - The local/test mock batch actor is removed; batch creation uses the signed-in
   principal.
 - Permissions without endpoints are seeded but unused until their use cases ship.

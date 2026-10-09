@@ -1,6 +1,6 @@
 # Current API inventory and migration compatibility
 
-Updated 2026-10-08 from current controllers and accepted contracts. A controller
+Updated 2026-10-09 from current controllers and accepted contracts. A controller
 mapping does not guarantee authorization: production also requires a matching
 `EndpointPermissions` rule and the applicable application policy.
 
@@ -21,12 +21,13 @@ All paths below start with `/api/v1`. `O` means
 | healthexamination | `GET B/examination-details`, `GET B/examination-details/summary`, `GET B/examination-details/export`, `POST B/examination-details/imports` | [Examination details](examination-details-and-report.md) |
 | healthexamination | `GET B/reports/payment-summary`, `GET B/reports/payment-summary/docx` | [Payment report](examination-details-and-report.md) |
 
-The current permission list has no explicit rules for Organization DELETE,
-Batch DELETE or catalog service lookup. These mapped operations remain denied
-under normal production authorization; the local TEST bypass is described in
-[API/security](../architecture/05-api-and-security.md#authentication-and-authorization).
-The [open authorization items](../architecture/07-open-items.md#endpoint-authorization)
-tracks the gaps; this inventory does not grant new permissions.
+V002 stores a method/route/permission mapping for all 25 business operations under
+[ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
+`HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
+account with its endpoint permission. The local TEST and ADMINISTRATOR roles use
+the same checks, with all permissions granted by the local seed.
+[Open authorization items](../architecture/07-open-items.md#endpoint-authorization)
+records the remaining checks for direct application callers.
 
 ## Client compatibility
 
@@ -42,8 +43,7 @@ documented in their linked contracts.
 
 REST JSON responses use `ApiResponse` and the documented pagination/error shape
 in [PROJECT_RULES](../../PROJECT_RULES.md#envelope-errors-and-pagination).
-Downloads return file bytes; successful DELETE handlers return 204. The two
-Organization/Batch DELETE routes remain denied by normal HTTP authorization.
+Downloads return file bytes; authorized Organization/Batch DELETE requests return 204.
 
 No current handlers expose batch lifecycle transitions, visit preparation,
 official record issuance, clinical ordering/results, billing payments, prescription
@@ -63,5 +63,5 @@ The single-step service-reconciliation import is a separate workflow.
 Fresh databases apply one final schema initializer V001 and data-only seeds
 V002/V003. Earlier migration histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
-for conversion requirements. This consolidation changes migration packaging,
-not public routes or business permissions.
+for conversion requirements. The current baseline also stores endpoint mappings
+and separate detail/summary/export permissions in V002, as defined by ADR-0015.

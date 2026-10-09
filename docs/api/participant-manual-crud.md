@@ -14,12 +14,12 @@ Every route requires a STAFF account and its own permission:
 | Route | Permission |
 |---|---|
 | POST collection (manual add) | `PARTICIPANT_CREATE` |
-| GET /{participantId} | `PARTICIPANT_VIEW` |
+| GET /{participantId} | `PARTICIPANT_DETAIL_VIEW` |
 | PUT /{participantId} | `PARTICIPANT_UPDATE` |
 | DELETE /{participantId} (cancel) | `PARTICIPANT_REMOVE` |
 | POST /{participantId}/reactivate | `PARTICIPANT_REACTIVATE` |
 
-The consolidated V002 seed grants VIEW, UPDATE, REMOVE, CREATE and REACTIVATE only
+The consolidated V002 seed grants DETAIL_VIEW, UPDATE, REMOVE, CREATE and REACTIVATE
 to CLINIC_MANAGER. The legacy `HEALTH_EXAMINATION_PARTICIPANT_MANAGE` grant no longer
 opens these routes. Permissions are a login snapshot: sign in again after migration.
 `GET /import-template` is matched before `GET /{participantId}` and requires

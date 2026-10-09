@@ -14,7 +14,7 @@ class CleanSlateMigrationContractTest {
         Files.readString(
             Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables =
-        Pattern.compile("(?m)^CREATE TABLE public\\.([a-z_]+)")
+        Pattern.compile("(?m)^\\h*CREATE TABLE public\\.([a-z_]+)")
             .matcher(sql)
             .results()
             .map(match -> match.group(1))
@@ -53,7 +53,7 @@ class CleanSlateMigrationContractTest {
     }
     String sql = Files.readString(directory.resolve("V001__create_schema.sql"));
     var tables =
-        Pattern.compile("(?m)^CREATE TABLE public\\.([a-z_]+)")
+        Pattern.compile("(?m)^\\h*CREATE TABLE public\\.([a-z_]+)")
             .matcher(sql)
             .results()
             .map(match -> match.group(1))
