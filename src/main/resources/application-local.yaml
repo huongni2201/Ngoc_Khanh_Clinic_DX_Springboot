@@ -13,3 +13,4 @@ clinic:
   auth:
     cookie-secure: false
     allowed-origins: http://localhost:3000
+    test-role-full-access: true

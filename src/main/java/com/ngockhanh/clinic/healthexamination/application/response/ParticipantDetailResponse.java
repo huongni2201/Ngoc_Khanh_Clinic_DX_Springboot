@@ -27,10 +27,16 @@ public record ParticipantDetailResponse(
     String sex,
     String identificationNumberMasked,
     String identificationNumber,
+    LocalDate identificationIssueDate,
+    String identificationIssuePlace,
+    String ethnicity,
     String phone,
     String email,
+    String address,
+    String workplace,
     String departmentName,
     String positionName,
+    String note,
     String rosterStatus,
     String attendanceStatus,
     String reconciliationStatus,
@@ -56,10 +62,16 @@ public record ParticipantDetailResponse(
         .sex(roster.sex())
         .identificationNumberMasked(ParticipantSummaryResponse.mask(identification))
         .identificationNumber(identification)
+        .identificationIssueDate(roster.identificationIssueDate())
+        .identificationIssuePlace(roster.identificationIssuePlace())
+        .ethnicity(roster.ethnicity())
         .phone(roster.phone())
         .email(roster.email())
+        .address(roster.address())
+        .workplace(roster.workplace())
         .departmentName(roster.departmentName())
         .positionName(roster.positionName())
+        .note(roster.note())
         .rosterStatus(participant.getRosterStatus().name())
         .attendanceStatus(participant.getAttendanceStatus().name())
         .reconciliationStatus(participant.getReconciliationStatus().name())

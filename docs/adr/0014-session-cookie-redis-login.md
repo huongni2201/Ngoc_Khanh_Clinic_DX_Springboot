@@ -54,8 +54,7 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
 
 - Idle 30 minutes: receptionist and consultation workstations are shared and often
   left unattended. Expiring an inactive session limits how long someone else can
-  use an open session to read patient data (OWASP ASVS suggests 15–30 minutes
-  for high-risk applications).
+  use an open session to read patient data.
 - Absolute 8 hours: one working shift. Even an active user logs in again each
   shift, so role and permission snapshots refresh, and a leaked cookie has a hard
   limit.
@@ -74,10 +73,11 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
 
 ### Credentials
 
-- Username and password are compared exactly as submitted; username is
-  case-sensitive, matching the `accounts.username` unique constraint.
+- Username is case-sensitive and is not trimmed, matching the
+  `accounts.username` unique constraint. Passwords are not trimmed.
 - Passwords are NFKC-normalized and hashed with bcrypt (`{bcrypt}` prefix).
-  Inputs longer than 72 UTF-8 bytes cannot be encoded and fail login with 401.
+  Inputs longer than 72 UTF-8 bytes after normalization cannot be encoded and
+  fail login with 401.
 - Unknown user, wrong password and ineligible (inactive, locked or wrongly
   owned) account return the same 401 body and message.
 
@@ -97,8 +97,8 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
 - Failed login for an existing account: `ACCOUNT_LOGIN_FAILED` in its own
   committed transaction through `AuditWriter`, which requires an actor; the
   actor and resource are the targeted account. No reason or credentials are
-  stored. Unknown usernames are logged, not audited (`audit_events.resource_id`
-  is required).
+  stored. Unknown-account attempts have no audit row (`audit_events.resource_id`
+  is required); operational logs must omit submitted usernames and credentials.
 - Logout of a valid session: `ACCOUNT_LOGOUT`.
 
 ## Go-live blockers
@@ -107,13 +107,15 @@ Idle timeout 30 minutes, absolute lifetime 8 hours.
 - [ ] Revocation: logout-all and automatic revocation on account lock or grant change.
 - [ ] CSRF: confirm Origin check plus SameSite=Lax suffices for the deployment, or
       add a CSRF token; configure production allowed origins.
-- [x] Per-endpoint RBAC with `PERM_` authorities ([ADR-0015](0015-endpoint-permission-rbac.md)).
+- [x] Per-endpoint RBAC mechanism with `PERM_` authorities ([ADR-0015](0015-endpoint-permission-rbac.md)).
+- [ ] Complete route coverage and application authorization; see
+      [Open items](../architecture/07-open-items.md#endpoint-authorization).
 
 ## Accepted risks
 
 - No dummy password hash: an unknown username responds faster than a wrong
   password, which can reveal valid usernames. Usernames are internal staff codes;
-  rate limiting mitigates this.
+  planned rate limiting is still missing.
 - If Redis fails after the login audit commits, an `ACCOUNT_LOGIN` row exists for
   a login that returned 503. This avoids compensating deletes.
 - A failed-login audit row names the targeted account as actor, although nobody

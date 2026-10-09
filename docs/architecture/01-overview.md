@@ -1,15 +1,16 @@
 # Clean-slate backend architecture
 
 The owner selected the clean-slate database/application contract on 2026-10-04.
-This documentation describes the current system directly; historical architecture
-and decision records are not implementation authority.
+Accepted ADRs record that decision and its later amendments. Architecture
+describes the current supported rules; superseded plans do not define behavior.
 
 ## Sources and stack
 
-Use `src/main/resources/db/migration/V001__create_clean_slate_schema.sql` for the
-physical schema and the supplied clean-slate design for business workflows. Keep
-Participant terminology and one public SQL schema. These documents carry that
-mapping into the current Java/API contracts.
+Use [V001](../../src/main/resources/db/migration/V001__create_schema.sql) for the
+physical schema and [current domain workflows](03-domain-and-workflows.md) for
+the accepted business baseline. The owner-supplied design files are represented
+by these docs and migrations, not separate files to locate. Keep Participant
+terminology and one public SQL schema. Follow [source precedence](../../AGENTS.md#source-of-truth-and-workflow).
 
 Java 25, Spring Boot 4, Spring Framework 7, PostgreSQL 18, MyBatis, Spring Modulith,
 Maven and Flyway form one deployable modular monolith. No ORM or microservice
@@ -37,8 +38,10 @@ mappers, records or aggregates; use published application contracts instead.
 
 ## Implemented migration scope
 
-Existing account authentication and organization/batch workflows
-use the clean-slate schema. Infrastructure represents all 64 schema tables in
+Mapped workflows include authentication, Organization/Batch configuration,
+Participant roster/import and examination-detail reconciliation/payment reports;
+see [API inventory](../api/clean-slate-migration.md) for permission gaps.
+Infrastructure represents all 64 schema tables in
 owning modules. Record presence does not claim all clinic workflows or HTTP APIs
 are implemented. New clinical, payment, release or rendering operations require
 explicit use-case contracts and tests, not generated CRUD scaffolding.

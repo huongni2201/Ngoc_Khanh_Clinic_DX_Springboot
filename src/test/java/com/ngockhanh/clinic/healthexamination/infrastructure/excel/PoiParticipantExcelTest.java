@@ -62,10 +62,30 @@ class PoiParticipantExcelTest {
       if (values[i] != null) r.createCell(i).setCellValue(values[i]);
   }
 
+  /**
+   * Columns: STT, name, birth, sex, CCCD, issue date/place, ethnicity, phone, email, address,
+   * workplace, department, position, examination date, note.
+   */
   private static void validRow(Sheet sheet, int row, String identification) {
     text(
-        sheet, row, null, "Nguyen Van A", "1990-01-31", "MALE", identification, "0900000000", null,
-        "Ke toan", "Nhan vien", "2026-10-04");
+        sheet,
+        row,
+        "1",
+        "Nguyen Van A",
+        "1990-01-31",
+        "MALE",
+        identification,
+        null,
+        null,
+        null,
+        "0900000000",
+        null,
+        null,
+        null,
+        "Ke toan",
+        "Nhan vien",
+        "2026-10-04",
+        null);
   }
 
   private String rejection(byte[] bytes) {
@@ -81,12 +101,23 @@ class PoiParticipantExcelTest {
       assertThat(workbook.getSheetName(0)).isEqualTo("Participants");
       assertThat(workbook.getSheetName(1)).isEqualTo("Instructions");
       Sheet participants = workbook.getSheet("Participants");
-      for (int i = 0; i < ParticipantExcelColumns.ORDERED.size(); i++)
+      for (int i = 0; i < ParticipantExcelColumns.TEMPLATE_COLUMNS.size(); i++)
         assertThat(participants.getRow(0).getCell(i).getStringCellValue())
-            .isEqualTo(ParticipantExcelColumns.ORDERED.get(i));
+            .isEqualTo(
+                ParticipantExcelColumns.header(ParticipantExcelColumns.TEMPLATE_COLUMNS.get(i)));
+      assertThat(participants.getRow(0).getCell(0).getStringCellValue()).isEqualTo("STT");
+      assertThat(participants.getRow(0).getCell(2).getStringCellValue()).isEqualTo("Ngày Sinh");
+      assertThat(participants.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Giới Tính");
+      assertThat(participants.getRow(0).getLastCellNum()).isEqualTo((short) 16);
+      var headers = new java.util.ArrayList<String>();
+      participants.getRow(0).forEach(cell -> headers.add(cell.getStringCellValue()));
+      assertThat(headers)
+          .contains("Ngày Cấp CCCD", "Nơi Cấp CCCD", "Dân Tộc", "Chỗ Ở", "Nơi Làm Việc", "Ghi Chú")
+          .doesNotContain("Mã Người Khám");
       assertThat(participants.getDataValidations()).hasSizeGreaterThanOrEqualTo(2);
       Sheet instructions = workbook.getSheet("Instructions");
-      assertThat(instructions.getRow(1).getCell(1).getStringCellValue()).isEqualTo(BATCH_ID.toString());
+      assertThat(instructions.getRow(1).getCell(1).getStringCellValue())
+          .isEqualTo(BATCH_ID.toString());
       assertThat(instructions.getRow(2).getCell(1).getStringCellValue()).isEqualTo("7");
       assertThat(instructions.getRow(14).getCell(0).getStringCellValue()).isEqualTo("2026-10-04");
       assertThat(instructions.getRow(15).getCell(0).getStringCellValue()).isEqualTo("2026-10-05");
@@ -116,11 +147,178 @@ class PoiParticipantExcelTest {
     assertThat(parsed.rows()).extracting(ParticipantImportRow::rowNumber).containsExactly(2, 5);
     ParticipantImportRow first = parsed.rows().get(0);
     assertThat(first.identificationNumber()).isEqualTo("0012345678");
-    assertThat(first.participantCode()).isNull();
     assertThat(first.email()).isNull();
+    assertThat(first.identificationIssueDate()).isNull();
+    assertThat(first.ethnicity()).isNull();
+    assertThat(first.note()).isNull();
     assertThat(first.dateOfBirth()).isEqualTo(LocalDate.of(1990, 1, 31));
     assertThat(first.examinationDate()).isEqualTo(LocalDate.of(2026, 10, 4));
     assertThat(first.fullName()).isEqualTo("Nguyen Van A");
+  }
+
+  @Test
+  void optionalPersonalDetailsRoundTripAndBlankOnesStayNull() {
+    ParticipantWorkbook parsed =
+        reader.read(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  text(
+                      sheet,
+                      2,
+                      "2",
+                      "Tran Thi B",
+                      "1985-12-01",
+                      "FEMALE",
+                      "456",
+                      "2020-05-20",
+                      " Cuc CSQLHC ",
+                      "Kinh",
+                      null,
+                      "b@example.test",
+                      "12 Tran Hung Dao",
+                      "Cong ty ABC",
+                      "Ke toan",
+                      "Truong phong",
+                      "2026-10-05",
+                      "Di ung phan");
+                }));
+
+    ParticipantImportRow second = parsed.rows().get(1);
+    assertThat(second.identificationIssueDate()).isEqualTo(LocalDate.of(2020, 5, 20));
+    assertThat(second.identificationIssuePlace()).isEqualTo("Cuc CSQLHC");
+    assertThat(second.ethnicity()).isEqualTo("Kinh");
+    assertThat(second.phone()).isNull();
+    assertThat(second.email()).isEqualTo("b@example.test");
+    assertThat(second.address()).isEqualTo("12 Tran Hung Dao");
+    assertThat(second.workplace()).isEqualTo("Cong ty ABC");
+    assertThat(second.note()).isEqualTo("Di ung phan");
+    ParticipantImportRow first = parsed.rows().get(0);
+    assertThat(first.address()).isNull();
+    assertThat(first.workplace()).isNull();
+  }
+
+  @Test
+  void acceptsAddressAtTheSupportedLength() {
+    String address = "a".repeat(1000);
+    ParticipantWorkbook parsed =
+        reader.read(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.getRow(1).createCell(10).setCellValue(address);
+                }));
+
+    assertThat(parsed.rows().getFirst().address()).isEqualTo(address);
+  }
+
+  @Test
+  void acceptsNoteAtTheSupportedLength() {
+    String note = "n".repeat(2000);
+    ParticipantWorkbook parsed =
+        reader.read(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.getRow(1).createCell(15).setCellValue(note);
+                }));
+
+    assertThat(parsed.rows().getFirst().note()).isEqualTo(note);
+  }
+
+  @Test
+  void rejectsNoteBeyondTheSupportedLengthWithALargerCellBudget() {
+    PoiParticipantExcelReader largerBudget =
+        new PoiParticipantExcelReader(
+            new ParticipantImportProperties(null, null, 4000, null, null, null));
+    byte[] bytes =
+        filled(
+            sheet -> {
+              validRow(sheet, 1, "123");
+              sheet.getRow(1).createCell(15).setCellValue("n".repeat(2001));
+            });
+
+    assertThatThrownBy(() -> largerBudget.read(bytes))
+        .isInstanceOf(ApplicationException.class)
+        .hasMessage("Row 2: note is too long");
+  }
+
+  @Test
+  void rejectsAddressBeyondTheSupportedLength() {
+    byte[] bytes =
+        filled(
+            sheet -> {
+              validRow(sheet, 1, "123");
+              sheet.getRow(1).createCell(10).setCellValue("a".repeat(1001));
+            });
+
+    assertThat(rejection(bytes)).isEqualTo("Row 2: address is too long");
+  }
+
+  @Test
+  void preservesTheLengthLimitOfOtherTextFields() {
+    byte[] bytes =
+        filled(
+            sheet -> {
+              validRow(sheet, 1, "123");
+              sheet.getRow(1).createCell(11).setCellValue("w".repeat(501));
+            });
+
+    assertThat(rejection(bytes)).isEqualTo("Row 2: workplace is too long");
+  }
+
+  @Test
+  void issueDateMustBeATextIsoDate() {
+    assertThat(
+            rejection(
+                filled(
+                    sheet -> {
+                      validRow(sheet, 1, "123");
+                      sheet.getRow(1).createCell(5).setCellValue("15/03/2021");
+                    })))
+        .isEqualTo("Row 2: identification_issue_date must be a text date in yyyy-MM-dd format");
+  }
+
+  @Test
+  void ordinalColumnIsIgnoredWhateverItHolds() {
+    byte[] bytes =
+        filled(
+            sheet -> {
+              validRow(sheet, 1, "123");
+              sheet.getRow(1).getCell(0).setBlank();
+              sheet.getRow(1).getCell(0).setCellValue(99.0); // a number, never read
+              text(sheet, 2, "2"); // only a row number: counts as a blank row
+              sheet.getRow(2).getCell(0).setBlank();
+              sheet.getRow(2).getCell(0).setCellFormula("1+1"); // a formula there is not evaluated
+            });
+    ParticipantWorkbook parsed = reader.read(bytes);
+    assertThat(parsed.rows()).extracting(ParticipantImportRow::rowNumber).containsExactly(2);
+  }
+
+  @Test
+  void aSheetWithOnlyOrdinalNumbersHasNoDataRows() {
+    assertThat(rejection(filled(sheet -> text(sheet, 1, "1"))))
+        .isEqualTo("The workbook has no data rows");
+  }
+
+  @Test
+  void ordinalHeaderIsOptional() {
+    byte[] bytes =
+        filled(
+            sheet -> {
+              validRow(sheet, 1, "123");
+              sheet.getRow(0).removeCell(sheet.getRow(0).getCell(0));
+              sheet.getRow(1).removeCell(sheet.getRow(1).getCell(0));
+            });
+    assertThat(reader.read(bytes).rows()).hasSize(1);
+  }
+
+  @Test
+  void theOldParticipantCodeHeaderIsNotPartOfTheTemplateAnymore() {
+    assertThat(
+            rejection(
+                filled(sheet -> sheet.getRow(0).createCell(16).setCellValue("Mã Người Khám"))))
+        .isEqualTo("The header at column 17 is not part of the template");
   }
 
   @Test
@@ -155,31 +353,42 @@ class PoiParticipantExcelTest {
 
   @Test
   void invalidAndNonIsoDatesAreRejected() {
-    String nonIso = rejection(filled(sheet -> {
-      validRow(sheet, 1, "123");
-      sheet.getRow(1).getCell(2).setCellValue("31/01/1990");
-    }));
+    String nonIso =
+        rejection(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.getRow(1).getCell(2).setCellValue("31/01/1990");
+                }));
     assertThat(nonIso).isEqualTo("Row 2: date_of_birth must be a text date in yyyy-MM-dd format");
-    String impossible = rejection(filled(sheet -> {
-      validRow(sheet, 1, "123");
-      sheet.getRow(1).getCell(9).setCellValue("2026-02-30");
-    }));
-    assertThat(impossible).isEqualTo("Row 2: examination_date must be a text date in yyyy-MM-dd format");
+    String impossible =
+        rejection(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.getRow(1).getCell(14).setCellValue("2026-02-30");
+                }));
+    assertThat(impossible)
+        .isEqualTo("Row 2: examination_date must be a text date in yyyy-MM-dd format");
   }
 
   @Test
   void missingRequiredFieldNamesRowAndField() {
-    String message = rejection(filled(sheet -> {
-      validRow(sheet, 1, "123");
-      sheet.getRow(1).removeCell(sheet.getRow(1).getCell(7 + 1));
-    }));
+    String message =
+        rejection(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.getRow(1).removeCell(sheet.getRow(1).getCell(13));
+                }));
     assertThat(message).isEqualTo("Row 2: position_name is required");
   }
 
   @Test
   void overlongCellIsRejected() {
     PoiParticipantExcelReader strict =
-        new PoiParticipantExcelReader(new ParticipantImportProperties(null, null, 5L > 0 ? 10 : 0, null, null, null));
+        new PoiParticipantExcelReader(
+            new ParticipantImportProperties(null, null, 5L > 0 ? 10 : 0, null, null, null));
     byte[] bytes = filled(sheet -> validRow(sheet, 1, "123"));
     assertThatThrownBy(() -> strict.read(bytes))
         .isInstanceOf(ApplicationException.class)
@@ -189,7 +398,8 @@ class PoiParticipantExcelTest {
   @Test
   void dataBeyondRowLimitIsRejected() {
     PoiParticipantExcelReader small =
-        new PoiParticipantExcelReader(new ParticipantImportProperties(null, 2, null, null, null, null));
+        new PoiParticipantExcelReader(
+            new ParticipantImportProperties(null, 2, null, null, null, null));
     byte[] bytes =
         filled(
             sheet -> {
@@ -206,10 +416,33 @@ class PoiParticipantExcelTest {
   void headerProblemsAreReported() {
     assertThat(rejection(filled(sheet -> sheet.getRow(0).getCell(3).setCellValue("gender"))))
         .isEqualTo("The header at column 4 is not part of the template");
-    assertThat(rejection(filled(sheet -> sheet.getRow(0).getCell(3).setCellValue("full_name"))))
-        .isEqualTo("The header full_name appears more than once");
+    assertThat(rejection(filled(sheet -> sheet.getRow(0).getCell(3).setCellValue("Họ Và Tên"))))
+        .isEqualTo("The header Họ Và Tên appears more than once");
     assertThat(rejection(filled(sheet -> sheet.getRow(0).removeCell(sheet.getRow(0).getCell(3)))))
-        .isEqualTo("The header sex is missing");
+        .isEqualTo("The header Giới Tính is missing");
+  }
+
+  @Test
+  void englishMachineKeysAreNoLongerAcceptedAsHeaders() {
+    assertThat(rejection(filled(sheet -> sheet.getRow(0).getCell(2).setCellValue("date_of_birth"))))
+        .isEqualTo("The header at column 3 is not part of the template");
+  }
+
+  @Test
+  void headerMatchingIgnoresCaseAndExtraSpacesButNotAccents() {
+    byte[] relaxed =
+        filled(
+            sheet -> {
+              validRow(sheet, 1, "123");
+              sheet.getRow(0).getCell(2).setCellValue("  ngày   sinh ");
+              sheet.getRow(0).getCell(3).setCellValue("GIỚI TÍNH");
+            });
+    ParticipantImportRow row = reader.read(relaxed).rows().get(0);
+    assertThat(row.dateOfBirth()).isEqualTo(LocalDate.of(1990, 1, 31));
+    assertThat(row.sex()).isEqualTo("MALE");
+
+    assertThat(rejection(filled(sheet -> sheet.getRow(0).getCell(2).setCellValue("Ngay Sinh"))))
+        .isEqualTo("The header at column 3 is not part of the template");
   }
 
   @Test
@@ -235,26 +468,33 @@ class PoiParticipantExcelTest {
 
   @Test
   void valueOutsideTemplateColumnsIsRejected() {
-    String message = rejection(filled(sheet -> {
-      validRow(sheet, 1, "123");
-      sheet.getRow(1).createCell(20).setCellValue("stray");
-    }));
+    String message =
+        rejection(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.getRow(1).createCell(20).setCellValue("stray");
+                }));
     assertThat(message).isEqualTo("Row 2: there is a value outside the template columns");
   }
 
   @Test
   void mergedCellsAreRejected() {
-    String message = rejection(filled(sheet -> {
-      validRow(sheet, 1, "123");
-      sheet.addMergedRegion(new CellRangeAddress(5, 5, 0, 1));
-    }));
+    String message =
+        rejection(
+            filled(
+                sheet -> {
+                  validRow(sheet, 1, "123");
+                  sheet.addMergedRegion(new CellRangeAddress(5, 5, 0, 1));
+                }));
     assertThat(message).isEqualTo("Merged cells are not allowed in the Participants sheet");
   }
 
   @Test
   void unexpectedSheetWithDataIsRejected() {
     byte[] bytes;
-    try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(filled(s -> validRow(s, 1, "1"))))) {
+    try (XSSFWorkbook workbook =
+        new XSSFWorkbook(new ByteArrayInputStream(filled(s -> validRow(s, 1, "1"))))) {
       workbook.createSheet("Extra").createRow(0).createCell(0).setCellValue("x");
       bytes = toBytes(workbook);
     } catch (IOException e) {
@@ -266,7 +506,8 @@ class PoiParticipantExcelTest {
   @Test
   void missingOrTamperedMetadataAsksForANewTemplate() {
     byte[] bytes;
-    try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(filled(s -> validRow(s, 1, "1"))))) {
+    try (XSSFWorkbook workbook =
+        new XSSFWorkbook(new ByteArrayInputStream(filled(s -> validRow(s, 1, "1"))))) {
       workbook.getSheet("Instructions").getRow(1).getCell(1).setCellValue("not-a-uuid");
       bytes = toBytes(workbook);
     } catch (IOException e) {
@@ -288,13 +529,16 @@ class PoiParticipantExcelTest {
   @Test
   void oversizedFileRaisesMaxUploadSize() {
     PoiParticipantExcelReader tiny =
-        new PoiParticipantExcelReader(new ParticipantImportProperties(10L, null, null, null, null, null));
-    assertThatThrownBy(() -> tiny.read(template())).isInstanceOf(MaxUploadSizeExceededException.class);
+        new PoiParticipantExcelReader(
+            new ParticipantImportProperties(10L, null, null, null, null, null));
+    assertThatThrownBy(() -> tiny.read(template()))
+        .isInstanceOf(MaxUploadSizeExceededException.class);
   }
 
   @Test
   void macroExternalLinkAndEmbeddingPartsAreRejected() throws IOException {
-    for (String part : List.of("xl/vbaProject.bin", "xl/externalLinks/externalLink1.xml", "xl/embeddings/o.bin")) {
+    for (String part :
+        List.of("xl/vbaProject.bin", "xl/externalLinks/externalLink1.xml", "xl/embeddings/o.bin")) {
       assertThat(rejection(withExtraPart(template(), part, new byte[] {1})))
           .isEqualTo("Macros, embedded objects and external links are not supported");
     }
@@ -303,22 +547,26 @@ class PoiParticipantExcelTest {
   @Test
   void tooManyPartsAndZipBombsAreRejected() throws IOException {
     PoiParticipantExcelReader fewParts =
-        new PoiParticipantExcelReader(new ParticipantImportProperties(null, null, null, 3, null, null));
+        new PoiParticipantExcelReader(
+            new ParticipantImportProperties(null, null, null, 3, null, null));
     assertThatThrownBy(() -> fewParts.read(template()))
         .isInstanceOf(ApplicationException.class)
         .hasMessage("The workbook contains too many parts");
 
     byte[] bomb = withExtraPart(template(), "xl/media/bomb.bin", new byte[2_000_000]);
     PoiParticipantExcelReader smallEntries =
-        new PoiParticipantExcelReader(new ParticipantImportProperties(null, null, null, null, 1_000_000L, null));
+        new PoiParticipantExcelReader(
+            new ParticipantImportProperties(null, null, null, null, 1_000_000L, null));
     assertThatThrownBy(() -> smallEntries.read(bomb))
         .isInstanceOf(ApplicationException.class)
         .hasMessage("The workbook is too large once extracted");
   }
 
-  private static byte[] withExtraPart(byte[] original, String name, byte[] content) throws IOException {
+  private static byte[] withExtraPart(byte[] original, String name, byte[] content)
+      throws IOException {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    try (java.util.zip.ZipInputStream in = new java.util.zip.ZipInputStream(new ByteArrayInputStream(original));
+    try (java.util.zip.ZipInputStream in =
+            new java.util.zip.ZipInputStream(new ByteArrayInputStream(original));
         ZipOutputStream zip = new ZipOutputStream(out)) {
       for (ZipEntry e = in.getNextEntry(); e != null; e = in.getNextEntry()) {
         zip.putNextEntry(new ZipEntry(e.getName()));
@@ -334,11 +582,14 @@ class PoiParticipantExcelTest {
 
   @Test
   void blankHeaderCellTypeIsStillChecked() {
-    String message = rejection(filled(sheet -> {
-      Cell cell = sheet.getRow(0).getCell(3);
-      cell.setCellValue(1.0);
-      assertThat(cell.getCellType()).isEqualTo(CellType.NUMERIC);
-    }));
+    String message =
+        rejection(
+            filled(
+                sheet -> {
+                  Cell cell = sheet.getRow(0).getCell(3);
+                  cell.setCellValue(1.0);
+                  assertThat(cell.getCellType()).isEqualTo(CellType.NUMERIC);
+                }));
     assertThat(message).isEqualTo("The header at column 4 must be a text cell");
   }
 }

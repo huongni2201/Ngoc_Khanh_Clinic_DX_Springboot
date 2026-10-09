@@ -100,7 +100,7 @@ public class UpdateHealthExaminationBatchUseCase {
     var days = days(configuration.examinationDates(), batch.days());
     var services = services(batch.id(), configuration.services(), batch.services());
     rejectReferencedRemovals(batchId, batch.days(), batch.services(), days, services);
-    batch.updateDraft(configuration.batchCode(), configuration.batchName(), site, days, services);
+    batch.updateDraft(configuration.batchName(), site, days, services);
 
     batches.update(batch, expectedVersion);
     var stored =

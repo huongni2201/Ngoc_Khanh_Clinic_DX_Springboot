@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper">
- <sql id="columns">id,batch_id,batch_day_id,participant_code,full_name,date_of_birth,sex,identification_number,phone,email,department_name,position_name,patient_id,roster_status,attendance_status,actual_examination_date,attendance_recorded_by,attendance_recorded_at,attendance_note,service_reconciliation_status,services_reconciled_by,services_reconciled_at,import_job_id,source_row_number,prepared_at,created_at,updated_at,row_version</sql>
+ <sql id="columns">id,batch_id,batch_day_id,participant_code,full_name,date_of_birth,sex,identification_number,identification_issue_date,identification_issue_place,ethnicity,phone,email,address,workplace,department_name,position_name,note,patient_id,roster_status,attendance_status,actual_examination_date,attendance_recorded_by,attendance_recorded_at,attendance_note,service_reconciliation_status,services_reconciled_by,services_reconciled_at,import_job_id,source_row_number,prepared_at,created_at,updated_at,row_version</sql>
  <select id="findById" resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord">
  SELECT <include refid="columns"/> FROM public.health_examination_batch_participants WHERE id=#{id}
  </select>
@@ -26,7 +26,9 @@
  <update id="update">UPDATE public.health_examination_batch_participants SET
  row_version=row_version+1,updated_at=CURRENT_TIMESTAMP,batch_day_id=#{p.batchDayId},
  participant_code=#{p.participantCode},full_name=#{p.fullName},date_of_birth=#{p.dateOfBirth},sex=#{p.sex},
- identification_number=#{p.identificationNumber},phone=#{p.phone},email=#{p.email},
+ identification_number=#{p.identificationNumber},identification_issue_date=#{p.identificationIssueDate},
+ identification_issue_place=#{p.identificationIssuePlace},ethnicity=#{p.ethnicity},phone=#{p.phone},email=#{p.email},
+ address=#{p.address},workplace=#{p.workplace},note=#{p.note},
  department_name=#{p.departmentName},position_name=#{p.positionName},patient_id=#{p.patientId},prepared_at=#{p.preparedAt},roster_status=#{p.rosterStatus},
  attendance_status=#{p.attendanceStatus},actual_examination_date=#{p.actualExaminationDate},attendance_recorded_by=#{p.attendanceRecordedBy},
  attendance_recorded_at=#{p.attendanceRecordedAt},attendance_note=#{p.attendanceNote},service_reconciliation_status=#{p.serviceReconciliationStatus},
@@ -53,13 +55,17 @@
  <insert id="insertMany">
  INSERT INTO public.health_examination_batch_participants (<include refid="columns"/>) VALUES
  <foreach collection="items" item="p" separator=",">(#{p.id},#{p.batchId},#{p.batchDayId},#{p.participantCode},#{p.fullName},#{p.dateOfBirth},#{p.sex},#{p.identificationNumber},
- #{p.phone},#{p.email},#{p.departmentName},#{p.positionName},#{p.patientId},#{p.rosterStatus},#{p.attendanceStatus},#{p.actualExaminationDate},
+ #{p.identificationIssueDate},#{p.identificationIssuePlace},#{p.ethnicity},#{p.phone},#{p.email},#{p.address},#{p.workplace},
+ #{p.departmentName},#{p.positionName},#{p.note},#{p.patientId},#{p.rosterStatus},#{p.attendanceStatus},#{p.actualExaminationDate},
  #{p.attendanceRecordedBy},#{p.attendanceRecordedAt},#{p.attendanceNote},#{p.serviceReconciliationStatus},#{p.servicesReconciledBy},#{p.servicesReconciledAt},
  #{p.importJobId},#{p.sourceRowNumber},#{p.preparedAt},#{p.createdAt},#{p.updatedAt},#{p.rowVersion})</foreach>
  </insert>
  <select id="findExistingIdentities" resultType="java.lang.String">
  SELECT identification_number FROM public.health_examination_batch_participants
  WHERE batch_id=#{batchId} AND identification_number IN <foreach collection="identities" item="identity" open="(" close=")" separator=",">#{identity}</foreach>
+ </select>
+ <select id="countInBatch" resultType="long">
+ SELECT COUNT(*) FROM public.health_examination_batch_participants WHERE batch_id=#{batchId}
  </select>
  <select id="batchInScope" resultType="boolean">
  SELECT EXISTS(SELECT 1 FROM public.health_examination_batches WHERE id=#{batchId} AND organization_id=#{organizationId} AND deleted_at IS NULL)

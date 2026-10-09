@@ -8,9 +8,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * tuned after measuring. A non-positive value fails application startup.
  *
  * @param maxFileBytes largest accepted compressed workbook
- * @param maxRows largest accepted data row index; data is only read from worksheet rows 2 to
- *     {@code maxRows + 1}
- * @param maxCellChars longest accepted text in one cell
+ * @param maxRows largest accepted data row index; data is only read from worksheet rows 2 to {@code
+ *     maxRows + 1}
+ * @param maxCellChars longest accepted text in one cell; defaults to 2000 to support Participant
+ *     notes
  * @param maxZipEntries most entries accepted in the workbook package
  * @param maxEntryBytes largest accepted uncompressed size of one package entry
  * @param maxTotalBytes largest accepted total uncompressed size of the package
@@ -26,7 +27,7 @@ public record ParticipantImportProperties(
   public ParticipantImportProperties {
     maxFileBytes = maxFileBytes == null ? 5L * 1024 * 1024 : maxFileBytes;
     maxRows = maxRows == null ? 1_000 : maxRows;
-    maxCellChars = maxCellChars == null ? 500 : maxCellChars;
+    maxCellChars = maxCellChars == null ? 2_000 : maxCellChars;
     maxZipEntries = maxZipEntries == null ? 128 : maxZipEntries;
     maxEntryBytes = maxEntryBytes == null ? 64L * 1024 * 1024 : maxEntryBytes;
     maxTotalBytes = maxTotalBytes == null ? 128L * 1024 * 1024 : maxTotalBytes;

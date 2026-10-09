@@ -14,7 +14,6 @@ import lombok.Builder;
  * <p>Lists are copied defensively. Values are validated where they are interpreted: the assembler
  * and the batch aggregate.
  *
- * @param batchCode unique batch code
  * @param batchName batch display name
  * @param examinationDates examination dates, without duplicates
  * @param examinationSiteType {@code CLINIC} or {@code ORGANIZATION_SITE}
@@ -24,7 +23,6 @@ import lombok.Builder;
  */
 @Builder(toBuilder = true)
 public record BatchConfiguration(
-    String batchCode,
     String batchName,
     List<LocalDate> examinationDates,
     String examinationSiteType,

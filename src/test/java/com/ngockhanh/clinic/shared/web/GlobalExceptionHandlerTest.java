@@ -24,12 +24,12 @@ class GlobalExceptionHandlerTest {
         handler.duplicate(new org.springframework.dao.DuplicateKeyException("unique index")), 409);
     assertError(handler.notFound(new ResourceNotFoundException("patient")), 404);
     assertError(handler.concurrency(new ConcurrentUpdateException()), 409);
-    ResponseEntity<ApiResponse<Void>> stalePreview =
+    ResponseEntity<ApiResponse<Void>> customConflict =
         handler.concurrency(
-            new ConcurrentUpdateException("IMPORT_PREVIEW_STALE", "Preview is stale"));
-    assertError(stalePreview, 409);
-    assertThat(stalePreview.getBody().message()).isEqualTo("Preview is stale");
-    assertThat(JsonMapper.builder().build().writeValueAsString(stalePreview.getBody()))
+            new ConcurrentUpdateException("EXPECTED_VERSION_MISMATCH", "Record has changed"));
+    assertError(customConflict, 409);
+    assertThat(customConflict.getBody().message()).isEqualTo("Record has changed");
+    assertThat(JsonMapper.builder().build().writeValueAsString(customConflict.getBody()))
         .contains("\"code\":409")
         .doesNotContain("errorCode");
     assertError(
@@ -46,7 +46,7 @@ class GlobalExceptionHandlerTest {
     PageResponse<String> page =
         PageResponse.<String>builder()
             .items(List.of("item"))
-            .page(0)
+            .page(1)
             .size(20)
             .totalElements(1)
             .totalPages(1)
@@ -56,6 +56,7 @@ class GlobalExceptionHandlerTest {
     assertThat(response.result()).isEqualTo("OK");
     assertThat(response.code()).isEqualTo(200);
     assertThat(response.data().items()).containsExactly("item");
+    assertThat(response.data().page()).isEqualTo(1);
     ApiResponse<Void> error = ApiResponse.error(500, "error");
     assertThat(error.result()).isEqualTo("NG");
     assertThat(error.data()).isNull();

@@ -6,8 +6,9 @@
 -- Design reference: NKC_DX_Clean_Slate_Database_Design_Detailed_No_Reporting_Schema.md
 -- Participant terminology follows the project owner request.
 -- Flyway owns the transaction; no outer BEGIN/COMMIT or database creation.
--- Consolidated on 2026-10-07: includes batch soft delete and service reconciliation import.
--- V002 seeds access-control data after this complete schema is created.
+-- Consolidated on 2026-10-08: final schema, including Participant personal details,
+-- optional Organization phone, batch soft delete and service reconciliation import.
+-- V002 seeds access-control data; V003 seeds the catalog with final CLS<id> codes.
 -- Do not apply to an existing database carrying any earlier migration history.
 -- This baseline does not adapt the existing Java/MyBatis contracts to the new model.
 -- Source syntax fix: include the ImportJob ID placeholder in its configuration error.
@@ -779,7 +780,7 @@ CREATE TABLE public.organizations (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     name varchar(300) NOT NULL,
     tax_code varchar(50) NULL,
-    phone text NOT NULL,
+    phone text NULL,
     email text NOT NULL,
     address text NOT NULL,
     contact_full_name varchar(200) NOT NULL,
@@ -793,7 +794,7 @@ CREATE TABLE public.organizations (
     CONSTRAINT ck_organizations_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
-CREATE TABLE public.health_examination_batches (
+    CREATE TABLE public.health_examination_batches (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE RESTRICT,
     batch_code varchar(50) NOT NULL UNIQUE,
@@ -858,10 +859,16 @@ CREATE TABLE public.health_examination_batch_participants (
     date_of_birth date NOT NULL,
     sex varchar(16) NOT NULL,
     identification_number text NOT NULL,
+    identification_issue_date date NULL,
+    identification_issue_place text NULL,
+    ethnicity text NULL,
     phone text NULL,
     email text NULL,
+    address text NULL,
+    workplace text NULL,
     department_name text NOT NULL,
     position_name text NOT NULL,
+    note text NULL,
     patient_id uuid NULL REFERENCES public.patients(id) ON DELETE RESTRICT,
     roster_status varchar(20) NOT NULL DEFAULT 'ACTIVE',
     attendance_status varchar(20) NOT NULL DEFAULT 'UNCONFIRMED',
@@ -1540,7 +1547,7 @@ CREATE INDEX ix_audit_events_correlation ON public.audit_events(correlation_id) 
 -- 17. VALIDATION / IMMUTABILITY TRIGGERS
 -- ============================================================================
 
--- 17.1 Identity: Patient principals cannot receive staff roles.
+-- 17.1 Access control: PATIENT roles require patient accounts; other roles and grantors require staff.
 CREATE OR REPLACE FUNCTION public.trg_validate_account_role()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -1548,12 +1555,22 @@ AS $$
 DECLARE
     v_target_type text;
     v_grantor_type text;
+    v_role_code text;
 BEGIN
     SELECT account_type INTO v_target_type
     FROM public.accounts
     WHERE id = NEW.account_id;
 
-    IF v_target_type IS DISTINCT FROM 'STAFF' THEN
+    SELECT code INTO v_role_code
+    FROM public.roles
+    WHERE id = NEW.role_id;
+
+    IF v_role_code = 'PATIENT' THEN
+        IF v_target_type IS DISTINCT FROM 'PATIENT' THEN
+            RAISE EXCEPTION 'Staff/non-patient account % cannot be assigned the PATIENT role', NEW.account_id
+                USING ERRCODE = '23514';
+        END IF;
+    ELSIF v_target_type IS DISTINCT FROM 'STAFF' THEN
         RAISE EXCEPTION 'Patient/non-staff account % cannot be assigned a staff role', NEW.account_id
             USING ERRCODE = '23514';
     END IF;

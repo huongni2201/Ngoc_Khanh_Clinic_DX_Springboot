@@ -12,7 +12,7 @@ class CleanSlateMigrationContractTest {
   void runtimeSqlReferencesOnlyTablesInTheFreshBaseline() throws Exception {
     String sql =
         Files.readString(
-            Path.of("src/main/resources/db/migration/V001__create_clean_slate_schema.sql"));
+            Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables =
         Pattern.compile("(?m)^CREATE TABLE public\\.([a-z_]+)")
             .matcher(sql)
@@ -45,12 +45,13 @@ class CleanSlateMigrationContractTest {
                   .filter(path -> path.toString().endsWith(".sql"))
                   .map(path -> path.getFileName().toString())
                   .toList())
-          .contains(
-              "V001__create_clean_slate_schema.sql",
-              "V002__seed_access_control_roles_and_permissions.sql")
+          .containsExactlyInAnyOrder(
+              "V001__create_schema.sql",
+              "V002__seed_roles_and_permissions.sql",
+              "V003__seed_paraclinical_service_catalog.sql")
           .allMatch(name -> name.matches("V\\d{3}__[a-z_]+\\.sql"));
     }
-    String sql = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
+    String sql = Files.readString(directory.resolve("V001__create_schema.sql"));
     var tables =
         Pattern.compile("(?m)^CREATE TABLE public\\.([a-z_]+)")
             .matcher(sql)
@@ -96,9 +97,11 @@ class CleanSlateMigrationContractTest {
   @Test
   void schemaAndSeedMigrationsKeepSeparateResponsibilities() throws Exception {
     Path directory = Path.of("src/main/resources/db/migration");
-    String schema = Files.readString(directory.resolve("V001__create_clean_slate_schema.sql"));
+    String schema = Files.readString(directory.resolve("V001__create_schema.sql"));
     String seed =
-        Files.readString(directory.resolve("V002__seed_access_control_roles_and_permissions.sql"));
+        Files.readString(directory.resolve("V002__seed_roles_and_permissions.sql"));
+    String catalog =
+        Files.readString(directory.resolve("V003__seed_paraclinical_service_catalog.sql"));
     assertThat(schema).doesNotContain("INSERT INTO");
     assertThat(seed)
         .contains(
@@ -107,5 +110,19 @@ class CleanSlateMigrationContractTest {
             "INSERT INTO public.role_permissions")
         .doesNotContain(
             "CREATE TABLE", "ALTER TABLE", "CREATE INDEX", "CREATE FUNCTION", "CREATE TRIGGER");
+    assertThat(catalog)
+        .contains(
+            "INSERT INTO public.departments",
+            "INSERT INTO public.rooms",
+            "INSERT INTO public.services")
+        .doesNotContain(
+            "CREATE TABLE",
+            "ALTER TABLE",
+            "CREATE INDEX",
+            "CREATE FUNCTION",
+            "CREATE TRIGGER",
+            "UPDATE public.",
+            "DROP ",
+            "CLS_");
   }
 }

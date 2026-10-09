@@ -16,11 +16,11 @@ import lombok.Builder;
  * Body for replacing the whole configuration of a draft health examination batch.
  *
  * <p>This is a full replacement (PUT), not a partial update. {@code rowVersion} is the header
- * version the client last read.
+ * version the client last read. The batch code is not part of the body: it never changes after
+ * creation.
  */
 @Builder
 public record UpdateHealthExaminationBatchRequest(
-    @NotBlank @Size(max = 50) String batchCode,
     @NotBlank @Size(max = 300) String batchName,
     @NotEmpty List<@NotNull LocalDate> examinationDates,
     @NotNull @Pattern(regexp = "CLINIC|ORGANIZATION_SITE") String examinationSiteType,
@@ -32,7 +32,6 @@ public record UpdateHealthExaminationBatchRequest(
   /** Maps the transport body to the application configuration input. */
   public BatchConfiguration toConfiguration() {
     return BatchConfiguration.builder()
-        .batchCode(batchCode)
         .batchName(batchName)
         .examinationDates(examinationDates)
         .examinationSiteType(examinationSiteType)

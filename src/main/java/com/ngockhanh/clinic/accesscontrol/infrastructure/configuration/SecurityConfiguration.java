@@ -25,9 +25,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * HTTP security: stateless session-cookie authentication, CORS and Origin checks for
- * state-changing requests (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints
- * without a rule in {@link EndpointPermissions} are denied.
+ * HTTP security: stateless session-cookie authentication, CORS and Origin checks for state-changing
+ * requests (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints without a rule
+ * are denied unless local test full-access is enabled for {@code ROLE_TEST}.
  */
 @Configuration
 @EnableWebSecurity
@@ -73,7 +73,11 @@ public class SecurityConfiguration {
                   .permitAll()
                   .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
                   .authenticated();
-              EndpointPermissions.apply(requests);
+              boolean testRoleFullAccess = Boolean.TRUE.equals(properties.testRoleFullAccess());
+              EndpointPermissions.apply(requests, testRoleFullAccess);
+              if (testRoleFullAccess) {
+                requests.requestMatchers("/api/**").hasAuthority("ROLE_TEST");
+              }
               requests.anyRequest().denyAll();
             });
     return http.build();

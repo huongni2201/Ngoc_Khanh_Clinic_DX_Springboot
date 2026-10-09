@@ -123,9 +123,9 @@ class HealthExaminationBatchCrudTest {
         new HealthExaminationBatchService(
             id(), id(), batchId, Money.vnd("300"), Money.vnd("250"), 1, true, 0);
 
-    b.updateDraft("B2", "Renamed", newSite, List.of(later, earlier), List.of(service));
+    b.updateDraft("Renamed", newSite, List.of(later, earlier), List.of(service));
 
-    assertThat(b.code()).isEqualTo("B2");
+    assertThat(b.code()).as("the code never changes").isEqualTo("B");
     assertThat(b.name()).isEqualTo("Renamed");
     assertThat(b.site()).isEqualTo(newSite);
     assertThat(b.startDate()).isEqualTo(LocalDate.of(2026, 11, 1));
@@ -139,7 +139,7 @@ class HealthExaminationBatchCrudTest {
     var b = draft();
     var before = b.days();
 
-    assertThatThrownBy(() -> b.updateDraft("B2", "Renamed", site, List.of(), b.services()))
+    assertThatThrownBy(() -> b.updateDraft("Renamed", site, List.of(), b.services()))
         .isInstanceOf(IllegalArgumentException.class);
 
     assertThat(b.code()).isEqualTo("B");
@@ -154,7 +154,7 @@ class HealthExaminationBatchCrudTest {
     assertThatThrownBy(b::requireDraft)
         .isInstanceOf(
             com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation.class);
-    assertThatThrownBy(() -> b.updateDraft("B2", "N", site, b.days(), b.services()))
+    assertThatThrownBy(() -> b.updateDraft("N", site, b.days(), b.services()))
         .isInstanceOf(
             com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation.class);
     assertThatThrownBy(() -> b.softDelete(java.time.Instant.now()))
@@ -177,7 +177,7 @@ class HealthExaminationBatchCrudTest {
     assertThatThrownBy(() -> b.softDelete(at))
         .isInstanceOf(
             com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation.class);
-    assertThatThrownBy(() -> b.updateDraft("B2", "N", site, b.days(), b.services()))
+    assertThatThrownBy(() -> b.updateDraft("N", site, b.days(), b.services()))
         .isInstanceOf(
             com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation.class);
     assertThatThrownBy(() -> draft().softDelete(null)).isInstanceOf(IllegalArgumentException.class);

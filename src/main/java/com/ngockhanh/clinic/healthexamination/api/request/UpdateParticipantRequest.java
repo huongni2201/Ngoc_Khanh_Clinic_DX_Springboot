@@ -16,30 +16,40 @@ import lombok.Builder;
  */
 @Builder
 public record UpdateParticipantRequest(
-    @Size(max = 500) String participantCode,
     @NotBlank @Size(max = 200) String fullName,
     @NotNull LocalDate dateOfBirth,
     @NotNull @Pattern(regexp = "MALE|FEMALE|OTHER|UNKNOWN") String sex,
     @NotBlank @Pattern(regexp = "\\d{1,20}") String identificationNumber,
+    LocalDate identificationIssueDate,
+    @Size(max = 500) String identificationIssuePlace,
+    @Size(max = 500) String ethnicity,
     @Size(max = 500) String phone,
     @Size(max = 500) String email,
+    @Size(max = 1000) String address,
+    @Size(max = 500) String workplace,
     @NotBlank @Size(max = 500) String departmentName,
     @NotBlank @Size(max = 500) String positionName,
+    @Size(max = 2000) String note,
     @NotNull UUID batchDayId,
     @NotNull @PositiveOrZero Long rowVersion) {
 
   /** Maps the transport body to the application command. */
   public UpdateParticipantCommand toCommand() {
     return new UpdateParticipantCommand(
-        participantCode,
         fullName,
         dateOfBirth,
         sex,
         identificationNumber,
+        identificationIssueDate,
+        identificationIssuePlace,
+        ethnicity,
         phone,
         email,
+        address,
+        workplace,
         departmentName,
         positionName,
+        note,
         batchDayId,
         rowVersion);
   }

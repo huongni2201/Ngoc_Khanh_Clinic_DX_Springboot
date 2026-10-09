@@ -34,7 +34,7 @@ public class Organization {
     this.id = id;
     this.name = required(name, 300);
     this.taxCode = optional(taxCode, 50);
-    this.phone = required(phone, Integer.MAX_VALUE);
+    this.phone = optional(phone, Integer.MAX_VALUE);
     this.email = required(email, Integer.MAX_VALUE);
     this.address = required(address, Integer.MAX_VALUE);
     this.contactFullName = required(contactFullName, 200);
@@ -106,7 +106,7 @@ public class Organization {
       String contactEmail) {
     String normalizedName = required(name, 300);
     String normalizedTaxCode = optional(taxCode, 50);
-    String normalizedPhone = required(phone, Integer.MAX_VALUE);
+    String normalizedPhone = optional(phone, Integer.MAX_VALUE);
     String normalizedEmail = required(email, Integer.MAX_VALUE);
     String normalizedAddress = required(address, Integer.MAX_VALUE);
     String normalizedContactFullName = required(contactFullName, 200);

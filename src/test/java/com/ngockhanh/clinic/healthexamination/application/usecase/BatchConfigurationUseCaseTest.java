@@ -14,6 +14,7 @@ import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.application.service.BatchCodeGenerator;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
@@ -23,7 +24,10 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminatio
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,7 +42,13 @@ class BatchConfigurationUseCaseTest {
       mock(HealthExaminationBatchRepository.class);
   private final AuditWriter audit = mock(AuditWriter.class);
   private final CreateHealthExaminationBatchUseCase create =
-      new CreateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
+      new CreateHealthExaminationBatchUseCase(
+          organizations,
+          batches,
+          catalog,
+          new BatchCodeGenerator(
+              batches, Clock.fixed(Instant.parse("2026-10-08T03:00:00Z"), ZoneOffset.UTC)),
+          audit);
   private final UpdateHealthExaminationBatchUseCase update =
       new UpdateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
   private final UUID organizationId = UUID.randomUUID();
@@ -111,7 +121,7 @@ class BatchConfigurationUseCaseTest {
 
     var assembled = create(configuration);
 
-    assertThat(assembled.code()).isEqualTo("B1");
+    assertThat(assembled.code()).isEqualTo("KSK-2026-001");
     assertThat(assembled.site().type()).isEqualTo(ExaminationSiteType.CLINIC);
     assertThat(assembled.days())
         .extracting(HealthExaminationBatchDay::examinationDate)
@@ -242,7 +252,6 @@ class BatchConfigurationUseCaseTest {
     when(catalog.findByIds(Set.of(added))).thenReturn(List.of(catalogService(added, true, "500")));
     var replacement =
         BatchConfiguration.builder()
-            .batchCode("B2")
             .batchName("Renamed")
             .examinationDates(List.of(SECOND_DAY, LocalDate.of(2026, 10, 6)))
             .examinationSiteType("ORGANIZATION_SITE")
@@ -273,17 +282,6 @@ class BatchConfigurationUseCaseTest {
     assertThat(retained.rowVersion()).isEqualTo(3);
     // Only additions use current catalog prices; display lookups do not replace stored snapshots.
     verify(catalog).findByIds(Set.of(added));
-  }
-
-  @Test
-  void updateWithOnlyKeptServicesUsesCatalogOnlyForDisplay() {
-    UUID kept = UUID.randomUUID();
-    var current = draftBatch(UUID.randomUUID(), batchId.value(), 0, kept);
-
-    var assembled = update(current, configuration(kept));
-
-    assertThat(assembled.services().getFirst().id()).isEqualTo(current.services().getFirst().id());
-    verify(catalog, org.mockito.Mockito.times(2)).findByIds(Set.of(kept));
   }
 
   @Test

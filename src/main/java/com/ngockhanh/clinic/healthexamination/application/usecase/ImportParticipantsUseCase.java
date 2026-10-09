@@ -131,15 +131,21 @@ public class ImportParticipantsUseCase {
       try {
         roster =
             new Roster(
-                row.participantCode(),
+                null,
                 row.fullName(),
                 row.dateOfBirth(),
                 row.sex(),
                 identity,
+                row.identificationIssueDate(),
+                row.identificationIssuePlace(),
+                row.ethnicity(),
                 row.phone(),
                 row.email(),
+                row.address(),
+                row.workplace(),
                 row.departmentName(),
-                row.positionName());
+                row.positionName(),
+                row.note());
       } catch (IllegalArgumentException invalid) {
         throw rejected(
             row.rowNumber(), "full_name, sex, department_name and position_name are not valid");

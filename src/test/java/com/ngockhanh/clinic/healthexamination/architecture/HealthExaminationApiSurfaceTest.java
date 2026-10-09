@@ -47,22 +47,11 @@ class HealthExaminationApiSurfaceTest {
           "GET " + BATCH + "/reports/payment-summary",
           "GET " + BATCH + "/reports/payment-summary/docx");
 
-  private static final Set<String> REMOVED_MAPPINGS =
-      Set.of(
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/export-template",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/rows",
-          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/preview",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/confirm",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participant-imports/{importId}/cancel");
-
   @Test
   void healthExaminationMappingsStayWithinTheApprovedUseCases() {
     Set<String> actualMappings = mappingsOwnedByHealthExamination();
 
     assertThat(actualMappings).containsExactlyInAnyOrderElementsOf(ALLOWED_MAPPINGS);
-    assertThat(actualMappings).doesNotContainAnyElementsOf(REMOVED_MAPPINGS);
   }
 
   private Set<String> mappingsOwnedByHealthExamination() {

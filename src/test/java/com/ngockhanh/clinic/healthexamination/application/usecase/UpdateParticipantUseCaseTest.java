@@ -42,15 +42,20 @@ class UpdateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
   private UpdateParticipantCommand command(
       String identification, String name, UUID day, Long version) {
     return new UpdateParticipantCommand(
-        "NV-001",
         name,
         LocalDate.of(1990, 5, 12),
         "MALE",
         identification,
+        null,
+        null,
+        null,
         PHONE,
         EMAIL,
+        null,
+        null,
         "Accounting",
         "Staff",
+        null,
         day,
         version);
   }
@@ -164,15 +169,20 @@ class UpdateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     givenStored(p);
     var future =
         new UpdateParticipantCommand(
-            "NV-001",
             FULL_NAME,
             LocalDate.of(2099, 1, 1),
             "MALE",
             IDENTIFICATION,
+            null,
+            null,
+            null,
             PHONE,
             EMAIL,
+            null,
+            null,
             "Accounting",
             "Staff",
+            null,
             firstDay(),
             0L);
     assertThatThrownBy(() -> run(p, future))

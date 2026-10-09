@@ -43,10 +43,17 @@ import org.springframework.stereotype.Component;
 public class PoiParticipantExcelReader implements ParticipantExcelReader {
   private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
   private static final int MAX_HEADER_COLUMNS = 64;
-  private static final Set<String> REQUIRED = Set.of(
-      FULL_NAME, DATE_OF_BIRTH, SEX, IDENTIFICATION_NUMBER, DEPARTMENT_NAME, POSITION_NAME,
-      EXAMINATION_DATE);
-  private static final Set<String> DATE_COLUMNS = Set.of(DATE_OF_BIRTH, EXAMINATION_DATE);
+  private static final Set<String> REQUIRED =
+      Set.of(
+          FULL_NAME,
+          DATE_OF_BIRTH,
+          SEX,
+          IDENTIFICATION_NUMBER,
+          DEPARTMENT_NAME,
+          POSITION_NAME,
+          EXAMINATION_DATE);
+  private static final Set<String> DATE_COLUMNS =
+      Set.of(DATE_OF_BIRTH, IDENTIFICATION_ISSUE_DATE, EXAMINATION_DATE);
   private static final Set<String> UNTRIMMED = Set.of(IDENTIFICATION_NUMBER);
 
   private final ParticipantImportProperties limits;
@@ -65,7 +72,9 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
     } catch (ApplicationException rejected) {
       throw rejected;
     } catch (IOException | RuntimeException unreadable) {
-      log.debug("Participant workbook could not be read: cause={}", unreadable.getClass().getSimpleName());
+      log.debug(
+          "Participant workbook could not be read: cause={}",
+          unreadable.getClass().getSimpleName());
       throw invalid("The file is not a valid XLSX workbook");
     }
   }
@@ -96,7 +105,7 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
     Set<Integer> mappedColumns = Set.copyOf(columns.values());
     for (Row row : participants) {
       if (row.getRowNum() == 0) continue;
-      if (isBlank(row, columns, mappedColumns)) continue;
+      if (isBlank(row, columns.get(ORDINAL), mappedColumns)) continue;
       int excelRow = row.getRowNum() + 1;
       if (row.getRowNum() > limits.maxRows())
         throw invalid("Data is only accepted in worksheet rows 2 to " + (limits.maxRows() + 1));
@@ -109,7 +118,8 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
   private Map<String, Integer> headerColumns(Sheet sheet) {
     Row header = sheet.getRow(0);
     if (header == null) throw invalid("The header row is missing");
-    if (header.getLastCellNum() > MAX_HEADER_COLUMNS) throw invalid("The header row has too many columns");
+    if (header.getLastCellNum() > MAX_HEADER_COLUMNS)
+      throw invalid("The header row has too many columns");
     Map<String, Integer> columns = new HashMap<>();
     for (int column = 0; column < header.getLastCellNum(); column++) {
       Cell cell = header.getCell(column, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
@@ -118,22 +128,30 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
         throw invalid("The header at column " + (column + 1) + " must be a text cell");
       String name = cell.getStringCellValue().trim();
       if (name.isEmpty()) continue;
-      if (!ORDERED.contains(name))
+      String key = keyOfHeader(name);
+      if (key == null)
         throw invalid("The header at column " + (column + 1) + " is not part of the template");
-      if (columns.put(name, column) != null) throw invalid("The header " + name + " appears more than once");
+      if (columns.put(key, column) != null)
+        throw invalid("The header " + header(key) + " appears more than once");
     }
-    for (String name : ORDERED)
-      if (!columns.containsKey(name)) throw invalid("The header " + name + " is missing");
+    for (String key : ORDERED)
+      if (!columns.containsKey(key)) throw invalid("The header " + header(key) + " is missing");
     return columns;
   }
 
-  private boolean isBlank(Row row, Map<String, Integer> columns, Set<Integer> mappedColumns) {
+  /**
+   * Whether the row holds no data. The ordinal column is only a row number, so a row with nothing
+   * but a number there counts as blank and the ordinal cells are never read.
+   */
+  private boolean isBlank(Row row, Integer ordinalColumn, Set<Integer> mappedColumns) {
     boolean blank = true;
     for (Cell cell : row) {
+      if (ordinalColumn != null && cell.getColumnIndex() == ordinalColumn) continue;
       if (cell.getCellType() == CellType.BLANK) continue;
       if (cell.getCellType() == CellType.STRING && cell.getStringCellValue().isBlank()) continue;
       if (!mappedColumns.contains(cell.getColumnIndex()))
-        throw invalid("Row " + (row.getRowNum() + 1) + ": there is a value outside the template columns");
+        throw invalid(
+            "Row " + (row.getRowNum() + 1) + ": there is a value outside the template columns");
       blank = false;
     }
     return blank;
@@ -150,25 +168,40 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
         throw invalid("Row " + excelRow + ": " + name + " is required");
     return new ParticipantImportRow(
         excelRow,
-        text.get(PARTICIPANT_CODE),
         text.get(FULL_NAME),
         date(text.get(DATE_OF_BIRTH), DATE_OF_BIRTH, excelRow),
         text.get(SEX),
         text.get(IDENTIFICATION_NUMBER),
+        text.get(IDENTIFICATION_ISSUE_DATE) == null
+            ? null
+            : date(text.get(IDENTIFICATION_ISSUE_DATE), IDENTIFICATION_ISSUE_DATE, excelRow),
+        text.get(IDENTIFICATION_ISSUE_PLACE),
+        text.get(ETHNICITY),
         text.get(PHONE),
         text.get(EMAIL),
+        text.get(ADDRESS),
+        text.get(WORKPLACE),
         text.get(DEPARTMENT_NAME),
         text.get(POSITION_NAME),
+        text.get(NOTE),
         date(text.get(EXAMINATION_DATE), EXAMINATION_DATE, excelRow));
   }
 
-  /** Returns the text of a text cell, or null when it is empty; every other cell type is rejected. */
+  /**
+   * Returns the text of a text cell, or null when it is empty; every other cell type is rejected.
+   */
   private String cellText(Cell cell, String field, int excelRow) {
     if (cell == null || cell.getCellType() == CellType.BLANK) return null;
     if (cell.getCellType() != CellType.STRING)
       throw invalid("Row " + excelRow + ": " + field + " must be a text cell");
     String value = cell.getStringCellValue();
-    if (value.length() > limits.maxCellChars())
+    int fieldLimit =
+        switch (field) {
+          case ADDRESS -> 1000;
+          case NOTE -> 2000;
+          default -> 500;
+        };
+    if (value.length() > Math.min(limits.maxCellChars(), fieldLimit))
       throw invalid("Row " + excelRow + ": " + field + " is too long");
     if (value.isBlank()) return null;
     return UNTRIMMED.contains(field) ? value : value.trim();
@@ -178,7 +211,8 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
     if (value == null || !DATE_COLUMNS.contains(field))
       throw invalid("Row " + excelRow + ": " + field + " is required");
     try {
-      if (ISO_DATE.matcher(value).matches()) return LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE);
+      if (ISO_DATE.matcher(value).matches())
+        return LocalDate.parse(value, DateTimeFormatter.ISO_LOCAL_DATE);
     } catch (DateTimeParseException invalidDate) {
       // reported below with the field name only
     }

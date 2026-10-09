@@ -108,7 +108,18 @@ class HealthExaminationBatchMapperTest {
             "deleted_at IS NULL",
             "status='DRAFT'",
             "organization_id=?")
-        .doesNotContain("B1");
+        .doesNotContain("B1")
+        .as("the batch code is never rewritten by an update")
+        .doesNotContain("batch_code=");
+
+    var sequence = new HashMap<String, Object>();
+    sequence.put("prefix", "KSK-2026-");
+    assertThat(sql(config, "highestCodeSequence", sequence))
+        .contains("starts_with(batch_code, ?)", "MAX(")
+        .doesNotContain("KSK-2026-");
+    var lock = new HashMap<String, Object>();
+    lock.put("key", 1L);
+    assertThat(sql(config, "lockCodeSequence", lock)).contains("pg_advisory_xact_lock(?)");
 
     var delete = new HashMap<String, Object>();
     delete.put("id", UUID.randomUUID());

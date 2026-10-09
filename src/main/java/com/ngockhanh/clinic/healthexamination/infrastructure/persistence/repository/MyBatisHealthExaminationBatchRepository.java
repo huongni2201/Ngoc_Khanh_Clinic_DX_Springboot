@@ -17,6 +17,9 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class MyBatisHealthExaminationBatchRepository implements HealthExaminationBatchRepository {
+  /** Key of the advisory lock that serialises batch code generation. */
+  private static final long CODE_SEQUENCE_LOCK_KEY = 0x4E4B43_42415443L;
+
   private final HealthExaminationBatchMyBatisMapper mapper;
 
   private List<HealthExaminationBatchDay> days(UUID id) {
@@ -234,6 +237,12 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
   public Set<UUID> findReferencedBatchServiceIds(UUID batchId, Collection<UUID> batchServiceIds) {
     if (batchServiceIds.isEmpty()) return Set.of();
     return new HashSet<>(mapper.findReferencedBatchServiceIds(batchId, batchServiceIds));
+  }
+
+  @Override
+  public long highestCodeSequence(String prefix) {
+    mapper.lockCodeSequence(CODE_SEQUENCE_LOCK_KEY);
+    return mapper.highestCodeSequence(prefix);
   }
 
   @Override

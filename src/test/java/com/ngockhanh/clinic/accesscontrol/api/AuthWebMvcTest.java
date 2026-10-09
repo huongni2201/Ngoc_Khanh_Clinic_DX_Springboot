@@ -24,8 +24,8 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
-import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
+import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Instant;
@@ -55,7 +55,11 @@ import org.springframework.web.bind.annotation.RestController;
   AuthWebMvcTest.BusinessEndpoint.class
 })
 @TestPropertySource(
-    properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
+    properties = {
+      "clinic.auth.cookie-secure=true",
+      "clinic.auth.allowed-origins=https://app.test",
+      "clinic.auth.test-role-full-access=true"
+    })
 class AuthWebMvcTest {
   private static final String COOKIE = "__Host-NKC_SESSION";
   private static final String ORIGIN = "https://app.test";
@@ -80,6 +84,10 @@ class AuthWebMvcTest {
   }
 
   private static UserPrincipal principal(String type, List<String> permissions) {
+    return principal(type, "ROLE", permissions);
+  }
+
+  private static UserPrincipal principal(String type, String roleCode, List<String> permissions) {
     return UserPrincipal.builder()
         .userId(UUID.randomUUID())
         .staffId("STAFF".equals(type) ? UUID.randomUUID() : null)
@@ -90,7 +98,7 @@ class AuthWebMvcTest {
             List.of(
                 UserPrincipal.Assignment.builder()
                     .roleId(UUID.randomUUID())
-                    .roleCode("ROLE")
+                    .roleCode(roleCode)
                     .permissions(permissions)
                     .build()))
         .idleExpiresAt(Instant.now().plusSeconds(1800))
@@ -215,10 +223,10 @@ class AuthWebMvcTest {
 
     when(authenticate.execute("manager"))
         .thenReturn(principal("STAFF", List.of("ORGANIZATION_VIEW")));
-    mvc.perform(get(organization).cookie(new Cookie(COOKIE, "manager")))
-        .andExpect(status().isOk());
+    mvc.perform(get(organization).cookie(new Cookie(COOKIE, "manager"))).andExpect(status().isOk());
 
-    when(authenticate.execute("staff")).thenReturn(principal("STAFF", List.of("ORGANIZATION_UPDATE")));
+    when(authenticate.execute("staff"))
+        .thenReturn(principal("STAFF", List.of("ORGANIZATION_UPDATE")));
     mvc.perform(get(organization).cookie(new Cookie(COOKIE, "staff")))
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value(403));
@@ -241,12 +249,21 @@ class AuthWebMvcTest {
   }
 
   @Test
+  void testRoleCanAccessMappedAndUnmappedApiRoutesWithoutPermissionGrants() throws Exception {
+    when(authenticate.execute("test")).thenReturn(principal("STAFF", "TEST", List.of()));
+    String organization = "/api/v1/organizations/" + UUID.randomUUID();
+
+    mvc.perform(get(organization).cookie(new Cookie(COOKIE, "test"))).andExpect(status().isOk());
+    mvc.perform(get("/api/v1/test-business").cookie(new Cookie(COOKIE, "test")))
+        .andExpect(status().isOk());
+  }
+
+  @Test
   void permissionNamedLikeAnAccountTypeDoesNotGrantStaffAccess() throws Exception {
     when(authenticate.execute("patient"))
         .thenReturn(principal("PATIENT", List.of("ACCOUNT_STAFF", "ORGANIZATION_VIEW")));
     mvc.perform(
-            get("/api/v1/organizations/" + UUID.randomUUID())
-                .cookie(new Cookie(COOKIE, "patient")))
+            get("/api/v1/organizations/" + UUID.randomUUID()).cookie(new Cookie(COOKIE, "patient")))
         .andExpect(status().isForbidden());
   }
 

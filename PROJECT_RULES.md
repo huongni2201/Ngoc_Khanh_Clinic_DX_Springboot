@@ -27,7 +27,7 @@ Root: `com.ngockhanh.clinic`. Java packages are lowercase without underscores.
 
 One deployable application, not a Maven multi-module project or microservices MVP.
 [ADR-0012](docs/adr/0012-clean-slate-module-boundaries.md) owns the inventory:
-identity, patient, catalog, encounter, clinical, billing, diagnostics,
+accesscontrol, patient, catalog, encounter, clinical, billing, diagnostics,
 healthexamination, document, prescription, notification, integration,
 appointment, portal; supporting audit; shared technical code.
 Keep `healthexamination` as the Java name.
@@ -157,8 +157,10 @@ documented business-code uniqueness. Justify indexes with real query patterns.
 
 All schema changes use `src/main/resources/db/migration/V<version>__<description>.sql`.
 Never edit applied shared migrations or use runtime auto-DDL in production.
-Fresh installs apply the full chain. The clean-slate V001 cannot replace former
-V001–V003 history on deployed databases; conversion follows
+Fresh installs apply V001 (final schema), V002 (access-control seed) and V003
+(catalog seed). The owner-authorized 2026-10-08 consolidation incorporates the
+former V004–V007 amendments directly into V001/V003 for fresh databases only.
+Existing applied migration histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment).
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
@@ -259,9 +261,8 @@ application contract.
 New operations use `application/usecase/<Verb><Concept>UseCase` with one public
 `execute`. Published facades delegate to focused use cases. Collaborators belong
 outside `usecase`, in an existing application service package as needed.
-The formerly misplaced `BatchDraftEditor` is not a naming precedent. Source work
-in progress has removed its file while some tests still reference it; see
-[code follow-ups](docs/maintenance/code-follow-ups.md) before treating old examples as current.
+Use current source contracts when choosing collaborators; retired implementation
+plans and removed classes are not naming precedents.
 
 Use cases load, authorize, invoke domain behavior, persist through ports, coordinate
 published contracts and own transactions. No SQL, foreign-table manipulation,
@@ -313,9 +314,9 @@ Vendor codes stay behind documented mapping contracts, outside domain logic.
 owns current policy and profile behavior. Backend authorization is mandatory;
 frontend visibility and actor IDs grant no permission. Use explicit defined
 permissions for patient, clinical, billing, corporate, admin and audit access.
-Production omits local/test profiles. Mixed-profile handling and the existing
-controller actor fallback need code fixes in
-[the follow-up list](docs/maintenance/code-follow-ups.md).
+Production omits local/test profiles. Follow current profile behavior in
+[API/security](docs/architecture/05-api-and-security.md#authentication-and-authorization)
+and the unresolved [session go-live blockers](docs/adr/0014-session-cookie-redis-login.md#go-live-blockers).
 
 ## 26. Audit
 
@@ -482,8 +483,9 @@ module boundary, UI-only invariant or introduced secret/fake production behavior
 ## 37. Implementation References
 
 For new endpoints/use cases, read
-[nkc-backend-use-case](.agents/skills/nkc-backend-use-case/SKILL.md) and its
-[source reference index](.agents/skills/nkc-backend-use-case/references/organization-flow.md).
+[nkc-backend-use-case](.agents/skills/nkc-backend-use-case/SKILL.md), then inspect
+the affected source flow through CodeGraph when indexed. The former separate
+organization-flow reference index is absent; resolve current roles from source.
 Current organization code supplies concrete vocabulary/contracts, not blanket
 approval. Recheck types/equality, DTOs, validation, Javadoc, logging, authorization
 and transaction/audit claims. Never copy a local/test actor fallback into new flows.

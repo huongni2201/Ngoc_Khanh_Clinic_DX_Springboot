@@ -24,7 +24,9 @@ import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +41,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -69,6 +70,7 @@ class HealthExaminationBatchCrudIntegrationTest {
       })
   @org.springframework.context.annotation.Import({
     CreateHealthExaminationBatchUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.service.BatchCodeGenerator.class,
     GetHealthExaminationBatchByIdUseCase.class,
     UpdateHealthExaminationBatchUseCase.class,
     ListHealthExaminationBatchUseCase.class,
@@ -88,7 +90,8 @@ class HealthExaminationBatchCrudIntegrationTest {
   static class BatchTestConfiguration {
     @Bean
     Clock clock() {
-      return Clock.systemUTC();
+      // Fixed so the year in generated batch codes (KSK-2026-001) is stable.
+      return Clock.fixed(Instant.parse("2026-10-08T03:00:00Z"), ZoneOffset.UTC);
     }
   }
 
@@ -151,9 +154,8 @@ class HealthExaminationBatchCrudIntegrationTest {
         department);
   }
 
-  private BatchConfiguration config(String code, List<LocalDate> dates, UUID... services) {
+  private BatchConfiguration config(List<LocalDate> dates, UUID... services) {
     return BatchConfiguration.builder()
-        .batchCode(code)
         .batchName("Campaign%_")
         .examinationDates(dates)
         .examinationSiteType("ORGANIZATION_SITE")
@@ -171,11 +173,11 @@ class HealthExaminationBatchCrudIntegrationTest {
         .build();
   }
 
-  private BatchDetailResponse createBatch(String code, UUID... services) {
+  private BatchDetailResponse createBatch(UUID... services) {
     return create.execute(
         org,
         CreateHealthExaminationBatchCommand.builder()
-            .configuration(config(code, List.of(D4, D8), services))
+            .configuration(config(List.of(D4, D8), services))
             .build(),
         actor);
   }
@@ -223,7 +225,7 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void createPersistsDaysSnapshotsAuditAndListsOnlyTheOrganizationBatches() {
-    var first = createBatch("B1", service);
+    var first = createBatch(service);
 
     assertThat(first.days()).hasSize(2);
     assertThat(first.startDate()).isEqualTo(D4);
@@ -236,7 +238,7 @@ class HealthExaminationBatchCrudIntegrationTest {
     assertThat(first.services().getFirst().serviceName()).isEqualTo("Exam");
     assertThat(audits("CREATE_HEALTH_EXAMINATION_BATCH", first.id())).isEqualTo(1);
 
-    createBatch("B2", service);
+    createBatch(service);
     UUID otherOrganization = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO public.organizations(id,name,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES (?,'Other Organization','0901','other@example.test','Address','Contact','0902','other-contact@example.test','ACTIVE')",
@@ -244,7 +246,7 @@ class HealthExaminationBatchCrudIntegrationTest {
     create.execute(
         otherOrganization,
         CreateHealthExaminationBatchCommand.builder()
-            .configuration(config("B3", List.of(D4), service))
+            .configuration(config(List.of(D4), service))
             .build(),
         actor);
 
@@ -253,21 +255,23 @@ class HealthExaminationBatchCrudIntegrationTest {
     var pastTheEnd = list.execute(org, listQuery(3, 1, null));
 
     assertThat(firstPage.totalElements()).isEqualTo(2);
-    assertThat(firstPage.items()).extracting(item -> item.batchCode()).containsExactly("B1");
+    assertThat(firstPage.items()).extracting(item -> item.batchCode()).containsExactly("KSK-2026-001");
     assertThat(firstPage.items().getFirst().rowVersion()).isZero();
-    assertThat(secondPage.items()).extracting(item -> item.batchCode()).containsExactly("B2");
+    assertThat(secondPage.items())
+        .extracting(item -> item.batchCode())
+        .containsExactly("KSK-2026-002");
     assertThat(pastTheEnd.items()).isEmpty();
     assertThat(pastTheEnd.totalElements()).isEqualTo(2);
     assertThat(list.execute(org, listQuery(1, 10, "%_")).totalElements()).isEqualTo(2);
-    assertThat(list.execute(org, listQuery(1, 10, "b2")).items())
+    assertThat(list.execute(org, listQuery(1, 10, "ksk-2026-002")).items())
         .extracting(item -> item.batchCode())
-        .containsExactly("B2");
+        .containsExactly("KSK-2026-002");
     assertThat(list.execute(org, listQuery(1, 10, "no such batch")).totalElements()).isZero();
   }
 
   @Test
   void getIsScopedByOrganization() {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     UUID otherOrganization = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO public.organizations(id,name,phone,email,address,contact_full_name,contact_phone,contact_email,status) VALUES (?,'Other Organization','0901','other@example.test','Address','Contact','0902','other-contact@example.test','ACTIVE')",
@@ -281,14 +285,42 @@ class HealthExaminationBatchCrudIntegrationTest {
   }
 
   @Test
-  void duplicateBatchCodeIsRejectedWithoutPartialChildren() {
-    createBatch("B1", service);
+  void batchCodesAreGeneratedInSequenceAndNeverSuppliedByTheCaller() {
+    var first = createBatch(service);
+    var second = createBatch(service);
+    var third = createBatch(service);
 
-    assertThatThrownBy(() -> createBatch("B1", service)).isInstanceOf(DuplicateKeyException.class);
+    assertThat(first.batchCode()).isEqualTo("KSK-2026-001");
+    assertThat(second.batchCode()).isEqualTo("KSK-2026-002");
+    assertThat(third.batchCode()).isEqualTo("KSK-2026-003");
+  }
 
-    assertThat(count("SELECT COUNT(*) FROM public.health_examination_batches")).isEqualTo(1);
-    assertThat(count("SELECT COUNT(*) FROM public.health_examination_batch_days")).isEqualTo(2);
-    assertThat(count("SELECT COUNT(*) FROM public.health_examination_batch_services")).isEqualTo(1);
+  @Test
+  void numberingContinuesAfterTheHighestCodeOfTheYearAndIgnoresOtherCodes() {
+    insertBatchRow("KSK-2026-007");
+    insertBatchRow("KSK-2025-099");
+    insertBatchRow("ABC01");
+    insertBatchRow("KSK-2026-12x");
+
+    assertThat(createBatch(service).batchCode()).isEqualTo("KSK-2026-008");
+  }
+
+  @Test
+  void aDeletedBatchKeepsItsCodeReserved() {
+    var created = createBatch(service);
+    deleteBatch(created.id(), 0);
+
+    assertThat(createBatch(service).batchCode()).isEqualTo("KSK-2026-002");
+  }
+
+  @Test
+  void concurrentCreatesGetDistinctCodes() throws Exception {
+    var results = runTogether(() -> createBatch(service), () -> createBatch(service));
+
+    assertThat(results).allSatisfy(r -> assertThat(r).isInstanceOf(BatchDetailResponse.class));
+    assertThat(results)
+        .extracting(r -> ((BatchDetailResponse) r).batchCode())
+        .containsExactlyInAnyOrder("KSK-2026-001", "KSK-2026-002");
   }
 
   @Test
@@ -297,7 +329,7 @@ class HealthExaminationBatchCrudIntegrationTest {
         .when(audit)
         .record(any(), any(), any(), any(), any(), any());
 
-    assertThatThrownBy(() -> createBatch("BAD", service)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> createBatch(service)).isInstanceOf(IllegalStateException.class);
 
     assertThat(count("SELECT COUNT(*) FROM public.health_examination_batches")).isZero();
     assertThat(count("SELECT COUNT(*) FROM public.health_examination_batch_days")).isZero();
@@ -311,7 +343,7 @@ class HealthExaminationBatchCrudIntegrationTest {
                 create.execute(
                     org,
                     CreateHealthExaminationBatchCommand.builder()
-                        .configuration(config("BAD", List.of(D4), service))
+                        .configuration(config(List.of(D4), service))
                         .build(),
                     UUID.randomUUID()))
         .isInstanceOf(DataIntegrityViolationException.class);
@@ -320,7 +352,7 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void updateReplacesTheConfigurationKeepsIdentitiesAndBumpsVersions() {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     var keptDay =
         created.days().stream()
             .filter(d -> d.examinationDate().equals(D4))
@@ -331,13 +363,13 @@ class HealthExaminationBatchCrudIntegrationTest {
     var updated =
         updateBatch(
             created,
-            config("B1-R", List.of(D4, D6), secondService, service).toBuilder()
+            config(List.of(D4, D6), secondService, service).toBuilder()
                 .batchName("Renamed")
                 .build(),
             0);
 
     assertThat(updated.rowVersion()).isEqualTo(1);
-    assertThat(updated.batchCode()).isEqualTo("B1-R");
+    assertThat(updated.batchCode()).isEqualTo(created.batchCode());
     assertThat(updated.batchName()).isEqualTo("Renamed");
     assertThat(updated.startDate()).isEqualTo(D4);
     assertThat(updated.endDate()).isEqualTo(D6);
@@ -359,9 +391,9 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void updateCanSwapTheOrderOfTwoServices() {
-    var created = createBatch("B1", service, secondService);
+    var created = createBatch(service, secondService);
 
-    var updated = updateBatch(created, config("B1", List.of(D4, D8), secondService, service), 0);
+    var updated = updateBatch(created, config(List.of(D4, D8), secondService, service), 0);
 
     assertThat(updated.services())
         .extracting(s -> s.serviceId())
@@ -371,47 +403,47 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void aStaleVersionIsAConflictAndLeavesTheBatchUnchanged() {
-    var created = createBatch("B1", service);
-    updateBatch(created, config("B1", List.of(D4), service), 0);
+    var created = createBatch(service);
+    updateBatch(created, config(List.of(D4), service), 0);
 
-    assertThatThrownBy(() -> updateBatch(created, config("B1-X", List.of(D4), service), 0))
+    assertThatThrownBy(() -> updateBatch(created, config(List.of(D4), service), 0))
         .isInstanceOf(ConcurrentUpdateException.class);
 
     var stored = get.execute(org, created.id());
-    assertThat(stored.batchCode()).isEqualTo("B1");
+    assertThat(stored.batchCode()).isEqualTo(created.batchCode());
     assertThat(stored.rowVersion()).isEqualTo(1);
     assertThat(audits("UPDATE_HEALTH_EXAMINATION_BATCH", created.id())).isEqualTo(1);
   }
 
   @Test
-  void updateToAnotherBatchCodeIsRejectedAndRollsBackEverything() {
-    createBatch("B1", service);
-    var other = createBatch("B2", service);
+  void updateNeverChangesTheBatchCode() {
+    var created = createBatch(service);
 
-    assertThatThrownBy(() -> updateBatch(other, config("B1", List.of(D6), secondService), 0))
-        .isInstanceOf(DuplicateKeyException.class);
+    updateBatch(created, config(List.of(D6), secondService), 0);
 
-    var stored = get.execute(org, other.id());
-    assertThat(stored.batchCode()).isEqualTo("B2");
-    assertThat(stored.rowVersion()).isZero();
-    assertThat(stored.days()).hasSize(2);
-    assertThat(stored.services()).extracting(s -> s.serviceId()).containsExactly(service);
+    assertThat(get.execute(org, created.id()).batchCode()).isEqualTo(created.batchCode());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT batch_code FROM public.health_examination_batches WHERE id=?",
+                String.class,
+                created.id()))
+        .isEqualTo(created.batchCode());
   }
 
   @Test
   void failedAuditRollsBackAnUpdateAndADelete() {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     doThrow(new IllegalStateException("audit unavailable"))
         .when(audit)
         .record(any(), any(), any(), any(), any(), any());
 
-    assertThatThrownBy(() -> updateBatch(created, config("B1-X", List.of(D6), secondService), 0))
+    assertThatThrownBy(() -> updateBatch(created, config(List.of(D6), secondService), 0))
         .isInstanceOf(IllegalStateException.class);
     assertThatThrownBy(() -> deleteBatch(created.id(), 0))
         .isInstanceOf(IllegalStateException.class);
 
     var stored = get.execute(org, created.id());
-    assertThat(stored.batchCode()).isEqualTo("B1");
+    assertThat(stored.batchCode()).isEqualTo(created.batchCode());
     assertThat(stored.rowVersion()).isZero();
     assertThat(stored.days()).hasSize(2);
     assertThat(
@@ -423,7 +455,7 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void updateCannotRemoveADayThatAParticipantUses() {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     var usedDay = created.days().getFirst();
     insertParticipant(created.id(), usedDay.id());
     var keepOnlyTheOtherDay =
@@ -432,7 +464,7 @@ class HealthExaminationBatchCrudIntegrationTest {
             .filter(d -> !d.equals(usedDay.examinationDate()))
             .toList();
 
-    assertThatThrownBy(() -> updateBatch(created, config("B1", keepOnlyTheOtherDay, service), 0))
+    assertThatThrownBy(() -> updateBatch(created, config(keepOnlyTheOtherDay, service), 0))
         .isInstanceOf(DomainRuleViolation.class);
 
     assertThat(get.execute(org, created.id()).days()).hasSize(2);
@@ -440,23 +472,23 @@ class HealthExaminationBatchCrudIntegrationTest {
     var withExtraDay =
         new ArrayList<>(created.days().stream().map(d -> d.examinationDate()).toList());
     withExtraDay.add(D6);
-    assertThat(updateBatch(created, config("B1", withExtraDay, service), 0).days()).hasSize(3);
+    assertThat(updateBatch(created, config(withExtraDay, service), 0).days()).hasSize(3);
   }
 
   @Test
   void aBatchThatIsNoLongerADraftCannotBeUpdatedOrDeleted() {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     jdbc.update(
         "UPDATE public.health_examination_batches SET status='READY' WHERE id=?", created.id());
 
-    assertThatThrownBy(() -> updateBatch(created, config("B1-X", List.of(D4), service), 0))
+    assertThatThrownBy(() -> updateBatch(created, config(List.of(D4), service), 0))
         .isInstanceOf(DomainRuleViolation.class);
     assertThatThrownBy(() -> deleteBatch(created.id(), 0)).isInstanceOf(DomainRuleViolation.class);
   }
 
   @Test
   void deleteIsASoftDeleteThatHidesTheBatchButKeepsRowsAndTheCode() {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
 
     deleteBatch(created.id(), 0);
 
@@ -474,16 +506,16 @@ class HealthExaminationBatchCrudIntegrationTest {
     // a second delete (even with the version it had) and an update both see nothing
     assertThatThrownBy(() -> deleteBatch(created.id(), 0))
         .isInstanceOf(ResourceNotFoundException.class);
-    assertThatThrownBy(() -> updateBatch(created, config("B1", List.of(D4), service), 0))
+    assertThatThrownBy(() -> updateBatch(created, config(List.of(D4), service), 0))
         .isInstanceOf(ResourceNotFoundException.class);
-    // the unique batch code is not released
-    assertThatThrownBy(() -> createBatch("B1", service)).isInstanceOf(DuplicateKeyException.class);
+    // the code is not released: the next batch gets the next number
+    assertThat(createBatch(service).batchCode()).isEqualTo("KSK-2026-002");
   }
 
   @Test
   void deleteWithAStaleVersionIsAConflict() {
-    var created = createBatch("B1", service);
-    updateBatch(created, config("B1", List.of(D4), service), 0);
+    var created = createBatch(service);
+    updateBatch(created, config(List.of(D4), service), 0);
 
     assertThatThrownBy(() -> deleteBatch(created.id(), 0))
         .isInstanceOf(ConcurrentUpdateException.class);
@@ -493,9 +525,9 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void aBatchWithAParticipantOrImportHistoryCannotBeDeleted() {
-    var withParticipant = createBatch("B1", service);
+    var withParticipant = createBatch(service);
     insertParticipant(withParticipant.id(), withParticipant.days().getFirst().id());
-    var withImport = createBatch("B2", service);
+    var withImport = createBatch(service);
     jdbc.update(
         "INSERT INTO public.import_jobs(import_type,batch_id,configuration,status,created_by) VALUES ('ORGANIZATION_PARTICIPANT',?,'{}'::jsonb,'VALIDATED',?)",
         withImport.id(),
@@ -515,11 +547,11 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void ofTwoConcurrentUpdatesWithTheSameVersionExactlyOneWins() throws Exception {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     var results =
         runTogether(
-            () -> updateBatch(created, config("B1-A", List.of(D4), service), 0),
-            () -> updateBatch(created, config("B1-B", List.of(D6), service), 0));
+            () -> updateBatch(created, config(List.of(D4), service), 0),
+            () -> updateBatch(created, config(List.of(D6), service), 0));
 
     assertThat(results.stream().filter(r -> r instanceof BatchDetailResponse)).hasSize(1);
     assertThat(results.stream().filter(r -> r instanceof ConcurrentUpdateException)).hasSize(1);
@@ -528,10 +560,10 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void ofAConcurrentUpdateAndDeleteWithTheSameVersionExactlyOneWins() throws Exception {
-    var created = createBatch("B1", service);
+    var created = createBatch(service);
     var results =
         runTogether(
-            () -> updateBatch(created, config("B1-A", List.of(D4), service), 0),
+            () -> updateBatch(created, config(List.of(D4), service), 0),
             () -> {
               deleteBatch(created.id(), 0);
               return "deleted";
@@ -588,7 +620,7 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void aCancelledParticipantIsReactivatedOnTheSameRowKeepingItsDataAndVersionChain() {
-    var batch = createBatch("B1", service);
+    var batch = createBatch(service);
     var participantId = insertParticipant(batch.id(), batch.days().getFirst().id());
     var batchId = new AggregateId(batch.id());
     var id = new AggregateId(participantId);
@@ -624,7 +656,7 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   @Test
   void reactivatingWithAStaleVersionIsRejectedAndLeavesTheRowCancelled() {
-    var batch = createBatch("B1", service);
+    var batch = createBatch(service);
     var participantId = insertParticipant(batch.id(), batch.days().getFirst().id());
     var batchId = new AggregateId(batch.id());
     var id = new AggregateId(participantId);
@@ -639,6 +671,14 @@ class HealthExaminationBatchCrudIntegrationTest {
 
     assertThat(participants.findInBatch(batchId, id).orElseThrow().getRosterStatus())
         .isEqualTo(RosterStatus.CANCELLED);
+  }
+
+  private void insertBatchRow(String code) {
+    jdbc.update(
+        "INSERT INTO public.health_examination_batches(organization_id,batch_code,name,examination_site_type,examination_site_name,examination_site_address,status,created_by) VALUES (?,?,'Existing','CLINIC','Site','Address','DRAFT',?)",
+        org,
+        code,
+        actor);
   }
 
   private UUID insertParticipant(UUID batchId, UUID dayId) {

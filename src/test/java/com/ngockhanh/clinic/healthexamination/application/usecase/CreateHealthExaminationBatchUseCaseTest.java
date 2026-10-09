@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.catalog.application.query.ServiceCatalogQuery;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.application.service.BatchCodeGenerator;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
@@ -24,7 +25,10 @@ import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepo
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,7 +45,13 @@ class CreateHealthExaminationBatchUseCaseTest {
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
   private final AuditWriter audit = mock(AuditWriter.class);
   private final CreateHealthExaminationBatchUseCase useCase =
-      new CreateHealthExaminationBatchUseCase(organizations, batches, catalog, audit);
+      new CreateHealthExaminationBatchUseCase(
+          organizations,
+          batches,
+          catalog,
+          new BatchCodeGenerator(
+              batches, Clock.fixed(Instant.parse("2026-10-08T03:00:00Z"), ZoneOffset.UTC)),
+          audit);
   private final UUID organizationId = UUID.randomUUID();
   private final UUID actor = UUID.randomUUID();
   private final UUID service = UUID.randomUUID();
@@ -79,6 +89,7 @@ class CreateHealthExaminationBatchUseCaseTest {
     order.verify(batches).insert(inserted.capture(), eq(actor));
     var batch = inserted.getValue();
     assertThat(batch.status()).isEqualTo(BatchStatus.DRAFT);
+    assertThat(batch.code()).isEqualTo("KSK-2026-001");
     assertThat(batch.rowVersion()).isZero();
     assertThat(batch.organizationId().value()).isEqualTo(organizationId);
     assertThat(batch.id().value().version()).as("UUIDv7").isEqualTo(7);
@@ -106,6 +117,24 @@ class CreateHealthExaminationBatchUseCaseTest {
         .containsEntry("status", "DRAFT")
         .containsEntry("rowVersion", 0L)
         .containsKey("configuration");
+  }
+
+  @Test
+  void theGeneratedCodeContinuesAfterTheHighestNumberOfTheYear() {
+    when(organizations.findById(new AggregateId(organizationId)))
+        .thenReturn(Optional.of(organization(organizationId)));
+    when(batches.highestCodeSequence("KSK-2026-")).thenReturn(41L);
+    when(catalog.findByIds(Set.of(service)))
+        .thenReturn(
+            List.of(
+                new ServiceCatalogQuery.Service(
+                    service, "S1", "Exam", true, new BigDecimal("200"))));
+
+    useCase.execute(organizationId, command(configuration(service)), actor);
+
+    var inserted = ArgumentCaptor.forClass(HealthExaminationBatch.class);
+    verify(batches).insert(inserted.capture(), eq(actor));
+    assertThat(inserted.getValue().code()).isEqualTo("KSK-2026-042");
   }
 
   @Test
@@ -175,7 +204,7 @@ class CreateHealthExaminationBatchUseCaseTest {
   }
 
   @Test
-  void auditFailureIsNotSwallowedSoTheTransactionRollsBack() {
+  void propagatesAuditFailureAfterInsert() {
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(organization(organizationId)));
     when(catalog.findByIds(Set.of(service)))
@@ -189,6 +218,7 @@ class CreateHealthExaminationBatchUseCaseTest {
             () -> useCase.execute(organizationId, command(configuration(service)), actor))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("audit unavailable");
+    verify(batches).insert(any(), eq(actor));
   }
 
   @Test
