@@ -29,7 +29,9 @@ Response 200 (`ApiResponse`), `data` is the authenticated principal:
 | `absoluteExpiresAt` | hard session expiry (sign-in + 8 hours) |
 
 The response sets the session cookie. It never contains the session ID or the
-password. Every rejected sign-in returns the same 401 response.
+password. Rejected credentials or an ineligible account return the same 401
+response; malformed input, Origin denial and dependency failures use the status
+codes listed below.
 
 ## GET /api/v1/auth/me
 
@@ -79,6 +81,7 @@ All errors use the `ApiResponse` error envelope with `Cache-Control: no-store`.
 | `clinic.auth.absolute-timeout` | — | `8h` (at most 12h) |
 | `clinic.auth.cookie-secure` | `NKC_AUTH_COOKIE_SECURE` | `true` (`false` in `local`) |
 | `clinic.auth.allowed-origins` | `NKC_AUTH_ALLOWED_ORIGINS` (comma-separated) | empty (`http://localhost:3000` in `local`) |
+| `clinic.auth.test-role-full-access` | — | Legacy setting, currently unused; it does not bypass endpoint permission checks |
 
 With an empty origin list every state-changing request, including sign-in, is
 rejected. Production must set `NKC_AUTH_ALLOWED_ORIGINS` and keep
@@ -88,5 +91,5 @@ rejected. Production must set `NKC_AUTH_ALLOWED_ORIGINS` and keep
 
 Store password hashes produced by `UserPasswordEncoder` (NFKC-normalized,
 bcrypt, `{bcrypt}` prefix, at most 72 UTF-8 bytes). Never pass passwords as
-command-line arguments or store plaintext. `scripts/auth/provision-staff.sql`
+command-line arguments or store plaintext. [Provisioning SQL](../../scripts/auth/provision-staff.sql)
 shows the account and role rows to insert.

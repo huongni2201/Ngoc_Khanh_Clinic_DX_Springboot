@@ -39,6 +39,8 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
   List<String> findExistingIdentities(
       @Param("batchId") UUID batchId, @Param("identities") Collection<String> identities);
 
+  long countInBatch(@Param("batchId") UUID batchId);
+
   boolean batchInScope(
       @Param("organizationId") UUID organizationId, @Param("batchId") UUID batchId);
 

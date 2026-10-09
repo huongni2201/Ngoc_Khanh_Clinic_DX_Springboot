@@ -56,15 +56,20 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
   private CreateParticipantCommand command(UUID day, String identification) {
     return new CreateParticipantCommand(
-        "  NV-001 ",
         "  " + FULL_NAME + " ",
         LocalDate.of(1990, 5, 12),
         "MALE",
         identification,
+        LocalDate.of(2021, 3, 15),
+        "  Cục Cảnh sát QLHC về TTXH ",
+        " Kinh ",
         PHONE,
         " ",
+        " 12 Nguyễn Trãi, Hà Nội ",
+        "Công ty ABC",
         "Accounting",
         "Staff",
+        " ",
         day);
   }
 
@@ -94,15 +99,20 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     // the clock is 2026-10-04T00:00Z = 07:00 on 2026-10-04 in Asia/Ho_Chi_Minh
     var tomorrow =
         new CreateParticipantCommand(
-            "NV-001",
             FULL_NAME,
             LocalDate.of(2026, 10, 5),
             "MALE",
             IDENTIFICATION,
+            null,
+            null,
+            null,
             PHONE,
             EMAIL,
+            null,
+            null,
             "Accounting",
             "Staff",
+            null,
             firstDay());
     assertThatThrownBy(() -> useCase.execute(organizationId, batchId, tomorrow, manager))
         .isInstanceOf(IllegalArgumentException.class)
@@ -111,15 +121,20 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
     var today =
         new CreateParticipantCommand(
-            "NV-001",
             FULL_NAME,
             LocalDate.of(2026, 10, 4),
             "MALE",
             IDENTIFICATION,
+            null,
+            null,
+            null,
             PHONE,
             EMAIL,
+            null,
+            null,
             "Accounting",
             "Staff",
+            null,
             firstDay());
     useCase.execute(organizationId, batchId, today, manager);
     verify(participants).insert(any());
@@ -141,9 +156,16 @@ class CreateParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
     assertThat(stored.getAttendanceStatus().name()).isEqualTo("UNCONFIRMED");
     assertThat(stored.getReconciliationStatus().name()).isEqualTo("PENDING");
     assertThat(stored.getPatientId()).isNull();
-    assertThat(stored.getRoster().participantCode()).isEqualTo("NV-001");
+    // the code is generated from the batch code and the count of Participants already in the batch
+    assertThat(stored.getRoster().participantCode()).isEqualTo(batch.code() + "-0001");
     assertThat(stored.getRoster().fullName()).isEqualTo(FULL_NAME);
     assertThat(stored.getRoster().email()).isNull();
+    assertThat(stored.getRoster().note()).isNull();
+    assertThat(stored.getRoster().identificationIssueDate()).isEqualTo(LocalDate.of(2021, 3, 15));
+    assertThat(stored.getRoster().identificationIssuePlace()).isEqualTo("Cục Cảnh sát QLHC về TTXH");
+    assertThat(stored.getRoster().ethnicity()).isEqualTo("Kinh");
+    assertThat(stored.getRoster().address()).isEqualTo("12 Nguyễn Trãi, Hà Nội");
+    assertThat(stored.getRoster().workplace()).isEqualTo("Công ty ABC");
     assertThat(stored.getBatchDayId().value()).isEqualTo(secondDay());
 
     assertThat(response.source()).isEqualTo("MANUAL");

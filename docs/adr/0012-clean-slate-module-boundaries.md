@@ -51,11 +51,12 @@ This ownership decision requires no database migration.
 Adding modules does not claim that all of their database contracts or use cases
 are implemented.
 
-Update — 2026-10-05: the `identity` module was renamed `accesscontrol`
-("User & Access Control"); see [ADR-0014](0014-session-cookie-redis-login.md).
+The current inventory includes the 2026-10-05 rename of `identity` to
+`accesscontrol` ("User & Access Control"); see
+[ADR-0014](0014-session-cookie-redis-login.md).
 
 ## References
 
-- `src/main/resources/db/migration/V001__create_clean_slate_schema.sql`
+- [Schema baseline](../../src/main/resources/db/migration/V001__create_schema.sql)
 - Supplied clean-slate database design and the owner's Participant terminology
-- `docs/architecture/02-module-contracts.md`
+- [Current module contracts](../architecture/02-module-contracts.md)

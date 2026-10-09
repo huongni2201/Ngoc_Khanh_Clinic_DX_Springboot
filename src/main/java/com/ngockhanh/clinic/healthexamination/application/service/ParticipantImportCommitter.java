@@ -166,14 +166,18 @@ public class ParticipantImportCommitter {
     AggregateId importJobId = AggregateId.of(jobId);
     List<HealthExaminationBatchParticipant> created = new ArrayList<>(request.rows().size());
     List<CommittedImportRow> committed = new ArrayList<>(request.rows().size());
+    // The batch row is locked above, so the count the codes continue from cannot move until commit.
+    long existingCount = participants.countInBatch(batchId);
+    int rowIndex = 0;
     for (Row row : request.rows()) {
       UUID participantId = UuidV7Generator.generate();
+      String code = String.format("%s-%04d", batch.code(), existingCount + ++rowIndex);
       created.add(
           HealthExaminationBatchParticipant.create(
               AggregateId.of(participantId),
               batchId,
               AggregateId.of(dayIds.get(row.examinationDate())),
-              row.roster(),
+              row.roster().withParticipantCode(code),
               importJobId,
               row.rowNumber(),
               now));
@@ -211,15 +215,20 @@ public class ParticipantImportCommitter {
     Roster roster = row.roster();
     return new StagedParticipantRow(
         row.rowNumber(),
-        roster.participantCode(),
         roster.fullName(),
         roster.dateOfBirth(),
         roster.sex(),
         roster.identificationNumber().value(),
+        roster.identificationIssueDate(),
+        roster.identificationIssuePlace(),
+        roster.ethnicity(),
         roster.phone(),
         roster.email(),
+        roster.address(),
+        roster.workplace(),
         roster.departmentName(),
         roster.positionName(),
+        roster.note(),
         row.examinationDate());
   }
 }

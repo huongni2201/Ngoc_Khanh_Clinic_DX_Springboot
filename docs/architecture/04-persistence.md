@@ -4,15 +4,30 @@
 
 PostgreSQL 18, MyBatis and Flyway remain the persistence stack. The owner-selected
 clean-slate contract follows [the current domain workflows](03-domain-and-workflows.md).
-Fresh databases apply `src/main/resources/db/migration/V001__create_clean_slate_schema.sql`
+Fresh databases apply `../../src/main/resources/db/migration/V001__create_schema.sql`
 in one public application schema. V001 creates the final schema with 64 business
-tables, including batch `deleted_at` and the service reconciliation import type.
-`V002__seed_access_control_roles_and_permissions.sql` then inserts roles,
-permissions and role grants. Later migrations may add approved seed rows; V004
-allows the `PATIENT` role only on patient accounts and requires a staff grantor.
+tables, including batch `deleted_at`, the service reconciliation import type,
+the six optional Participant personal-detail columns and nullable Organization
+`phone`. The account-role trigger allows `PATIENT` only on patient accounts;
+all other roles and every grantor require STAFF accounts.
+
+The owner-requested consolidation on 2026-10-08 keeps one schema initializer
+and two data-only seed migrations:
+
+| Migration | Responsibility |
+|---|---|
+| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers |
+| `V002__seed_roles_and_permissions.sql` | Roles, permissions and role grants |
+| `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
+
+The catalog inserts final service codes such as `CLS58718` directly, with the
+HIS id and no separator. Seeded services start at `row_version = 0`. V004–V007
+are folded into these definitions; no follow-up schema alteration or catalog
+code rewrite is required. The two deferred foreign-key declarations in V001
+only resolve tables created later in the same initializer.
 Local demo data stays in `db/local`.
 
-An environment with any pre-consolidation migration history must use a separately reviewed
+An environment with any earlier migration history must use a separately reviewed
 conversion procedure. Do not replace applied checksums or apply this V001 on top
 of the old schema. This change includes no deployed-data conversion.
 
@@ -52,12 +67,13 @@ when a use case needs IDs before insertion. Composite tables retain composite ke
 
 System timestamps use `timestamptz(3)` and Java `Instant`; calendar days use `date`
 and `LocalDate`. The existing MyBatis Instant handler binds UTC values. Money uses
-`numeric(14,2)` and `BigDecimal`. Integer and boolean scalar declarations use
-wrappers (`Long`, `Integer`, `Short`, `Boolean`) for both required and nullable
-columns in new or changed code. SQL nullability remains authoritative: a wrapper
-does not make a `NOT NULL` field optional. Preserve required-value validation and
-null-safe value comparisons. Existing primitive records and their exact-type
-assertions must be migrated together; see
+`numeric(14,2)` and `BigDecimal`. Nullable scalar fields use wrappers (`Long`,
+`Integer`, `Short`, `Boolean`). Required non-null scalar fields and local
+counters/flags use primitives when compatible with their owning contract.
+SQL nullability remains authoritative: a wrapper does not make a `NOT NULL`
+field optional. Preserve required-value validation and null-safe value comparisons;
+do not change unrelated declarations. Any type change updates callers, MyBatis
+mapping and exact-type assertions together; see
 [Java types and collections](../../PROJECT_RULES.md#java-types-and-collections).
 PostgreSQL `bytea` remains `byte[]` as a binary contract. JSONB is confined to storage
 contracts and serialized with typed application/domain data, with explicit casts

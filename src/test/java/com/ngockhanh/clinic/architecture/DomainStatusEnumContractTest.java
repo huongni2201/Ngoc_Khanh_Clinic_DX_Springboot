@@ -3,66 +3,65 @@ package com.ngockhanh.clinic.architecture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ngockhanh.clinic.accesscontrol.domain.entity.UserAccount;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountStatus;
+import com.ngockhanh.clinic.accesscontrol.domain.enums.StaffMemberStatus;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.Organization;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ReconciliationStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
-import java.lang.reflect.Method;
-import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class DomainStatusEnumContractTest {
   @Test
-  void participantStatusesAreTopLevelEnums() {
-    assertThat(HealthExaminationBatchParticipant.class.getDeclaredClasses())
-        .noneMatch(Class::isEnum);
+  void participantStatusesAreTopLevelEnums() throws NoSuchMethodException {
+    assertReturnType(
+        HealthExaminationBatchParticipant.class, "getRosterStatus", RosterStatus.class);
+    assertReturnType(
+        HealthExaminationBatchParticipant.class, "getAttendanceStatus", AttendanceStatus.class);
+    assertReturnType(
+        HealthExaminationBatchParticipant.class,
+        "getReconciliationStatus",
+        ReconciliationStatus.class);
+    assertThat(RosterStatus.class.isMemberClass()).isFalse();
+    assertThat(AttendanceStatus.class.isMemberClass()).isFalse();
+    assertThat(ReconciliationStatus.class.isMemberClass()).isFalse();
   }
 
   @Test
   void organizationStatusIsAnEnum() throws NoSuchMethodException {
-    Class<?> statusType = Organization.class.getMethod("status").getReturnType();
-
-    assertThat(statusType.isEnum()).isTrue();
-    assertThat(statusType.getSimpleName()).isEqualTo("OrganizationStatus");
+    assertReturnType(Organization.class, "status", OrganizationStatus.class);
   }
 
   @Test
-  void accountAndStaffStatusesAreEnums() {
-    assertEnumComponent(UserAccount.class, "status", "AccountStatus");
-    assertEnumComponent(UserAccount.class, "staffStatus", "StaffMemberStatus");
+  void accountAndStaffStatusesAreEnums() throws NoSuchMethodException {
+    assertReturnType(UserAccount.class, "status", AccountStatus.class);
+    assertReturnType(UserAccount.class, "staffStatus", StaffMemberStatus.class);
   }
 
   @Test
-  void repositoryStatusContractsUseEnums() {
-    Method search =
-        Arrays.stream(OrganizationRepository.class.getMethods())
-            .filter(method -> method.getName().equals("search"))
-            .findFirst()
-            .orElseThrow();
-    Class<?> organizationStatusType = search.getParameterTypes()[5];
-    Class<?> batchStatusType =
-        Arrays.stream(HealthExaminationBatchRepository.BatchSummary.class.getRecordComponents())
-            .filter(component -> component.getName().equals("status"))
-            .map(component -> component.getType())
-            .findFirst()
-            .orElseThrow();
-
-    assertThat(organizationStatusType.isEnum()).isTrue();
-    assertThat(organizationStatusType.getSimpleName()).isEqualTo("OrganizationStatus");
-    assertThat(batchStatusType.isEnum()).isTrue();
-    assertThat(batchStatusType.getSimpleName()).isEqualTo("BatchStatus");
+  void repositoryStatusContractsUseEnums() throws NoSuchMethodException {
+    OrganizationRepository.class.getMethod(
+        "search",
+        int.class,
+        int.class,
+        String.class,
+        String.class,
+        String.class,
+        OrganizationStatus.class);
+    assertReturnType(
+        HealthExaminationBatchRepository.BatchSummary.class, "status", BatchStatus.class);
   }
 
-  private static void assertEnumComponent(
-      Class<?> recordType, String componentName, String expectedEnumName) {
-    Class<?> componentType =
-        Arrays.stream(recordType.getRecordComponents())
-            .filter(component -> component.getName().equals(componentName))
-            .map(component -> component.getType())
-            .findFirst()
-            .orElseThrow();
-
-    assertThat(componentType.isEnum()).isTrue();
-    assertThat(componentType.getSimpleName()).isEqualTo(expectedEnumName);
+  private static void assertReturnType(
+      Class<?> type, String method, Class<? extends Enum<?>> expectedType)
+      throws NoSuchMethodException {
+    assertThat(type.getMethod(method).getReturnType())
+        .as("%s.%s", type.getSimpleName(), method)
+        .isEqualTo(expectedType);
   }
 }

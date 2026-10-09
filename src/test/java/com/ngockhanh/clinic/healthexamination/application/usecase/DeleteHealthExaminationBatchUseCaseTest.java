@@ -178,7 +178,7 @@ class DeleteHealthExaminationBatchUseCaseTest {
   }
 
   @Test
-  void auditFailureIsNotSwallowedSoTheDeletionRollsBack() {
+  void propagatesAuditFailureAfterSoftDelete() {
     doThrow(new IllegalStateException("audit unavailable"))
         .when(audit)
         .record(any(), any(), any(), any(), any(), any());
@@ -186,6 +186,7 @@ class DeleteHealthExaminationBatchUseCaseTest {
     assertThatThrownBy(() -> useCase.execute(organizationId, batchId, version(2L), actor))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("audit unavailable");
+    verify(batches).softDelete(any(), eq(2L));
   }
 
   @Test

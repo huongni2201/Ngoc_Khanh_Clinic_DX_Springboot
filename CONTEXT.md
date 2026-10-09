@@ -3,8 +3,9 @@
 Current terminology follows the owner-selected clean-slate contract (ADR-0013),
 with Participant retained as the business term.
 
-**Organization** is a customer with an internal code, organization type, general
-contact channels and one contact person. It owns health-examination batches.
+**Organization** is a customer identified by UUID with an optional unique tax code,
+general contact channels (phone optional) and one contact person. It owns
+health-examination batches and has no separate business code or organization type.
 
 **Health Examination Batch** is a campaign with at least one concrete BatchDay,
 a site, maximum service scope and reference/negotiated prices. Date bounds derive
@@ -23,9 +24,9 @@ Doctor's order and can link a ServiceRequest for detailed results.
 Administrative snapshots and clinical record versions are separate typed models;
 issued content and its template-version representation are immutable.
 
-**Roster Import** was removed by the owner on 2026-10-05. No Excel template,
-upload, preview, confirm or cancel runtime workflow is supported. Import schema
-records and participant provenance remain for historical data only. See
+**Roster Import** is a single-step, add-only, all-or-nothing Excel operation, with
+template download and Participant list. Preview/confirm/cancel endpoints are absent.
+Import jobs, rows and Participant provenance are retained. See
 [ADR-0013](docs/adr/0013-clean-slate-application-contract.md#roster-import-scope).
 
 This file is a terminology summary. Read [current workflows](docs/architecture/03-domain-and-workflows.md)

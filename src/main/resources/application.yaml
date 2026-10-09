@@ -26,6 +26,7 @@ clinic:
     absolute-timeout: 8h
     cookie-secure: ${NKC_AUTH_COOKIE_SECURE:true}
     allowed-origins: ${NKC_AUTH_ALLOWED_ORIGINS:}
+    test-role-full-access: false
 nkc:
   report:
     clinic:

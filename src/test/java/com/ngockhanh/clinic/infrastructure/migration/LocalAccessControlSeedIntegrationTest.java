@@ -38,7 +38,7 @@ class LocalAccessControlSeedIntegrationTest {
                     + "JOIN public.roles role ON role.id=grant_row.role_id "
                     + "WHERE account.username IN ('administrator','receptionist',"
                     + "'general_practitioner','diagnostic_doctor','data_entry_staff',"
-                    + "'clinic_manager','patient') ORDER BY role.code",
+                    + "'clinic_manager','patient','test') ORDER BY role.code",
                 String.class))
         .containsExactly(
             "ADMINISTRATOR",
@@ -47,7 +47,15 @@ class LocalAccessControlSeedIntegrationTest {
             "DIAGNOSTIC_DOCTOR",
             "GENERAL_PRACTITIONER",
             "PATIENT",
-            "RECEPTIONIST");
+            "RECEPTIONIST",
+            "TEST");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.role_permissions grant_row "
+                    + "JOIN public.roles role ON role.id=grant_row.role_id "
+                    + "WHERE role.code='TEST'",
+                Long.class))
+        .isEqualTo(jdbc.queryForObject("SELECT COUNT(*) FROM public.permissions", Long.class));
     assertThat(
             jdbc.queryForObject(
                 "SELECT patient.account_type || '|' || grantor.account_type "

@@ -135,15 +135,14 @@ public class HealthExaminationBatch {
   /**
    * Replaces the whole configuration of a draft batch.
    *
-   * <p>The identifier, organization, status and row version are not changed here; the repository
-   * increments the version when the change is stored.
+   * <p>The identifier, organization, code, status and row version are not changed here; the
+   * repository increments the version when the change is stored.
    *
    * @throws DomainRuleViolation when the batch is deleted or not a draft, or the services are
    *     invalid
-   * @throws IllegalArgumentException when the code, name, site or days are invalid
+   * @throws IllegalArgumentException when the name, site or days are invalid
    */
   public void updateDraft(
-      String code,
       String name,
       ExaminationSite site,
       List<HealthExaminationBatchDay> days,

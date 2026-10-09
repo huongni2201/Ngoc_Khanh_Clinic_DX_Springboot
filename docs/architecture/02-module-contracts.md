@@ -27,14 +27,16 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 - `accesscontrol::access` publishes the authenticated principal (`UserPrincipal`).
   Session revocation is not published yet; see [ADR-0014](../adr/0014-session-cookie-redis-login.md).
 - `catalog` publishes service lookup with current unit price through its query contract.
-- `audit::recording` publishes AuthAudit/AuditWriter. Audit owns its adapters and
+- `audit::recording` publishes `AuditWriter`. Audit owns its adapters and
   depends on the published shared ID generator, without accesscontrol persistence access.
-- Document query contracts expose template lookup without leaking table records.
+- `document::master-health-examination-template` exposes effective template-version
+  lookup without leaking table records; no current issuance use case calls it.
 
-The multi-step Excel roster import contract and its staging adapters were removed
-on 2026-10-05. On 2026-10-06 `integration::imports` was restored with a single-step
-contract (`ParticipantImportStore`: idempotency reservation, a VALIDATED job with its rows, then confirmation);
-Integration still owns import tables. The Excel reader and template writer
+`integration::participant-imports` publishes the single-step roster import contract
+(`ParticipantImportStore`: idempotency reservation, a VALIDATED job with its rows,
+then confirmation) and service-reconciliation import storage.
+`integration::batch-history` publishes batch-history queries.
+Integration owns the import tables. The Excel reader and template writer
 (Apache POI) live in `healthexamination` infrastructure, so POI never reaches
 domain or application code. Foreign keys
 preserve relational integrity without granting Java modules cross-context access.

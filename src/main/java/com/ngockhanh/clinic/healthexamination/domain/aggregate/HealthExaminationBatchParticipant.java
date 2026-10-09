@@ -20,18 +20,84 @@ import lombok.experimental.Accessors;
 
 @Getter
 public class HealthExaminationBatchParticipant {
+  /**
+   * Roster details of a Participant.
+   *
+   * @param participantCode system-generated code; {@code null} until the Participant is stored
+   * @param identificationIssueDate date the identification number was issued, optional
+   * @param identificationIssuePlace authority that issued it, optional
+   * @param ethnicity optional
+   * @param address residential address, optional
+   * @param workplace employer or place of work, optional
+   * @param note free note, optional
+   */
   public record Roster(
       String participantCode,
       String fullName,
       LocalDate dateOfBirth,
       String sex,
       IdentificationNumber identificationNumber,
+      LocalDate identificationIssueDate,
+      String identificationIssuePlace,
+      String ethnicity,
       String phone,
       String email,
+      String address,
+      String workplace,
       String departmentName,
-      String positionName) {
+      String positionName,
+      String note) {
     /** Accepted values of the participant's sex. */
     public static final List<String> SEX_VALUES = List.of("MALE", "FEMALE", "OTHER", "UNKNOWN");
+
+    /** Roster without the optional personal details, which stay empty. */
+    public Roster(
+        String participantCode,
+        String fullName,
+        LocalDate dateOfBirth,
+        String sex,
+        IdentificationNumber identificationNumber,
+        String phone,
+        String email,
+        String departmentName,
+        String positionName) {
+      this(
+          participantCode,
+          fullName,
+          dateOfBirth,
+          sex,
+          identificationNumber,
+          null,
+          null,
+          null,
+          phone,
+          email,
+          null,
+          null,
+          departmentName,
+          positionName,
+          null);
+    }
+
+    /** The same roster carrying the given system-generated participant code. */
+    public Roster withParticipantCode(String code) {
+      return new Roster(
+          code,
+          fullName,
+          dateOfBirth,
+          sex,
+          identificationNumber,
+          identificationIssueDate,
+          identificationIssuePlace,
+          ethnicity,
+          phone,
+          email,
+          address,
+          workplace,
+          departmentName,
+          positionName,
+          note);
+    }
 
     public Roster {
       if (fullName == null

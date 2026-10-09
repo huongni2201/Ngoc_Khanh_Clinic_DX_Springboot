@@ -1,9 +1,11 @@
-# Current clean-slate architecture
+# Current backend architecture
 
-This is the active backend contract for Ngọc Khánh Clinic. It replaces the old
-architecture documentation and historical decision-record authority.
+These documents describe the accepted backend contract and its implementation
+limits. Start with [the documentation index](../README.md) for task-specific links.
 
-Read the selected clean-slate schema and these documents before changing behavior:
+Follow [source precedence](../../AGENTS.md#source-of-truth-and-workflow): technical
+policy, task-relevant skills, accepted ADRs, then the relevant architecture/API
+contract. Schema defines storage; it does not authorize a new workflow.
 
 1. [Overview and layering](01-overview.md)
 2. [Module ownership and public contracts](02-module-contracts.md)
@@ -11,9 +13,13 @@ Read the selected clean-slate schema and these documents before changing behavio
 4. [PostgreSQL/MyBatis persistence](04-persistence.md)
 5. [API, security and audit](05-api-and-security.md)
 6. [Testing and operations](06-testing-and-operations.md)
+7. [Open implementation and decision items](07-open-items.md)
 
-Use `PROJECT_RULES.md` and `PROJECT_SKILLS.md` for implementation discipline.
-Physical schema is `src/main/resources/db/migration/V001__create_clean_slate_schema.sql`.
+Use [PROJECT_RULES](../../PROJECT_RULES.md) and [PROJECT_SKILLS](../../PROJECT_SKILLS.md)
+for implementation discipline. Physical schema is
+[V001](../../src/main/resources/db/migration/V001__create_schema.sql).
+V002 seeds access control; V003 seeds the catalog. See
+[persistence](04-persistence.md#current-baseline) for the final migration layout.
 The owner's clean-slate business contract supersedes earlier schema/workflows;
 retain Participant terminology and public SQL schema. Keep domain, persistence,
 application and HTTP responsibilities separate.
@@ -25,6 +31,12 @@ No schema representation claims every clinic feature or endpoint is implemented.
 The retained clean-slate decisions are
 [the module inventory](../adr/0012-clean-slate-module-boundaries.md),
 [the application/database contract](../adr/0013-clean-slate-application-contract.md),
+[Organization tax-code identity](../adr/0016-organization-tax-code-identity.md),
 [the session login protocol](../adr/0014-session-cookie-redis-login.md) and
 [per-endpoint permissions](../adr/0015-endpoint-permission-rbac.md).
-Older ADR files and architecture documents are removed.
+The [ADR index](../adr/README.md) distinguishes these decisions by a unique ID.
+
+Superseded plans and design notes are removed. Their implemented contracts live
+in architecture/API docs; unfinished authorization and proposed document issuance
+are summarized in Open items. The rendering/storage proposal is not an accepted
+amendment to the current schema or official-document workflow.

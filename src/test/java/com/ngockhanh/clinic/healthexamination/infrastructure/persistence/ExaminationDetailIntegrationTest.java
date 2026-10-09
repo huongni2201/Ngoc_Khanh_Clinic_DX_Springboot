@@ -81,6 +81,7 @@ class ExaminationDetailIntegrationTest {
       })
   @org.springframework.context.annotation.Import({
     CreateHealthExaminationBatchUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.service.BatchCodeGenerator.class,
     ExaminationDetailAccessPolicy.class,
     com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailImportCommitter
         .class,
@@ -142,6 +143,7 @@ class ExaminationDetailIntegrationTest {
   @Autowired ExportPaymentSummaryReportUseCase reportDocx;
 
   UUID org, actor, serviceA, serviceB, batchId, batchServiceA, batchServiceB;
+  String batchCode;
   UUID p1, p2, p3;
   UserPrincipal principal;
 
@@ -203,7 +205,6 @@ class ExaminationDetailIntegrationTest {
             CreateHealthExaminationBatchCommand.builder()
                 .configuration(
                     BatchConfiguration.builder()
-                        .batchCode("EXAM-1")
                         .batchName("Campaign")
                         .examinationDates(List.of(D4, D8))
                         .examinationSiteType("ORGANIZATION_SITE")
@@ -223,6 +224,7 @@ class ExaminationDetailIntegrationTest {
                 .build(),
             actor);
     batchId = batch.id();
+    batchCode = batch.batchCode();
     batchServiceA = batch.services().get(0).id();
     batchServiceB = batch.services().get(1).id();
     UUID day = batch.days().get(0).id();
@@ -575,7 +577,7 @@ class ExaminationDetailIntegrationTest {
 
     var file = reportDocx.execute(org, batchId, principal);
 
-    assertThat(file.fileName()).isEqualTo("bao-cao-thanh-toan-EXAM-1.docx");
+    assertThat(file.fileName()).isEqualTo("bao-cao-thanh-toan-" + batchCode + ".docx");
     try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(file.content()))) {
       var text = new StringBuilder();
       doc.getParagraphs().forEach(p -> text.append(p.getText()).append('\n'));

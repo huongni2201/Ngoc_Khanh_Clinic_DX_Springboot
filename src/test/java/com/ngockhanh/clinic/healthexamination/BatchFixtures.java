@@ -55,7 +55,6 @@ public final class BatchFixtures {
               .negotiatedPrice(new BigDecimal("100"))
               .build());
     return BatchConfiguration.builder()
-        .batchCode("B1")
         .batchName("Campaign")
         .examinationDates(List.of(FIRST_DAY))
         .examinationSiteType("CLINIC")

@@ -13,7 +13,8 @@ public record AccessControlProperties(
     Duration idleTimeout,
     Duration absoluteTimeout,
     Boolean cookieSecure,
-    List<String> allowedOrigins) {
+    List<String> allowedOrigins,
+    Boolean testRoleFullAccess) {
   private static final String SECURE_COOKIE_NAME = "__Host-NKC_SESSION";
   private static final String LOCAL_COOKIE_NAME = "NKC_SESSION";
 
@@ -21,6 +22,7 @@ public record AccessControlProperties(
     idleTimeout = idleTimeout == null ? Duration.ofMinutes(30) : idleTimeout;
     absoluteTimeout = absoluteTimeout == null ? Duration.ofHours(8) : absoluteTimeout;
     cookieSecure = cookieSecure == null ? Boolean.TRUE : cookieSecure;
+    testRoleFullAccess = testRoleFullAccess == null ? Boolean.FALSE : testRoleFullAccess;
     allowedOrigins =
         allowedOrigins == null
             ? List.of()

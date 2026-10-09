@@ -41,15 +41,13 @@ not permission to weaken tests or retain obsolete runtime adapters.
 
 ## Deployment
 
-Use Java 25 and PostgreSQL 18. The owner-requested consolidation on 2026-10-07
-establishes V001 and V002 for fresh databases: V001 creates the complete
-schema; V002 inserts access-control roles, permissions and grants, including the
-owner-approved PARTICIPANT_CREATE and PARTICIPANT_REACTIVATE permissions. V003
-adds the catalog; V004 aligns the account-role trigger with the PATIENT role.
-Changes from the pre-consolidation V002–V006 history are represented in the
-current schema and seed; V003 and V004 are later catalog and account-role
-amendments. Older migration numbers in implementation plans describe historical
-work, not the current migration chain.
+Use Java 25 and PostgreSQL 18. The owner-requested consolidation on 2026-10-08
+establishes three migrations for fresh databases: V001 creates the final schema,
+V002 seeds access-control roles/permissions/grants, and V003 seeds the catalog.
+The former V004–V007 amendments are incorporated directly into V001 and V003.
+See [persistence baseline](04-persistence.md#current-baseline) for their responsibilities.
+Clean build output before verification or packaging after consolidation so deleted
+migration resources cannot survive under `target/classes/db/migration`.
 Databases with any earlier migration history require a separate reviewed conversion procedure.
 Never replace applied checksums or point this baseline at deployed historical data.
 

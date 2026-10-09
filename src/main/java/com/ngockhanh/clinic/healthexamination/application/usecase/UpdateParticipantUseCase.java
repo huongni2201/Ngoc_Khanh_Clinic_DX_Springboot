@@ -88,15 +88,21 @@ public class UpdateParticipantUseCase {
     AggregateId dayBefore = participant.getBatchDayId();
     var next =
         ParticipantChangeSupport.roster(
-            command.participantCode(),
+            before.participantCode(),
             command.fullName(),
             command.dateOfBirth(),
             command.sex(),
             command.identificationNumber(),
+            command.identificationIssueDate(),
+            command.identificationIssuePlace(),
+            command.ethnicity(),
             command.phone(),
             command.email(),
+            command.address(),
+            command.workplace(),
             command.departmentName(),
-            command.positionName());
+            command.positionName(),
+            command.note());
     support.requireDateOfBirthNotInFuture(command.dateOfBirth());
     if (!before.identificationNumber().equals(next.identificationNumber()))
       support.requireIdentityFree(

@@ -103,7 +103,7 @@ class OrganizationBatchControllerTest {
 
   private String body(String extra) {
     return """
-        {"batchCode":"B1","batchName":"Campaign","examinationSiteType":"CLINIC",
+        {"batchName":"Campaign","examinationSiteType":"CLINIC",
          "examinationSiteName":"Clinic","examinationSiteAddress":"Address",
          "examinationDates":["2026-10-04","2026-10-05"],
          "services":[{"serviceId":"%s","negotiatedPrice":12.34}]%s}
@@ -140,7 +140,7 @@ class OrganizationBatchControllerTest {
     var command = ArgumentCaptor.forClass(CreateHealthExaminationBatchCommand.class);
     verify(create).execute(eq(organizationId), command.capture(), eq(actor));
     var configuration = command.getValue().configuration();
-    assertThat(configuration.batchCode()).isEqualTo("B1");
+    assertThat(configuration.batchName()).isEqualTo("Campaign");
     assertThat(configuration.examinationDates())
         .containsExactly(LocalDate.of(2026, 10, 4), LocalDate.of(2026, 10, 5));
     assertThat(configuration.examinationSiteType()).isEqualTo("CLINIC");

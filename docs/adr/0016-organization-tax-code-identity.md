@@ -1,9 +1,12 @@
-# ADR-0014: Use tax code as the Organization business identifier
+# ADR-0016: Use tax code as the Organization business identifier
 
 ## Status
 
 Accepted — 2026-10-06, following the owner's instruction. Supersedes the
 Organization code and tax-code uniqueness rules in ADR-0013.
+
+Renumbered on 2026-10-08 to resolve the duplicate ADR-0014 identifier. The accepted
+date and business decision are unchanged.
 
 ## Context
 
@@ -22,8 +25,10 @@ of the separate Organization code field.
   PostgreSQL's unique constraint permits multiple `NULL` tax codes; every
   non-null value is unique.
 - Organization search and sorting use `taxCode` and `name` instead of `code`.
-- The clean-slate V001 has not been deployed or run. Remove the column directly
-  from V001 and add the tax-code constraint there; do not add V003.
+- At acceptance, the owner authorized the change directly in the undeployed
+  clean-slate V001. Current fresh databases use the consolidated V001–V003
+  baseline; V003 is the catalog seed. Existing deployed histories require a
+  separately reviewed conversion under [deployment policy](../architecture/06-testing-and-operations.md#deployment).
 
 ## Consequences
 
@@ -41,4 +46,3 @@ of the separate Organization code field.
 - [ADR-0013](0013-clean-slate-application-contract.md) remains the historical
   clean-slate contract except for the Organization code and tax-code uniqueness
   decisions superseded here.
-

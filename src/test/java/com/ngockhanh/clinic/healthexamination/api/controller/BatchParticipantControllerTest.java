@@ -262,8 +262,10 @@ class BatchParticipantControllerTest {
 
   private String body(String identification, String extra) {
     return """
-        {"participantCode":"NV-001","fullName":"Synthetic Person","dateOfBirth":"1990-05-12",
-         "sex":"MALE","identificationNumber":"%s","phone":"0901234567","email":null,
+        {"fullName":"Synthetic Person","dateOfBirth":"1990-05-12",
+         "sex":"MALE","identificationNumber":"%s","identificationIssueDate":"2021-03-15",
+         "identificationIssuePlace":"Hanoi","ethnicity":"Kinh","phone":"0901234567","email":null,
+         "address":"12 Test Street","workplace":"Test Company","note":null,
          "departmentName":"Accounting","positionName":"Staff","batchDayId":"%s"%s}
         """
         .formatted(identification, dayId, extra);

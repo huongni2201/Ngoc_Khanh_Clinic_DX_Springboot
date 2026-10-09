@@ -55,6 +55,16 @@ public interface HealthExaminationBatchRepository {
   /** Returns the subset of the given batch service identifiers that a Participant is linked to. */
   Set<UUID> findReferencedBatchServiceIds(UUID batchId, Collection<UUID> batchServiceIds);
 
+  /**
+   * Returns the highest running number used by a batch code that starts with the prefix, or 0 when
+   * none does. Deleted batches count, because their codes stay reserved.
+   *
+   * <p>First takes a transaction-scoped lock that serialises code generation, so the caller must
+   * insert its batch in the same transaction. Codes that do not match {@code <prefix><digits>}
+   * (for example codes entered by hand in the past) are ignored.
+   */
+  long highestCodeSequence(String prefix);
+
   /** Whether the batch has any Participant, whatever the roster status. */
   boolean hasParticipants(UUID batchId);
 

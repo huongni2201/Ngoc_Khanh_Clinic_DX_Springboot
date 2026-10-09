@@ -26,7 +26,6 @@ class PostgreSqlMigrationIntegrationTest {
     flyway.migrate();
     flyway.validate();
     assertThat(flyway.info().pending()).isEmpty();
-    flyway.validate();
     var jdbc =
         new JdbcTemplate(
             new DriverManagerDataSource(

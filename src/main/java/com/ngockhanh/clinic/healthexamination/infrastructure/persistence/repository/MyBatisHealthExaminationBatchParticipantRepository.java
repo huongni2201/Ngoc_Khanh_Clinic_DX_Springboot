@@ -116,6 +116,11 @@ public class MyBatisHealthExaminationBatchParticipantRepository
   }
 
   @Override
+  public long countInBatch(AggregateId batchId) {
+    return mapper.countInBatch(batchId.value());
+  }
+
+  @Override
   public List<IdentificationNumber> findExistingIdentities(
       AggregateId batchId, List<IdentificationNumber> identities) {
     if (identities.isEmpty()) return List.of();
@@ -140,10 +145,16 @@ public class MyBatisHealthExaminationBatchParticipantRepository
             r.dateOfBirth(),
             r.sex(),
             IdentificationNumber.of(r.identificationNumber()),
+            r.identificationIssueDate(),
+            r.identificationIssuePlace(),
+            r.ethnicity(),
             r.phone(),
             r.email(),
+            r.address(),
+            r.workplace(),
             r.departmentName(),
-            r.positionName()),
+            r.positionName(),
+            r.note()),
         new Progress(
             id(r.patientId()),
             RosterStatus.valueOf(r.rosterStatus()),
@@ -192,10 +203,16 @@ public class MyBatisHealthExaminationBatchParticipantRepository
         .dateOfBirth(r.dateOfBirth())
         .sex(r.sex())
         .identificationNumber(r.identificationNumber().value())
+        .identificationIssueDate(r.identificationIssueDate())
+        .identificationIssuePlace(r.identificationIssuePlace())
+        .ethnicity(r.ethnicity())
         .phone(r.phone())
         .email(r.email())
+        .address(r.address())
+        .workplace(r.workplace())
         .departmentName(r.departmentName())
         .positionName(r.positionName())
+        .note(r.note())
         .patientId(value(p.getPatientId()))
         .rosterStatus(p.getRosterStatus().name())
         .attendanceStatus(p.getAttendanceStatus().name())

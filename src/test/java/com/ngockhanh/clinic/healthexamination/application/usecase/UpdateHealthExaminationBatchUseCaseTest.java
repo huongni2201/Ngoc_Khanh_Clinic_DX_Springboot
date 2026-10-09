@@ -74,7 +74,6 @@ class UpdateHealthExaminationBatchUseCaseTest {
 
   private BatchConfiguration replacement(UUID... services) {
     return configuration(services).toBuilder()
-        .batchCode("B2")
         .examinationDates(List.of(SECOND_DAY, THIRD_DAY))
         .build();
   }
@@ -132,7 +131,7 @@ class UpdateHealthExaminationBatchUseCaseTest {
         .verify(batches)
         .findReferencedBatchServiceIds(eq(batchId), eq(Set.of(removedService.id().value())));
     order.verify(batches).update(updated.capture(), eq(3L));
-    assertThat(updated.getValue().code()).isEqualTo("B2");
+    assertThat(updated.getValue().code()).as("the code never changes").isEqualTo("B1");
     assertThat(updated.getValue().days())
         .extracting(HealthExaminationBatchDay::examinationDate)
         .containsExactly(SECOND_DAY, THIRD_DAY);
@@ -142,7 +141,7 @@ class UpdateHealthExaminationBatchUseCaseTest {
         .containsExactly(added, kept);
     assertThat(updated.getValue().services().getLast().id()).isEqualTo(keptService.id());
     assertThat(response.rowVersion()).isEqualTo(4);
-    assertThat(response.batchCode()).isEqualTo("B2");
+    assertThat(response.batchCode()).isEqualTo("B1");
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<Map<String, Object>> before = ArgumentCaptor.forClass(Map.class);
@@ -164,6 +163,8 @@ class UpdateHealthExaminationBatchUseCaseTest {
   @Test
   void aPutWithTheSameConfigurationStillStoresOnceSoTheVersionIsIncremented() {
     storedAfterUpdate();
+    var originalDays = current.days();
+    var originalServices = current.services();
     var same =
         configuration(kept, dropped).toBuilder()
             .examinationDates(List.of(FIRST_DAY, SECOND_DAY))
@@ -173,6 +174,8 @@ class UpdateHealthExaminationBatchUseCaseTest {
 
     verify(batches).update(any(), eq(3L));
     assertThat(response.rowVersion()).isEqualTo(4);
+    assertThat(current.days()).containsExactlyElementsOf(originalDays);
+    assertThat(current.services()).containsExactlyElementsOf(originalServices);
     verify(catalog, org.mockito.Mockito.times(2)).findByIds(Set.of(kept, dropped));
   }
 
@@ -249,7 +252,7 @@ class UpdateHealthExaminationBatchUseCaseTest {
   }
 
   @Test
-  void auditFailureIsNotSwallowedSoTheTransactionRollsBack() {
+  void propagatesAuditFailureAfterUpdate() {
     storedAfterUpdate();
     doThrow(new IllegalStateException("audit unavailable"))
         .when(audit)
@@ -262,6 +265,7 @@ class UpdateHealthExaminationBatchUseCaseTest {
     assertThatThrownBy(() -> useCase.execute(organizationId, batchId, command(same, 3L), actor))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("audit unavailable");
+    verify(batches).update(any(), eq(3L));
   }
 
   @Test

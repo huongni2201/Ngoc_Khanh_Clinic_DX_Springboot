@@ -143,15 +143,22 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
 
   private static Map<String, Object> payload(StagedParticipantRow row) {
     Map<String, Object> payload = new LinkedHashMap<>();
-    payload.put("participantCode", row.participantCode());
     payload.put("fullName", row.fullName());
     payload.put("dateOfBirth", row.dateOfBirth().toString());
     payload.put("sex", row.sex());
     payload.put("identificationNumber", row.identificationNumber());
+    payload.put(
+        "identificationIssueDate",
+        row.identificationIssueDate() == null ? null : row.identificationIssueDate().toString());
+    payload.put("identificationIssuePlace", row.identificationIssuePlace());
+    payload.put("ethnicity", row.ethnicity());
     payload.put("phone", row.phone());
     payload.put("email", row.email());
+    payload.put("address", row.address());
+    payload.put("workplace", row.workplace());
     payload.put("departmentName", row.departmentName());
     payload.put("positionName", row.positionName());
+    payload.put("note", row.note());
     payload.put("examinationDate", row.examinationDate().toString());
     return payload;
   }

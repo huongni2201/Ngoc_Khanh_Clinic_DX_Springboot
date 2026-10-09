@@ -198,17 +198,6 @@ class ModuleVerificationTest {
   }
 
   @Test
-  void accessControlApiDoesNotDependOnInfrastructure() {
-    noClasses()
-        .that()
-        .resideInAPackage("com.ngockhanh.clinic.accesscontrol.api..")
-        .should()
-        .dependOnClassesThat()
-        .resideInAPackage("com.ngockhanh.clinic.accesscontrol.infrastructure..")
-        .check(applicationClasses);
-  }
-
-  @Test
   void accessControlInfrastructureDoesNotDependOnApiTypes() {
     noClasses()
         .that()

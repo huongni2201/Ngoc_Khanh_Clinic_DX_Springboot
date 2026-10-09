@@ -14,8 +14,9 @@ ownership decisions; renaming tables alone cannot adapt those workflows.
 
 The authoritative inputs are the owner-supplied
 `NKC_DX_Clean_Slate_Database_Design_Detailed_No_Reporting_Schema.md` and
-`nkc_dx_clean_slate_postgresql18.sql`, represented in this repository by
-`src/main/resources/db/migration/V001__create_clean_slate_schema.sql`.
+`nkc_dx_clean_slate_postgresql18.sql`. These owner-supplied source files are not
+bundled here; their accepted baseline and amendments are represented by this ADR,
+the architecture docs and [V001](../../src/main/resources/db/migration/V001__create_schema.sql).
 The owner retains **Participant** terminology and one `public` SQL schema.
 This clean-slate contract is the accepted business/schema baseline.
 
@@ -23,8 +24,10 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Persistence and concurrency
 
-- Owner amendment — 2026-10-07: consolidate the final schema into V001 and
-  access-control inserts into V002 for a **fresh database only**. Never apply them
+- Owner amendment — 2026-10-08: keep one final schema initializer (V001),
+  access-control inserts (V002) and catalog inserts (V003) for a **fresh database only**.
+  Fold the former V004–V007 changes into the initializer and catalog seed.
+  Never apply these rewritten files
   to an environment with an earlier migration history. Deployed data
   conversion requires a separate approved migration procedure.
 - Each table has one infrastructure record in its owning module, with SQL column
@@ -52,8 +55,10 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Health examination
 
-- Organization has its own code, type, general contact channels and one named
-  contact.
+- Organization uses an optional unique tax code, general contact channels and
+  one named contact, as amended by
+  [Organization tax-code identity](0016-organization-tax-code-identity.md).
+  General `phone` is optional; email, address and named contact fields remain required.
 - Batch owns at least one `HealthExaminationBatchDay`; displayed date bounds are
   derived from those dates. Site types are `CLINIC` and `ORGANIZATION_SITE`.
   Lifecycle is `DRAFT`, `READY`, `FINALIZED`, `CLOSED`.
@@ -61,9 +66,10 @@ This clean-slate contract is the accepted business/schema baseline.
   Previously recorded performed-service price snapshots do not change merely
   because the current batch price changes. Retroactive repricing requires its
   own authorized, audited use case.
-- Roster members are batch participants, with identity and employment fields
-  stored on the batch row. There is no separate organization Participant aggregate
-  or table. Optional participant codes are not generated business employee codes.
+- Roster members are batch participants, with identity, personal and employment fields
+  stored on the batch Participant row. There is no separate organization Participant
+  aggregate or table. The system generates the Participant code on creation and
+  retains it on update; it is not a client-supplied employee code.
 - Roster addition never creates Patient/Encounter records.
   Authorized visit preparation links/creates Patient only by exact CCCD.
 - Roster, attendance and service reconciliation have independent state. The
@@ -79,25 +85,21 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Roster import scope
 
-Owner amendment — 2026-10-07: staff can add one Participant by hand, view its detail, edit it
-and cancel it, as defined in [participant manual add, edit and cancel](../api/participant-manual-crud.md).
-Delete means cancel (`roster_status` CANCELLED, never a physical delete), and the CCCD stays
-reserved. The CCCD is editable only while the Participant has no linked Patient. The operations are
-guarded by their endpoint-specific `PARTICIPANT_` permissions (consolidated seed V002) and the batch must be DRAFT/READY
-of an ACTIVE organization. This does not reopen the multi-step import workflow.
+Current accepted scope includes the 2026-10-06 single-step import amendment and
+the 2026-10-07 manual-change amendment:
 
-Owner amendment — 2026-10-06: a single-step roster import is restored together with a
-Participant list and template download, as defined in
-[participant import and list](../api/participant-import-and-list.md). It is
-add-only and all-or-nothing, keeps one `import_jobs` row (VALIDATED, then CONFIRMED) with
-`import_rows` and provenance on every created Participant, and is guarded by dedicated
-permissions. The multi-step preview/confirm/cancel workflow below stays removed.
+- [Participant import and list](../api/participant-import-and-list.md): template
+  download, add-only/all-or-nothing import and list. Integration owns the VALIDATED
+  then CONFIRMED import job, rows, idempotency receipt and Participant provenance.
+- [Manual add, edit, cancel and reactivate](../api/participant-manual-crud.md):
+  endpoint-specific `PARTICIPANT_*` permissions; writes require a DRAFT/READY batch
+  of an ACTIVE organization. Cancellation preserves the row and reserves its CCCD;
+  reactivation uses the same row. CCCD changes require no linked Patient.
 
-Owner amendment — 2026-10-05: the backend Excel roster import workflow is removed.
-No template/upload/preview/confirm/cancel runtime contracts or staging adapters
-are supported. Integration retains import tables and schema records for historical
-data, but publishes no import interface. Existing participant provenance is preserved.
-See [the API removal contract](../api/clean-slate-migration.md#removed-excel-roster-import).
+The 2026-10-05 removal of the earlier multi-step workflow remains effective for
+upload/preview/confirm/cancel endpoints. It does not prohibit the later accepted
+single-step import or its template/staging adapters. Historical import provenance
+is preserved. See [API compatibility](../api/clean-slate-migration.md#removed-excel-roster-import).
 
 ### Other ownership
 
@@ -113,8 +115,10 @@ See [the API removal contract](../api/clean-slate-migration.md#removed-excel-ros
 
 ## Consequences
 
-Clients use the clean-slate organization fields, batch dates/days and expected
-versions. The removed roster-import routes (preview, confirm, cancel) have no handlers; only the single-step routes of the 2026-10-06 amendment exist. Unsupported old states or columns cannot be silently aliased.
+Clients use the current organization fields, batch dates/days and expected
+versions. Preview/confirm/cancel import routes have no handlers; the single-step
+routes of the later amendment exist. Unsupported old states or columns cannot be
+silently aliased.
 Existing local seed data and tests must use the full clean-slate migration.
 
 Schema records do not mean every module has a complete HTTP workflow. This change

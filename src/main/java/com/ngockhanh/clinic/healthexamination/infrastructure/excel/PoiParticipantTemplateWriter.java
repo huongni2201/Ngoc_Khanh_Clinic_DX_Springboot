@@ -25,9 +25,10 @@ import org.springframework.stereotype.Component;
 /**
  * Renders the Excel import template V1 with Apache POI.
  *
- * <p>The {@code Participants} sheet has the ten header keys, every input column formatted as text
- * so leading zeros survive, a frozen header, a dropdown for {@code sex} and a dropdown for {@code
- * examination_date} fed by a named range on the {@code Instructions} sheet. The {@code
+ * <p>The {@code Participants} sheet starts with an {@code STT} row-number column (ignored on
+ * import) followed by the Vietnamese data headers, every input column formatted as
+ * text so leading zeros survive, a frozen header, a dropdown for the sex column and a dropdown for
+ * the examination date column fed by a named range on the {@code Instructions} sheet. The {@code
  * Instructions} sheet holds the template version, the batch identifier and the batch configuration
  * version, Vietnamese guidance and the valid dates. The template has no sample row, formula, macro
  * or external link, and every value is written as plain text.
@@ -37,16 +38,16 @@ public class PoiParticipantTemplateWriter implements ParticipantTemplateWriter {
   /** Last worksheet row (zero-based) that carries input formatting and dropdowns: row 1001. */
   private static final int LAST_INPUT_ROW = 1_000;
 
-  private static final int[] COLUMN_WIDTH_CHARS = {16, 28, 16, 12, 22, 16, 28, 26, 26, 18};
+  private static final int[] COLUMN_WIDTH_CHARS = {6, 28, 14, 12, 18, 16, 24, 14, 16, 26, 36, 28, 26, 22, 14, 30};
 
   private static final String[] GUIDANCE = {
-    "Nhập mỗi Participant trên một dòng của sheet Participants, bắt đầu từ dòng 2. Không sửa dòng tiêu đề.",
-    "Mọi ô là văn bản. Giữ nguyên số 0 ở đầu của identification_number và phone.",
-    "date_of_birth và examination_date nhập dạng văn bản yyyy-MM-dd, ví dụ 1990-01-31.",
-    "examination_date phải là một trong các ngày khám của đợt, liệt kê bên dưới.",
-    "sex chọn một trong MALE, FEMALE, OTHER, UNKNOWN.",
-    "identification_number gồm 1 đến 20 chữ số và không được trùng trong file hay trong đợt khám.",
-    "participant_code, phone, email là tùy chọn; các cột còn lại là bắt buộc.",
+    "Nhập mỗi người khám trên một dòng của sheet Participants, bắt đầu từ dòng 2. Không sửa dòng tiêu đề. Cột STT chỉ để đánh số và bị bỏ qua khi nhập.",
+    "Mọi ô là văn bản. Giữ nguyên số 0 ở đầu của cột CCCD và Số Điện Thoại.",
+    "Ngày Sinh, Ngày Cấp CCCD và Ngày Khám nhập dạng văn bản yyyy-MM-dd, ví dụ 1990-01-31.",
+    "Ngày Khám phải là một trong các ngày khám của đợt, liệt kê bên dưới.",
+    "Giới Tính chọn một trong MALE, FEMALE, OTHER, UNKNOWN.",
+    "CCCD gồm 1 đến 20 chữ số và không được trùng trong file hay trong đợt khám.",
+    "Bắt buộc: Họ Và Tên, Ngày Sinh, Giới Tính, CCCD, Đơn Vị/Phòng Ban, Chức Vụ, Ngày Khám. Các cột còn lại là tùy chọn. Mã người khám do hệ thống tự sinh.",
     "Chỉ thêm mới: file có bất kỳ lỗi nào thì toàn bộ file bị từ chối và không có dòng nào được lưu.",
   };
 
@@ -78,10 +79,10 @@ public class PoiParticipantTemplateWriter implements ParticipantTemplateWriter {
 
   private static void writeParticipantsSheet(Sheet sheet, CellStyle text, CellStyle header) {
     Row headerRow = sheet.createRow(0);
-    for (int column = 0; column < ORDERED.size(); column++) {
+    for (int column = 0; column < TEMPLATE_COLUMNS.size(); column++) {
       var cell = headerRow.createCell(column);
       cell.setCellStyle(header);
-      cell.setCellValue(ORDERED.get(column));
+      cell.setCellValue(header(TEMPLATE_COLUMNS.get(column)));
       sheet.setDefaultColumnStyle(column, text);
       sheet.setColumnWidth(column, COLUMN_WIDTH_CHARS[column] * 256);
     }
@@ -100,7 +101,7 @@ public class PoiParticipantTemplateWriter implements ParticipantTemplateWriter {
 
     var title = sheet.createRow(4).createCell(0);
     title.setCellStyle(header);
-    title.setCellValue("Hướng dẫn nhập danh sách Participant");
+    title.setCellValue("Hướng dẫn nhập danh sách người khám");
     for (int line = 0; line < GUIDANCE.length; line++) {
       var cell = sheet.createRow(5 + line).createCell(0);
       cell.setCellStyle(text);
@@ -108,7 +109,7 @@ public class PoiParticipantTemplateWriter implements ParticipantTemplateWriter {
     }
     var datesTitle = sheet.createRow(DATE_LIST_FIRST_ROW - 1).createCell(0);
     datesTitle.setCellStyle(header);
-    datesTitle.setCellValue("Ngày khám hợp lệ (examination_date)");
+    datesTitle.setCellValue("Ngày khám hợp lệ (cột Ngày Khám)");
     int rowIndex = DATE_LIST_FIRST_ROW;
     for (LocalDate date : data.examinationDates()) {
       var cell = sheet.createRow(rowIndex++).createCell(0);
@@ -141,12 +142,12 @@ public class PoiParticipantTemplateWriter implements ParticipantTemplateWriter {
         sheet,
         helper,
         helper.createExplicitListConstraint(Roster.SEX_VALUES.toArray(String[]::new)),
-        ORDERED.indexOf(SEX));
+        TEMPLATE_COLUMNS.indexOf(SEX));
     dropdown(
         sheet,
         helper,
         helper.createFormulaListConstraint(EXAMINATION_DATES_NAME),
-        ORDERED.indexOf(EXAMINATION_DATE));
+        TEMPLATE_COLUMNS.indexOf(EXAMINATION_DATE));
   }
 
   private static void dropdown(

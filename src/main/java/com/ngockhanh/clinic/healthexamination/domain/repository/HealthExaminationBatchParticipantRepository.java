@@ -60,6 +60,13 @@ public interface HealthExaminationBatchParticipantRepository {
   void insertMany(List<HealthExaminationBatchParticipant> participants);
 
   /**
+   * Number of Participants of the batch, whatever their roster status. Participants are never
+   * deleted, so with the batch locked the count only grows and is the base of the next generated
+   * participant code.
+   */
+  long countInBatch(AggregateId batchId);
+
+  /**
    * Returns the given identification numbers that already belong to a Participant of the batch,
    * whatever its roster status.
    */

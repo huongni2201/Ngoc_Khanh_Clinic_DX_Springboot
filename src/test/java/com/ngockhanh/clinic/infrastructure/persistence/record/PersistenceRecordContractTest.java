@@ -23,9 +23,6 @@ class PersistenceRecordContractTest {
       Pattern.compile(
           "^    ([a-z_]+) (uuid|varchar(?:\\(\\d+\\))?|text|boolean|bigint|integer|smallint|numeric\\([\\d,]+\\)|date|timestamptz\\(3\\)|jsonb|bytea|inet)(.*)$",
           Pattern.MULTILINE);
-  private static final Pattern ADD_COLUMN =
-      Pattern.compile(
-          "ALTER TABLE public\\.([a-z_]+)\\s+ADD COLUMN ([a-z_]+) ([^;]*);", Pattern.DOTALL);
   private static final String OWNERS =
       """
       departments catalog DepartmentRecord
@@ -98,28 +95,10 @@ class PersistenceRecordContractTest {
   void allTablesHaveOneRecordWithTheirActualSqlColumnOrderAndTypes() throws Exception {
     String sql =
         Files.readString(
-            Path.of("src/main/resources/db/migration/V001__create_clean_slate_schema.sql"));
+            Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables = new HashMap<String, String>();
     TABLE.matcher(sql).results().forEach(match -> tables.put(match.group(1), match.group(2)));
     assertThat(tables).hasSize(64);
-    // Later migrations only append columns, so a record is the baseline columns plus each
-    // "ALTER TABLE ... ADD COLUMN" in version order.
-    try (var migrations = Files.list(Path.of("src/main/resources/db/migration"))) {
-      for (Path migration :
-          migrations
-              .filter(path -> path.getFileName().toString().matches("V(?!001__)\\d+__.*\\.sql"))
-              .sorted()
-              .toList()) {
-        String text = Files.readString(migration).replaceAll("(?m)^--.*$", "");
-        for (var add : ADD_COLUMN.matcher(text).results().toList()) {
-          assertThat(tables).as("table altered in %s", migration).containsKey(add.group(1));
-          tables.merge(
-              add.group(1),
-              "    " + add.group(2) + " " + add.group(3).strip() + "\n",
-              (body, column) -> body + column);
-        }
-      }
-    }
     var mapped = new HashSet<String>();
     var expectedPaths = new HashSet<Path>();
     for (String entry : OWNERS.strip().split("\\R")) {

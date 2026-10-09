@@ -14,12 +14,11 @@ import lombok.Builder;
 /**
  * Body for creating a health examination batch of an organization.
  *
- * <p>Status, creator, reference-price snapshots, display order and child identifiers are never
- * accepted from the client.
+ * <p>The batch code, status, creator, reference-price snapshots, display order and child
+ * identifiers are never accepted from the client: the system generates the code on create.
  */
 @Builder
 public record CreateHealthExaminationBatchRequest(
-    @NotBlank @Size(max = 50) String batchCode,
     @NotBlank @Size(max = 300) String batchName,
     @NotEmpty List<@NotNull LocalDate> examinationDates,
     @NotNull @Pattern(regexp = "CLINIC|ORGANIZATION_SITE") String examinationSiteType,
@@ -30,7 +29,6 @@ public record CreateHealthExaminationBatchRequest(
   /** Maps the transport body to the application configuration input. */
   public BatchConfiguration toConfiguration() {
     return BatchConfiguration.builder()
-        .batchCode(batchCode)
         .batchName(batchName)
         .examinationDates(examinationDates)
         .examinationSiteType(examinationSiteType)

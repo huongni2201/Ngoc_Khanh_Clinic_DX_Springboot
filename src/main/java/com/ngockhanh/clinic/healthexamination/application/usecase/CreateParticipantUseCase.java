@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
  * locked, the organization and batch state are checked, the examination day is resolved inside the
  * batch, an identification number already in the batch (cancelled Participants included) is
  * rejected, the Participant is inserted as active, unconfirmed and pending, and the audit event is
- * written. There is no import job and no idempotency key: the unique identification number stops a
+ * written. The participant code is generated from the batch code and never typed. There is no import job and no idempotency key: the unique identification number stops a
  * double submit, and a retry reports a clear conflict. No Patient, Encounter or ParticipantService
  * is created.
  */
@@ -76,15 +76,21 @@ public class CreateParticipantUseCase {
     AggregateId dayId = support.requireDay(batch, command.batchDayId());
     var roster =
         ParticipantChangeSupport.roster(
-            command.participantCode(),
+            support.nextParticipantCodes(batch, 1).get(0),
             command.fullName(),
             command.dateOfBirth(),
             command.sex(),
             command.identificationNumber(),
+            command.identificationIssueDate(),
+            command.identificationIssuePlace(),
+            command.ethnicity(),
             command.phone(),
             command.email(),
+            command.address(),
+            command.workplace(),
             command.departmentName(),
-            command.positionName());
+            command.positionName(),
+            command.note());
     support.requireDateOfBirthNotInFuture(command.dateOfBirth());
     AggregateId batchAggregateId = AggregateId.of(batchId);
     support.requireIdentityFree(batchAggregateId, roster.identificationNumber(), null);

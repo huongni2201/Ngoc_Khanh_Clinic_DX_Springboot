@@ -38,11 +38,33 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         new JdbcTemplate(
             new DriverManagerDataSource(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
-    for (String table : List.of("roles", "permissions", "role_permissions")) {
+    for (String table :
+        List.of("roles", "permissions", "role_permissions", "departments", "rooms", "services")) {
       assertThat(jdbc.queryForObject("SELECT count(*) FROM public." + table, Integer.class))
           .as("V001 creates %s without seed data", table)
           .isZero();
     }
+    assertThat(
+            jdbc.queryForList(
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_batch_participants' AND column_name IN ('identification_issue_date', 'identification_issue_place', 'ethnicity', 'address', 'workplace', 'note') AND is_nullable = 'YES'",
+                String.class))
+        .containsExactlyInAnyOrder(
+            "identification_issue_date",
+            "identification_issue_place",
+            "ethnicity",
+            "address",
+            "workplace",
+            "note");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'organizations' AND column_name = 'phone'",
+                String.class))
+        .isEqualTo("YES");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT pg_get_functiondef('public.trg_validate_account_role()'::regprocedure)",
+                String.class))
+        .contains("IF v_role_code = 'PATIENT' THEN");
     assertThat(
             jdbc.queryForObject(
                 "SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_batches' AND column_name = 'deleted_at'",
@@ -61,7 +83,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    flyway.migrate();
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -69,8 +91,17 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .contains("001", "002");
+        .containsExactly("001", "002", "003");
     assertPermissionMatrixSeed(jdbc);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT code FROM public.services WHERE code = 'CLS58718'", String.class))
+        .isEqualTo("CLS58718");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM public.services WHERE code LIKE 'CLS\\_%' OR row_version <> 0",
+                Integer.class))
+        .isZero();
 
     assertThat(
             jdbc.queryForObject(
@@ -215,14 +246,10 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         List.of(
             "PARTICIPANT_CREATE",
             "PARTICIPANT_REACTIVATE",
-        "HEALTH_EXAMINATION_PARTICIPANT_MANAGE",
-        "PARTICIPANT_CREATE",
-        "PARTICIPANT_REACTIVATE",
+            "HEALTH_EXAMINATION_PARTICIPANT_MANAGE",
             "HEALTH_EXAMINATION_SERVICE_READ",
             "HEALTH_EXAMINATION_SERVICE_RECONCILE",
-            "HEALTH_EXAMINATION_REPORT_READ",
-            "PARTICIPANT_CREATE",
-            "PARTICIPANT_REACTIVATE")) {
+            "HEALTH_EXAMINATION_REPORT_READ")) {
       assertThat(rolesGranted(jdbc, permission)).containsExactly("CLINIC_MANAGER");
     }
   }

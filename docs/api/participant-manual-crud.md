@@ -1,9 +1,9 @@
 # Participant manual add, edit, cancel and reactivate
 
-Owner decision 2026-10-07. Plans: `docs/plans/20261007-participant-manual-crud.md` and
-`docs/plans/20261007-participant-reactivate.md`.
+Owner decision 2026-10-07; personal fields and generated codes updated 2026-10-08.
 Base path: `/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants`.
-Responses use the common envelope `{result, code, message, data}`; failures use `result: "NG"`.
+Responses use [the common envelope](../../PROJECT_RULES.md#envelope-errors-and-pagination);
+failures use `result: "NG"`, and null `message`/`data` are omitted.
 The import, template and list contract stays in [participant import and list](participant-import-and-list.md).
 
 ## Permission
@@ -14,12 +14,12 @@ Every route requires a STAFF account and its own permission:
 | Route | Permission |
 |---|---|
 | POST collection (manual add) | `PARTICIPANT_CREATE` |
-| GET /{participantId} | `PARTICIPANT_VIEW` |
+| GET /{participantId} | `PARTICIPANT_DETAIL_VIEW` |
 | PUT /{participantId} | `PARTICIPANT_UPDATE` |
 | DELETE /{participantId} (cancel) | `PARTICIPANT_REMOVE` |
 | POST /{participantId}/reactivate | `PARTICIPANT_REACTIVATE` |
 
-The consolidated V002 seed grants VIEW, UPDATE, REMOVE, CREATE and REACTIVATE only
+The consolidated V002 seed grants DETAIL_VIEW, UPDATE, REMOVE, CREATE and REACTIVATE
 to CLINIC_MANAGER. The legacy `HEALTH_EXAMINATION_PARTICIPANT_MANAGE` grant no longer
 opens these routes. Permissions are a login snapshot: sign in again after migration.
 `GET /import-template` is matched before `GET /{participantId}` and requires
@@ -44,17 +44,24 @@ opens these routes. Permissions are a login snapshot: sign in again after migrat
 
 ## `POST /` - add one
 
-Body (same fields as an import row): `participantCode?` (max 500), `fullName` (max 200),
+Body (same fields as an import row): `fullName` (max 200),
 `dateOfBirth` (ISO date, not in the future), `sex` (`MALE|FEMALE|OTHER|UNKNOWN`),
-`identificationNumber` (digits only, 1-20), `phone?`, `email?`, `departmentName`, `positionName`
-(max 500 each), `batchDayId`. Blank optional text is stored as null.
+`identificationNumber` (digits only, 1-20), `identificationIssueDate?` (ISO date),
+`identificationIssuePlace?`, `ethnicity?`, `phone?`, `email?` (max 500 each), `address?` (max 1000),
+`workplace?` (max 500), `departmentName`, `positionName` (max 500 each), `note?` (max 2000),
+`batchDayId`. Blank optional text is stored as null. There is no `participantCode` in the body: the
+system generates it as `<batch code>-<4-digit running number>` (for example `KSK-2026-001-0001`) and it never
+changes on update.
 Returns `201` with the detail below and `Cache-Control: no-store`.
 
 ## `GET /{participantId}` - detail
 
-Returns the list item plus `identificationNumber` (full), `phone`, `email`, `patientLinked`,
-`source` (`MANUAL|IMPORT`), `createdAt`, `updatedAt`. This is the only response that carries the
-full CCCD, so it needs PARTICIPANT_VIEW and is `no-store`. It is never logged or audited.
+Returns the list item plus `identificationNumber` (full), `identificationIssueDate`,
+`identificationIssuePlace`, `ethnicity`, `phone`, `email`, `address`, `workplace`, `note`, `patientLinked`,
+`source` (`MANUAL|IMPORT`), `createdAt`, `updatedAt`. Detail, create, update and reactivate
+return this same shape with the full CCCD and `Cache-Control: no-store`, each under
+its route's permission. List responses carry only the masked CCCD. Response payloads
+are never logged or included in audit metadata.
 
 ## `PUT /{participantId}` - edit
 

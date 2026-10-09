@@ -47,15 +47,20 @@ public final class ParticipantFixtures {
   public static ParticipantImportRow row(int rowNumber, String identification, LocalDate day) {
     return new ParticipantImportRow(
         rowNumber,
-        null,
         "Synthetic Person " + rowNumber,
         LocalDate.of(1990, 1, 31),
         "FEMALE",
         identification,
+        null,
+        null,
+        null,
         "0900000000",
+        null,
+        null,
         null,
         "Department",
         "Position",
+        null,
         day);
   }
 

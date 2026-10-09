@@ -113,20 +113,46 @@ public class ParticipantChangeSupport {
       LocalDate dateOfBirth,
       String sex,
       String identificationNumber,
+      LocalDate identificationIssueDate,
+      String identificationIssuePlace,
+      String ethnicity,
       String phone,
       String email,
+      String address,
+      String workplace,
       String departmentName,
-      String positionName) {
+      String positionName,
+      String note) {
     return new Roster(
         blankToNull(participantCode),
         trim(fullName),
         dateOfBirth,
         sex,
         IdentificationNumber.of(trim(identificationNumber)),
+        identificationIssueDate,
+        blankToNull(identificationIssuePlace),
+        blankToNull(ethnicity),
         blankToNull(phone),
         blankToNull(email),
+        blankToNull(address),
+        blankToNull(workplace),
         trim(departmentName),
-        trim(positionName));
+        trim(positionName),
+        blankToNull(note));
+  }
+
+  /**
+   * Generates the participant codes of {@code count} new Participants of the batch: the batch code,
+   * a dash and a running number of at least four digits ({@code ABC01-0001}). The number continues
+   * after every Participant already in the batch, cancelled ones included, so a code is never
+   * reused. The batch must be locked by the caller, which makes the count stable until commit.
+   */
+  public List<String> nextParticipantCodes(HealthExaminationBatch batch, int count) {
+    long existing = participants.countInBatch(batch.id());
+    List<String> codes = new ArrayList<>(count);
+    for (int i = 1; i <= count; i++)
+      codes.add(String.format("%s-%04d", batch.code(), existing + i));
+    return List.copyOf(codes);
   }
 
   /**
@@ -175,11 +201,19 @@ public class ParticipantChangeSupport {
     if (!Objects.equals(before.sex(), after.sex())) changed.add("sex");
     if (!Objects.equals(before.identificationNumber(), after.identificationNumber()))
       changed.add("identificationNumber");
+    if (!Objects.equals(before.identificationIssueDate(), after.identificationIssueDate()))
+      changed.add("identificationIssueDate");
+    if (!Objects.equals(before.identificationIssuePlace(), after.identificationIssuePlace()))
+      changed.add("identificationIssuePlace");
+    if (!Objects.equals(before.ethnicity(), after.ethnicity())) changed.add("ethnicity");
     if (!Objects.equals(before.phone(), after.phone())) changed.add("phone");
     if (!Objects.equals(before.email(), after.email())) changed.add("email");
+    if (!Objects.equals(before.address(), after.address())) changed.add("address");
+    if (!Objects.equals(before.workplace(), after.workplace())) changed.add("workplace");
     if (!Objects.equals(before.departmentName(), after.departmentName()))
       changed.add("departmentName");
     if (!Objects.equals(before.positionName(), after.positionName())) changed.add("positionName");
+    if (!Objects.equals(before.note(), after.note())) changed.add("note");
     if (!Objects.equals(dayBefore, dayAfter)) changed.add("examinationDay");
     return List.copyOf(changed);
   }

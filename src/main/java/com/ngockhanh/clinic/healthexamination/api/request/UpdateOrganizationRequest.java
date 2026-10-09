@@ -11,7 +11,7 @@ import lombok.Builder;
 public record UpdateOrganizationRequest(
     @NotBlank @Size(max = 300) String name,
     @Size(max = 50) String taxCode,
-    @NotBlank String phone,
+    String phone,
     @NotBlank @Email String email,
     @NotBlank String address,
     @NotBlank @Size(max = 200) String contactFullName,

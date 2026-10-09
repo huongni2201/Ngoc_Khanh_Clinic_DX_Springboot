@@ -1,20 +1,26 @@
 # Examination details (Excel) and payment report (Word)
 
-Owner decision 2026-10-07. Plan: `docs/plans/20261007-examination-detail-excel-and-report-word.md`.
+Owner decision 2026-10-07. This document is the current HTTP contract.
 Base path: `/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}`.
-Responses use the common envelope `{result, code, message, data}`; failures use `result: "NG"`.
+JSON responses use [the common envelope](../../PROJECT_RULES.md#envelope-errors-and-pagination);
+failures use `result: "NG"`, and null `message`/`data` are omitted. Downloads return file bytes.
 An Organization/Batch pair that does not match, or a soft-deleted batch, is 404.
 
 ## Permissions
 
-Flyway V002 adds three permissions and grants them to CLINIC_MANAGER (and to the local ADMIN role by the local seed).
+Flyway V002 seeds the six permissions below and grants them to CLINIC_MANAGER.
+The local seed additionally grants every permission to TEST and ADMINISTRATOR;
+both still require a STAFF account and the matching stored endpoint permission.
 Permissions are a login snapshot: sign in again after the migration.
 
 | Permission | Routes |
 |---|---|
-| `HEALTH_EXAMINATION_SERVICE_READ` | `GET /examination-details`, `GET /examination-details/summary`, `GET /examination-details/export` |
+| `HEALTH_EXAMINATION_SERVICE_READ` | `GET /examination-details` |
+| `HEALTH_EXAMINATION_SERVICE_SUMMARY_READ` | `GET /examination-details/summary` |
+| `HEALTH_EXAMINATION_SERVICE_EXPORT` | `GET /examination-details/export` |
 | `HEALTH_EXAMINATION_SERVICE_RECONCILE` | `POST /examination-details/imports` |
-| `HEALTH_EXAMINATION_REPORT_READ` | `GET /reports/payment-summary`, `GET /reports/payment-summary/docx` |
+| `HEALTH_EXAMINATION_REPORT_READ` | `GET /reports/payment-summary` |
+| `HEALTH_EXAMINATION_REPORT_EXPORT` | `GET /reports/payment-summary/docx` |
 
 ## Routes
 

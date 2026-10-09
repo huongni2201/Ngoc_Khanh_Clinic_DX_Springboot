@@ -64,6 +64,10 @@ public interface HealthExaminationBatchMyBatisMapper {
 
   boolean hasParticipants(@Param("batchId") UUID batchId);
 
+  int lockCodeSequence(@Param("key") long key);
+
+  long highestCodeSequence(@Param("prefix") String prefix);
+
   List<HealthExaminationBatchSummaryView> findPage(
       @Param("organizationId") UUID organizationId,
       @Param("offset") long offset,
