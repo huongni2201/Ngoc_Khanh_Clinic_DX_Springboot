@@ -75,6 +75,7 @@ class LocalAccessControlSeedIntegrationTest {
                 String.class))
         .containsExactlyInAnyOrder(
             "PARTICIPANT_VIEW",
+            "PARTICIPANT_DETAIL_VIEW",
             "PARTICIPANT_TEMPLATE_DOWNLOAD",
             "PARTICIPANT_IMPORT",
             "PARTICIPANT_EXAMINATION_RECORD_VIEW",
@@ -83,5 +84,12 @@ class LocalAccessControlSeedIntegrationTest {
             "PARTICIPANT_UPDATE",
             "PARTICIPANT_REMOVE",
             "PARTICIPANT_REACTIVATE");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.role_permissions grant_row "
+                    + "JOIN public.roles role ON role.id=grant_row.role_id "
+                    + "WHERE role.code='ADMINISTRATOR'",
+                Integer.class))
+        .isEqualTo(jdbc.queryForObject("SELECT COUNT(*) FROM public.permissions", Integer.class));
   }
 }

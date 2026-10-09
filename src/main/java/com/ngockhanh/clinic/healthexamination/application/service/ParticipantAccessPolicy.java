@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class ParticipantAccessPolicy {
   public static final String READ_PERMISSION = "PARTICIPANT_VIEW";
+  public static final String DETAIL_READ_PERMISSION = "PARTICIPANT_DETAIL_VIEW";
   public static final String TEMPLATE_DOWNLOAD_PERMISSION = "PARTICIPANT_TEMPLATE_DOWNLOAD";
   public static final String IMPORT_PERMISSION = "PARTICIPANT_IMPORT";
   public static final String CREATE_PERMISSION = "PARTICIPANT_CREATE";
@@ -25,6 +26,15 @@ public class ParticipantAccessPolicy {
    */
   public void requireRead(UserPrincipal principal) {
     require(principal, READ_PERMISSION);
+  }
+
+  /**
+   * Requires permission to read one Participant of a batch in full.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireDetailRead(UserPrincipal principal) {
+    require(principal, DETAIL_READ_PERMISSION);
   }
 
   /**

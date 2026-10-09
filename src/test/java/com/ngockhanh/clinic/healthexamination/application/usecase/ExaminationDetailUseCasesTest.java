@@ -60,6 +60,11 @@ class ExaminationDetailUseCasesTest {
   private static final String RECONCILE =
       ExaminationDetailAccessPolicy.SERVICE_RECONCILE_PERMISSION;
   private static final String REPORT = ExaminationDetailAccessPolicy.REPORT_READ_PERMISSION;
+  private static final String SUMMARY =
+      ExaminationDetailAccessPolicy.SERVICE_SUMMARY_READ_PERMISSION;
+  private static final String EXPORT = ExaminationDetailAccessPolicy.SERVICE_EXPORT_PERMISSION;
+  private static final String REPORT_EXPORT =
+      ExaminationDetailAccessPolicy.REPORT_EXPORT_PERMISSION;
   private static final Clock CLOCK =
       Clock.fixed(Instant.parse("2026-10-07T01:02:03.456789Z"), ZoneOffset.UTC);
 
@@ -124,6 +129,13 @@ class ExaminationDetailUseCasesTest {
     access.requireServiceRead(staff(READ));
     access.requireServiceReconcile(staff(RECONCILE));
     access.requireReportRead(staff(REPORT));
+    access.requireServiceSummaryRead(staff(SUMMARY));
+    access.requireServiceExport(staff(EXPORT));
+    access.requireReportExport(staff(REPORT_EXPORT));
+    assertThatThrownBy(() -> access.requireServiceExport(staff(READ)))
+        .isInstanceOf(ApplicationException.class);
+    assertThatThrownBy(() -> access.requireReportExport(staff(REPORT)))
+        .isInstanceOf(ApplicationException.class);
 
     assertThatThrownBy(() -> access.requireServiceRead(staff(RECONCILE, REPORT)))
         .isInstanceOfSatisfying(
@@ -266,14 +278,14 @@ class ExaminationDetailUseCasesTest {
         .thenReturn(Optional.of(new ExaminationSummary(10, 4, 5, 1, 2, 3)));
     var use = new GetExaminationSummaryUseCase(access, reader);
 
-    var summary = use.execute(organizationId, batchId, staff(READ));
+    var summary = use.execute(organizationId, batchId, staff(SUMMARY));
 
     assertThat(summary.registered()).isEqualTo(10);
     assertThat(summary.pendingReconciliation()).isEqualTo(3);
     assertThatThrownBy(() -> use.execute(organizationId, batchId, staff(RECONCILE)))
         .isInstanceOf(ApplicationException.class);
     when(reader.summarize(organizationId, batchId)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> use.execute(organizationId, batchId, staff(READ)))
+    assertThatThrownBy(() -> use.execute(organizationId, batchId, staff(SUMMARY)))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 
@@ -290,7 +302,7 @@ class ExaminationDetailUseCasesTest {
     when(reader.readAllActive(organizationId, batchId))
         .thenReturn(Optional.of(List.of(detailRow(participantId, "012345678901"))));
     when(excelWriter.write(any())).thenReturn(new byte[] {1, 2, 3});
-    var principal = staff(READ);
+    var principal = staff(EXPORT);
 
     var file = exporter().execute(organizationId, batchId, principal);
 
@@ -320,7 +332,7 @@ class ExaminationDetailUseCasesTest {
     assertThatThrownBy(() -> exporter().execute(organizationId, batchId, staff(REPORT)))
         .isInstanceOf(ApplicationException.class);
     when(reader.readAllActive(organizationId, batchId)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> exporter().execute(organizationId, batchId, staff(READ)))
+    assertThatThrownBy(() -> exporter().execute(organizationId, batchId, staff(EXPORT)))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(excelWriter, audit);
   }
@@ -470,7 +482,7 @@ class ExaminationDetailUseCasesTest {
         .thenReturn(Optional.of(aggregates()));
     when(wordWriter.write(any())).thenReturn(new byte[] {7});
     var assembler = new PaymentSummaryReportAssembler();
-    var principal = staff(REPORT);
+    var principal = staff(REPORT, REPORT_EXPORT);
 
     var report =
         new GetPaymentSummaryReportUseCase(access, batches, reader, catalog, assembler, CLOCK)
@@ -541,7 +553,7 @@ class ExaminationDetailUseCasesTest {
     when(reader.readPaymentAggregates(organizationId, batchId)).thenReturn(Optional.empty());
     assertThatThrownBy(() -> get.execute(organizationId, batchId, staff(REPORT)))
         .isInstanceOf(ResourceNotFoundException.class);
-    assertThatThrownBy(() -> export.execute(organizationId, batchId, staff(REPORT)))
+    assertThatThrownBy(() -> export.execute(organizationId, batchId, staff(REPORT_EXPORT)))
         .isInstanceOf(ResourceNotFoundException.class);
     verify(wordWriter, never()).write(any());
     verifyNoInteractions(audit);

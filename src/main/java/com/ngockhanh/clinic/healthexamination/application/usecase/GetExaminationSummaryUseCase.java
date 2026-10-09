@@ -39,7 +39,7 @@ public class GetExaminationSummaryUseCase {
   @Transactional(readOnly = true)
   public ExaminationSummaryResponse execute(
       UUID organizationId, UUID batchId, UserPrincipal principal) {
-    access.requireServiceRead(principal);
+    access.requireServiceSummaryRead(principal);
     if (organizationId == null || batchId == null)
       throw new IllegalArgumentException("Organization ID and batch ID are required");
     var summary =

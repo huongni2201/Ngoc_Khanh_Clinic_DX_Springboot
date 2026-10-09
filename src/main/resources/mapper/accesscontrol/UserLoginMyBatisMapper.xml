@@ -17,4 +17,9 @@
         WHERE ar.account_id = #{accountId}
         ORDER BY r.code, p.code
     </select>
+    <select id="findEndpointPermissions" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord">
+        SELECT id, code, name, description, http_method, endpoint
+        FROM public.permissions
+        WHERE endpoint IS NOT NULL
+    </select>
 </mapper>

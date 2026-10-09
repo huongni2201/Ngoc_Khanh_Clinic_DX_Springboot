@@ -20,27 +20,13 @@ Use explicit expected versions on mutable configuration updates. A stale update 
 
 The `accesscontrol` module authenticates with an opaque session cookie whose ID
 maps to a server-side JSON session snapshot in Redis (no JWT). Each business
-rule in `EndpointPermissions` requires a STAFF account and a permission of the
-SRS Permission Matrix, seeded by V002. Organization DELETE, Batch DELETE and
-catalog service lookup have handlers but no rule, so normal HTTP authorization
-denies them. See [the API inventory](../api/clean-slate-migration.md) and
-[open authorization work](07-open-items.md#endpoint-authorization).
-The `local` profile enables
-`clinic.auth.test-role-full-access`: after normal session-cookie login, `ROLE_TEST`
-can call any `/api/**` URL, including URLs without an endpoint rule. The local
-seed creates the `TEST` role and `test` account (`123456`); the default profile
-keeps this setting off. This local option does not disable Origin checks or
-application-level data-scope rules. Login rate limiting, logout-all and automatic
-revocation workflows are missing and block go-live. Credentials and session IDs are never returned or
-logged. The decisions are [ADR-0014](../adr/0014-session-cookie-redis-login.md)
-and [ADR-0015](../adr/0015-endpoint-permission-rbac.md); the HTTP contract is
+endpoint is stored in `public.permissions` (`http_method`, `endpoint`) with the
+permission a STAFF account needs to call it, seeded by V002 and read at startup;
+endpoints without a stored permission are denied. Rate limiting and revocation are not yet implemented and block
+go-live. Credentials and session IDs are never returned or logged. The decisions
+are [ADR-0014](../adr/0014-session-cookie-redis-login.md) and
+[ADR-0015](../adr/0015-endpoint-permission-rbac.md); the HTTP contract is
 [login operations](../api/login.md).
-
-Application policies must also protect non-HTTP callers. Participant and
-examination-detail flows check the principal, permission and resource scope.
-Organization/Batch writes currently take only an actor UUID; their reads and
-catalog reads lack equivalent principal-based checks. This is an implementation
-gap, not an exception to backend authorization policy.
 
 ## Audit and healthcare data
 

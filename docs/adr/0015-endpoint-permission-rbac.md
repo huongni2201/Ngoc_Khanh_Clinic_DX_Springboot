@@ -2,9 +2,8 @@
 
 ## Status
 
-Accepted — 2026-10-07. Establishes the RBAC mechanism of
-[ADR-0014](0014-session-cookie-redis-login.md). Remaining route/application gaps
-are recorded in [Open items](../architecture/07-open-items.md#endpoint-authorization).
+Accepted — 2026-10-07. Closes the RBAC go-live blocker of
+[ADR-0014](0014-session-cookie-redis-login.md).
 
 ## Context
 
@@ -19,24 +18,19 @@ actor may perform each action.
 ### Seed
 
 - Owner amendment — 2026-10-07: the fresh-database migrations are consolidated
-  into schema V001 and seed V002. `V002__seed_roles_and_permissions.sql`
+  into schema V001 and seed V002. `V002__seed_access_control_roles_and_permissions.sql`
   seeds the whole matrix:
   seven roles (`PATIENT`, `RECEPTIONIST`, `GENERAL_PRACTITIONER`,
   `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
   one permission per matrix row and one `role_permissions` row per non-"No" cell.
 - Permission codes are `<ENTITY>_<ACTION>`; patient-portal codes start with
   `OWN_` and are granted only to `PATIENT`.
-- The matrix's sign-in and password rows have no permission. Current login/logout
-  are public subject to Origin checks; `/auth/me` requires authentication. No
-  current password-change endpoint is inferred from the matrix.
+- The sign-in and password rows have no permission: every authenticated account
+  may use them, so their routes are `permitAll` or `authenticated`.
 - A "Restricted n" cell grants the permission. The use case enforces footnote n
   (scope, state) when it is implemented.
 - The seed creates no accounts. Matrix changes require a new migration; applied V002 is
   never edited.
-
-Owner amendment — 2026-10-08: retain V002 as the access-control seed, alongside
-one final schema initializer V001 and catalog seed V003. The former V004
-account-role trigger amendment is included directly in V001 for fresh databases.
 
 ### Participant permission amendment — 2026-10-07
 
@@ -49,13 +43,24 @@ not accepted.
 See [the manual Participant contract](../api/participant-manual-crud.md).
 
 Owner amendment — 2026-10-07: patient accounts receive only the `PATIENT` role;
-an active STAFF account is required as `granted_by`. V001 enforces this pairing
+an active STAFF account is required as `granted_by`. V004 enforces this pairing
 while continuing to reject patient accounts receiving staff roles.
 
 ### Enforcement
 
-- `EndpointPermissions` (accesscontrol infrastructure) is the single list of
-  rules: HTTP method, path pattern and permission code.
+- Each endpoint is stored with its permission: `permissions.http_method` and
+  `permissions.endpoint` hold the HTTP method and the controller route template,
+  such as `/api/v1/organizations/{organizationId}`. A permission protects at
+  most one endpoint, and `(http_method, endpoint)` is unique. No rule list exists
+  in code: `EndpointPermissions` reads the stored endpoints once at startup and
+  the most specific matching template decides; changing them needs a restart.
+- Endpoints that shared a permission received their own:
+  `HEALTH_EXAMINATION_BATCH_DETAIL_VIEW`, `PARTICIPANT_DETAIL_VIEW`,
+  `HEALTH_EXAMINATION_SERVICE_SUMMARY_READ`, `HEALTH_EXAMINATION_SERVICE_EXPORT`
+  and `HEALTH_EXAMINATION_REPORT_EXPORT`; `ORGANIZATION_DELETE`,
+  `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW` cover endpoints
+  that had none. All eight belong to `CLINIC_MANAGER` and must be added to the
+  SRS matrix.
 - A staff rule requires both `ACCOUNT_STAFF` and `PERM_<code>`, so a permission
   granted to another account type never opens a staff endpoint. Patient-portal
   routes will require `ACCOUNT_PATIENT` with `PERM_OWN_*`.
@@ -71,13 +76,11 @@ while continuing to reject patient accounts receiving staff roles.
 
 ## Consequences
 
-- Each new business endpoint must add a rule and authorization coverage; without
-  a rule a signed-in caller receives 403 under normal HTTP authorization.
-- Existing endpoints: organization view/create/update and health examination
-  batch view/create/update, Participant operations and examination detail/report
-  operations are granted to `CLINIC_MANAGER`. Organization/Batch DELETE and
-  catalog lookup still lack route rules; direct Organization/Batch/catalog
-  application callers also need permission enforcement.
+- Each new endpoint needs a stored permission with its method and route, or it
+  returns 403.
+- The 25 business endpoints are granted to `CLINIC_MANAGER`.
+- In the `local` profile only, the local seed grants every permission to
+  `ADMINISTRATOR` to ease manual testing.
 - The local/test mock batch actor is removed; batch creation uses the signed-in
   principal.
 - Permissions without endpoints are seeded but unused until their use cases ship.

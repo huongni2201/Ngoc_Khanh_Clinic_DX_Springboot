@@ -210,9 +210,13 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(114);
+        .isEqualTo(122);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(118);
+        .isEqualTo(126);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL", Integer.class))
+        .isEqualTo(25);
     assertThat(
             jdbc.queryForList(
                 """
