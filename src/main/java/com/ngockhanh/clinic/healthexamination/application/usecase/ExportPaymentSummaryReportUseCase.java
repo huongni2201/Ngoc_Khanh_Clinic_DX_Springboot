@@ -66,7 +66,7 @@ public class ExportPaymentSummaryReportUseCase {
   @Transactional(isolation = Isolation.REPEATABLE_READ)
   public PaymentReportDocumentResponse execute(
       UUID organizationId, UUID batchId, UserPrincipal principal) {
-    access.requireReportRead(principal);
+    access.requireReportExport(principal);
     if (organizationId == null || batchId == null)
       throw new IllegalArgumentException("Organization ID and batch ID are required");
     var organization =

@@ -12,16 +12,38 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExaminationDetailAccessPolicy {
   public static final String SERVICE_READ_PERMISSION = "HEALTH_EXAMINATION_SERVICE_READ";
+  public static final String SERVICE_SUMMARY_READ_PERMISSION =
+      "HEALTH_EXAMINATION_SERVICE_SUMMARY_READ";
+  public static final String SERVICE_EXPORT_PERMISSION = "HEALTH_EXAMINATION_SERVICE_EXPORT";
   public static final String SERVICE_RECONCILE_PERMISSION = "HEALTH_EXAMINATION_SERVICE_RECONCILE";
   public static final String REPORT_READ_PERMISSION = "HEALTH_EXAMINATION_REPORT_READ";
+  public static final String REPORT_EXPORT_PERMISSION = "HEALTH_EXAMINATION_REPORT_EXPORT";
 
   /**
-   * Requires permission to view the examination detail matrix and export it to Excel.
+   * Requires permission to view the examination detail matrix.
    *
    * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
    */
   public void requireServiceRead(UserPrincipal principal) {
     require(principal, SERVICE_READ_PERMISSION);
+  }
+
+  /**
+   * Requires permission to view the examination detail summary.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireServiceSummaryRead(UserPrincipal principal) {
+    require(principal, SERVICE_SUMMARY_READ_PERMISSION);
+  }
+
+  /**
+   * Requires permission to export the examination detail matrix to Excel.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireServiceExport(UserPrincipal principal) {
+    require(principal, SERVICE_EXPORT_PERMISSION);
   }
 
   /**
@@ -34,12 +56,21 @@ public class ExaminationDetailAccessPolicy {
   }
 
   /**
-   * Requires permission to view the payment report and export it to Word.
+   * Requires permission to view the payment report.
    *
    * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
    */
   public void requireReportRead(UserPrincipal principal) {
     require(principal, REPORT_READ_PERMISSION);
+  }
+
+  /**
+   * Requires permission to export the payment report to Word.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireReportExport(UserPrincipal principal) {
+    require(principal, REPORT_EXPORT_PERMISSION);
   }
 
   private static void require(UserPrincipal principal, String permission) {

@@ -16,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Reads one Participant in full, including the complete identification number, phone and email, for
- * the edit form. The caller must hold PARTICIPANT_VIEW. A cancelled Participant is returned too,
- * with its status. It takes no lock and does not depend on the batch status.
+ * the edit form. The caller must hold PARTICIPANT_DETAIL_VIEW. A cancelled Participant is returned
+ * too, with its status. It takes no lock and does not depend on the batch status.
  */
 @Slf4j
 @Service
@@ -43,7 +43,7 @@ public class GetParticipantDetailUseCase {
   @Transactional(readOnly = true)
   public ParticipantDetailResponse execute(
       UUID organizationId, UUID batchId, UUID participantId, UserPrincipal principal) {
-    access.requireRead(principal);
+    access.requireDetailRead(principal);
     if (organizationId == null || batchId == null || participantId == null)
       throw new IllegalArgumentException("Organization, batch and Participant IDs are required");
     var batch = support.batchForRead(organizationId, batchId);

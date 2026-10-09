@@ -22,6 +22,7 @@ class ParticipantAccessPolicyTest {
     var operations =
         List.of(
             new Operation("PARTICIPANT_VIEW", policy::requireRead),
+            new Operation("PARTICIPANT_DETAIL_VIEW", policy::requireDetailRead),
             new Operation("PARTICIPANT_TEMPLATE_DOWNLOAD", policy::requireTemplateDownload),
             new Operation("PARTICIPANT_IMPORT", policy::requireImport),
             new Operation("PARTICIPANT_CREATE", policy::requireCreate),

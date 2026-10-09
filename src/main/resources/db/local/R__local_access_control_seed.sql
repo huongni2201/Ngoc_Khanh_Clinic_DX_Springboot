@@ -90,3 +90,11 @@ JOIN public.accounts AS grantor ON grantor.username = 'administrator' AND granto
 WHERE account.username = 'patient' AND account.account_type = 'PATIENT' AND account.status = 'ACTIVE'
   AND patient.patient_code = 'LOCAL_ROLE_PATIENT'
 ON CONFLICT (account_id, role_id) DO NOTHING;
+
+-- Local only: the ADMINISTRATOR holds every permission to ease manual testing of all endpoints.
+INSERT INTO public.role_permissions (role_id, permission_id)
+SELECT role.id, permission.id
+FROM public.roles AS role
+CROSS JOIN public.permissions AS permission
+WHERE role.code = 'ADMINISTRATOR'
+ON CONFLICT (role_id, permission_id) DO NOTHING;

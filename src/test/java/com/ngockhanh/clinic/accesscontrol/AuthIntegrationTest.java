@@ -8,7 +8,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -69,6 +70,7 @@ class AuthIntegrationTest {
   @Autowired StringRedisTemplate redis;
   @Autowired SessionStore sessions;
   @Autowired ApplicationContext context;
+  @Autowired UserLoginMyBatisMapper permissions;
 
   UUID accountId;
   String username;
@@ -110,10 +112,12 @@ class AuthIntegrationTest {
         roleCode);
   }
 
-  /** Calls the endpoint of a permission rule, with an Origin and an empty body for writes. */
-  private ResultActions call(EndpointPermissions.Rule rule, Cookie session) throws Exception {
-    var call = request(rule.method(), rule.pattern().replace("*", UUID.randomUUID().toString()));
-    if (rule.method() != HttpMethod.GET)
+  /** Calls a stored endpoint with an Origin and an empty body for writes. */
+  private ResultActions call(PermissionRecord endpoint, Cookie session) throws Exception {
+    var method = HttpMethod.valueOf(endpoint.httpMethod());
+    var call =
+        request(method, endpoint.endpoint().replaceAll("\\{[^}]+}", UUID.randomUUID().toString()));
+    if (method != HttpMethod.GET)
       call.header("Origin", ORIGIN).contentType(MediaType.APPLICATION_JSON).content("{}");
     return mvc.perform(call.cookie(session));
   }
@@ -162,33 +166,35 @@ class AuthIntegrationTest {
 
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
+    var endpoints = permissions.findEndpointPermissions();
+    assertThat(endpoints).hasSize(25);
     Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
-      call(rule, withoutRole).andExpect(status().isForbidden());
+    for (PermissionRecord endpoint : endpoints) {
+      call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
     grantRole("CLINIC_MANAGER");
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
-      call(rule, withoutRole).andExpect(status().isForbidden());
+    for (PermissionRecord endpoint : endpoints) {
+      call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
     Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
-      int status = call(rule, manager).andReturn().getResponse().getStatus();
-      assertThat(status).as(rule.toString()).isNotIn(401, 403);
+    for (PermissionRecord endpoint : endpoints) {
+      int status = call(endpoint, manager).andReturn().getResponse().getStatus();
+      assertThat(status).as(endpoint.httpMethod() + " " + endpoint.endpoint()).isNotIn(401, 403);
     }
   }
 
   @Test
   void everyEndpointPermissionIsSeededForTheClinicManager() {
-    for (EndpointPermissions.Rule rule : EndpointPermissions.RULES) {
+    for (PermissionRecord endpoint : permissions.findEndpointPermissions()) {
       assertThat(
               jdbc.queryForList(
                   "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
                       + " JOIN permissions p ON p.id = rp.permission_id WHERE p.code = ?",
                   String.class,
-                  rule.permission()))
-          .as(rule.permission())
+                  endpoint.code()))
+          .as(endpoint.code())
           .contains("CLINIC_MANAGER");
     }
   }

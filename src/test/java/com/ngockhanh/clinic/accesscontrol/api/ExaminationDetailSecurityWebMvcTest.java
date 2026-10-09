@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.accesscontrol.api;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -11,6 +12,8 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessio
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LoginUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.LogoutUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import jakarta.servlet.http.Cookie;
 import java.time.Instant;
@@ -19,7 +22,9 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -30,8 +35,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Security chain of the six examination detail and report routes: each needs a staff session
- * holding exactly its own permission, and the permissions of the Participant roster, of another
+ * Security chain of the six examination detail and report routes, with their permissions as
+ * stored in {@code public.permissions}: each needs a staff session holding exactly its own
+ * permission, and the permissions of the Participant roster, of another
  * detail route or of a patient account never open a route. The routes are served by a stub
  * controller so that only the filter chain is exercised.
  */
@@ -41,7 +47,8 @@ import org.springframework.web.bind.annotation.RestController;
 @Import({
   SecurityConfiguration.class,
   ClockConfiguration.class,
-  ExaminationDetailSecurityWebMvcTest.StubEndpoints.class
+  ExaminationDetailSecurityWebMvcTest.StubEndpoints.class,
+  ExaminationDetailSecurityWebMvcTest.StoredEndpointPermissions.class
 })
 @TestPropertySource(
     properties = {"clinic.auth.cookie-secure=true", "clinic.auth.allowed-origins=https://app.test"})
@@ -49,8 +56,11 @@ class ExaminationDetailSecurityWebMvcTest {
   private static final String COOKIE = "__Host-NKC_SESSION";
   private static final String ORIGIN = "https://app.test";
   private static final String SERVICE_READ = "HEALTH_EXAMINATION_SERVICE_READ";
+  private static final String SERVICE_SUMMARY_READ = "HEALTH_EXAMINATION_SERVICE_SUMMARY_READ";
+  private static final String SERVICE_EXPORT = "HEALTH_EXAMINATION_SERVICE_EXPORT";
   private static final String SERVICE_RECONCILE = "HEALTH_EXAMINATION_SERVICE_RECONCILE";
   private static final String REPORT_READ = "HEALTH_EXAMINATION_REPORT_READ";
+  private static final String REPORT_EXPORT = "HEALTH_EXAMINATION_REPORT_EXPORT";
   private static final String PARTICIPANT_MANAGE = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
   private static final String BATCH =
       "/api/v1/organizations/"
@@ -94,11 +104,31 @@ class ExaminationDetailSecurityWebMvcTest {
   private static final List<Route> ROUTES =
       List.of(
           new Route("list", false, "/examination-details", SERVICE_READ),
-          new Route("summary", false, "/examination-details/summary", SERVICE_READ),
-          new Route("export", false, "/examination-details/export", SERVICE_READ),
+          new Route("summary", false, "/examination-details/summary", SERVICE_SUMMARY_READ),
+          new Route("export", false, "/examination-details/export", SERVICE_EXPORT),
           new Route("import", true, "/examination-details/imports", SERVICE_RECONCILE),
           new Route("report", false, "/reports/payment-summary", REPORT_READ),
-          new Route("docx", false, "/reports/payment-summary/docx", REPORT_READ));
+          new Route("docx", false, "/reports/payment-summary/docx", REPORT_EXPORT));
+
+  @TestConfiguration
+  static class StoredEndpointPermissions {
+    @Bean
+    UserLoginMyBatisMapper endpointPermissionMapper() {
+      var mapper = mock(UserLoginMyBatisMapper.class);
+      when(mapper.findEndpointPermissions())
+          .thenReturn(
+              ROUTES.stream()
+                  .map(
+                      route ->
+                          PermissionRecord.builder()
+                              .code(route.permission())
+                              .httpMethod(route.isPost() ? "POST" : "GET")
+                              .endpoint(StubEndpoints.BASE + route.path())
+                              .build())
+                  .toList());
+      return mapper;
+    }
+  }
 
   private static UserPrincipal principal(String type, List<String> permissions) {
     return UserPrincipal.builder()
@@ -165,7 +195,7 @@ class ExaminationDetailSecurityWebMvcTest {
   @Test
   void aPatientAccountIsForbiddenEvenWithEveryDetailPermission() throws Exception {
     when(authenticate.execute("patient"))
-        .thenReturn(principal("PATIENT", List.of(SERVICE_READ, SERVICE_RECONCILE, REPORT_READ)));
+        .thenReturn(principal("PATIENT", ROUTES.stream().map(Route::permission).toList()));
     for (Route route : ROUTES)
       org.assertj.core.api.Assertions.assertThat(statusOf(route, "patient"))
           .as(route.name())

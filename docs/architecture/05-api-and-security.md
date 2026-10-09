@@ -20,9 +20,9 @@ Use explicit expected versions on mutable configuration updates. A stale update 
 
 The `accesscontrol` module authenticates with an opaque session cookie whose ID
 maps to a server-side JSON session snapshot in Redis (no JWT). Each business
-route has one rule in `EndpointPermissions` requiring a STAFF account and a
-permission of the SRS Permission Matrix, seeded by V004; routes without a rule
-are denied. Rate limiting and revocation are not yet implemented and block
+endpoint is stored in `public.permissions` (`http_method`, `endpoint`) with the
+permission a STAFF account needs to call it, seeded by V002 and read at startup;
+endpoints without a stored permission are denied. Rate limiting and revocation are not yet implemented and block
 go-live. Credentials and session IDs are never returned or logged. The decisions
 are [ADR-0014](../adr/0014-session-cookie-redis-login.md) and
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md); the HTTP contract is

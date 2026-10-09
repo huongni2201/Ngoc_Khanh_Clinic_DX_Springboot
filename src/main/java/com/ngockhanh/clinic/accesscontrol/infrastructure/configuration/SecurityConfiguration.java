@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.accesscontrol.infrastructure.configuration;
 import com.ngockhanh.clinic.accesscontrol.api.http.SessionCookieFactory;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SessionPolicy;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.EndpointPermissions;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.JsonSecurityErrorHandler;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.OriginCheckFilter;
@@ -21,13 +22,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
  * HTTP security: stateless session-cookie authentication, CORS and Origin checks for
- * state-changing requests (ADR-0014) and per-endpoint permissions (ADR-0015). Business endpoints
- * without a rule in {@link EndpointPermissions} are denied.
+ * state-changing requests (ADR-0014) and per-endpoint permissions read from {@code
+ * public.permissions} at startup (ADR-0015). Business endpoints without a stored permission are
+ * denied.
  */
 @Configuration
 @EnableWebSecurity
@@ -39,16 +42,9 @@ public class SecurityConfiguration {
       HttpSecurity http,
       AccessControlProperties properties,
       AuthenticateSessionUseCase authenticateSession,
-      JsonSecurityErrorHandler errors) {
-    var corsConfiguration = new CorsConfiguration();
-    corsConfiguration.setAllowedOrigins(properties.allowedOrigins());
-    corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
-    corsConfiguration.setAllowedHeaders(List.of("Accept", "Content-Type", "Idempotency-Key"));
-    corsConfiguration.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
-    corsConfiguration.setAllowCredentials(true);
-    var corsConfigurationSource = new UrlBasedCorsConfigurationSource();
-    corsConfigurationSource.registerCorsConfiguration("/api/**", corsConfiguration);
-
+      JsonSecurityErrorHandler errors,
+      EndpointPermissions endpointPermissions,
+      CorsConfigurationSource corsConfigurationSource) {
     var originCheck = new OriginCheckFilter(properties.allowedOrigins(), errors);
     var sessionAuthentication =
         new SessionCookieAuthenticationFilter(authenticateSession, properties.cookieName(), errors);
@@ -59,24 +55,47 @@ public class SecurityConfiguration {
         .logout(logout -> logout.disable())
         .requestCache(cache -> cache.disable())
         .sessionManagement(
-            session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(
-            exceptions -> exceptions.authenticationEntryPoint(errors).accessDeniedHandler(errors))
+            exceptions -> exceptions
+                .authenticationEntryPoint(errors)
+                .accessDeniedHandler(errors))
         .addFilterBefore(originCheck, AnonymousAuthenticationFilter.class)
         .addFilterBefore(sessionAuthentication, AnonymousAuthenticationFilter.class)
         .authorizeHttpRequests(
-            requests -> {
-              requests
-                  .dispatcherTypeMatchers(DispatcherType.ERROR)
-                  .permitAll()
-                  .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
-                  .permitAll()
-                  .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
-                  .authenticated();
-              EndpointPermissions.apply(requests);
-              requests.anyRequest().denyAll();
-            });
+            requests ->
+                requests
+                    .dispatcherTypeMatchers(DispatcherType.ERROR)
+                    .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/auth/me")
+                    .authenticated()
+                    .requestMatchers("/api/v1/**")
+                    .access(endpointPermissions)
+                    .anyRequest()
+                    .denyAll());
     return http.build();
+  }
+
+  /** Endpoint permissions stored in {@code public.permissions}, read once at startup. */
+  @Bean
+  EndpointPermissions endpointPermissions(UserLoginMyBatisMapper permissions) {
+    return new EndpointPermissions(permissions.findEndpointPermissions());
+  }
+
+  @Bean
+  CorsConfigurationSource corsConfigurationSource(AccessControlProperties properties) {
+    var corsConfiguration = new CorsConfiguration();
+    corsConfiguration.setAllowedOrigins(properties.allowedOrigins());
+    corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
+    corsConfiguration.setAllowedHeaders(List.of("Accept", "Content-Type", "Idempotency-Key"));
+    corsConfiguration.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
+    corsConfiguration.setAllowCredentials(true);
+    var corsConfigurationSource = new UrlBasedCorsConfigurationSource();
+    corsConfigurationSource.registerCorsConfiguration("/api/**", corsConfiguration);
+    return corsConfigurationSource;
   }
 
   @Bean

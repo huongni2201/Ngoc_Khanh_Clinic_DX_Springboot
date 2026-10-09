@@ -10,6 +10,7 @@ import java.util.UUID;
 /** Synthetic principals, rows and summaries for the Participant roster tests. */
 public final class ParticipantFixtures {
   public static final String READ = "PARTICIPANT_VIEW";
+  public static final String DETAIL_READ = "PARTICIPANT_DETAIL_VIEW";
   public static final String TEMPLATE_DOWNLOAD = "PARTICIPANT_TEMPLATE_DOWNLOAD";
   public static final String IMPORT = "PARTICIPANT_IMPORT";
   public static final String CREATE = "PARTICIPANT_CREATE";

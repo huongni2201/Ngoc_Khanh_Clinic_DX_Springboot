@@ -190,8 +190,11 @@ class ExaminationDetailIntegrationTest {
                         "CLINIC_MANAGER",
                         List.of(
                             ExaminationDetailAccessPolicy.SERVICE_READ_PERMISSION,
+                            ExaminationDetailAccessPolicy.SERVICE_SUMMARY_READ_PERMISSION,
+                            ExaminationDetailAccessPolicy.SERVICE_EXPORT_PERMISSION,
                             ExaminationDetailAccessPolicy.SERVICE_RECONCILE_PERMISSION,
-                            ExaminationDetailAccessPolicy.REPORT_READ_PERMISSION))))
+                            ExaminationDetailAccessPolicy.REPORT_READ_PERMISSION,
+                            ExaminationDetailAccessPolicy.REPORT_EXPORT_PERMISSION))))
             .build();
 
     BatchDetailResponse batch =
