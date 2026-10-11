@@ -94,9 +94,7 @@ public class UpdateHealthExaminationBatchUseCase {
     var configuration = command.configuration();
     var site =
         new ExaminationSite(
-            siteType(configuration.examinationSiteType()),
-            configuration.examinationSiteName(),
-            configuration.examinationSiteAddress());
+            siteType(configuration.examinationSiteType()), configuration.examinationSiteAddress());
     var days = days(configuration.examinationDates(), batch.days());
     var services = services(batch.id(), configuration.services(), batch.services());
     rejectReferencedRemovals(batchId, batch.days(), batch.services(), days, services);

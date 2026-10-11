@@ -34,6 +34,7 @@ import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDet
 import com.ngockhanh.clinic.healthexamination.application.service.PaymentSummaryReportAssembler;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
@@ -509,7 +510,7 @@ class ExaminationDetailUseCasesTest {
     assertThat(document.getValue().report()).isEqualTo(report);
     assertThat(document.getValue().organizationName()).isEqualTo("Clinic Partner");
     assertThat(document.getValue().startDate()).isEqualTo(FIRST_DAY);
-    assertThat(document.getValue().siteName()).isEqualTo("Clinic");
+    assertThat(document.getValue().siteType()).isEqualTo(ExaminationSiteType.CLINIC);
     verify(audit)
         .record(
             eq(principal.userId()),

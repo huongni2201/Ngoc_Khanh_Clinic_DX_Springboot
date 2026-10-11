@@ -17,7 +17,6 @@ import lombok.Builder;
  * @param batchName batch display name
  * @param examinationDates examination dates, without duplicates
  * @param examinationSiteType {@code CLINIC} or {@code ORGANIZATION_SITE}
- * @param examinationSiteName site name
  * @param examinationSiteAddress site address
  * @param services catalog services with their negotiated price; list order is the display order
  */
@@ -26,7 +25,6 @@ public record BatchConfiguration(
     String batchName,
     List<LocalDate> examinationDates,
     String examinationSiteType,
-    String examinationSiteName,
     String examinationSiteAddress,
     List<ServicePrice> services) {
   public BatchConfiguration {

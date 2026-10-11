@@ -94,10 +94,20 @@ class PersistenceRecordContractTest {
   @Test
   void allTablesHaveOneRecordWithTheirActualSqlColumnOrderAndTypes() throws Exception {
     String sql =
-        Files.readString(
-            Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
+        Files.readString(Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables = new HashMap<String, String>();
     TABLE.matcher(sql).results().forEach(match -> tables.put(match.group(1), match.group(2)));
+    String forwardMigration =
+        Files.readString(
+            Path.of("src/main/resources/db/migration/V008__drop_health_exam_batch_site_name.sql"));
+    Pattern.compile("ALTER TABLE public\\.([a-z_]+) DROP COLUMN ([a-z_]+);")
+        .matcher(forwardMigration)
+        .results()
+        .forEach(
+            drop ->
+                tables.compute(
+                    drop.group(1),
+                    (table, body) -> body.replaceAll("(?m)^    " + drop.group(2) + " .*\\R", "")));
     assertThat(tables).hasSize(64);
     var mapped = new HashSet<String>();
     var expectedPaths = new HashSet<Path>();

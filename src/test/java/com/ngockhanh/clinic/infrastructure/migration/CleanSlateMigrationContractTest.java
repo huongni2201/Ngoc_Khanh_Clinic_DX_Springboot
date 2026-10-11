@@ -11,8 +11,7 @@ class CleanSlateMigrationContractTest {
   @Test
   void runtimeSqlReferencesOnlyTablesInTheFreshBaseline() throws Exception {
     String sql =
-        Files.readString(
-            Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
+        Files.readString(Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables =
         Pattern.compile("(?m)^\\h*CREATE TABLE public\\.([a-z_]+)")
             .matcher(sql)
@@ -48,7 +47,8 @@ class CleanSlateMigrationContractTest {
           .containsExactlyInAnyOrder(
               "V001__create_schema.sql",
               "V002__seed_roles_and_permissions.sql",
-              "V003__seed_paraclinical_service_catalog.sql")
+              "V003__seed_paraclinical_service_catalog.sql",
+              "V008__drop_health_exam_batch_site_name.sql")
           .allMatch(name -> name.matches("V\\d{3}__[a-z_]+\\.sql"));
     }
     String sql = Files.readString(directory.resolve("V001__create_schema.sql"));
@@ -98,8 +98,7 @@ class CleanSlateMigrationContractTest {
   void schemaAndSeedMigrationsKeepSeparateResponsibilities() throws Exception {
     Path directory = Path.of("src/main/resources/db/migration");
     String schema = Files.readString(directory.resolve("V001__create_schema.sql"));
-    String seed =
-        Files.readString(directory.resolve("V002__seed_roles_and_permissions.sql"));
+    String seed = Files.readString(directory.resolve("V002__seed_roles_and_permissions.sql"));
     String catalog =
         Files.readString(directory.resolve("V003__seed_paraclinical_service_catalog.sql"));
     assertThat(schema).doesNotContain("INSERT INTO");

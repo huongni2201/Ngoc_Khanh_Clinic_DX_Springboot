@@ -11,7 +11,6 @@ public record HealthExaminationBatchRecord(
     String batchCode,
     String name,
     String examinationSiteType,
-    String examinationSiteName,
     String examinationSiteAddress,
     String status,
     UUID createdBy,

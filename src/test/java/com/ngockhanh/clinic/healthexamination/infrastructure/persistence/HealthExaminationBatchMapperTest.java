@@ -96,7 +96,6 @@ class HealthExaminationBatchMapperTest {
     batch.put("batchCode", "B1");
     batch.put("name", "N");
     batch.put("examinationSiteType", "CLINIC");
-    batch.put("examinationSiteName", "S");
     batch.put("examinationSiteAddress", "A");
     var update = new HashMap<String, Object>();
     update.put("batch", batch);

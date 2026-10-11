@@ -41,7 +41,6 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
                         r.name(),
                         new ExaminationSite(
                             ExaminationSiteType.valueOf(r.examinationSiteType()),
-                            r.examinationSiteName(),
                             r.examinationSiteAddress()),
                         days(id),
                         mapper.findServices(id).stream()
@@ -117,7 +116,6 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
         .batchCode(b.code())
         .name(b.name())
         .examinationSiteType(b.site().type().name())
-        .examinationSiteName(b.site().name())
         .examinationSiteAddress(b.site().address())
         .status(b.status().name())
         .createdBy(actor)

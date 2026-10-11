@@ -208,7 +208,6 @@ class ExaminationDetailIntegrationTest {
                         .batchName("Campaign")
                         .examinationDates(List.of(D4, D8))
                         .examinationSiteType("ORGANIZATION_SITE")
-                        .examinationSiteName("Site")
                         .examinationSiteAddress("Address")
                         .services(
                             List.of(

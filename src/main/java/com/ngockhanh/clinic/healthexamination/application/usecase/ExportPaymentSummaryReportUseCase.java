@@ -100,7 +100,7 @@ public class ExportPaymentSummaryReportUseCase {
                 organization.address(),
                 batch.startDate(),
                 batch.endDate(),
-                batch.site().name(),
+                batch.site().type(),
                 batch.site().address()));
     audit.record(
         principal.userId(),
@@ -109,10 +109,14 @@ public class ExportPaymentSummaryReportUseCase {
         batchId,
         null,
         Map.of(
-            "organizationId", organizationId,
-            "batchId", batchId,
-            "provisional", report.provisional(),
-            "totalAmount", report.totalAmount().toPlainString()));
+            "organizationId",
+            organizationId,
+            "batchId",
+            batchId,
+            "provisional",
+            report.provisional(),
+            "totalAmount",
+            report.totalAmount().toPlainString()));
     log.debug(
         "Payment summary exported: organizationId={}, batchId={}, items={}",
         organizationId,

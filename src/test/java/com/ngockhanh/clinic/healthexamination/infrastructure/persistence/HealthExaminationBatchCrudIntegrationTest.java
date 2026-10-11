@@ -159,7 +159,6 @@ class HealthExaminationBatchCrudIntegrationTest {
         .batchName("Campaign%_")
         .examinationDates(dates)
         .examinationSiteType("ORGANIZATION_SITE")
-        .examinationSiteName("Site")
         .examinationSiteAddress("Address")
         .services(
             Arrays.stream(services)
@@ -255,7 +254,9 @@ class HealthExaminationBatchCrudIntegrationTest {
     var pastTheEnd = list.execute(org, listQuery(3, 1, null));
 
     assertThat(firstPage.totalElements()).isEqualTo(2);
-    assertThat(firstPage.items()).extracting(item -> item.batchCode()).containsExactly("KSK-2026-001");
+    assertThat(firstPage.items())
+        .extracting(item -> item.batchCode())
+        .containsExactly("KSK-2026-001");
     assertThat(firstPage.items().getFirst().rowVersion()).isZero();
     assertThat(secondPage.items())
         .extracting(item -> item.batchCode())
@@ -675,7 +676,7 @@ class HealthExaminationBatchCrudIntegrationTest {
 
   private void insertBatchRow(String code) {
     jdbc.update(
-        "INSERT INTO public.health_examination_batches(organization_id,batch_code,name,examination_site_type,examination_site_name,examination_site_address,status,created_by) VALUES (?,?,'Existing','CLINIC','Site','Address','DRAFT',?)",
+        "INSERT INTO public.health_examination_batches(organization_id,batch_code,name,examination_site_type,examination_site_address,status,created_by) VALUES (?,?,'Existing','CLINIC','','DRAFT',?)",
         org,
         code,
         actor);

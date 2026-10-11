@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.word;
 import com.ngockhanh.clinic.healthexamination.application.port.out.PaymentReportDocumentWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.PaymentReportDocument;
 import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummaryReportResponse;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -74,7 +75,8 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
       textRun(paragraph(doc, ParagraphAlignment.LEFT, 120, 0), CALCULATION_NOTE, false, true);
       writeSignatures(doc, report);
       doc.getProperties().getCoreProperties().setTitle(TITLE);
-      if (!clinic.name().isEmpty()) doc.getProperties().getCoreProperties().setCreator(clinic.name());
+      if (!clinic.name().isEmpty())
+        doc.getProperties().getCoreProperties().setCreator(clinic.name());
       doc.write(out);
       return out.toByteArray();
     } catch (IOException e) {
@@ -103,11 +105,20 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
     if (!clinic.address().isEmpty())
       textRun(cellParagraph(left, ParagraphAlignment.CENTER), clinic.address(), false, false);
     if (!clinic.phone().isEmpty())
-      textRun(cellParagraph(left, ParagraphAlignment.CENTER), "Điện thoại: " + clinic.phone(), false, false);
+      textRun(
+          cellParagraph(left, ParagraphAlignment.CENTER),
+          "Điện thoại: " + clinic.phone(),
+          false,
+          false);
     XWPFTableCell right = row.getCell(1);
     first(right, ParagraphAlignment.CENTER);
     textRun(right.getParagraphs().get(0), "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", true, false, 11);
-    textRun(cellParagraph(right, ParagraphAlignment.CENTER), "Độc lập – Tự do – Hạnh phúc", true, false, 12);
+    textRun(
+        cellParagraph(right, ParagraphAlignment.CENTER),
+        "Độc lập – Tự do – Hạnh phúc",
+        true,
+        false,
+        12);
   }
 
   private void writeTitle(XWPFDocument doc, PaymentSummaryReportResponse report) {
@@ -126,7 +137,7 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
       labelled(doc, "Địa chỉ: ", document.organizationAddress());
     labelled(doc, "Đợt khám: ", report.batchName() + " (" + report.batchCode() + ")");
     labelled(doc, "Thời gian: ", period(document.startDate(), document.endDate()));
-    labelled(doc, "Địa điểm: ", place(document.siteName(), document.siteAddress()));
+    labelled(doc, "Địa điểm: ", place(document.siteType(), document.siteAddress()));
     labelled(
         doc,
         "Số người: ",
@@ -152,10 +163,25 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
     int number = 1;
     for (PaymentSummaryReportResponse.Item item : items) {
       XWPFTableRow row = table.getRow(number);
-      cell(row.getCell(0), ITEM_COLUMNS[0], String.valueOf(number), ParagraphAlignment.CENTER, false);
+      cell(
+          row.getCell(0),
+          ITEM_COLUMNS[0],
+          String.valueOf(number),
+          ParagraphAlignment.CENTER,
+          false);
       cell(row.getCell(1), ITEM_COLUMNS[1], serviceName(item), ParagraphAlignment.LEFT, false);
-      cell(row.getCell(2), ITEM_COLUMNS[2], count(item.examinedCount()), ParagraphAlignment.RIGHT, false);
-      cell(row.getCell(3), ITEM_COLUMNS[3], money(item.unitPrice()), ParagraphAlignment.RIGHT, false);
+      cell(
+          row.getCell(2),
+          ITEM_COLUMNS[2],
+          count(item.examinedCount()),
+          ParagraphAlignment.RIGHT,
+          false);
+      cell(
+          row.getCell(3),
+          ITEM_COLUMNS[3],
+          money(item.unitPrice()),
+          ParagraphAlignment.RIGHT,
+          false);
       cell(row.getCell(4), ITEM_COLUMNS[4], money(item.amount()), ParagraphAlignment.RIGHT, false);
       number++;
     }
@@ -164,7 +190,12 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
     cell(total.getCell(1), ITEM_COLUMNS[1], "Tổng cộng", ParagraphAlignment.LEFT, true);
     cell(total.getCell(2), ITEM_COLUMNS[2], "", ParagraphAlignment.RIGHT, true);
     cell(total.getCell(3), ITEM_COLUMNS[3], "", ParagraphAlignment.RIGHT, true);
-    cell(total.getCell(4), ITEM_COLUMNS[4], money(report.totalAmount()), ParagraphAlignment.RIGHT, true);
+    cell(
+        total.getCell(4),
+        ITEM_COLUMNS[4],
+        money(report.totalAmount()),
+        ParagraphAlignment.RIGHT,
+        true);
   }
 
   private void writeTotalInWords(XWPFDocument doc, PaymentSummaryReportResponse report) {
@@ -244,7 +275,8 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
     textRun(paragraph, text, bold, false);
   }
 
-  private static XWPFRun textRun(XWPFParagraph paragraph, String text, boolean bold, boolean italic) {
+  private static XWPFRun textRun(
+      XWPFParagraph paragraph, String text, boolean bold, boolean italic) {
     return textRun(paragraph, text, bold, italic, BODY_SIZE);
   }
 
@@ -271,9 +303,8 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
     return start.format(DATE) + " – " + end.format(DATE);
   }
 
-  private static String place(String name, String address) {
-    if (!notBlank(address)) return name == null ? "" : name;
-    return notBlank(name) ? name + ", " + address : address;
+  private static String place(ExaminationSiteType type, String address) {
+    return type == ExaminationSiteType.CLINIC ? "Tại phòng khám" : address;
   }
 
   private static boolean notBlank(String value) {

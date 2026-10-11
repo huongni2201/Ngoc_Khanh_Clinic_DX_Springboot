@@ -84,9 +84,7 @@ public class CreateHealthExaminationBatchUseCase {
     var configuration = command.configuration();
     var site =
         new ExaminationSite(
-            siteType(configuration.examinationSiteType()),
-            configuration.examinationSiteName(),
-            configuration.examinationSiteAddress());
+            siteType(configuration.examinationSiteType()), configuration.examinationSiteAddress());
     var days = days(configuration.examinationDates());
     var services = services(batchId, configuration.services());
     var batch =

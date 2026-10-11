@@ -58,7 +58,6 @@ public final class BatchFixtures {
         .batchName("Campaign")
         .examinationDates(List.of(FIRST_DAY))
         .examinationSiteType("CLINIC")
-        .examinationSiteName("Clinic")
         .examinationSiteAddress("Address")
         .services(prices)
         .build();
@@ -100,7 +99,7 @@ public final class BatchFixtures {
         new AggregateId(organizationId),
         "B1",
         "Campaign",
-        new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", "Address"),
+        new ExaminationSite(ExaminationSiteType.CLINIC, "Address"),
         List.of(
             new HealthExaminationBatchDay(UUID.randomUUID(), FIRST_DAY),
             new HealthExaminationBatchDay(UUID.randomUUID(), SECOND_DAY)),

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ngockhanh.clinic.healthexamination.application.query.PaymentReportDocument;
 import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummaryReportResponse;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -25,8 +26,7 @@ class PoiPaymentReportDocxWriterTest {
       new PoiPaymentReportDocxWriter(
           new ReportClinicProperties("Phòng khám Test", "1 Đường Thử", "0123 456 789", "Hà Nội"));
 
-  private static PaymentSummaryReportResponse.Item item(
-      String name, String price, long count) {
+  private static PaymentSummaryReportResponse.Item item(String name, String price, long count) {
     BigDecimal unit = new BigDecimal(price);
     return PaymentSummaryReportResponse.Item.builder()
         .batchServiceId(UUID.randomUUID())
@@ -65,7 +65,7 @@ class PoiPaymentReportDocxWriterTest {
         "9 Phố Mẫu",
         LocalDate.of(2026, 10, 4),
         LocalDate.of(2026, 10, 5),
-        "Phòng khám",
+        ExaminationSiteType.ORGANIZATION_SITE,
         "2 Đường Khám");
   }
 
@@ -74,8 +74,7 @@ class PoiPaymentReportDocxWriterTest {
     doc.getParagraphs().forEach(p -> out.add(p.getText()));
     for (XWPFTable table : doc.getTables())
       for (XWPFTableRow row : table.getRows())
-        row.getTableCells()
-            .forEach(c -> c.getParagraphs().forEach(p -> out.add(p.getText())));
+        row.getTableCells().forEach(c -> c.getParagraphs().forEach(p -> out.add(p.getText())));
     return out;
   }
 
@@ -103,7 +102,7 @@ class PoiPaymentReportDocxWriterTest {
               "Mã số thuế: 0101234567",
               "Đợt khám: Khám định kỳ 2026 (DK-01)",
               "Thời gian: 04/10/2026 – 05/10/2026",
-              "Địa điểm: Phòng khám, 2 Đường Khám",
+              "Địa điểm: 2 Đường Khám",
               "Số người: đăng ký 120 – đã khám 100 – đã đối soát 90",
               "Khám nội",
               "Xét nghiệm máu",
@@ -184,7 +183,14 @@ class PoiPaymentReportDocxWriterTest {
             .build();
     var document =
         new PaymentReportDocument(
-            report, "Công ty ABC", null, null, LocalDate.of(2026, 10, 4), null, "Phòng khám", null);
+            report,
+            "Công ty ABC",
+            null,
+            null,
+            LocalDate.of(2026, 10, 4),
+            null,
+            ExaminationSiteType.CLINIC,
+            null);
 
     try (XWPFDocument doc = reopen(bare.write(document))) {
       List<String> text = texts(doc);
@@ -197,8 +203,10 @@ class PoiPaymentReportDocxWriterTest {
 
   @Test
   void formatsMoneyWithVietnameseSeparators() {
-    assertThat(PoiPaymentReportDocxWriter.money(new BigDecimal("1005000.00"))).isEqualTo("1.005.000");
-    assertThat(PoiPaymentReportDocxWriter.money(new BigDecimal("1005000.5"))).isEqualTo("1.005.000,50");
+    assertThat(PoiPaymentReportDocxWriter.money(new BigDecimal("1005000.00")))
+        .isEqualTo("1.005.000");
+    assertThat(PoiPaymentReportDocxWriter.money(new BigDecimal("1005000.5")))
+        .isEqualTo("1.005.000,50");
     assertThat(PoiPaymentReportDocxWriter.money(BigDecimal.ZERO)).isEqualTo("0");
   }
 }

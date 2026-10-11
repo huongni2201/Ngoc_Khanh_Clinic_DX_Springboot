@@ -17,7 +17,7 @@ class HealthExaminationBatchCrudTest {
   }
 
   private final ExaminationSite site =
-      new ExaminationSite(ExaminationSiteType.ORGANIZATION_SITE, "Site", "Address");
+      new ExaminationSite(ExaminationSiteType.ORGANIZATION_SITE, "Address");
 
   @Test
   void requiresAtLeastOneDistinctDayAndDerivesDateRange() {
@@ -116,7 +116,7 @@ class HealthExaminationBatchCrudTest {
   void updateDraftReplacesTheWholeConfigurationAndRederivesTheDateRange() {
     var b = draft();
     var batchId = b.id();
-    var newSite = new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", "Other");
+    var newSite = new ExaminationSite(ExaminationSiteType.CLINIC, "Other");
     var later = new HealthExaminationBatchDay(UUID.randomUUID(), LocalDate.of(2026, 11, 2));
     var earlier = new HealthExaminationBatchDay(UUID.randomUUID(), LocalDate.of(2026, 11, 1));
     var service =

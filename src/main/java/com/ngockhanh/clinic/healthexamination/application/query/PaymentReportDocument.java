@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.query;
 
 import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummaryReportResponse;
+import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import java.time.LocalDate;
 
 /**
@@ -16,5 +17,5 @@ public record PaymentReportDocument(
     String organizationAddress,
     LocalDate startDate,
     LocalDate endDate,
-    String siteName,
+    ExaminationSiteType siteType,
     String siteAddress) {}

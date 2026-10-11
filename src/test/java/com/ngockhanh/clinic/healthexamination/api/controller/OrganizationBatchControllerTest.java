@@ -104,7 +104,7 @@ class OrganizationBatchControllerTest {
   private String body(String extra) {
     return """
         {"batchName":"Campaign","examinationSiteType":"CLINIC",
-         "examinationSiteName":"Clinic","examinationSiteAddress":"Address",
+         "examinationSiteAddress":"Address",
          "examinationDates":["2026-10-04","2026-10-05"],
          "services":[{"serviceId":"%s","negotiatedPrice":12.34}]%s}
         """

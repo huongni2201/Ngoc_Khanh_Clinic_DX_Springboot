@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.healthexamination.api.request;
 
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -22,9 +23,14 @@ public record CreateHealthExaminationBatchRequest(
     @NotBlank @Size(max = 300) String batchName,
     @NotEmpty List<@NotNull LocalDate> examinationDates,
     @NotNull @Pattern(regexp = "CLINIC|ORGANIZATION_SITE") String examinationSiteType,
-    @NotBlank String examinationSiteName,
-    @NotBlank String examinationSiteAddress,
+    String examinationSiteAddress,
     @NotEmpty List<@NotNull @Valid ServicePriceRequest> services) {
+
+  @AssertTrue(message = "Examination site address is required for an organization site")
+  public boolean isSiteAddressValid() {
+    return !"ORGANIZATION_SITE".equals(examinationSiteType)
+        || (examinationSiteAddress != null && !examinationSiteAddress.isBlank());
+  }
 
   /** Maps the transport body to the application configuration input. */
   public BatchConfiguration toConfiguration() {
@@ -32,7 +38,6 @@ public record CreateHealthExaminationBatchRequest(
         .batchName(batchName)
         .examinationDates(examinationDates)
         .examinationSiteType(examinationSiteType)
-        .examinationSiteName(examinationSiteName)
         .examinationSiteAddress(examinationSiteAddress)
         .services(services.stream().map(ServicePriceRequest::toServicePrice).toList())
         .build();

@@ -255,7 +255,6 @@ class BatchConfigurationUseCaseTest {
             .batchName("Renamed")
             .examinationDates(List.of(SECOND_DAY, LocalDate.of(2026, 10, 6)))
             .examinationSiteType("ORGANIZATION_SITE")
-            .examinationSiteName("Site")
             .examinationSiteAddress("Elsewhere")
             .services(List.of(price(added, "70"), price(kept, "50")))
             .build();

@@ -17,7 +17,6 @@ public record BatchDetailResponse(
     LocalDate startDate,
     LocalDate endDate,
     String examinationSiteType,
-    String examinationSiteName,
     String examinationSiteAddress,
     String status,
     UUID createdBy,
@@ -66,7 +65,6 @@ public record BatchDetailResponse(
         .startDate(b.startDate())
         .endDate(b.endDate())
         .examinationSiteType(b.site().type().name())
-        .examinationSiteName(b.site().name())
         .examinationSiteAddress(b.site().address())
         .status(b.status().name())
         .createdBy(d.createdBy())
@@ -105,7 +103,6 @@ public record BatchDetailResponse(
       String batchName,
       List<DayResponse> days,
       String siteType,
-      String siteName,
       String siteAddress,
       String status,
       List<ServiceResponse> services) {}
@@ -116,7 +113,6 @@ public record BatchDetailResponse(
         .batchName(batchName)
         .days(days)
         .siteType(examinationSiteType)
-        .siteName(examinationSiteName)
         .siteAddress(examinationSiteAddress)
         .status(status)
         .services(services)

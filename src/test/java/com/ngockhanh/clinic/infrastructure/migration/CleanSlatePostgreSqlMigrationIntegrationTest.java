@@ -83,7 +83,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -91,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003");
+        .containsExactly("001", "002", "003", "008");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -215,7 +215,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         .isEqualTo(126);
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL", Integer.class))
+                "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
+                Integer.class))
         .isEqualTo(25);
     assertThat(
             jdbc.queryForList(

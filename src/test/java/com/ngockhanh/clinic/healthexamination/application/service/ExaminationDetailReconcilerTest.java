@@ -49,7 +49,8 @@ class ExaminationDetailReconcilerTest {
 
   @BeforeEach
   void aBatchOfTwoActiveServices() {
-    batch = BatchFixtures.draftBatch(organizationId, batchId, 0, UUID.randomUUID(), UUID.randomUUID());
+    batch =
+        BatchFixtures.draftBatch(organizationId, batchId, 0, UUID.randomUUID(), UUID.randomUUID());
     serviceA = batch.services().get(0).id();
     serviceB = batch.services().get(1).id();
   }
@@ -103,8 +104,7 @@ class ExaminationDetailReconcilerTest {
         progress(AttendanceStatus.UNCONFIRMED, null, ReconciliationStatus.PENDING), List.of());
   }
 
-  private HealthExaminationBatchParticipantService stored(
-      AggregateId service, boolean performed) {
+  private HealthExaminationBatchParticipantService stored(AggregateId service, boolean performed) {
     return new HealthExaminationBatchParticipantService(
         AggregateId.of(UUID.randomUUID()),
         AggregateId.of(batchId),
@@ -170,7 +170,9 @@ class ExaminationDetailReconcilerTest {
 
   @Test
   void anAbsentParticipantWithAMarkedServiceBecomesAttended() {
-    var p = participant(progress(AttendanceStatus.ABSENT, null, ReconciliationStatus.PENDING), List.of());
+    var p =
+        participant(
+            progress(AttendanceStatus.ABSENT, null, ReconciliationStatus.PENDING), List.of());
 
     apply(p, row(null, serviceB));
 
@@ -264,7 +266,7 @@ class ExaminationDetailReconcilerTest {
             AggregateId.of(organizationId),
             "B1",
             "Campaign",
-            new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", "Address"),
+            new ExaminationSite(ExaminationSiteType.CLINIC, "Address"),
             List.of(new HealthExaminationBatchDay(UUID.randomUUID(), PLANNED)),
             List.of(inactive),
             BatchStatus.DRAFT,
@@ -273,8 +275,7 @@ class ExaminationDetailReconcilerTest {
     var p = fresh();
 
     assertThatThrownBy(
-            () ->
-                reconciler.apply(p, withInactive, row(null, inactive.id()), actor, NOW, PLANNED))
+            () -> reconciler.apply(p, withInactive, row(null, inactive.id()), actor, NOW, PLANNED))
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("no longer offered");
 
@@ -300,7 +301,7 @@ class ExaminationDetailReconcilerTest {
             AggregateId.of(organizationId),
             "B1",
             "Campaign",
-            new ExaminationSite(ExaminationSiteType.CLINIC, "Clinic", "Address"),
+            new ExaminationSite(ExaminationSiteType.CLINIC, "Address"),
             List.of(new HealthExaminationBatchDay(UUID.randomUUID(), PLANNED)),
             List.of(inactive),
             BatchStatus.DRAFT,

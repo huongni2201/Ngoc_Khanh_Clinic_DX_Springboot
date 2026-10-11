@@ -128,7 +128,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
 
   private static UUID insertBatch(JdbcTemplate jdbc, UUID organization, UUID actor, String code) {
     return jdbc.queryForObject(
-        "INSERT INTO public.health_examination_batches(organization_id,batch_code,name,examination_site_type,examination_site_name,examination_site_address,status,created_by) VALUES (?,?,?,'CLINIC','Test Site','Test Address','DRAFT',?) RETURNING id",
+        "INSERT INTO public.health_examination_batches(organization_id,batch_code,name,examination_site_type,examination_site_address,status,created_by) VALUES (?,?,?,'CLINIC','','DRAFT',?) RETURNING id",
         UUID.class,
         organization,
         code,
