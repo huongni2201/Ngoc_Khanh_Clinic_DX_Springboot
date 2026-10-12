@@ -17,6 +17,10 @@ public record ApiResponse<T>(String result, int code, String message, T data) {
         return new ApiResponse<>("NG", code, message, null);
     }
 
+    public static <T> ApiResponse<T> error(int code, String message, T data) {
+        return new ApiResponse<>("NG", code, message, data);
+    }
+
     public ApiResponse(int code, String message) {
         this("OK", code, message, null);
     }

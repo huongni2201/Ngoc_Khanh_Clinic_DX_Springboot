@@ -55,7 +55,7 @@ public class DeleteOrganizationUseCase {
             .orElseThrow(() -> new ResourceNotFoundException("Organization"));
     if (expectedVersion != current.rowVersion()) throw new ConcurrentUpdateException();
     if (current.status() == OrganizationStatus.INACTIVE) {
-      log.debug("Organization already inactive: organizationId={}", id);
+      log.info("Organization already inactive: organizationId={}", id);
       return;
     }
 

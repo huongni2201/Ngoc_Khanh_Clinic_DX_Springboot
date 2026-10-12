@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -17,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.ParticipantFixtures;
 import com.ngockhanh.clinic.healthexamination.application.command.ImportExaminationDetailsCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.RecordExaminationDetailCommand;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.ExaminationDetailExportResponse;
 import com.ngockhanh.clinic.healthexamination.application.response.ExaminationDetailImportResponse;
@@ -27,15 +29,21 @@ import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummar
 import com.ngockhanh.clinic.healthexamination.application.usecase.ExportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ExportPaymentSummaryReportUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetExaminationSummaryUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.GetExaminationDetailImportTemplateUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetPaymentSummaryReportUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ImportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListExaminationDetailsUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.RecordExaminationDetailUseCase;
+import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
+import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.web.GlobalExceptionHandler;
 import com.ngockhanh.clinic.shared.web.PageResponse;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +68,10 @@ class ExaminationDetailAndReportControllerTest {
       mock(ExportExaminationDetailsUseCase.class);
   private final ImportExaminationDetailsUseCase importer =
       mock(ImportExaminationDetailsUseCase.class);
+  private final GetExaminationDetailImportTemplateUseCase template =
+      mock(GetExaminationDetailImportTemplateUseCase.class);
+  private final RecordExaminationDetailUseCase recorder =
+      mock(RecordExaminationDetailUseCase.class);
   private final GetPaymentSummaryReportUseCase report = mock(GetPaymentSummaryReportUseCase.class);
   private final ExportPaymentSummaryReportUseCase docx =
       mock(ExportPaymentSummaryReportUseCase.class);
@@ -76,7 +88,7 @@ class ExaminationDetailAndReportControllerTest {
         .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
     mvc =
         MockMvcBuilders.standaloneSetup(
-                new ExaminationDetailController(list, summary, export, importer),
+                new ExaminationDetailController(list, summary, export, importer, template, recorder),
                 new BatchReportController(report, docx))
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -165,6 +177,136 @@ class ExaminationDetailAndReportControllerTest {
             header()
                 .string("Content-Disposition", "attachment; filename=\"chi-tiet-kham-B1.xlsx\""))
         .andExpect(content().bytes(new byte[] {9, 8}));
+  }
+
+  @Test
+  void importTemplateReturnsAnXlsxAttachmentNamedAsATemplate() throws Exception {
+    when(template.execute(organizationId, batchId, principal))
+        .thenReturn(
+            new ExaminationDetailExportResponse(
+                new byte[] {7, 8, 9}, "mau-nhap-chi-tiet-kham-B1.xlsx"));
+
+    mvc.perform(get(batchBase() + "/examination-details/import-template"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(XLSX))
+        .andExpect(header().string("Cache-Control", "no-store"))
+        .andExpect(
+            header()
+                .string(
+                    "Content-Disposition",
+                    org.hamcrest.Matchers.containsString("mau-nhap-chi-tiet-kham-B1.xlsx")))
+        .andExpect(content().bytes(new byte[] {7, 8, 9}));
+  }
+
+  @Test
+  void importTemplateOfAnUnknownBatchIs404() throws Exception {
+    when(template.execute(organizationId, batchId, principal))
+        .thenThrow(new ResourceNotFoundException("Health examination batch"));
+
+    mvc.perform(get(batchBase() + "/examination-details/import-template"))
+        .andExpect(status().isNotFound());
+  }
+
+  private String recordUrl(UUID participantId) {
+    return batchBase() + "/examination-details/" + participantId;
+  }
+
+  private static ExaminationDetailRowResponse savedRow(UUID participantId) {
+    return ExaminationDetailRowResponse.builder()
+        .id(participantId)
+        .fullName("Synthetic Person")
+        .identificationNumberMasked("*****6789")
+        .attendanceStatus("ATTENDED")
+        .actualExaminationDate(LocalDate.of(2026, 10, 5))
+        .reconciliationStatus("RECONCILED")
+        .performedBatchServiceIds(List.of())
+        .rowVersion(4)
+        .build();
+  }
+
+  @Test
+  void recordMapsTheBodyToTheCommandAndReturnsTheSavedRow() throws Exception {
+    UUID participantId = UUID.randomUUID();
+    UUID service = UUID.randomUUID();
+    when(recorder.execute(eq(organizationId), eq(batchId), eq(participantId), any(), eq(principal)))
+        .thenReturn(savedRow(participantId));
+
+    mvc.perform(
+            put(recordUrl(participantId))
+                .contentType("application/json")
+                .content(
+                    """
+                    {"attendanceStatus":"ATTENDED","actualExaminationDate":"2026-10-05",
+                     "performedBatchServiceIds":["%s"],"rowVersion":3}
+                    """
+                        .formatted(service)))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "no-store"))
+        .andExpect(jsonPath("$.data.id").value(participantId.toString()))
+        .andExpect(jsonPath("$.data.rowVersion").value(4))
+        .andExpect(jsonPath("$.data.reconciliationStatus").value("RECONCILED"));
+
+    var command = ArgumentCaptor.forClass(RecordExaminationDetailCommand.class);
+    verify(recorder)
+        .execute(eq(organizationId), eq(batchId), eq(participantId), command.capture(), eq(principal));
+    assertThat(command.getValue().attendance()).isEqualTo(RecordExaminationDetailCommand.Attendance.ATTENDED);
+    assertThat(command.getValue().actualExaminationDate()).isEqualTo(LocalDate.of(2026, 10, 5));
+    assertThat(command.getValue().performedBatchServiceIds()).isEqualTo(Set.of(service));
+    assertThat(command.getValue().rowVersion()).isEqualTo(3);
+  }
+
+  @Test
+  void recordAbsentIsAcceptedWithoutADateOrServices() throws Exception {
+    UUID participantId = UUID.randomUUID();
+    when(recorder.execute(any(), any(), any(), any(), any())).thenReturn(savedRow(participantId));
+
+    mvc.perform(
+            put(recordUrl(participantId))
+                .contentType("application/json")
+                .content(
+                    "{\"attendanceStatus\":\"ABSENT\",\"performedBatchServiceIds\":[],\"rowVersion\":0}"))
+        .andExpect(status().isOk());
+
+    var command = ArgumentCaptor.forClass(RecordExaminationDetailCommand.class);
+    verify(recorder).execute(any(), any(), any(), command.capture(), any());
+    assertThat(command.getValue().attendance()).isEqualTo(RecordExaminationDetailCommand.Attendance.ABSENT);
+    assertThat(command.getValue().actualExaminationDate()).isNull();
+  }
+
+  @Test
+  void recordRejectsAnInvalidBodyBeforeTheUseCase() throws Exception {
+    UUID participantId = UUID.randomUUID();
+    UUID service = UUID.randomUUID();
+    for (String body :
+        List.of(
+            "{}",
+            // not a recordable status
+            "{\"attendanceStatus\":\"UNCONFIRMED\",\"performedBatchServiceIds\":[],\"rowVersion\":0}",
+            // duplicated service
+            "{\"attendanceStatus\":\"ATTENDED\",\"actualExaminationDate\":\"2026-10-05\",\"performedBatchServiceIds\":[\"" + service + "\",\"" + service + "\"],\"rowVersion\":0}",
+            // missing and negative row version
+            "{\"attendanceStatus\":\"ABSENT\",\"performedBatchServiceIds\":[]}",
+            "{\"attendanceStatus\":\"ABSENT\",\"performedBatchServiceIds\":[],\"rowVersion\":-1}",
+            // not a date
+            "{\"attendanceStatus\":\"ATTENDED\",\"actualExaminationDate\":\"05/10/2026\",\"performedBatchServiceIds\":[\"" + service + "\"],\"rowVersion\":0}"))
+      mvc.perform(put(recordUrl(participantId)).contentType("application/json").content(body))
+          .andExpect(status().isBadRequest());
+    verifyNoInteractions(recorder);
+  }
+
+  @Test
+  void recordMapsAStaleVersionAndAnUnknownParticipantTo409And404() throws Exception {
+    UUID participantId = UUID.randomUUID();
+    String body =
+        "{\"attendanceStatus\":\"ABSENT\",\"performedBatchServiceIds\":[],\"rowVersion\":1}";
+    when(recorder.execute(any(), any(), any(), any(), any()))
+        .thenThrow(new ConcurrentUpdateException("PARTICIPANT_CHANGED", "Participant was changed"))
+        .thenThrow(new ResourceNotFoundException("Participant"));
+
+    mvc.perform(put(recordUrl(participantId)).contentType("application/json").content(body))
+        .andExpect(status().isConflict());
+    mvc.perform(put(recordUrl(participantId)).contentType("application/json").content(body))
+        .andExpect(status().isNotFound());
   }
 
   @Test

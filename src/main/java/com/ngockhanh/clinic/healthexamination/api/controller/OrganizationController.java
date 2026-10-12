@@ -57,7 +57,7 @@ public class OrganizationController {
   public ResponseEntity<ApiResponse<OrganizationResponse>> create(
       @Valid @RequestBody CreateOrganizationRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug("Create organization request received");
+    log.info("Create organization request received");
     CreateOrganizationCommand command =
         CreateOrganizationCommand.builder()
             .name(request.name())
@@ -85,7 +85,7 @@ public class OrganizationController {
   @GetMapping
   public ResponseEntity<ApiResponse<PageResponse<OrganizationResponse>>> list(
       @Valid @ModelAttribute ListOrganizationRequest request) {
-    log.debug("List organization request: page={}, size={}", request.getPage(), request.getSize());
+    log.info("List organization request: page={}, size={}", request.getPage(), request.getSize());
     ListOrganizationCommand command =
         ListOrganizationCommand.builder()
             .page(request.getPage())
@@ -107,7 +107,7 @@ public class OrganizationController {
   @GetMapping("/{organizationId}")
   public ResponseEntity<ApiResponse<OrganizationResponse>> get(@PathVariable UUID organizationId) {
 
-    log.debug("Get organization request: organizationId={}", organizationId);
+    log.info("Get organization request: organizationId={}", organizationId);
 
     return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
   }
@@ -125,7 +125,7 @@ public class OrganizationController {
       @PathVariable UUID organizationId,
       @Valid @RequestBody UpdateOrganizationRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug("Update organization request: organizationId={}", organizationId);
+    log.info("Update organization request: organizationId={}", organizationId);
 
     UpdateOrganizationCommand command =
         UpdateOrganizationCommand.builder()
@@ -159,7 +159,7 @@ public class OrganizationController {
       @PathVariable UUID organizationId,
       @Valid @ModelAttribute DeleteOrganizationRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug("Delete organization request: organizationId={}", organizationId);
+    log.info("Delete organization request: organizationId={}", organizationId);
 
     deleteOrganizationUseCase.execute(
         organizationId,

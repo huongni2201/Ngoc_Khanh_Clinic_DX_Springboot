@@ -43,6 +43,8 @@ class HealthExaminationApiSurfaceTest {
           "GET " + BATCH + "/examination-details",
           "GET " + BATCH + "/examination-details/summary",
           "GET " + BATCH + "/examination-details/export",
+          "GET " + BATCH + "/examination-details/import-template",
+          "PUT " + BATCH + "/examination-details/{participantId}",
           "POST " + BATCH + "/examination-details/imports",
           "GET " + BATCH + "/reports/payment-summary",
           "GET " + BATCH + "/reports/payment-summary/docx");

@@ -11,20 +11,36 @@ the six optional Participant personal-detail columns and nullable Organization
 `phone`. The account-role trigger allows `PATIENT` only on patient accounts;
 all other roles and every grantor require STAFF accounts.
 
-The owner-requested consolidation on 2026-10-08 keeps one schema initializer
-and two data-only seed migrations:
+The owner-requested consolidation on 2026-10-08 keeps one schema initializer and
+two data-only seed migrations. The 2026-10-11 consolidation folds the former
+V008 and V009 changes into V001, so fresh databases apply three migrations:
 
 | Migration | Responsibility |
 |---|---|
-| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers |
+| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers. The batch table has no `examination_site_name`; a batch site is its type and address only, and two CHECK constraints require a non-space batch name and a non-blank organization-site address |
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions and role grants |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. V004–V007
-are folded into these definitions; no follow-up schema alteration or catalog
-code rewrite is required. The two deferred foreign-key declarations in V001
-only resolve tables created later in the same initializer.
+are folded into these definitions; no catalog code rewrite is required. The
+two deferred foreign-key declarations in V001 only resolve tables created later
+in the same initializer.
+The former V008 and V009 changes are folded into V001 and no longer exist as separate
+migrations. Without `examination_site_name`, normal SQL no longer reads or writes stored
+site names. A conversion that drops that column from an existing database may leave the
+old bytes until rows are rewritten; this is not a secure-erasure procedure. Neither change
+converts the V004–V007 histories, which still need the reviewed procedure below.
+
+The batch CHECK constraints rewrite no rows. Clinic batches keep an empty address.
+Before a reviewed conversion applies them to a database that may hold older rows, count
+the rows they would reject and correct them first; the conversion fails while any remain:
+
+```sql
+SELECT count(*) FROM public.health_examination_batches
+ WHERE name !~ '\S'
+    OR (examination_site_type = 'ORGANIZATION_SITE' AND examination_site_address !~ '\S');
+```
 Local demo data stays in `db/local`.
 
 An environment with any earlier migration history must use a separately reviewed

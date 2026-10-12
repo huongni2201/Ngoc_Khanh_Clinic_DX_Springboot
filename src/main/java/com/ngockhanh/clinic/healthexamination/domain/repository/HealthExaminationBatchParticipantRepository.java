@@ -18,6 +18,16 @@ public interface HealthExaminationBatchParticipantRepository {
    */
   void save(HealthExaminationBatchParticipant participant, long expectedRowVersion);
 
+  /**
+   * Updates only the Participant's own row: roster, attendance and reconciliation state. The
+   * service rows are neither read nor written, so their version and {@code updated_at} stay as
+   * they were. Use it when a change cannot have touched the services.
+   *
+   * @throws com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException when the expected row
+   *     version is stale
+   */
+  void saveWithoutServices(HealthExaminationBatchParticipant participant, long expectedRowVersion);
+
   /** Loads a Participant only when it belongs to the given batch. */
   Optional<HealthExaminationBatchParticipant> findInBatch(AggregateId batchId, AggregateId id);
 

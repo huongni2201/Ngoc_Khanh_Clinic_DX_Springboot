@@ -47,8 +47,7 @@ class CleanSlateMigrationContractTest {
           .containsExactlyInAnyOrder(
               "V001__create_schema.sql",
               "V002__seed_roles_and_permissions.sql",
-              "V003__seed_paraclinical_service_catalog.sql",
-              "V008__drop_health_exam_batch_site_name.sql")
+              "V003__seed_paraclinical_service_catalog.sql")
           .allMatch(name -> name.matches("V\\d{3}__[a-z_]+\\.sql"));
     }
     String sql = Files.readString(directory.resolve("V001__create_schema.sql"));

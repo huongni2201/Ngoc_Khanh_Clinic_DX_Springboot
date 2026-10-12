@@ -79,7 +79,7 @@ public class BatchParticipantController {
       @PathVariable UUID batchId,
       @Valid @ModelAttribute ParticipantListRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "List participants request: organizationId={}, batchId={}, page={}, size={}",
         organizationId,
         batchId,
@@ -107,7 +107,7 @@ public class BatchParticipantController {
       @PathVariable UUID organizationId,
       @PathVariable UUID batchId,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Participant import template request: organizationId={}, batchId={}",
         organizationId,
         batchId);
@@ -141,7 +141,7 @@ public class BatchParticipantController {
       @RequestParam(value = "rowVersion", required = false) Long rowVersion,
       @RequestHeader("Idempotency-Key") UUID idempotencyKey,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Import participants request: organizationId={}, batchId={}", organizationId, batchId);
     ParticipantImportResponse response =
         importUseCase.execute(
@@ -169,7 +169,7 @@ public class BatchParticipantController {
       @PathVariable UUID batchId,
       @Valid @RequestBody CreateParticipantRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug("Create participant request: organizationId={}, batchId={}", organizationId, batchId);
+    log.info("Create participant request: organizationId={}, batchId={}", organizationId, batchId);
     ParticipantDetailResponse response =
         createUseCase.execute(organizationId, batchId, request.toCommand(), principal);
     return ResponseEntity.status(HttpStatus.CREATED)
@@ -188,7 +188,7 @@ public class BatchParticipantController {
       @PathVariable UUID batchId,
       @PathVariable UUID participantId,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Participant detail request: organizationId={}, batchId={}, participantId={}",
         organizationId,
         batchId,
@@ -213,7 +213,7 @@ public class BatchParticipantController {
       @PathVariable UUID participantId,
       @Valid @RequestBody UpdateParticipantRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Update participant request: organizationId={}, batchId={}, participantId={}",
         organizationId,
         batchId,
@@ -240,7 +240,7 @@ public class BatchParticipantController {
       @PathVariable UUID participantId,
       @Valid @ModelAttribute CancelParticipantRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Cancel participant request: organizationId={}, batchId={}, participantId={}",
         organizationId,
         batchId,
@@ -263,7 +263,7 @@ public class BatchParticipantController {
       @PathVariable UUID participantId,
       @Valid @RequestBody ReactivateParticipantRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Reactivate participant request: organizationId={}, batchId={}, participantId={}",
         organizationId,
         batchId,

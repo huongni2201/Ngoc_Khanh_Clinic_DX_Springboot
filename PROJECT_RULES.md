@@ -157,9 +157,12 @@ documented business-code uniqueness. Justify indexes with real query patterns.
 
 All schema changes use `src/main/resources/db/migration/V<version>__<description>.sql`.
 Never edit applied shared migrations or use runtime auto-DDL in production.
-Fresh installs apply V001 (final schema), V002 (access-control seed) and V003
+Fresh installs apply V001 (final schema, including the batch name and
+organization-site address CHECK constraints), V002 (access-control seed) and V003
 (catalog seed). The owner-authorized 2026-10-08 consolidation incorporates the
 former V004–V007 amendments directly into V001/V003 for fresh databases only.
+The 2026-10-11 consolidation folds the former V008 (batch site-name column dropped)
+and V009 (batch name and organization-site address CHECK constraints) into V001 the same way.
 Existing applied migration histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment).
 Include required constraints/indexes. Destructive production data changes require
@@ -224,10 +227,19 @@ Reuse `shared.web.ApiResponse`, `PageResponse`, `GlobalExceptionHandler` and
 {"result":"NG","code":409,"message":"Record was changed by another request"}
 ```
 
+```json
+{"result":"NG","code":400,"message":"Invalid request: services","data":[{"field":"services","code":"NotEmpty","message":"must not be empty"}]}
+```
+
 `code` matches numeric HTTP status; `result` is OK/NG; null message/data are omitted.
-No separate public string error code, field-error list or trace ID exists.
-`ConcurrentUpdateException.errorCode()` is internal. New wire fields require an
-explicit contract change. Failed business commands never return HTTP 200.
+Request validation (400 from Bean Validation) is the one failure that carries
+detail. `message` names the rejected fields, and `data` lists them as
+`{field, code, message}`: `field` is the JSON path, `code` the failed constraint and
+`message` an English technical detail for developers. Clients localise by `field` and
+`code`. This field list is an explicit contract change to the envelope. No separate
+public string error code or trace ID exists. `ConcurrentUpdateException.errorCode()`
+is internal. New wire fields require an explicit contract change. Failed business
+commands never return HTTP 200.
 
 | Category | Current exception / handler | Status |
 |---|---|---|

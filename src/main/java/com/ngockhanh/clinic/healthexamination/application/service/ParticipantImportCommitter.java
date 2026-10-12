@@ -185,7 +185,7 @@ public class ParticipantImportCommitter {
     }
     for (int from = 0; from < created.size(); from += INSERT_CHUNK_SIZE)
       participants.insertMany(created.subList(from, Math.min(from + INSERT_CHUNK_SIZE, created.size())));
-    log.debug(
+    log.info(
         "Participant insert executed; commit pending: batchId={}, importJobId={}, count={}",
         request.batchId(),
         jobId,

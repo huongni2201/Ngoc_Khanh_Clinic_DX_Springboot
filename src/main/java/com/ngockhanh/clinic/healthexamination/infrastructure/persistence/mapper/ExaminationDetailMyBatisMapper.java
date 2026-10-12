@@ -34,6 +34,10 @@ public interface ExaminationDetailMyBatisMapper {
       @Param("offset") long offset,
       @Param("limit") int limit);
 
+  /** One Participant row of the batch, or null when the Participant is not in the batch. */
+  ExaminationDetailRowView findRow(
+      @Param("batchId") UUID batchId, @Param("participantId") UUID participantId);
+
   /** Performed rows of the given Participants, in one query. */
   List<PerformedServiceView> findPerformedServices(
       @Param("participantIds") Collection<UUID> participantIds);

@@ -68,7 +68,7 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
     } catch (ApplicationException rejected) {
       throw rejected;
     } catch (IOException | RuntimeException unreadable) {
-      log.debug(
+      log.info(
           "Examination detail workbook could not be read: cause={}",
           unreadable.getClass().getSimpleName());
       throw invalid("The file is not a valid XLSX workbook");

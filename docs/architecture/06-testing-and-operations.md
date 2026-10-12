@@ -42,8 +42,9 @@ not permission to weaken tests or retain obsolete runtime adapters.
 ## Deployment
 
 Use Java 25 and PostgreSQL 18. The owner-requested consolidation on 2026-10-08
-establishes three migrations for fresh databases: V001 creates the final schema,
+establishes the baseline for fresh databases: V001 creates the final schema,
 V002 seeds access-control roles/permissions/grants, and V003 seeds the catalog.
+The 2026-10-11 consolidation folds the batch site-name removal and the batch name and site-address CHECK constraints (former V008 and V009) into that baseline.
 The former V004–V007 amendments are incorporated directly into V001 and V003.
 See [persistence baseline](04-persistence.md#current-baseline) for their responsibilities.
 Clean build output before verification or packaging after consolidation so deleted

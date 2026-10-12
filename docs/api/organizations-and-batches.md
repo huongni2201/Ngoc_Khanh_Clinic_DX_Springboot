@@ -58,8 +58,15 @@ Create/PUT fields:
 | `batchName` | Required, max 300 |
 | `examinationDates[]` | Nonempty list of distinct ISO dates (`yyyy-MM-dd`) |
 | `examinationSiteType` | `CLINIC` or `ORGANIZATION_SITE` |
-| `examinationSiteName`, `examinationSiteAddress` | Required |
+| `examinationSiteAddress` | Required and non-blank for `ORGANIZATION_SITE`; empty for `CLINIC` |
 | `services[]` | Nonempty list; each item has a unique catalog `serviceId` and required `negotiatedPrice` |
+
+A rejected body returns 400 and names each field: `message` lists the fields (for
+example `Invalid request: examinationSiteName`) and `data` carries `{field, code, message}`
+per field (see the envelope rules in `PROJECT_RULES.md`). A required field the client does
+not send is reported the same way; when the client sends every field of this table, that
+report usually means the running backend predates this contract, so restart it from the
+current branch.
 | `services[].negotiatedPrice` | Nonnegative VND decimal, max 12 integer and 2 fractional digits |
 | `rowVersion` | PUT only, required and nonnegative |
 

@@ -1,6 +1,5 @@
 package com.ngockhanh.clinic.healthexamination.application.service;
 
-import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailImportRow;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
@@ -17,8 +16,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Applies one row of an examination detail file to a Participant: the file is the new
- * reconciliation state of that Participant.
+ * Applies one entry (a row of an examination detail file, or a manual entry for one Participant)
+ * to a Participant: the entry is the new reconciliation state of that Participant.
  *
  * <p>An {@code X} marks a service as performed and a blank marks it as not performed; a row that
  * once existed is kept with {@code performed = false}, never deleted. A row with at least one
@@ -42,7 +41,7 @@ public final class ExaminationDetailReconciler {
    *
    * @param participant active Participant locked by the caller, already matched to the row
    * @param batch the batch that owns the Participant, with its service scope
-   * @param row the file row for the Participant
+   * @param entry what the Participant must become: a file row or a manual entry
    * @param actor account performing the import
    * @param now one instant for the whole import
    * @param plannedDate planned examination date of the Participant
@@ -51,12 +50,12 @@ public final class ExaminationDetailReconciler {
   public Result apply(
       HealthExaminationBatchParticipant participant,
       HealthExaminationBatch batch,
-      ExaminationDetailImportRow row,
+      ExaminationDetailEntry entry,
       AggregateId actor,
       Instant now,
       LocalDate plannedDate) {
     Set<AggregateId> ticked = new LinkedHashSet<>();
-    for (var serviceId : row.performedServiceIds()) ticked.add(AggregateId.of(serviceId));
+    for (var serviceId : entry.performedServiceIds()) ticked.add(AggregateId.of(serviceId));
     Set<AggregateId> performedNow = participant.performedBatchServiceIds();
 
     if (ticked.isEmpty() && participant.reconciledBatchServiceIds().isEmpty())
@@ -67,8 +66,8 @@ public final class ExaminationDetailReconciler {
     if (!ticked.isEmpty()) {
       boolean attended = participant.getAttendanceStatus() == AttendanceStatus.ATTENDED;
       attendedOn =
-          row.actualExaminationDate() != null
-              ? row.actualExaminationDate()
+          entry.actualExaminationDate() != null
+              ? entry.actualExaminationDate()
               : attended ? participant.getActualExaminationDate() : plannedDate;
       attendanceChanges = !attended || !attendedOn.equals(participant.getActualExaminationDate());
     }
@@ -82,7 +81,7 @@ public final class ExaminationDetailReconciler {
       var batchService = batch.service(serviceId);
       if (batchService == null || !batchService.active())
         throw new ConflictException(
-            "Row " + row.rowNumber() + ": a marked service is no longer offered in this batch");
+            entry.locator() + ": a marked service is no longer offered in this batch");
     }
 
     if (attendanceChanges)

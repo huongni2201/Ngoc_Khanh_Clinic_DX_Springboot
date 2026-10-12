@@ -101,7 +101,7 @@ public class ImportParticipantsUseCase {
                 principal.userId()));
     var receipt = outcome.receipt();
     if (outcome.replayed())
-      log.debug(
+      log.info(
           "Participant import replayed: organizationId={}, batchId={}, importJobId={}",
           organizationId,
           batchId,

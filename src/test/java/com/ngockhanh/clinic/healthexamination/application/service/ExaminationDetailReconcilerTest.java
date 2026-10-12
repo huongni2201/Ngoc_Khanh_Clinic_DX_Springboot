@@ -120,13 +120,13 @@ class ExaminationDetailReconcilerTest {
         0);
   }
 
-  private static ExaminationDetailImportRow row(LocalDate actualDate, AggregateId... ticked) {
+  private static ExaminationDetailEntry row(LocalDate actualDate, AggregateId... ticked) {
     Set<UUID> ids = new java.util.HashSet<>();
     for (AggregateId id : ticked) ids.add(id.value());
-    return new ExaminationDetailImportRow(2, UUID.randomUUID(), 3, actualDate, ids);
+    return new ExaminationDetailImportRow(2, UUID.randomUUID(), 3, actualDate, ids).toEntry();
   }
 
-  private Result apply(HealthExaminationBatchParticipant p, ExaminationDetailImportRow row) {
+  private Result apply(HealthExaminationBatchParticipant p, ExaminationDetailEntry row) {
     return reconciler.apply(p, batch, row, actor, NOW, PLANNED);
   }
 

@@ -87,7 +87,7 @@ public class ImportExaminationDetailsUseCase {
                 principal.userId()));
     var receipt = outcome.receipt();
     if (outcome.replayed())
-      log.debug(
+      log.info(
           "Examination detail import replayed: organizationId={}, batchId={}, importJobId={}",
           organizationId,
           batchId,

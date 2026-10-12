@@ -6,9 +6,6 @@
 -- Design reference: NKC_DX_Clean_Slate_Database_Design_Detailed_No_Reporting_Schema.md
 -- Participant terminology follows the project owner request.
 -- Flyway owns the transaction; no outer BEGIN/COMMIT or database creation.
--- Consolidated on 2026-10-08: final schema, including Participant personal details,
--- optional Organization phone, batch soft delete and service reconciliation import.
--- V002 seeds access-control data; V003 seeds the catalog with final CLS<id> codes.
 -- Do not apply to an existing database carrying any earlier migration history.
 -- This baseline does not adapt the existing Java/MyBatis contracts to the new model.
 -- Source syntax fix: include the ImportJob ID placeholder in its configuration error.
@@ -805,7 +802,6 @@ CREATE TABLE public.organizations (
     batch_code varchar(50) NOT NULL UNIQUE,
     name varchar(300) NOT NULL,
     examination_site_type varchar(30) NOT NULL,
-    examination_site_name text NOT NULL,
     examination_site_address text NOT NULL,
     status varchar(20) NOT NULL,
     created_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
@@ -814,7 +810,10 @@ CREATE TABLE public.organizations (
     row_version bigint NOT NULL DEFAULT 0,
     deleted_at timestamptz(3) NULL,
     CONSTRAINT ck_health_exam_batches_site_type CHECK (examination_site_type IN ('CLINIC', 'ORGANIZATION_SITE')),
-    CONSTRAINT ck_health_exam_batches_status CHECK (status IN ('DRAFT', 'READY', 'FINALIZED', 'CLOSED'))
+    CONSTRAINT ck_health_exam_batches_status CHECK (status IN ('DRAFT', 'READY', 'FINALIZED', 'CLOSED')),
+    CONSTRAINT health_examination_batches_name_present_chk CHECK (name ~ '\S'),
+    CONSTRAINT health_examination_batches_org_site_address_chk
+        CHECK (examination_site_type <> 'ORGANIZATION_SITE' OR examination_site_address ~ '\S')
 );
 
 CREATE TABLE public.health_examination_batch_days (

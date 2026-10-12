@@ -64,6 +64,8 @@ class ExaminationDetailUseCasesTest {
   private static final String SUMMARY =
       ExaminationDetailAccessPolicy.SERVICE_SUMMARY_READ_PERMISSION;
   private static final String EXPORT = ExaminationDetailAccessPolicy.SERVICE_EXPORT_PERMISSION;
+  private static final String TEMPLATE =
+      ExaminationDetailAccessPolicy.SERVICE_TEMPLATE_DOWNLOAD_PERMISSION;
   private static final String REPORT_EXPORT =
       ExaminationDetailAccessPolicy.REPORT_EXPORT_PERMISSION;
   private static final Clock CLOCK =
@@ -133,6 +135,12 @@ class ExaminationDetailUseCasesTest {
     access.requireServiceSummaryRead(staff(SUMMARY));
     access.requireServiceExport(staff(EXPORT));
     access.requireReportExport(staff(REPORT_EXPORT));
+    access.requireServiceTemplateDownload(staff(TEMPLATE));
+    access.requireServiceRecord(staff(ExaminationDetailAccessPolicy.SERVICE_RECORD_PERMISSION));
+    assertThatThrownBy(() -> access.requireServiceTemplateDownload(staff(EXPORT, RECONCILE)))
+        .isInstanceOf(ApplicationException.class);
+    assertThatThrownBy(() -> access.requireServiceRecord(staff(RECONCILE, TEMPLATE)))
+        .isInstanceOf(ApplicationException.class);
     assertThatThrownBy(() -> access.requireServiceExport(staff(READ)))
         .isInstanceOf(ApplicationException.class);
     assertThatThrownBy(() -> access.requireReportExport(staff(REPORT)))
@@ -334,6 +342,52 @@ class ExaminationDetailUseCasesTest {
         .isInstanceOf(ApplicationException.class);
     when(reader.readAllActive(organizationId, batchId)).thenReturn(Optional.empty());
     assertThatThrownBy(() -> exporter().execute(organizationId, batchId, staff(EXPORT)))
+        .isInstanceOf(ResourceNotFoundException.class);
+    verifyNoInteractions(excelWriter, audit);
+  }
+
+  // --- import template ---
+
+  private GetExaminationDetailImportTemplateUseCase templateDownloader() {
+    return new GetExaminationDetailImportTemplateUseCase(
+        access, organizations, batches, reader, catalog, excelWriter, audit, CLOCK);
+  }
+
+  @Test
+  void templateIsTheExportWorkbookUnderATemplateNameAndItsOwnAuditEvent() {
+    UUID participantId = UUID.randomUUID();
+    when(reader.readAllActive(organizationId, batchId))
+        .thenReturn(Optional.of(List.of(detailRow(participantId, "012345678901"))));
+    when(excelWriter.write(any())).thenReturn(new byte[] {1, 2, 3});
+    var principal = staff(TEMPLATE);
+
+    var file = templateDownloader().execute(organizationId, batchId, principal);
+    var exported = exporter().execute(organizationId, batchId, staff(EXPORT));
+
+    assertThat(file.fileName()).isEqualTo("mau-nhap-chi-tiet-kham-B1.xlsx");
+    assertThat(file.content()).containsExactly(exported.content());
+    var data = ArgumentCaptor.forClass(ExaminationDetailExportData.class);
+    verify(excelWriter, org.mockito.Mockito.times(2)).write(data.capture());
+    assertThat(data.getAllValues().get(0)).isEqualTo(data.getAllValues().get(1));
+    assertThat(data.getAllValues().get(0).rows().get(0).identificationNumber())
+        .doesNotContain("012345678901");
+    verify(audit)
+        .record(
+            eq(principal.userId()),
+            eq("DOWNLOAD_EXAMINATION_DETAIL_TEMPLATE"),
+            eq("HEALTH_EXAMINATION_BATCH"),
+            eq(batchId),
+            eq(null),
+            eq(Map.of("organizationId", organizationId, "batchId", batchId, "rowCount", 1)));
+  }
+
+  @Test
+  void templateWithoutItsPermissionOrForAnUnknownBatchWritesNothing() {
+    for (var denied : List.of(staff(EXPORT), staff(RECONCILE), staff()))
+      assertThatThrownBy(() -> templateDownloader().execute(organizationId, batchId, denied))
+          .isInstanceOf(ApplicationException.class);
+    when(reader.readAllActive(organizationId, batchId)).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> templateDownloader().execute(organizationId, batchId, staff(TEMPLATE)))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(excelWriter, audit);
   }

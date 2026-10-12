@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.query;
 
+import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailEntry;
 import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
@@ -22,5 +23,11 @@ public record ExaminationDetailImportRow(
     Set<UUID> performedServiceIds) {
   public ExaminationDetailImportRow {
     performedServiceIds = Set.copyOf(performedServiceIds);
+  }
+
+  /** The same request as a source-neutral entry; errors are located by {@code Row <n>}. */
+  public ExaminationDetailEntry toEntry() {
+    return new ExaminationDetailEntry(
+        participantId, rowVersion, performedServiceIds, actualExaminationDate, "Row " + rowNumber);
   }
 }

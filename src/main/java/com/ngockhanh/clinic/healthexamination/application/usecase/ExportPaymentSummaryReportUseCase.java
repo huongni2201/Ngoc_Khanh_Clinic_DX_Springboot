@@ -117,7 +117,7 @@ public class ExportPaymentSummaryReportUseCase {
             report.provisional(),
             "totalAmount",
             report.totalAmount().toPlainString()));
-    log.debug(
+    log.info(
         "Payment summary exported: organizationId={}, batchId={}, items={}",
         organizationId,
         batchId,

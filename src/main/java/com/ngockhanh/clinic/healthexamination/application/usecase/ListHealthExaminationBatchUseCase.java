@@ -88,7 +88,7 @@ public class ListHealthExaminationBatchUseCase {
             : batches.findPage(organizationId, offset, size, pattern, sortKey, sortBy).stream()
                 .map(BatchSummaryResponse::from)
                 .toList();
-    log.debug(
+    log.info(
         "Health examination batches listed: organizationId={}, page={}, size={}, returned={},"
             + " total={}",
         organizationId,

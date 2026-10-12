@@ -76,7 +76,7 @@ public class GetPaymentSummaryReportUseCase {
     var report =
         assembler.assemble(
             batch, aggregates, names, Instant.now(clock).truncatedTo(ChronoUnit.MILLIS));
-    log.debug(
+    log.info(
         "Payment summary read: organizationId={}, batchId={}, items={}",
         organizationId,
         batchId,

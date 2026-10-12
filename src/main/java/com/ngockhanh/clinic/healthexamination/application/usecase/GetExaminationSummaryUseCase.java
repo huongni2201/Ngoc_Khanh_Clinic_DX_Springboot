@@ -46,7 +46,7 @@ public class GetExaminationSummaryUseCase {
         reader
             .summarize(organizationId, batchId)
             .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-    log.debug(
+    log.info(
         "Examination summary read: organizationId={}, batchId={}, registered={}",
         organizationId,
         batchId,

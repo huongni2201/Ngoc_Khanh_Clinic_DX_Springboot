@@ -75,7 +75,7 @@ public class ListServiceCatalogUseCase {
             : catalog.findActivePage(pattern, offset, size, sortKey, sortBy).stream()
                 .map(ServiceCatalogItemResponse::from)
                 .toList();
-    log.debug(
+    log.info(
         "Catalog services listed: page={}, size={}, returned={}, total={}",
         page,
         size,

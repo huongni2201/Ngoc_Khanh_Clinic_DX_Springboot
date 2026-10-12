@@ -46,6 +46,33 @@ class MyBatisHealthExaminationBatchParticipantRepositoryTest {
   }
 
   @Test
+  void saveWithoutServicesUpdatesTheHeaderAndNeverTouchesServiceRows() {
+    var mapper = mock(HealthExaminationBatchParticipantMyBatisMapper.class);
+    when(mapper.update(any(), eq(0L))).thenReturn(1);
+    var repository = new MyBatisHealthExaminationBatchParticipantRepository(mapper);
+    var p = participant();
+    var s =
+        new HealthExaminationBatchParticipantService(
+            id(11), id(1), id(10), id(12), false, null, Money.vnd("100"), id(6), NOW, NOW, NOW, 0);
+    p.reconcileServices(List.of(s), scope(id(12)), id(6), NOW);
+
+    repository.saveWithoutServices(p, 0);
+
+    verify(mapper).update(any(), eq(0L));
+    verify(mapper, never()).findServices(any());
+    verify(mapper, never()).insertServices(any());
+    verify(mapper, never()).updateServices(any());
+  }
+
+  @Test
+  void saveWithoutServicesDetectsAConcurrentHeaderUpdate() {
+    var mapper = mock(HealthExaminationBatchParticipantMyBatisMapper.class);
+    var repository = new MyBatisHealthExaminationBatchParticipantRepository(mapper);
+    assertThatThrownBy(() -> repository.saveWithoutServices(participant(), 0))
+        .isInstanceOf(ConcurrentUpdateException.class);
+  }
+
+  @Test
   void persistsReconciledServicesAlongsideHeader() {
     var mapper = mock(HealthExaminationBatchParticipantMyBatisMapper.class);
     when(mapper.update(any(), eq(0L))).thenReturn(1);

@@ -59,7 +59,7 @@ public class OrganizationBatchController {
 			@PathVariable UUID organizationId,
 			@Valid @RequestBody CreateHealthExaminationBatchRequest request,
 			@AuthenticationPrincipal UserPrincipal principal) {
-		log.debug("Create health examination batch request: organizationId={}", organizationId);
+		log.info("Create health examination batch request: organizationId={}", organizationId);
 		BatchDetailResponse response =
 				createBatchUseCase.execute(
 						organizationId,
@@ -82,7 +82,7 @@ public class OrganizationBatchController {
 	@GetMapping("/{batchId}")
 	public ResponseEntity<ApiResponse<BatchDetailResponse>> get(
 			@PathVariable UUID organizationId, @PathVariable UUID batchId) {
-		log.debug(
+		log.info(
 				"Get health examination batch request: organizationId={}, batchId={}",
 				organizationId,
 				batchId);
@@ -102,7 +102,7 @@ public class OrganizationBatchController {
 	public ResponseEntity<ApiResponse<PageResponse<BatchSummaryResponse>>> list(
 			@PathVariable UUID organizationId,
 			@Valid @ModelAttribute HealthExaminationBatchListRequest request) {
-		log.debug(
+		log.info(
 				"List health examination batches request: organizationId={}, page={}, size={}",
 				organizationId,
 				request.getPage(),
@@ -135,7 +135,7 @@ public class OrganizationBatchController {
 			@PathVariable UUID batchId,
 			@Valid @RequestBody UpdateHealthExaminationBatchRequest request,
 			@AuthenticationPrincipal UserPrincipal principal) {
-		log.debug(
+		log.info(
 				"Update health examination batch request: organizationId={}, batchId={}",
 				organizationId,
 				batchId);
@@ -167,7 +167,7 @@ public class OrganizationBatchController {
 			@PathVariable UUID batchId,
 			@Valid @ModelAttribute DeleteHealthExaminationBatchRequest request,
 			@AuthenticationPrincipal UserPrincipal principal) {
-		log.debug(
+		log.info(
 				"Delete health examination batch request: organizationId={}, batchId={}",
 				organizationId,
 				batchId);

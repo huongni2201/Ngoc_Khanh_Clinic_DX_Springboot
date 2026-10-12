@@ -90,6 +90,16 @@ public class MyBatisExaminationDetailReader implements ExaminationDetailReader {
   }
 
   @Override
+  public Optional<ExaminationDetailRow> readOne(
+      UUID organizationId, UUID batchId, UUID participantId) {
+    if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
+    ExaminationDetailRowView view = mapper.findRow(batchId, participantId);
+    if (view == null) return Optional.empty();
+    Map<UUID, List<UUID>> performed = group(mapper.findPerformedServices(List.of(view.id())));
+    return Optional.of(row(view, performed));
+  }
+
+  @Override
   public Optional<PaymentAggregates> readPaymentAggregates(UUID organizationId, UUID batchId) {
     if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
     ExaminationCountView counts = mapper.countActiveParticipants(batchId);

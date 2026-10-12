@@ -67,7 +67,7 @@ public class ListOrganizationUseCase {
     var result =
         organizations.search(
             page, size, searchKey.isEmpty() ? null : searchKey, sortKey, sortBy, ACTIVE);
-    log.debug(
+    log.info(
         "Organizations listed: page={}, size={}, returned={}, total={}",
         page,
         size,

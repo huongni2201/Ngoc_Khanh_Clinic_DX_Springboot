@@ -69,7 +69,7 @@ public final class SessionCookieAuthenticationFilter extends OncePerRequestFilte
       errors.write(response, HttpStatus.UNAUTHORIZED, JsonSecurityErrorHandler.UNAUTHENTICATED);
       return;
     } catch (DependencyUnavailableException unavailable) {
-      log.warn("Session store unavailable during request authentication");
+      log.info("Session store unavailable during request authentication");
       errors.write(response, HttpStatus.SERVICE_UNAVAILABLE, "Service is temporarily unavailable");
       return;
     }

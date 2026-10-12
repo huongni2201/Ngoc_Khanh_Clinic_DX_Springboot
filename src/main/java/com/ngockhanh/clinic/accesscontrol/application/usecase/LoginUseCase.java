@@ -58,7 +58,7 @@ public class LoginUseCase {
 
     UserAccount account = accounts.findByUsername(command.username()).orElse(null);
     if (account == null) {
-      log.warn("Sign-in rejected for unknown username: correlationId={}", command.correlationId());
+      log.info("Sign-in rejected for unknown username: correlationId={}", command.correlationId());
       throw AuthenticationFailure.invalidCredentials();
     }
     if (!passwords.matches(command.password(), account.passwordHash()) || !account.eligible()) {
@@ -66,7 +66,7 @@ public class LoginUseCase {
       transactions.executeWithoutResult(
           status ->
               audit.record(account.id(), ACCOUNT_LOGIN_FAILED, failedAt, command.correlationId()));
-      log.warn(
+      log.info(
           "Sign-in rejected: accountId={}, correlationId={}",
           account.id(),
           command.correlationId());

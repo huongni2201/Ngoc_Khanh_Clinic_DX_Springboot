@@ -42,7 +42,7 @@ public class GetOrganizationByIdUseCase {
             .filter(found -> found.status() == OrganizationStatus.ACTIVE)
             .orElseThrow(() -> new ResourceNotFoundException("Organization"));
 
-    log.debug("Organization retrieved: organizationId={}", id);
+    log.info("Organization retrieved: organizationId={}", id);
     return OrganizationResponse.from(organization);
   }
 }

@@ -8,7 +8,8 @@ An Organization/Batch pair that does not match, or a soft-deleted batch, is 404.
 
 ## Permissions
 
-Flyway V002 seeds the six permissions below and grants them to CLINIC_MANAGER.
+Flyway V002 seeds the permissions below and grants them to CLINIC_MANAGER; the template download and the manual
+record permissions go to every role that holds `HEALTH_EXAMINATION_SERVICE_RECONCILE` (today CLINIC_MANAGER).
 The local seed additionally grants every permission to TEST and ADMINISTRATOR;
 both still require a STAFF account and the matching stored endpoint permission.
 Permissions are a login snapshot: sign in again after the migration.
@@ -19,6 +20,8 @@ Permissions are a login snapshot: sign in again after the migration.
 | `HEALTH_EXAMINATION_SERVICE_SUMMARY_READ` | `GET /examination-details/summary` |
 | `HEALTH_EXAMINATION_SERVICE_EXPORT` | `GET /examination-details/export` |
 | `HEALTH_EXAMINATION_SERVICE_RECONCILE` | `POST /examination-details/imports` |
+| `HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD` | `GET /examination-details/import-template` |
+| `HEALTH_EXAMINATION_SERVICE_RECORD` | `PUT /examination-details/{participantId}` |
 | `HEALTH_EXAMINATION_REPORT_READ` | `GET /reports/payment-summary` |
 | `HEALTH_EXAMINATION_REPORT_EXPORT` | `GET /reports/payment-summary/docx` |
 
@@ -29,6 +32,8 @@ Permissions are a login snapshot: sign in again after the migration.
 | `GET /examination-details` | 200 page of rows | `page`, `size`, `sortKey` (`id`, `participantCode`, `fullName`, `examinationDate`), `sortBy`, `searchKey` (code, name, department; never the CCCD), `rosterStatus` (default ACTIVE), `attendanceStatus`, `reconciliationStatus`. `no-store`. |
 | `GET /examination-details/summary` | 200 | `registered`, `unconfirmed`, `attended`, `absent`, `reconciled`, `pendingReconciliation`; ACTIVE roster only. |
 | `GET /examination-details/export` | 200 `.xlsx` | The whole ACTIVE roster (not the UI filter). It is also the import template. `filename="chi-tiet-kham-<batchCode>.xlsx"`, `no-store`. |
+| `GET /examination-details/import-template` | 200 `.xlsx` | Same workbook as the export (the whole ACTIVE roster with the services already recorded), so a blank cell keeps meaning "not examined". `filename="mau-nhap-chi-tiet-kham-<batchCode>.xlsx"`, `no-store`. Own permission so a role that may import can fetch the file. Not limited by batch status. |
+| `PUT /examination-details/{participantId}` | 200 row | Manual entry for one Participant, see below. |
 | `POST /examination-details/imports` | 201 | multipart `file` (`.xlsx`, <= 5 MiB) and required header `Idempotency-Key` (UUID). |
 | `GET /reports/payment-summary` | 200 | One line per (batch service, price snapshot). `provisional` is true until the batch is FINALIZED/CLOSED. |
 | `GET /reports/payment-summary/docx` | 200 `.docx` | `filename="bao-cao-thanh-toan-<batchCode>.docx"`, `no-store`. Generated on demand, never stored. Same figures as the JSON report, no per-person data. |
@@ -69,8 +74,35 @@ Limits: 10,000 data rows (the export refuses, with 400, a batch with more active
   (`HEALTH_EXAMINATION_SERVICE_RECONCILIATION`, schema V001), audit `IMPORT_EXAMINATION_DETAILS`.
 - Only a DRAFT or READY batch of an ACTIVE organization accepts an import.
 
-Audit actions: `EXPORT_EXAMINATION_DETAILS`, `EXPORT_PAYMENT_REPORT`, `IMPORT_EXAMINATION_DETAILS`. Audit and logs hold
+Audit actions: `EXPORT_EXAMINATION_DETAILS`, `DOWNLOAD_EXAMINATION_DETAIL_TEMPLATE`, `EXPORT_PAYMENT_REPORT`, `IMPORT_EXAMINATION_DETAILS`, `RECORD_EXAMINATION_DETAIL`. Audit and logs hold
 identifiers and counts only, never CCCD, names or cell values.
+
+## Manual entry for one Participant
+
+`PUT /examination-details/{participantId}`, JSON body:
+
+```json
+{ "attendanceStatus": "ATTENDED", "actualExaminationDate": "2026-10-09",
+  "performedBatchServiceIds": ["<batchServiceId>"], "rowVersion": 3 }
+```
+
+Response 200: the row of the list (same shape, identification number masked) as stored afterwards. `no-store`.
+
+- `attendanceStatus` is `ATTENDED` or `ABSENT` (`UNCONFIRMED` is 400; going back to "not yet arrived" is not supported).
+- `ATTENDED`: `actualExaminationDate` required, at least one service, all of them batch services (else 400). It goes through
+  the same reconciler as one Excel row: Participant becomes ATTENDED + RECONCILED, an unticked service keeps its row with
+  `performed = false`, a new one takes the current negotiated price, a service that is no longer offered cannot be newly
+  ticked (409). The date follows the import rule (batch start date to today, business time).
+- `ABSENT`: no date, no services, and the Participant must have no service recorded as performed (409
+  `Participant has performed services; clear them before marking absent`). Reconciliation rows are not touched.
+- `rowVersion` must match, else 409 `Participant was changed by another request; reload and try again`. Exception (retry):
+  when the stored state already equals the request, the stored row is returned with 200 and nothing is written. A request
+  equal to the stored state also writes nothing and does not raise `rowVersion`. No idempotency key is needed.
+- A CANCELLED Participant is 409 (`Participant is cancelled`); a Participant outside the batch is 404; only a DRAFT or
+  READY batch of an ACTIVE organization accepts the entry (409 `Batch does not accept examination detail changes`).
+- The batch is locked like an import, so a manual entry and an import never interleave. A manual entry raises the
+  Participant `rowVersion`, so a workbook downloaded earlier is rejected on import (`participant was changed after
+  export; export again`) and must be downloaded again.
 
 ## Errors
 

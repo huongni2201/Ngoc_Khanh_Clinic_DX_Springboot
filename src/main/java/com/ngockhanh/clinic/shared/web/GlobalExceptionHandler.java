@@ -7,6 +7,10 @@ import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.exception.UnsupportedFileTypeException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -15,9 +19,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -40,15 +49,43 @@ public class GlobalExceptionHandler {
     return builder.body(ApiResponse.error(status.value(), exception.getMessage()));
   }
 
-  @ExceptionHandler({
-    HttpMessageNotReadableException.class,
-    MethodArgumentTypeMismatchException.class
-  })
-  ResponseEntity<ApiResponse<Void>> malformedRequest(RuntimeException exception) {
-    return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> malformedRequest(
+      HttpMessageNotReadableException exception) {
+    return validationError(List.of(), "Invalid request body");
   }
 
-  @ExceptionHandler({ServletRequestBindingException.class, MissingServletRequestPartException.class})
+  @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> typeMismatch(
+      MethodArgumentTypeMismatchException exception) {
+    return validationError(
+        List.of(
+            new FieldErrorDetail(
+                exception.getName(), "TypeMismatch", "Parameter value has the wrong type")),
+        "Invalid request");
+  }
+
+  @ExceptionHandler(MissingServletRequestParameterException.class)
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> missingParameter(
+      MissingServletRequestParameterException exception) {
+    return validationError(
+        List.of(
+            new FieldErrorDetail(
+                exception.getParameterName(), "Missing", "Required parameter is missing")),
+        "Invalid request");
+  }
+
+  @ExceptionHandler(MissingServletRequestPartException.class)
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> missingPart(
+      MissingServletRequestPartException exception) {
+    return validationError(
+        List.of(
+            new FieldErrorDetail(
+                exception.getRequestPartName(), "Missing", "Required part is missing")),
+        "Invalid request");
+  }
+
+  @ExceptionHandler(ServletRequestBindingException.class)
   ResponseEntity<ApiResponse<Void>> missingRequestInput(Exception exception) {
     return error(HttpStatus.BAD_REQUEST, "Invalid request");
   }
@@ -80,8 +117,14 @@ public class GlobalExceptionHandler {
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  ResponseEntity<ApiResponse<Void>> validation(MethodArgumentNotValidException exception) {
-    return error(HttpStatus.BAD_REQUEST, "Invalid request");
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> validation(
+      MethodArgumentNotValidException exception) {
+    return validationError(bindingDetails(exception.getBindingResult()), "Invalid request");
+  }
+
+  @ExceptionHandler(BindException.class)
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> binding(BindException exception) {
+    return validationError(bindingDetails(exception.getBindingResult()), "Invalid request");
   }
 
   @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -123,7 +166,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(DependencyUnavailableException.class)
   ResponseEntity<ApiResponse<Void>> dependencyUnavailable(
       DependencyUnavailableException exception) {
-    log.warn("Dependency unavailable: {}", exception.getMessage());
+    log.info("Dependency unavailable: {}", exception.getMessage());
     return error(HttpStatus.SERVICE_UNAVAILABLE, "Service is temporarily unavailable");
   }
 
@@ -146,6 +189,49 @@ public class GlobalExceptionHandler {
       case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
       case DEPENDENCY_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
     };
+  }
+
+  /** Names the rejected fields in the message and in {@code data}, so the cause is visible. */
+  private ResponseEntity<ApiResponse<List<FieldErrorDetail>>> validationError(
+      List<FieldErrorDetail> details, String summary) {
+    String fields =
+        details.stream()
+            .map(FieldErrorDetail::field)
+            .filter(Objects::nonNull)
+            .distinct()
+            .collect(Collectors.joining(", "));
+    String message = fields.isEmpty() ? summary : summary + ": " + fields;
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .cacheControl(CacheControl.noStore())
+        .body(ApiResponse.error(HttpStatus.BAD_REQUEST.value(), message, details));
+  }
+
+  /** Maps Bean Validation and binding failures to field details; input values never appear. */
+  private static List<FieldErrorDetail> bindingDetails(BindingResult result) {
+    List<FieldErrorDetail> details = new ArrayList<>();
+    for (FieldError fieldError : result.getFieldErrors()) {
+      String message =
+          fieldError.isBindingFailure()
+              ? "Parameter value has the wrong type"
+              : fieldError.getDefaultMessage();
+      details.add(
+          new FieldErrorDetail(
+              publicFieldName(fieldError.getField()), fieldError.getCode(), message));
+    }
+    for (ObjectError globalError : result.getGlobalErrors()) {
+      details.add(
+          new FieldErrorDetail(
+              globalError.getObjectName(), globalError.getCode(), globalError.getDefaultMessage()));
+    }
+    return details;
+  }
+
+  /**
+   * Bean Validation names the getter {@code isSiteAddressValid()} as a property. Clients know the
+   * form field, so the report uses it.
+   */
+  private static String publicFieldName(String field) {
+    return "siteAddressValid".equals(field) ? "examinationSiteAddress" : field;
   }
 
   private ResponseEntity<ApiResponse<Void>> error(HttpStatus status, String message) {

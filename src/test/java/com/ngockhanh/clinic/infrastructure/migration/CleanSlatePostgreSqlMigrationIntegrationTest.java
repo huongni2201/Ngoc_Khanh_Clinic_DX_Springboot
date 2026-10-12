@@ -91,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003", "008");
+        .containsExactly("001", "002", "003");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -196,8 +196,10 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
   }
 
   /**
-   * V002 seeds the SRS Permission Matrix 4.4 (ADR-0015) and current endpoint permissions. The two
-   * legacy roster permissions are superseded by the matrix codes and stay ungranted.
+   * V002 seeds the SRS Permission Matrix 4.4 (ADR-0015) and current endpoint permissions, among
+   * them the two examination detail entry permissions (import template download and manual record)
+   * granted to the roles that may reconcile. The two legacy roster permissions are superseded by
+   * the matrix codes and stay ungranted.
    */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
@@ -210,14 +212,14 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(122);
+        .isEqualTo(124);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(126);
+        .isEqualTo(128);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(25);
+        .isEqualTo(27);
     assertThat(
             jdbc.queryForList(
                 """
@@ -250,6 +252,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "HEALTH_EXAMINATION_PARTICIPANT_MANAGE",
             "HEALTH_EXAMINATION_SERVICE_READ",
             "HEALTH_EXAMINATION_SERVICE_RECONCILE",
+            "HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD",
+            "HEALTH_EXAMINATION_SERVICE_RECORD",
             "HEALTH_EXAMINATION_REPORT_READ")) {
       assertThat(rolesGranted(jdbc, permission)).containsExactly("CLINIC_MANAGER");
     }

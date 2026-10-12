@@ -71,7 +71,16 @@ public class MyBatisHealthExaminationBatchParticipantRepository
   }
 
   public void save(HealthExaminationBatchParticipant p, long expectedVersion) {
+    saveWithoutServices(p, expectedVersion);
+    saveServices(p);
+  }
+
+  @Override
+  public void saveWithoutServices(HealthExaminationBatchParticipant p, long expectedVersion) {
     if (mapper.update(record(p), expectedVersion) != 1) throw new ConcurrentUpdateException();
+  }
+
+  private void saveServices(HealthExaminationBatchParticipant p) {
     if (p.services().isEmpty()) return;
     var existing =
         mapper.findServices(List.of(p.getId().value())).stream()

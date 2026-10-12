@@ -102,7 +102,7 @@ public class ListParticipantsUseCase {
             .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
     List<ParticipantSummaryResponse> items =
         result.items().stream().map(ParticipantSummaryResponse::from).toList();
-    log.debug(
+    log.info(
         "Participants listed: organizationId={}, batchId={}, page={}, size={}, returned={}, total={}",
         organizationId,
         batchId,

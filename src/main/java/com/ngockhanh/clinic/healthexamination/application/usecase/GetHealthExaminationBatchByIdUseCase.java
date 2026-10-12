@@ -53,7 +53,7 @@ public class GetHealthExaminationBatchByIdUseCase {
         batches
             .findDetails(organizationId, batchId, false)
             .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
-    log.debug(
+    log.info(
         "Health examination batch retrieved: organizationId={}, batchId={}",
         organizationId,
         batchId);

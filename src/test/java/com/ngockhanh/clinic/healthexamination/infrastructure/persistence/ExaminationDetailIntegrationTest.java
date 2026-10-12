@@ -7,16 +7,20 @@ import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.ImportExaminationDetailsCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.RecordExaminationDetailCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.RecordExaminationDetailCommand.Attendance;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailAccessPolicy;
 import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ExportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ExportPaymentSummaryReportUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.GetExaminationDetailImportTemplateUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetExaminationSummaryUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetPaymentSummaryReportUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ImportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListExaminationDetailsUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.RecordExaminationDetailUseCase;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;
 import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
@@ -35,6 +39,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -90,6 +95,8 @@ class ExaminationDetailIntegrationTest {
     GetExaminationSummaryUseCase.class,
     ExportExaminationDetailsUseCase.class,
     ImportExaminationDetailsUseCase.class,
+    GetExaminationDetailImportTemplateUseCase.class,
+    RecordExaminationDetailUseCase.class,
     GetPaymentSummaryReportUseCase.class,
     ExportPaymentSummaryReportUseCase.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
@@ -139,6 +146,8 @@ class ExaminationDetailIntegrationTest {
   @Autowired GetExaminationSummaryUseCase summary;
   @Autowired ExportExaminationDetailsUseCase export;
   @Autowired ImportExaminationDetailsUseCase importer;
+  @Autowired GetExaminationDetailImportTemplateUseCase template;
+  @Autowired RecordExaminationDetailUseCase recorder;
   @Autowired GetPaymentSummaryReportUseCase report;
   @Autowired ExportPaymentSummaryReportUseCase reportDocx;
 
@@ -195,6 +204,8 @@ class ExaminationDetailIntegrationTest {
                             ExaminationDetailAccessPolicy.SERVICE_SUMMARY_READ_PERMISSION,
                             ExaminationDetailAccessPolicy.SERVICE_EXPORT_PERMISSION,
                             ExaminationDetailAccessPolicy.SERVICE_RECONCILE_PERMISSION,
+                            ExaminationDetailAccessPolicy.SERVICE_TEMPLATE_DOWNLOAD_PERMISSION,
+                            ExaminationDetailAccessPolicy.SERVICE_RECORD_PERMISSION,
                             ExaminationDetailAccessPolicy.REPORT_READ_PERMISSION,
                             ExaminationDetailAccessPolicy.REPORT_EXPORT_PERMISSION))))
             .build();
@@ -536,6 +547,133 @@ class ExaminationDetailIntegrationTest {
     assertThat(counters.unconfirmed()).isZero();
     assertThat(counters.reconciled()).isEqualTo(1);
     assertThat(counters.pendingReconciliation()).isEqualTo(1);
+  }
+
+  @Test
+  void recordingOneParticipantByHandReconcilesItAndStaleFilesAndRetriesBehave() {
+    byte[] oldFile = edited(exported(), sheet -> mark(sheet, p1, 0, "X"));
+    var request =
+        new RecordExaminationDetailCommand(
+            Attendance.ATTENDED, LocalDate.of(2026, 10, 5), Set.of(batchServiceA, batchServiceB), 0);
+
+    var row = recorder.execute(org, batchId, p1, request, principal);
+
+    assertThat(row.rowVersion()).isEqualTo(1);
+    assertThat(row.attendanceStatus()).isEqualTo("ATTENDED");
+    assertThat(row.reconciliationStatus()).isEqualTo("RECONCILED");
+    assertThat(row.performedBatchServiceIds())
+        .containsExactlyInAnyOrder(batchServiceA, batchServiceB);
+    assertThat(state(p1)).isEqualTo("ATTENDED|2026-10-05|RECONCILED");
+    assertThat(serviceRows(p1, true)).isEqualTo(2);
+    assertThat(summary.execute(org, batchId, principal).reconciled()).isEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.audit_events WHERE action='RECORD_EXAMINATION_DETAIL'"))
+        .isEqualTo(1);
+
+    // The same request again (a lost response) is answered from the stored state, writing nothing.
+    var retry = recorder.execute(org, batchId, p1, request, principal);
+    assertThat(retry.rowVersion()).isEqualTo(1);
+    assertThat(version(p1)).isEqualTo(1);
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.audit_events WHERE action='RECORD_EXAMINATION_DETAIL'"))
+        .isEqualTo(1);
+
+    // A different request with the old version is a conflict.
+    assertThatThrownBy(
+            () ->
+                recorder.execute(
+                    org,
+                    batchId,
+                    p1,
+                    new RecordExaminationDetailCommand(
+                        Attendance.ATTENDED, LocalDate.of(2026, 10, 5), Set.of(batchServiceA), 0),
+                    principal))
+        .isInstanceOf(ConcurrentUpdateException.class);
+    assertThat(serviceRows(p1, true)).isEqualTo(2);
+
+    // A file exported before the manual entry no longer matches the Participant.
+    assertThatThrownBy(() -> importFile(oldFile, UUID.randomUUID()))
+        .isInstanceOf(ConcurrentUpdateException.class);
+  }
+
+  @Test
+  void recordingAbsentIsRefusedWhileAServiceIsPerformedAndOtherwiseCounts() {
+    recorder.execute(
+        org,
+        batchId,
+        p1,
+        new RecordExaminationDetailCommand(
+            Attendance.ATTENDED, LocalDate.of(2026, 10, 5), Set.of(batchServiceA), 0),
+        principal);
+
+    assertThatThrownBy(
+            () ->
+                recorder.execute(
+                    org,
+                    batchId,
+                    p1,
+                    new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 1),
+                    principal))
+        .isInstanceOf(ConflictException.class);
+    assertThat(state(p1)).isEqualTo("ATTENDED|2026-10-05|RECONCILED");
+
+    recorder.execute(
+        org,
+        batchId,
+        p2,
+        new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 0),
+        principal);
+
+    assertThat(state(p2)).isEqualTo("ABSENT|-|PENDING");
+    assertThat(serviceRows(p2, true)).isZero();
+    var counters = summary.execute(org, batchId, principal);
+    assertThat(counters.absent()).isEqualTo(1);
+    assertThat(counters.attended()).isEqualTo(1);
+  }
+
+  @Test
+  void recordingACancelledParticipantOrOneOfAnotherBatchIsRefused() {
+    jdbc.update(
+        "UPDATE public.health_examination_batch_participants SET roster_status='CANCELLED' WHERE id=?",
+        p3);
+
+    assertThatThrownBy(
+            () ->
+                recorder.execute(
+                    org,
+                    batchId,
+                    p3,
+                    new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 0),
+                    principal))
+        .isInstanceOf(ConflictException.class);
+    assertThatThrownBy(
+            () ->
+                recorder.execute(
+                    org,
+                    batchId,
+                    UUID.randomUUID(),
+                    new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 0),
+                    principal))
+        .isInstanceOf(com.ngockhanh.clinic.shared.exception.ResourceNotFoundException.class);
+  }
+
+  @Test
+  void theTemplateIsTheExportUnderItsOwnNameAndImportsBackWithoutChanges() {
+    importFile(edited(exported(), sheet -> mark(sheet, p1, 0, "X")), UUID.randomUUID());
+
+    var file = template.execute(org, batchId, principal);
+    var response = importFile(file.content(), UUID.randomUUID());
+
+    assertThat(file.fileName()).isEqualTo("mau-nhap-chi-tiet-kham-" + batchCode + ".xlsx");
+    assertThat(response.totalRows()).isEqualTo(3);
+    assertThat(response.updatedParticipants()).isZero();
+    assertThat(response.unchangedParticipants()).isEqualTo(3);
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.audit_events WHERE action='DOWNLOAD_EXAMINATION_DETAIL_TEMPLATE'"))
+        .isEqualTo(1);
   }
 
   @Test

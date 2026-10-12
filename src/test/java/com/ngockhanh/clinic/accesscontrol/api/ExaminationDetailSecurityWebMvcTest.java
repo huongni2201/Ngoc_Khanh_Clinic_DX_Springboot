@@ -4,6 +4,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.ngockhanh.clinic.accesscontrol.api.controller.AuthController;
@@ -32,10 +33,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Security chain of the six examination detail and report routes, with their permissions as
+ * Security chain of the eight examination detail and report routes, with their permissions as
  * stored in {@code public.permissions}: each needs a staff session holding exactly its own
  * permission, and the permissions of the Participant roster, of another
  * detail route or of a patient account never open a route. The routes are served by a stub
@@ -59,6 +61,9 @@ class ExaminationDetailSecurityWebMvcTest {
   private static final String SERVICE_SUMMARY_READ = "HEALTH_EXAMINATION_SERVICE_SUMMARY_READ";
   private static final String SERVICE_EXPORT = "HEALTH_EXAMINATION_SERVICE_EXPORT";
   private static final String SERVICE_RECONCILE = "HEALTH_EXAMINATION_SERVICE_RECONCILE";
+  private static final String SERVICE_TEMPLATE_DOWNLOAD =
+      "HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD";
+  private static final String SERVICE_RECORD = "HEALTH_EXAMINATION_SERVICE_RECORD";
   private static final String REPORT_READ = "HEALTH_EXAMINATION_REPORT_READ";
   private static final String REPORT_EXPORT = "HEALTH_EXAMINATION_REPORT_EXPORT";
   private static final String PARTICIPANT_MANAGE = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
@@ -82,6 +87,7 @@ class ExaminationDetailSecurityWebMvcTest {
       BASE + "/examination-details",
       BASE + "/examination-details/summary",
       BASE + "/examination-details/export",
+      BASE + "/examination-details/import-template",
       BASE + "/reports/payment-summary",
       BASE + "/reports/payment-summary/docx"
     })
@@ -93,22 +99,41 @@ class ExaminationDetailSecurityWebMvcTest {
     String importDetails() {
       return "ok";
     }
+
+    @PutMapping(BASE + "/examination-details/{participantId}")
+    String record() {
+      return "ok";
+    }
   }
 
-  private record Route(String name, boolean isPost, String path, String permission) {
+  private static final String PARTICIPANT = UUID.randomUUID().toString();
+
+  /** {@code path} is the route template; {@code {participantId}} is filled in for a request. */
+  private record Route(String name, String method, String path, String permission) {
     MockHttpServletRequestBuilder request() {
-      return isPost ? post(BATCH + path) : get(BATCH + path);
+      String url = BATCH + path.replace("{participantId}", PARTICIPANT);
+      return switch (method) {
+        case "POST" -> post(url);
+        case "PUT" -> put(url);
+        default -> get(url);
+      };
     }
   }
 
   private static final List<Route> ROUTES =
       List.of(
-          new Route("list", false, "/examination-details", SERVICE_READ),
-          new Route("summary", false, "/examination-details/summary", SERVICE_SUMMARY_READ),
-          new Route("export", false, "/examination-details/export", SERVICE_EXPORT),
-          new Route("import", true, "/examination-details/imports", SERVICE_RECONCILE),
-          new Route("report", false, "/reports/payment-summary", REPORT_READ),
-          new Route("docx", false, "/reports/payment-summary/docx", REPORT_EXPORT));
+          new Route("list", "GET", "/examination-details", SERVICE_READ),
+          new Route("summary", "GET", "/examination-details/summary", SERVICE_SUMMARY_READ),
+          new Route("export", "GET", "/examination-details/export", SERVICE_EXPORT),
+          new Route("import", "POST", "/examination-details/imports", SERVICE_RECONCILE),
+          new Route(
+              "template",
+              "GET",
+              "/examination-details/import-template",
+              SERVICE_TEMPLATE_DOWNLOAD),
+          new Route("record", "PUT", "/examination-details/{participantId}", SERVICE_RECORD),
+          new Route("report", "GET", "/reports/payment-summary", REPORT_READ),
+          new Route("docx", "GET", "/reports/payment-summary/docx", REPORT_EXPORT));
 
   @TestConfiguration
   static class StoredEndpointPermissions {
@@ -122,7 +147,7 @@ class ExaminationDetailSecurityWebMvcTest {
                       route ->
                           PermissionRecord.builder()
                               .code(route.permission())
-                              .httpMethod(route.isPost() ? "POST" : "GET")
+                              .httpMethod(route.method())
                               .endpoint(StubEndpoints.BASE + route.path())
                               .build())
                   .toList());
@@ -200,6 +225,16 @@ class ExaminationDetailSecurityWebMvcTest {
       org.assertj.core.api.Assertions.assertThat(statusOf(route, "patient"))
           .as(route.name())
           .isEqualTo(403);
+  }
+
+  @Test
+  void recordWithAnUnknownOriginIsForbiddenEvenWithThePermission() throws Exception {
+    when(authenticate.execute("recorder")).thenReturn(principal("STAFF", List.of(SERVICE_RECORD)));
+    mvc.perform(
+            put(BATCH + "/examination-details/" + PARTICIPANT)
+                .header("Origin", "https://evil.test")
+                .cookie(new Cookie(COOKIE, "recorder")))
+        .andExpect(status().isForbidden());
   }
 
   @Test

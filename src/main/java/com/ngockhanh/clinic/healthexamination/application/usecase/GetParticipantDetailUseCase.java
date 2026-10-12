@@ -51,7 +51,7 @@ public class GetParticipantDetailUseCase {
         participants
             .findInBatch(AggregateId.of(batchId), AggregateId.of(participantId))
             .orElseThrow(() -> new ResourceNotFoundException("Participant"));
-    log.debug(
+    log.info(
         "Participant detail read: organizationId={}, batchId={}, participantId={}",
         organizationId,
         batchId,

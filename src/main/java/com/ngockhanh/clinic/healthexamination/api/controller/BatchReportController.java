@@ -48,7 +48,7 @@ public class BatchReportController {
       @PathVariable UUID organizationId,
       @PathVariable UUID batchId,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug("Payment summary request: organizationId={}, batchId={}", organizationId, batchId);
+    log.info("Payment summary request: organizationId={}, batchId={}", organizationId, batchId);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
         .body(
@@ -66,7 +66,7 @@ public class BatchReportController {
       @PathVariable UUID organizationId,
       @PathVariable UUID batchId,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.debug(
+    log.info(
         "Payment summary document request: organizationId={}, batchId={}",
         organizationId,
         batchId);

@@ -29,6 +29,12 @@ public interface ExaminationDetailReader {
   Optional<List<ExaminationDetailRow>> readAllActive(UUID organizationId, UUID batchId);
 
   /**
+   * Reads one Participant of the batch, whatever its roster status, with the batch services it
+   * performed. Empty when the batch is not in scope or the Participant is not in the batch.
+   */
+  Optional<ExaminationDetailRow> readOne(UUID organizationId, UUID batchId, UUID participantId);
+
+  /**
    * Counts active Participants and aggregates their performed services by batch service and price
    * snapshot. Rows of cancelled Participants and rows that are not performed are excluded.
    */

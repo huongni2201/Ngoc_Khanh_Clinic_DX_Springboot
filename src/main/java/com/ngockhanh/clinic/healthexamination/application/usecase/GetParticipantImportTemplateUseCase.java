@@ -77,7 +77,7 @@ public class GetParticipantImportTemplateUseCase {
                 .sorted(Comparator.naturalOrder())
                 .toList());
     var response = new ParticipantImportTemplateResponse(writer.write(data), FILE_NAME);
-    log.debug(
+    log.info(
         "Participant import template generated: organizationId={}, batchId={}, days={}",
         organizationId,
         batchId,

@@ -27,7 +27,6 @@ import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -59,9 +58,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ExaminationDetailImportCommitter {
-  /** Business time zone used to decide what "today" is for an actual examination date. */
-  static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
-
   private static final long JOB_VERSION_AFTER_CREATE = 0L;
   private static final String COMMITTED_RESOURCE_TYPE = "HEALTH_EXAMINATION_BATCH_PARTICIPANT";
 
@@ -176,7 +172,7 @@ public class ExaminationDetailImportCommitter {
           reconciler.apply(
               participant,
               batch,
-              row,
+              row.toEntry(),
               actor,
               now,
               plannedDates.get(participant.getBatchDayId().value()));
@@ -187,7 +183,7 @@ public class ExaminationDetailImportCommitter {
             new CommittedImportRow(row.rowNumber(), COMMITTED_RESOURCE_TYPE, row.participantId()));
       }
     }
-    log.debug(
+    log.info(
         "Participant reconciliation executed; commit pending: batchId={}, rows={}, updated={}",
         request.batchId(),
         request.rows().size(),
@@ -249,34 +245,20 @@ public class ExaminationDetailImportCommitter {
       List<ExaminationDetailImportRow> rows,
       Map<UUID, HealthExaminationBatchParticipant> locked,
       Map<UUID, LocalDate> plannedDates) {
-    LocalDate today = LocalDate.now(clock.withZone(BUSINESS_ZONE));
     for (ExaminationDetailImportRow row : rows) {
       if (row.actualExaminationDate() != null || row.performedServiceIds().isEmpty()) continue;
       HealthExaminationBatchParticipant participant = locked.get(row.participantId());
       if (participant.getAttendanceStatus() == AttendanceStatus.ATTENDED) continue;
-      LocalDate planned = plannedDates.get(participant.getBatchDayId().value());
-      if (planned != null && planned.isAfter(today))
-        throw new ApplicationException(
-            ApplicationException.Type.INVALID_INPUT,
-            "Row "
-                + row.rowNumber()
-                + ": actual_examination_date is required because the planned examination date"
-                + " is in the future");
+      ExaminationDateRules.requirePlannedDateNotInFuture(
+          plannedDates.get(participant.getBatchDayId().value()), clock, "Row " + row.rowNumber());
     }
   }
 
   /** An actual date is at least the first day of the batch and at most today (business time). */
   private void requireValidDates(HealthExaminationBatch batch, List<ExaminationDetailImportRow> rows) {
-    LocalDate today = LocalDate.now(clock.withZone(BUSINESS_ZONE));
-    for (ExaminationDetailImportRow row : rows) {
-      LocalDate date = row.actualExaminationDate();
-      if (date != null && (date.isBefore(batch.startDate()) || date.isAfter(today)))
-        throw new ApplicationException(
-            ApplicationException.Type.INVALID_INPUT,
-            "Row "
-                + row.rowNumber()
-                + ": actual_examination_date must be between the batch start date and today");
-    }
+    for (ExaminationDetailImportRow row : rows)
+      ExaminationDateRules.requireActualDateInRange(
+          batch, row.actualExaminationDate(), clock, "Row " + row.rowNumber());
   }
 
   /** Locks every Participant of the file in one query, whatever batch the identifier was made for. */

@@ -294,11 +294,17 @@ WHERE role.code = 'CLINIC_MANAGER'
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- Permissions of the examination detail matrix and the payment report of a health examination batch:
---   HEALTH_EXAMINATION_SERVICE_READ       view the examination detail matrix
---   HEALTH_EXAMINATION_SERVICE_RECONCILE  import an examination detail Excel file
---   HEALTH_EXAMINATION_REPORT_READ        view the payment report
--- Only the permission catalog is added. Roles that already exist receive the grants below; roles
+--   HEALTH_EXAMINATION_SERVICE_READ               view the examination detail matrix
+--   HEALTH_EXAMINATION_SERVICE_RECONCILE          import an examination detail Excel file
+--   HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD  download the import template, pre-filled with the
+--                                                 roster and the recorded services
+--   HEALTH_EXAMINATION_SERVICE_RECORD             record the examination details of one Participant
+--                                                 by hand
+--   HEALTH_EXAMINATION_REPORT_READ                view the payment report
+-- Only the permission catalog is added. Roles that already exist receive the grants below, and
+-- whoever may import a file may also fetch the template and enter one Participant by hand; roles
 -- created later must be granted explicitly. No permission is granted to every staff account.
+-- Accounts must sign in again to receive the permissions.
 
 INSERT INTO public.permissions (code, name, description)
 VALUES
@@ -308,6 +314,12 @@ VALUES
     ('HEALTH_EXAMINATION_SERVICE_RECONCILE',
      'Reconcile health examination services',
      'Import an Excel file that records the services performed for Participants of a batch.'),
+    ('HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD',
+     'Download examination detail import template',
+     'Download the Excel template, pre-filled with the roster and the recorded services, used to import examination details. Not in the SRS Permission Matrix 4.4 yet.'),
+    ('HEALTH_EXAMINATION_SERVICE_RECORD',
+     'Record examination details of one participant',
+     'Record attendance and the performed services of a single Participant by hand. Not in the SRS Permission Matrix 4.4 yet.'),
     ('HEALTH_EXAMINATION_REPORT_READ',
      'Read health examination payment report',
      'View the payment summary of a health examination batch.')
@@ -320,6 +332,8 @@ JOIN public.permissions AS permission
   ON permission.code IN (
       'HEALTH_EXAMINATION_SERVICE_READ',
       'HEALTH_EXAMINATION_SERVICE_RECONCILE',
+      'HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD',
+      'HEALTH_EXAMINATION_SERVICE_RECORD',
       'HEALTH_EXAMINATION_REPORT_READ')
 WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')
 ON CONFLICT (role_id, permission_id) DO NOTHING;
@@ -381,6 +395,8 @@ FROM (
         ('HEALTH_EXAMINATION_SERVICE_SUMMARY_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/summary'),
         ('HEALTH_EXAMINATION_SERVICE_EXPORT', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/export'),
         ('HEALTH_EXAMINATION_SERVICE_RECONCILE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/imports'),
+        ('HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/import-template'),
+        ('HEALTH_EXAMINATION_SERVICE_RECORD', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/{participantId}'),
         ('HEALTH_EXAMINATION_REPORT_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary'),
         ('HEALTH_EXAMINATION_REPORT_EXPORT', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary/docx'),
         ('SERVICE_CATALOG_VIEW', 'GET', '/api/v1/catalog/services')

@@ -48,6 +48,15 @@ an active STAFF account is required as `granted_by`. The former V004 amendment,
 consolidated into V001 for fresh databases under ADR-0013, enforces this pairing
 while continuing to reject patient accounts receiving staff roles.
 
+### Examination detail entry amendment — 2026-10-12
+
+The owner approved two more examination-detail permissions, each protecting one endpoint:
+`HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD` (`GET .../examination-details/import-template`, the pre-filled
+import template) and `HEALTH_EXAMINATION_SERVICE_RECORD` (`PUT .../examination-details/{participantId}`, manual
+entry for one Participant). V002 seeds them and grants both to every role that holds
+`HEALTH_EXAMINATION_SERVICE_RECONCILE`. Sessions must sign in again to receive them. See
+[the examination detail contract](../api/examination-details-and-report.md).
+
 ### Enforcement
 
 - Each endpoint is stored with its permission: `permissions.http_method` and

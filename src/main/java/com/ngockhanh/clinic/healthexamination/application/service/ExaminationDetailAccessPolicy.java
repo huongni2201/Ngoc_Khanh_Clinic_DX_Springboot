@@ -16,6 +16,9 @@ public class ExaminationDetailAccessPolicy {
       "HEALTH_EXAMINATION_SERVICE_SUMMARY_READ";
   public static final String SERVICE_EXPORT_PERMISSION = "HEALTH_EXAMINATION_SERVICE_EXPORT";
   public static final String SERVICE_RECONCILE_PERMISSION = "HEALTH_EXAMINATION_SERVICE_RECONCILE";
+  public static final String SERVICE_TEMPLATE_DOWNLOAD_PERMISSION =
+      "HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD";
+  public static final String SERVICE_RECORD_PERMISSION = "HEALTH_EXAMINATION_SERVICE_RECORD";
   public static final String REPORT_READ_PERMISSION = "HEALTH_EXAMINATION_REPORT_READ";
   public static final String REPORT_EXPORT_PERMISSION = "HEALTH_EXAMINATION_REPORT_EXPORT";
 
@@ -53,6 +56,24 @@ public class ExaminationDetailAccessPolicy {
    */
   public void requireServiceReconcile(UserPrincipal principal) {
     require(principal, SERVICE_RECONCILE_PERMISSION);
+  }
+
+  /**
+   * Requires permission to download the examination detail import template.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireServiceTemplateDownload(UserPrincipal principal) {
+    require(principal, SERVICE_TEMPLATE_DOWNLOAD_PERMISSION);
+  }
+
+  /**
+   * Requires permission to record the examination details of a single Participant by hand.
+   *
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireServiceRecord(UserPrincipal principal) {
+    require(principal, SERVICE_RECORD_PERMISSION);
   }
 
   /**

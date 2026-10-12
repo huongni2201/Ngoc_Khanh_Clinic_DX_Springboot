@@ -32,7 +32,7 @@ public class ServiceCatalogController {
   @GetMapping
   public ResponseEntity<ApiResponse<PageResponse<ServiceCatalogItemResponse>>> list(
       @Valid @ModelAttribute ServiceCatalogListRequest request) {
-    log.debug(
+    log.info(
         "List catalog services request: page={}, size={}", request.getPage(), request.getSize());
     ServiceCatalogListQuery query =
         ServiceCatalogListQuery.builder()

@@ -38,11 +38,15 @@ public record UpdateHealthExaminationBatchRequest(
   /** Maps the transport body to the application configuration input. */
   public BatchConfiguration toConfiguration() {
     return BatchConfiguration.builder()
-        .batchName(batchName)
+        .batchName(trimmed(batchName))
         .examinationDates(examinationDates)
         .examinationSiteType(examinationSiteType)
-        .examinationSiteAddress(examinationSiteAddress)
+        .examinationSiteAddress(trimmed(examinationSiteAddress))
         .services(services.stream().map(ServicePriceRequest::toServicePrice).toList())
         .build();
+  }
+
+  private static String trimmed(String value) {
+    return value == null ? null : value.trim();
   }
 }
