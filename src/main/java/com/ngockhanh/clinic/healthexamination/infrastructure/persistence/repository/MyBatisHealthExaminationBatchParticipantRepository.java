@@ -45,9 +45,21 @@ public class MyBatisHealthExaminationBatchParticipantRepository
   public List<HealthExaminationBatchParticipant> findManyInBatchForUpdate(
       AggregateId batchId, Collection<AggregateId> ids) {
     if (ids.isEmpty()) return List.of();
-    var headers =
+    return withServices(
         mapper.findManyInBatchForUpdate(
-            batchId.value(), ids.stream().map(AggregateId::value).toList());
+            batchId.value(), ids.stream().map(AggregateId::value).toList()));
+  }
+
+  @Override
+  public List<HealthExaminationBatchParticipant> findManyInBatch(
+      AggregateId batchId, Collection<AggregateId> ids) {
+    if (ids.isEmpty()) return List.of();
+    return withServices(
+        mapper.findManyInBatch(batchId.value(), ids.stream().map(AggregateId::value).toList()));
+  }
+
+  private List<HealthExaminationBatchParticipant> withServices(
+      List<HealthExaminationBatchParticipantRecord> headers) {
     if (headers.isEmpty()) return List.of();
     Map<UUID, List<HealthExaminationParticipantServiceRecord>> servicesByParticipant =
         mapper.findServices(headers.stream().map(HealthExaminationBatchParticipantRecord::id).toList())

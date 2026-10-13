@@ -16,6 +16,8 @@ hiện hành; trạng thái triển khai API được ghi riêng với quy tắc
 | Danh sách người khám và nhập roster Excel | [Participant import/list](api/participant-import-and-list.md) |
 | Thêm, sửa, hủy và kích hoạt lại người khám | [Participant manual changes](api/participant-manual-crud.md) |
 | Đối soát dịch vụ Excel và báo cáo thanh toán Word | [Examination details/report](api/examination-details-and-report.md) |
+| In phiếu khám một người (PDF, Gotenberg) | [Examination form print](api/examination-form-print.md) |
+| In hàng loạt phiếu khám (job nền, nhiều phần PDF) | [Examination form print jobs](api/examination-form-print-jobs.md) |
 | Quyết định kiến trúc đã chấp nhận | [ADR index](adr/README.md) |
 | Phần chưa triển khai hoặc cần chốt | [Open items](architecture/07-open-items.md) |
 | Kiểm thử và triển khai | [Operations](architecture/06-testing-and-operations.md) |

@@ -134,6 +134,23 @@ class HealthExaminationBatchMapperTest {
             "status='DRAFT'")
         .doesNotContain("DELETE FROM");
 
+    var start = new HashMap<String, Object>();
+    start.put("id", UUID.randomUUID());
+    start.put("organizationId", UUID.randomUUID());
+    start.put("status", "READY");
+    start.put("expectedStatus", "DRAFT");
+    start.put("expectedRowVersion", 1L);
+    assertThat(sql(config, "updateStatus", start))
+        .contains(
+            "SET status=?",
+            "row_version=row_version+1",
+            "row_version=?",
+            "organization_id=?",
+            "deleted_at IS NULL",
+            "status=?")
+        .as("a status change never rewrites the configuration")
+        .doesNotContain("name=", "examination_site", "batch_code=", "READY", "DRAFT");
+
     var scoped = new HashMap<String, Object>();
     scoped.put("batchId", UUID.randomUUID());
     scoped.put("ids", List.of(UUID.randomUUID(), UUID.randomUUID()));

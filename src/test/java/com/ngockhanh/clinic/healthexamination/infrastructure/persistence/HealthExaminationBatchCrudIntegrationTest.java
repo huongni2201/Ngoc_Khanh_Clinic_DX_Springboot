@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doThrow;
 import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.StartHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
@@ -15,6 +16,7 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthEx
 import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetHealthExaminationBatchByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListHealthExaminationBatchUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.StartHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
@@ -75,6 +77,7 @@ class HealthExaminationBatchCrudIntegrationTest {
     UpdateHealthExaminationBatchUseCase.class,
     ListHealthExaminationBatchUseCase.class,
     DeleteHealthExaminationBatchUseCase.class,
+    StartHealthExaminationBatchUseCase.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisHealthExaminationBatchRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
@@ -114,6 +117,7 @@ class HealthExaminationBatchCrudIntegrationTest {
   @Autowired UpdateHealthExaminationBatchUseCase update;
   @Autowired ListHealthExaminationBatchUseCase list;
   @Autowired DeleteHealthExaminationBatchUseCase delete;
+  @Autowired StartHealthExaminationBatchUseCase start;
   @Autowired HealthExaminationBatchParticipantRepository participants;
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
@@ -485,6 +489,48 @@ class HealthExaminationBatchCrudIntegrationTest {
     assertThatThrownBy(() -> updateBatch(created, config(List.of(D4), service), 0))
         .isInstanceOf(DomainRuleViolation.class);
     assertThatThrownBy(() -> deleteBatch(created.id(), 0)).isInstanceOf(DomainRuleViolation.class);
+  }
+
+  private BatchDetailResponse startBatch(UUID batchId, long rowVersion) {
+    return start.execute(
+        org,
+        batchId,
+        StartHealthExaminationBatchCommand.builder().rowVersion(rowVersion).build(),
+        actor);
+  }
+
+  @Test
+  void startMovesADraftToReadyOnceBumpsTheVersionAuditsAndLocksTheConfiguration() {
+    var created = createBatch(service);
+
+    var started = startBatch(created.id(), 0);
+
+    assertThat(started.status()).isEqualTo("READY");
+    assertThat(started.rowVersion()).isEqualTo(1);
+    assertThat(started.batchCode()).isEqualTo(created.batchCode());
+    assertThat(started.days()).hasSize(2);
+    assertThat(audits("START_HEALTH_EXAMINATION_BATCH", created.id())).isEqualTo(1);
+    assertThatThrownBy(() -> startBatch(created.id(), 1)).isInstanceOf(DomainRuleViolation.class);
+    assertThatThrownBy(() -> updateBatch(created, config(List.of(D4), service), 1))
+        .isInstanceOf(DomainRuleViolation.class);
+    assertThatThrownBy(() -> deleteBatch(created.id(), 1)).isInstanceOf(DomainRuleViolation.class);
+  }
+
+  @Test
+  void aStaleStartIsAConflictAndAFailedAuditRollsTheStartBack() {
+    var created = createBatch(service);
+    assertThatThrownBy(() -> startBatch(created.id(), 5))
+        .isInstanceOf(ConcurrentUpdateException.class);
+
+    doThrow(new IllegalStateException("audit unavailable"))
+        .when(audit)
+        .record(any(), any(), any(), any(), any(), any());
+    assertThatThrownBy(() -> startBatch(created.id(), 0))
+        .isInstanceOf(IllegalStateException.class);
+
+    var stored = get.execute(org, created.id());
+    assertThat(stored.status()).isEqualTo("DRAFT");
+    assertThat(stored.rowVersion()).isZero();
   }
 
   @Test

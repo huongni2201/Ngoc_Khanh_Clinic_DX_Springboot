@@ -14,3 +14,12 @@ clinic:
     cookie-secure: false
     allowed-origins: http://localhost:3000
     test-role-full-access: true
+
+nkc:
+  document:
+    gotenberg:
+      # docker compose publishes Gotenberg on 3001 because the frontend dev server uses 3000.
+      url: ${NKC_DOCUMENT_GOTENBERG_URL:http://localhost:3001}
+    storage:
+      # Bulk-print output of a backend started from the IDE; deleted by the app 24 hours after a job finishes.
+      local-root: ${NKC_DOCUMENT_STORAGE_ROOT:./target/documents}

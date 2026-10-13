@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.api.controller;
 import com.ngockhanh.clinic.healthexamination.api.request.CreateHealthExaminationBatchRequest;
 import com.ngockhanh.clinic.healthexamination.api.request.DeleteHealthExaminationBatchRequest;
 import com.ngockhanh.clinic.healthexamination.api.request.HealthExaminationBatchListRequest;
+import com.ngockhanh.clinic.healthexamination.api.request.StartHealthExaminationBatchRequest;
 import com.ngockhanh.clinic.healthexamination.api.request.UpdateHealthExaminationBatchRequest;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteHealthExaminationBatchCommand;
@@ -14,6 +15,7 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthEx
 import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetHealthExaminationBatchByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListHealthExaminationBatchUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.StartHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.web.ApiResponse;
@@ -45,6 +47,7 @@ public class OrganizationBatchController {
 	private final UpdateHealthExaminationBatchUseCase updateBatchUseCase;
 	private final ListHealthExaminationBatchUseCase listBatchUseCase;
 	private final DeleteHealthExaminationBatchUseCase deleteBatchUseCase;
+	private final StartHealthExaminationBatchUseCase startBatchUseCase;
 
 	/**
 	 * Creates a draft health examination batch for an organization.
@@ -150,6 +153,32 @@ public class OrganizationBatchController {
 						principal.userId());
 		return ResponseEntity.ok(
 				ApiResponse.success(HttpStatus.OK.value(), "Health examination batch updated", response));
+	}
+
+	/**
+	 * Starts a draft batch (DRAFT to READY). Its configuration is fixed from then on; Participants
+	 * can still be changed and the examination forms can be printed.
+	 *
+	 * @param organizationId owning organization
+	 * @param batchId        batch identifier
+	 * @param request        carries the expected row version
+	 * @param principal      authenticated staff principal
+	 * @return the started batch
+	 */
+	@PostMapping("/{batchId}/start")
+	public ResponseEntity<ApiResponse<BatchDetailResponse>> start(
+			@PathVariable UUID organizationId,
+			@PathVariable UUID batchId,
+			@Valid @RequestBody StartHealthExaminationBatchRequest request,
+			@AuthenticationPrincipal UserPrincipal principal) {
+		log.info(
+				"Start health examination batch request: organizationId={}, batchId={}",
+				organizationId,
+				batchId);
+		BatchDetailResponse response =
+				startBatchUseCase.execute(organizationId, batchId, request.toCommand(), principal.userId());
+		return ResponseEntity.ok(
+				ApiResponse.success(HttpStatus.OK.value(), "Health examination batch started", response));
 	}
 
 	/**

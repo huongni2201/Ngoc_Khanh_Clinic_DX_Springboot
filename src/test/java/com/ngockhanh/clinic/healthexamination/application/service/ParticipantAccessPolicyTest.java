@@ -28,7 +28,8 @@ class ParticipantAccessPolicyTest {
             new Operation("PARTICIPANT_CREATE", policy::requireCreate),
             new Operation("PARTICIPANT_UPDATE", policy::requireUpdate),
             new Operation("PARTICIPANT_REMOVE", policy::requireRemove),
-            new Operation("PARTICIPANT_REACTIVATE", policy::requireReactivate));
+            new Operation("PARTICIPANT_REACTIVATE", policy::requireReactivate),
+            new Operation("PARTICIPANT_EXAMINATION_FORM_PRINT", policy::requirePrint));
     for (var operation : operations) {
       assertThatCode(() -> operation.authorize().accept(staff(operation.permission())))
           .as(operation.permission())

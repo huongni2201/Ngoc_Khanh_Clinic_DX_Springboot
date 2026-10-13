@@ -19,6 +19,9 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
   List<HealthExaminationBatchParticipantRecord> findManyInBatchForUpdate(
       @Param("batchId") UUID batchId, @Param("ids") Collection<UUID> ids);
 
+  List<HealthExaminationBatchParticipantRecord> findManyInBatch(
+      @Param("batchId") UUID batchId, @Param("ids") Collection<UUID> ids);
+
   boolean identityTakenByOther(
       @Param("batchId") UUID batchId,
       @Param("identity") String identity,

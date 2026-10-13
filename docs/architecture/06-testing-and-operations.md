@@ -52,6 +52,24 @@ migration resources cannot survive under `target/classes/db/migration`.
 Databases with any earlier migration history require a separate reviewed conversion procedure.
 Never replace applied checksums or point this baseline at deployed historical data.
 
+Document printing needs a Gotenberg 8 service (`NKC_DOCUMENT_GOTENBERG_URL`, see
+[examination form print](../api/examination-form-print.md#cấu-hình)). Production must run it
+without Internet egress. The starter template is seeded at startup and the application fails
+fast if V004 has not been applied; set `nkc.document.seed-starter-templates=false` to skip it.
+
+IT maintains document templates under
+[ADR-0018](../adr/0018-it-managed-document-templates.md); there is no product template
+editing/upload/publish workflow. Content needs business/clinical approval and PDF
+validation before release. The seeder never updates an existing type: a replacement
+needs a new immutable file reference/version and a reviewed release/migration,
+including the effective-period transition. Keep referenced packaged resources at
+their original paths; replacing `starter-v1.docx` in place is not a version upgrade.
+
+Bulk printing needs `NKC_DOCUMENT_STORAGE_ROOT` (a writable directory; without it job creation returns
+503) and Gotenberg's `--api-timeout` at least `nkc.document.gotenberg.merge-timeout` (90 s). The worker
+runs in every instance (`nkc.document.jobs.enabled=false` turns it off). See
+[print jobs](../api/examination-form-print-jobs.md#vận-hành).
+
 Flyway startup is disabled by default and enabled for local/test databases by
 configuration. Production migration is an explicit deployment step. Startup must
 use a compatible migrated schema. No runtime auto-create/auto-alter ORM schema exists.

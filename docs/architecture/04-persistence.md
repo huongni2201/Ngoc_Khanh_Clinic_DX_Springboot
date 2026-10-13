@@ -13,13 +13,16 @@ all other roles and every grantor require STAFF accounts.
 
 The owner-requested consolidation on 2026-10-08 keeps one schema initializer and
 two data-only seed migrations. The 2026-10-11 consolidation folds the former
-V008 and V009 changes into V001, so fresh databases apply three migrations:
+V008 and V009 changes into V001, so fresh databases apply three baseline migrations plus the additive V004–V006:
 
 | Migration | Responsibility |
 |---|---|
 | `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers. The batch table has no `examination_site_name`; a batch site is its type and address only, and two CHECK constraints require a non-space batch name and a non-blank organization-site address |
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions and role grants |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
+| `V004__document_template_lifecycle.sql` | Additive: template-version lifecycle (DRAFT → PUBLISHED \| DISCARDED), page layout, protection triggers |
+| `V005__document_print_permissions.sql` | Additive: `PARTICIPANT_EXAMINATION_FORM_PRINT` endpoint permission |
+| `V006__document_render_jobs.sql` | Additive: `document_render_jobs`, `document_render_job_outputs` and the three bulk-print permissions |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. V004–V007
@@ -117,6 +120,19 @@ Issued/final content and issued representations are immutable, protected by the
 baseline triggers. Portal release rows reference exact versions and remain
 independent of notification delivery. Render-on-demand uses source and template
 versions; the schema contains no generated-document or printer tables.
+
+Render jobs (V006): `document_render_jobs` (status, lease, attempts, source ids, skipped list,
+`expires_at`; unique `(requested_by, idempotency_key)`) and `document_render_job_outputs` (one `files`
+row per merged part, `LOCAL` provider). V006 is additive and also seeds three endpoint permissions.
+
+Template versions (V004) move DRAFT → PUBLISHED | DISCARDED. `files.storage_provider` is
+CLASSPATH, LOCAL or S3; only CLASSPATH and LOCAL have adapters. Each version stores its
+`contract_version`, page size read from the docx and `pages_per_record`. There is one default
+template per `template_type` (partial unique index). A trigger forbids changing a version's
+file or layout, and any edit of a published version except scheduling its retirement or
+cancelling it before it takes effect; published periods of one template never overlap; a
+file referenced by a version cannot change or be deleted. The system-seeded starter version
+has `created_by` NULL.
 
 ## Verification
 

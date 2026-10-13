@@ -40,6 +40,13 @@ public interface HealthExaminationBatchMyBatisMapper {
       @Param("expectedRowVersion") long expectedRowVersion,
       @Param("deletedAt") Instant deletedAt);
 
+  int updateStatus(
+      @Param("id") UUID id,
+      @Param("organizationId") UUID organizationId,
+      @Param("status") String status,
+      @Param("expectedStatus") String expectedStatus,
+      @Param("expectedRowVersion") long expectedRowVersion);
+
   int deleteDays(@Param("batchId") UUID batchId, @Param("ids") Collection<UUID> ids);
 
   int deleteServices(@Param("batchId") UUID batchId, @Param("ids") Collection<UUID> ids);

@@ -226,6 +226,20 @@ public class MyBatisHealthExaminationBatchRepository implements HealthExaminatio
   }
 
   @Override
+  public void updateStatus(
+      HealthExaminationBatch batch, BatchStatus expectedStatus, long expectedRowVersion) {
+    if (batch == null || expectedStatus == null)
+      throw new IllegalArgumentException("Batch and expected status are required");
+    if (mapper.updateStatus(
+            batch.id().value(),
+            batch.organizationId().value(),
+            batch.status().name(),
+            expectedStatus.name(),
+            expectedRowVersion)
+        != 1) throw new ConcurrentUpdateException();
+  }
+
+  @Override
   public Set<UUID> findReferencedDayIds(UUID batchId, Collection<UUID> dayIds) {
     if (dayIds.isEmpty()) return Set.of();
     return new HashSet<>(mapper.findReferencedDayIds(batchId, dayIds));

@@ -23,6 +23,12 @@ class PersistenceRecordContractTest {
       Pattern.compile(
           "^    ([a-z_]+) (uuid|varchar(?:\\(\\d+\\))?|text|boolean|bigint|integer|smallint|numeric\\([\\d,]+\\)|date|timestamptz\\(3\\)|jsonb|bytea|inet)(.*)$",
           Pattern.MULTILINE);
+  /** One {@code ALTER TABLE public.x ...;} statement of a migration after V003. */
+  private static final Pattern ALTER_TABLE =
+      Pattern.compile("ALTER TABLE public\\.([a-z_]+)\\s(.*?);", Pattern.DOTALL);
+
+  private static final Pattern ADDED_COLUMN =
+      Pattern.compile("^\\s+ADD COLUMN (.*?),?$", Pattern.MULTILINE);
   private static final String OWNERS =
       """
       departments catalog DepartmentRecord
@@ -98,6 +104,7 @@ class PersistenceRecordContractTest {
     var tables = new HashMap<String, String>();
     TABLE.matcher(sql).results().forEach(match -> tables.put(match.group(1), match.group(2)));
     assertThat(tables).hasSize(64);
+    appendColumnsAddedByLaterMigrations(tables);
     var mapped = new HashSet<String>();
     var expectedPaths = new HashSet<Path>();
     for (String entry : OWNERS.strip().split("\\R")) {
@@ -143,6 +150,33 @@ class PersistenceRecordContractTest {
       assertThat(Class.forName(className).getDeclaredMethods())
           .as(className)
           .anyMatch(method -> method.getName().equals("builder"));
+    }
+  }
+
+  /**
+   * V001 owns every table. A later migration may only extend a table with {@code ADD COLUMN} lines,
+   * one column per line, which follow the V001 columns in file order; a record carries them last.
+   */
+  private static void appendColumnsAddedByLaterMigrations(HashMap<String, String> tables)
+      throws Exception {
+    try (var files = Files.list(Path.of("src/main/resources/db/migration"))) {
+      var later =
+          files
+              .filter(path -> path.getFileName().toString().compareTo("V004") >= 0)
+              .filter(path -> path.toString().endsWith(".sql"))
+              .sorted()
+              .toList();
+      for (Path file : later) {
+        // Comments may contain semicolons; they are not part of a statement.
+        String sql = Files.readString(file).replaceAll("(?m)--.*$", "");
+        for (var alter : ALTER_TABLE.matcher(sql).results().toList()) {
+          String table = alter.group(1);
+          for (var added : ADDED_COLUMN.matcher(alter.group(2)).results().toList()) {
+            assertThat(tables).as("%s adds a column to an unknown table", file).containsKey(table);
+            tables.put(table, tables.get(table) + "\n    " + added.group(1) + "\n");
+          }
+        }
+      }
     }
   }
 

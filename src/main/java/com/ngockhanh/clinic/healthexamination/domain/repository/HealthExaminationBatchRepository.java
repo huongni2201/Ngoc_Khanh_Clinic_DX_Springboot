@@ -49,6 +49,18 @@ public interface HealthExaminationBatchRepository {
    */
   void softDelete(HealthExaminationBatch batch, long expectedRowVersion);
 
+  /**
+   * Stores the lifecycle status already applied to the aggregate (for example DRAFT to READY). The
+   * configuration is not touched; the header row version is incremented exactly once.
+   *
+   * @param expectedStatus status the header must still have
+   * @param expectedRowVersion header version the caller read
+   * @throws com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException when the header was
+   *     changed, deleted or moved to another status since it was read
+   */
+  void updateStatus(
+      HealthExaminationBatch batch, BatchStatus expectedStatus, long expectedRowVersion);
+
   /** Returns the subset of the given day identifiers that a Participant is scheduled on. */
   Set<UUID> findReferencedDayIds(UUID batchId, Collection<UUID> dayIds);
 

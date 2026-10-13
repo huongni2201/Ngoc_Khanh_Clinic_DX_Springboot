@@ -9,11 +9,18 @@ services:
       DB_USERNAME: ${POSTGRES_USER:-nkclinic}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
       REDIS_HOST: redis
+      NKC_DOCUMENT_GOTENBERG_URL: http://gotenberg:3000
+      # Bulk-print output (merged PDFs, deleted after 24 hours). Mounted so it survives a restart.
+      NKC_DOCUMENT_STORAGE_ROOT: /var/lib/nkc/documents
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      gotenberg:
+        condition: service_healthy
+    volumes:
+      - document_data:/var/lib/nkc/documents
     ports:
       - "8080:8080"
 
@@ -45,5 +52,22 @@ services:
       timeout: 3s
       retries: 10
 
+  # Converts the .docx examination forms to PDF with LibreOffice. The host port is bound to loopback
+  # for a backend started from the IDE. This is a development convenience: in production the
+  # converter must run without outbound network access (plan 20261012-examination-form-printing, T13).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    command:
+      - "gotenberg"
+      - "--api-timeout=120s"
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test: ["CMD", "curl", "--silent", "--fail", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:
+  document_data:

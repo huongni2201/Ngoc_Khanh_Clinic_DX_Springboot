@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.RenderJobMapper">
+ <sql id="jobColumns">
+  j.id, j.document_type, j.requested_by, j.idempotency_key, j.context::text AS context,
+  array_to_string(j.source_ids, ',') AS record_ids, j.status, j.total_count, j.processed_count,
+  j.skipped::text AS skipped, j.error_code, j.created_at, j.finished_at, j.expires_at
+ </sql>
+ <select id="findById" resultType="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.RenderJobRow">
+  SELECT <include refid="jobColumns"/> FROM public.document_render_jobs j WHERE j.id=#{id}
+ </select>
+ <select id="findByIdempotencyKey" resultType="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.RenderJobRow">
+  SELECT <include refid="jobColumns"/> FROM public.document_render_jobs j
+  WHERE j.requested_by=#{requestedBy} AND j.idempotency_key=#{idempotencyKey}
+ </select>
+ <select id="countActive" resultType="int">
+  SELECT count(*) FROM public.document_render_jobs WHERE requested_by=#{requestedBy} AND status IN ('QUEUED','RUNNING')
+ </select>
+ <insert id="insert">
+  INSERT INTO public.document_render_jobs(id,document_type,requested_by,idempotency_key,context,source_ids,status,total_count,created_at)
+  VALUES (#{id},#{documentType},#{requestedBy},#{idempotencyKey},CAST(#{context} AS jsonb),string_to_array(#{recordIds},',')::uuid[],'QUEUED',#{totalCount},#{now})
+  ON CONFLICT (requested_by, idempotency_key) DO NOTHING
+ </insert>
+ <select id="findParts" resultType="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.PartRow">
+  SELECT o.part_no, o.file_id, o.record_count, f.size_bytes, f.storage_provider, f.storage_key, f.checksum
+  FROM public.document_render_job_outputs o JOIN public.files f ON f.id=o.file_id
+  WHERE o.job_id=#{jobId} ORDER BY o.part_no
+ </select>
+ <update id="failExhausted">
+  UPDATE public.document_render_jobs
+  SET status='FAILED', error_code='ATTEMPTS_EXHAUSTED', lock_token=NULL, locked_until=NULL,
+      finished_at=#{now}, expires_at=#{expiresAt}, row_version=row_version+1
+  WHERE status='RUNNING' AND locked_until &lt; #{now} AND attempt_count &gt;= #{maxAttempts}
+ </update>
+ <select id="claimNext" resultType="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.ClaimedRow">
+  UPDATE public.document_render_jobs j
+  SET status='RUNNING', lock_token=#{lockToken}, locked_until=#{leaseUntil}, attempt_count=j.attempt_count+1,
+      started_at=COALESCE(j.started_at, #{now}), row_version=j.row_version+1
+  WHERE j.id = (
+   SELECT c.id FROM public.document_render_jobs c
+   WHERE (c.status='QUEUED' OR (c.status='RUNNING' AND c.locked_until &lt; #{now})) AND c.attempt_count &lt; #{maxAttempts}
+   ORDER BY c.created_at, c.id
+   FOR UPDATE SKIP LOCKED
+   LIMIT 1)
+  RETURNING j.id, j.attempt_count, j.document_type, j.requested_by, j.context::text AS context,
+            array_to_string(j.source_ids, ',') AS record_ids
+ </select>
+ <update id="recordTemplateVersion">
+  UPDATE public.document_render_jobs SET template_version_id=#{templateVersionId}, row_version=row_version+1
+  WHERE id=#{id} AND lock_token=#{lockToken} AND status='RUNNING'
+ </update>
+ <update id="progress">
+  UPDATE public.document_render_jobs
+  SET processed_count=#{processed}, skipped=CAST(#{skipped} AS jsonb), locked_until=#{leaseUntil}, row_version=row_version+1
+  WHERE id=#{id} AND lock_token=#{lockToken} AND status='RUNNING'
+ </update>
+ <update id="lockForPart">
+  UPDATE public.document_render_jobs SET locked_until=#{leaseUntil}
+  WHERE id=#{id} AND lock_token=#{lockToken} AND status='RUNNING'
+ </update>
+ <insert id="insertFile">
+  INSERT INTO public.files(id,storage_provider,storage_key,original_filename,content_type,size_bytes,checksum)
+  VALUES (#{id},#{storageProvider},#{storageKey},#{originalFilename},#{contentType},#{sizeBytes},#{checksum})
+ </insert>
+ <insert id="insertPart">
+  INSERT INTO public.document_render_job_outputs(job_id,part_no,file_id,record_count) VALUES (#{jobId},#{partNo},#{fileId},#{recordCount})
+ </insert>
+ <update id="finish">
+  UPDATE public.document_render_jobs
+  SET status=#{status}, error_code=#{errorCode}, processed_count=#{processed}, skipped=CAST(#{skipped} AS jsonb),
+      lock_token=NULL, locked_until=NULL, finished_at=#{now}, expires_at=#{expiresAt}, row_version=row_version+1
+  WHERE id=#{id} AND lock_token=#{lockToken} AND status='RUNNING'
+ </update>
+ <select id="findExpired" resultType="java.util.UUID">
+  SELECT id FROM public.document_render_jobs
+  WHERE status IN ('SUCCEEDED','FAILED') AND expires_at &lt;= #{now} ORDER BY expires_at LIMIT #{limit}
+ </select>
+ <delete id="deleteParts">
+  DELETE FROM public.document_render_job_outputs WHERE job_id=#{jobId}
+ </delete>
+ <delete id="deleteFilesOfParts">
+  DELETE FROM public.files WHERE id IN
+  <foreach collection="fileIds" item="fileId" open="(" separator="," close=")">#{fileId}</foreach>
+ </delete>
+ <update id="markExpired">
+  UPDATE public.document_render_jobs SET status='EXPIRED', row_version=row_version+1 WHERE id=#{id} AND status IN ('SUCCEEDED','FAILED')
+ </update>
+</mapper>

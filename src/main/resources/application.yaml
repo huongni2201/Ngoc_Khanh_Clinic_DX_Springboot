@@ -34,3 +34,26 @@ nkc:
       address: ${NKC_REPORT_CLINIC_ADDRESS:}
       phone: ${NKC_REPORT_CLINIC_PHONE:}
       city: ${NKC_REPORT_CLINIC_CITY:}
+  document:
+    # Seeds the starter .docx templates once at startup; a type that already has a version is left alone.
+    seed-starter-templates: true
+    gotenberg:
+      url: ${NKC_DOCUMENT_GOTENBERG_URL:http://localhost:3000}
+      timeout: 15s
+      # Merging one print part (up to part-size PDFs); Gotenberg's own --api-timeout must be at least this long.
+      merge-timeout: 90s
+    storage:
+      # Directory of the LOCAL file provider. Blank keeps the provider off (starter templates use the classpath).
+      local-root: ${NKC_DOCUMENT_STORAGE_ROOT:}
+    # Background print jobs (bulk printing). Output files live under storage.local-root and are deleted after retention.
+    jobs:
+      enabled: true
+      poll-interval: 5s
+      cleanup-interval: 10m
+      max-records: 1000
+      part-size: 200
+      chunk-size: 25
+      lease: 5m
+      max-attempts: 3
+      retention: 24h
+      max-active-per-requester: 3

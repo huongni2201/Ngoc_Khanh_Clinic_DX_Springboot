@@ -44,6 +44,13 @@ public interface HealthExaminationBatchParticipantRepository {
       AggregateId batchId, Collection<AggregateId> ids);
 
   /**
+   * Loads the given Participants of one batch without locking them, for read-only work such as
+   * printing. Identifiers that do not belong to the batch are simply absent from the result.
+   */
+  List<HealthExaminationBatchParticipant> findManyInBatch(
+      AggregateId batchId, Collection<AggregateId> ids);
+
+  /**
    * Inserts one Participant. A duplicate identification number in the batch, whatever the roster
    * status of the existing row, is rejected by the database unique constraint.
    *

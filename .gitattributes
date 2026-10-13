@@ -2,3 +2,6 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
 *.bat text eol=crlf
+
+# Document templates are binary Word files.
+*.docx binary

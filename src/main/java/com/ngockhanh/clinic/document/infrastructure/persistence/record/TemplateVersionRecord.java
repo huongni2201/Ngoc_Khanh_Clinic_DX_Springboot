@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.document.infrastructure.persistence.record;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
@@ -16,4 +17,16 @@ public record TemplateVersionRecord(
     String renderMode,
     Instant activeFrom,
     Instant retiredAt,
-    Instant createdAt) {}
+    Instant createdAt,
+    String status,
+    int contractVersion,
+    BigDecimal pageWidthMm,
+    BigDecimal pageHeightMm,
+    Short pagesPerRecord,
+    String validationReport,
+    UUID previewFileId,
+    UUID createdBy,
+    UUID publishedBy,
+    Instant publishedAt,
+    String note,
+    long rowVersion) {}

@@ -50,6 +50,7 @@ Base path: `/api/v1/organizations/{organizationId}/health-examination-batches`.
 | POST collection | 201 batch detail | `HEALTH_EXAMINATION_BATCH_CREATE` |
 | PUT `/{batchId}` | 200 batch detail | `HEALTH_EXAMINATION_BATCH_UPDATE` |
 | DELETE `/{batchId}?rowVersion={n}` | 204 | `HEALTH_EXAMINATION_BATCH_DELETE` |
+| POST `/{batchId}/start` body `{"rowVersion": n}` | 200 batch detail (READY) | `HEALTH_EXAMINATION_BATCH_START` (V007) |
 
 Create/PUT fields:
 
@@ -91,8 +92,17 @@ GET collection accepts `page`, `size`, `searchKey`, `sortKey` (`id`, `batchCode`
 Deletion means soft deletion (`deleted_at`), retaining the batch, days, services
 and code. Only a DRAFT batch without any Participant or import history qualifies.
 Soft-deleted batches are absent from subsequent reads/writes; a mismatched
-Organization/Batch pair or missing resource is 404. There is no current endpoint
-to move a batch to READY, FINALIZED or CLOSED.
+Organization/Batch pair or missing resource is 404.
+
+Start (UC-071) moves a DRAFT batch of an ACTIVE organization to READY with the
+expected `rowVersion`; the header version is incremented once and
+`START_HEALTH_EXAMINATION_BATCH` is audited in the same transaction. A stale
+version, a batch that is not a draft or an inactive organization is 409; a
+missing or deleted batch is 404. A READY batch can no longer be updated or
+deleted; Participants can still be added, edited, cancelled and imported, and
+examination forms can be printed ([one form](examination-form-print.md),
+[print jobs](examination-form-print-jobs.md)). There is no current endpoint to
+move a batch to FINALIZED or CLOSED.
 
 ## Authorization limits
 

@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.DeleteHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.StartHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.UpdateHealthExaminationBatchCommand;
 import com.ngockhanh.clinic.healthexamination.application.query.HealthExaminationBatchListQuery;
 import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
@@ -27,6 +28,7 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthEx
 import com.ngockhanh.clinic.healthexamination.application.usecase.DeleteHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetHealthExaminationBatchByIdUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListHealthExaminationBatchUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.StartHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.UpdateHealthExaminationBatchUseCase;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
@@ -59,6 +61,8 @@ class OrganizationBatchControllerTest {
       mock(ListHealthExaminationBatchUseCase.class);
   private final DeleteHealthExaminationBatchUseCase delete =
       mock(DeleteHealthExaminationBatchUseCase.class);
+  private final StartHealthExaminationBatchUseCase start =
+      mock(StartHealthExaminationBatchUseCase.class);
   private final UUID actor = UUID.randomUUID();
   private final UUID organizationId = UUID.randomUUID();
   private final UUID batchId = UUID.randomUUID();
@@ -82,7 +86,7 @@ class OrganizationBatchControllerTest {
         .setAuthentication(new UsernamePasswordAuthenticationToken(principal, "test", List.of()));
     mvc =
         MockMvcBuilders.standaloneSetup(
-                new OrganizationBatchController(create, get, update, list, delete))
+                new OrganizationBatchController(create, get, update, list, delete, start))
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
@@ -308,5 +312,51 @@ class OrganizationBatchControllerTest {
 
     mvc.perform(delete(item()).param("rowVersion", "1")).andExpect(status().isNotFound());
     mvc.perform(delete(item()).param("rowVersion", "1")).andExpect(status().isConflict());
+  }
+
+  @Test
+  void startPassesTheVersionAndReturnsTheReadyBatch() throws Exception {
+    when(start.execute(eq(organizationId), eq(batchId), any(), eq(actor)))
+        .thenReturn(
+            BatchDetailResponse.builder()
+                .id(batchId)
+                .organizationId(organizationId)
+                .batchCode("B1")
+                .batchName("Campaign")
+                .days(List.of())
+                .examinationSiteType("CLINIC")
+                .status("READY")
+                .rowVersion(5)
+                .services(List.of())
+                .build());
+
+    mvc.perform(
+            post(item() + "/start")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"rowVersion\":4}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.status").value("READY"))
+        .andExpect(jsonPath("$.data.rowVersion").value(5));
+
+    verify(start)
+        .execute(
+            organizationId,
+            batchId,
+            StartHealthExaminationBatchCommand.builder().rowVersion(4L).build(),
+            actor);
+  }
+
+  @Test
+  void startWithoutAVersionIsRejectedAndAStaleOneIsAConflict() throws Exception {
+    mvc.perform(post(item() + "/start").contentType(MediaType.APPLICATION_JSON).content("{}"))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(start);
+
+    when(start.execute(any(), any(), any(), any())).thenThrow(new ConcurrentUpdateException());
+    mvc.perform(
+            post(item() + "/start")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"rowVersion\":1}"))
+        .andExpect(status().isConflict());
   }
 }

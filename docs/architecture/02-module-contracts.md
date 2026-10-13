@@ -31,6 +31,17 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
   depends on the published shared ID generator, without accesscontrol persistence access.
 - `document::master-health-examination-template` exposes effective template-version
   lookup without leaking table records; no current issuance use case calls it.
+- `document::contract` publishes `DocumentTypeContract` and `PlaceholderSpec`;
+  `document::rendering` publishes `DocumentRenderer` (`render(documentType, values)` →
+  PDF bytes plus template version). `healthexamination` depends on `document`, never the
+  reverse: it implements the contract (`PeriodicFormBlankContract`) and the document module
+  receives every contract through `List<DocumentTypeContract>` injection. Rendering holds no
+  database transaction; the loader reads the source in its own short read-only transaction.
+  Gotenberg, the DOCX engine and storage adapters stay in `document` infrastructure.
+- Bulk printing: `document::rendering` also publishes `RenderJobs` (enqueue/lookup by requester),
+  `DocumentValuesSource` (the owning module supplies record values for a job; `healthexamination`
+  implements `ExaminationFormValuesSource`) and `RenderSession`. The generic job tables, worker,
+  merge and storage live in `document`; `healthexamination` only validates the batch and enqueues.
 
 `integration::participant-imports` publishes the single-step roster import contract
 (`ParticipantImportStore`: idempotency reservation, a VALIDATED job with its rows,

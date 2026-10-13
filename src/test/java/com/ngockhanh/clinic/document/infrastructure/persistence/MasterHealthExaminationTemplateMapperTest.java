@@ -22,6 +22,7 @@ class MasterHealthExaminationTemplateMapperTest {
             "FROM public.template_versions v",
             "JOIN public.templates t ON",
             "t.active=true",
+            "v.status='PUBLISHED'",
             "v.render_mode='MASTER_FORM'",
             "v.active_from<=CURRENT_TIMESTAMP",
             "v.retired_at IS NULL",

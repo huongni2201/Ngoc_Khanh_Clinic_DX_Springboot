@@ -3,6 +3,6 @@
 <mapper namespace="com.ngockhanh.clinic.document.infrastructure.persistence.mapper.MasterHealthExaminationTemplateMapper">
  <select id="findEffectiveVersions" resultType="java.util.UUID">
  SELECT v.id FROM public.template_versions v JOIN public.templates t ON t.id=v.template_id
- WHERE t.active=true AND v.render_mode='MASTER_FORM' AND v.active_from&lt;=CURRENT_TIMESTAMP AND (v.retired_at IS NULL OR v.retired_at&gt;CURRENT_TIMESTAMP)
+ WHERE t.active=true AND v.status='PUBLISHED' AND v.render_mode='MASTER_FORM' AND v.active_from&lt;=CURRENT_TIMESTAMP AND (v.retired_at IS NULL OR v.retired_at&gt;CURRENT_TIMESTAMP)
  </select>
 </mapper>

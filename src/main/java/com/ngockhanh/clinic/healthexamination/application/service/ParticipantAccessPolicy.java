@@ -18,6 +18,8 @@ public class ParticipantAccessPolicy {
   public static final String UPDATE_PERMISSION = "PARTICIPANT_UPDATE";
   public static final String REMOVE_PERMISSION = "PARTICIPANT_REMOVE";
   public static final String REACTIVATE_PERMISSION = "PARTICIPANT_REACTIVATE";
+  public static final String PRINT_PERMISSION = "PARTICIPANT_EXAMINATION_FORM_PRINT";
+  public static final String BULK_PRINT_PERMISSION = "PARTICIPANT_EXAMINATION_FORM_BULK_PRINT";
 
   /**
    * Requires permission to read the Participant roster of a batch.
@@ -93,6 +95,26 @@ public class ParticipantAccessPolicy {
    */
   public void requireReactivate(UserPrincipal principal) {
     require(principal, REACTIVATE_PERMISSION);
+  }
+
+  /**
+   * Requires permission to print the examination form of one Participant.
+   *
+   * @param principal authenticated caller
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requirePrint(UserPrincipal principal) {
+    require(principal, PRINT_PERMISSION);
+  }
+
+  /**
+   * Requires permission to print the examination forms of many Participants in one background job.
+   *
+   * @param principal authenticated caller
+   * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
+   */
+  public void requireBulkPrint(UserPrincipal principal) {
+    require(principal, BULK_PRINT_PERMISSION);
   }
 
   private static void require(UserPrincipal principal, String permission) {

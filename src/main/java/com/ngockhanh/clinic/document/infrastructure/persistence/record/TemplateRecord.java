@@ -6,4 +6,10 @@ import lombok.Builder;
 /** Persistence row of {@code public.templates}. */
 @Builder
 public record TemplateRecord(
-    UUID id, String code, String name, String templateType, boolean active) {}
+    UUID id,
+    String code,
+    String name,
+    String templateType,
+    boolean active,
+    boolean isDefault,
+    long rowVersion) {}

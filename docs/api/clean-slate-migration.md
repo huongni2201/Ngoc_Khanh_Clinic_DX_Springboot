@@ -1,6 +1,6 @@
 # Current API inventory and migration compatibility
 
-Updated 2026-10-09 from current controllers and accepted contracts. A controller
+Updated 2026-10-13 from current controllers and accepted contracts. A controller
 mapping does not guarantee authorization: production also requires a matching
 `EndpointPermissions` rule and the applicable application policy.
 
@@ -15,13 +15,17 @@ All paths below start with `/api/v1`. `O` means
 | accesscontrol | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | [Login](login.md) |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
-| healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion` |
+| healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B`, `POST B/start` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion`; start moves DRAFT to READY (`HEALTH_EXAMINATION_BATCH_START`) |
 | healthexamination | `GET B/participants`, `GET B/participants/import-template`, `POST B/participants/imports` | [Participant import and list](participant-import-and-list.md) |
 | healthexamination | `POST B/participants`, `GET/PUT/DELETE B/participants/{participantId}`, `POST B/participants/{participantId}/reactivate` | [Participant manual changes](participant-manual-crud.md) |
 | healthexamination | `GET B/examination-details`, `GET B/examination-details/summary`, `GET B/examination-details/export`, `POST B/examination-details/imports` | [Examination details](examination-details-and-report.md) |
 | healthexamination | `GET B/reports/payment-summary`, `GET B/reports/payment-summary/docx` | [Payment report](examination-details-and-report.md) |
+| healthexamination | `GET B/participants/{participantId}/examination-form` | [Examination form print](examination-form-print.md); inline PDF, permission `PARTICIPANT_EXAMINATION_FORM_PRINT` |
+| healthexamination | `POST B/participants/examination-form-print-jobs` | [Examination form print jobs](examination-form-print-jobs.md); 202, permission `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` |
+| document | `GET /document-render-jobs/{jobId}`, `GET /document-render-jobs/{jobId}/parts/{partNo}` | [Examination form print jobs](examination-form-print-jobs.md); creator only, permissions `DOCUMENT_RENDER_JOB_READ` and `DOCUMENT_RENDER_JOB_DOWNLOAD` |
 
-V002 stores a method/route/permission mapping for all 25 business operations under
+V002 stores a method/route/permission mapping for the 25 initial business operations, V005
+adds the 26th for `PARTICIPANT_EXAMINATION_FORM_PRINT`, V006 adds three more (bulk print, job read, job download) and V007 binds `HEALTH_EXAMINATION_BATCH_START` to batch start (32 in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST and ADMINISTRATOR roles use
@@ -45,10 +49,17 @@ REST JSON responses use `ApiResponse` and the documented pagination/error shape
 in [PROJECT_RULES](../../PROJECT_RULES.md#envelope-errors-and-pagination).
 Downloads return file bytes; authorized Organization/Batch DELETE requests return 204.
 
-No current handlers expose batch lifecycle transitions, visit preparation,
+No current handlers expose batch finalization/closing (only DRAFT to READY), visit preparation,
 official record issuance, clinical ordering/results, billing payments, prescription
-issuance, portal releases or document-template management. Their schema/domain
+issuance, portal releases or document-template management
+(only the starter template is seeded; there is no upload/publish API). Their schema/domain
 concepts do not imply supported client routes.
+
+Document-template editing/upload/publish is excluded from product scope by
+[ADR-0018](../adr/0018-it-managed-document-templates.md). IT maintains versions
+through reviewed releases/migrations after business/clinical content approval;
+this is not a pending client API. Excel roster and reconciliation imports remain
+supported under their own contracts.
 
 ## Removed Excel roster import
 
@@ -60,8 +71,8 @@ The single-step service-reconciliation import is a separate workflow.
 
 ## Database compatibility
 
-Fresh databases apply one final schema initializer V001 and data-only seeds
-V002/V003. Earlier migration histories cannot use the rewritten baseline as an
+Fresh databases apply one final schema initializer V001, data-only seeds
+V002/V003, and the additive V004 (template lifecycle), V005 (print permission), V006 (print jobs and their permissions) and V007 (batch start endpoint permission). Earlier migration histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings
 and separate detail/summary/export permissions in V002, as defined by ADR-0015.
