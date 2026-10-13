@@ -23,7 +23,7 @@ public record CreateUserAccountResponse(
     String status,
     UUID ownerId,
     List<String> roleCodes,
-    boolean smsDelivered) {
+    Boolean smsDelivered) {
   public CreateUserAccountResponse {
     roleCodes = roleCodes == null ? List.of() : List.copyOf(roleCodes);
   }

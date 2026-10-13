@@ -11,9 +11,9 @@ import java.util.UUID;
  * @param active whether the profile is in ACTIVE status
  * @param phone phone number stored on the profile, possibly null or free text
  */
-public record AccountOwner(UUID id, AccountType type, boolean active, String phone) {
+public record AccountOwner(UUID id, AccountType type, Boolean active, String phone) {
   public AccountOwner {
-    if (id == null || type == null)
+    if (id == null || type == null || active == null)
       throw new IllegalArgumentException("Account owner identity is required");
   }
 

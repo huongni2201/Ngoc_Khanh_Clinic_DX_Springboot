@@ -222,6 +222,10 @@ class CreateUserAccountUseCaseTest {
     assertThat(useCase.execute(staffCommand(List.of(doctor.id())), admin()).smsDelivered())
         .isFalse();
 
+    when(sender.send(any())).thenReturn(null);
+    assertThat(useCase.execute(staffCommand(List.of(doctor.id())), admin()).smsDelivered())
+        .isFalse();
+
     when(sender.send(any())).thenThrow(new IllegalStateException("gateway down"));
     assertThat(useCase.execute(staffCommand(List.of(doctor.id())), admin()).smsDelivered())
         .isFalse();
@@ -250,25 +254,48 @@ class CreateUserAccountUseCaseTest {
   }
 
   @Test
-  void passwordsOutsideThePolicyAreRejectedBeforeHashing() {
-    CreateUserAccountCommand weak =
+  void anyNonBlankPasswordIsAcceptedWithoutAComplexityPolicy() {
+    when(passwords.encode("abc")).thenReturn(HASH);
+    CreateUserAccountCommand simple =
         CreateUserAccountCommand.builder()
             .accountType("STAFF")
             .ownerId(ownerId)
             .username(USERNAME)
-            .temporaryPassword("abcdefgh")
+            .temporaryPassword("abc")
             .roleIds(List.of(doctor.id()))
             .build();
 
-    assertInvalid(weak, CreateUserAccountUseCase.PASSWORD_POLICY);
-    verify(passwords, never()).encode(anyString());
+    useCase.execute(simple, admin());
+
+    verify(passwords).encode("abc");
+    verify(accounts).insertIfAbsent(any());
   }
 
   @Test
-  void aPasswordTooLongForTheEncoderBreaksThePolicy() {
+  void aBlankPasswordIsRejectedBeforeHashing() {
+    CreateUserAccountCommand blank =
+        CreateUserAccountCommand.builder()
+            .accountType("STAFF")
+            .ownerId(ownerId)
+            .username(USERNAME)
+            .temporaryPassword("   ")
+            .roleIds(List.of(doctor.id()))
+            .build();
+
+    assertThatThrownBy(() -> useCase.execute(blank, admin()))
+        .isInstanceOf(IllegalArgumentException.class);
+    verify(passwords, never()).encode(anyString());
+    assertNothingWritten();
+  }
+
+  @Test
+  void aPasswordTheEncoderRejectsWritesNothing() {
     doThrow(new IllegalArgumentException("too long")).when(passwords).encode(PASSWORD);
 
-    assertInvalid(staffCommand(List.of(doctor.id())), CreateUserAccountUseCase.PASSWORD_POLICY);
+    assertThatThrownBy(() -> useCase.execute(staffCommand(List.of(doctor.id())), admin()))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(staffMembers);
+    assertNothingWritten();
   }
 
   @Test
@@ -394,7 +421,7 @@ class CreateUserAccountUseCaseTest {
 
   /** Runs the callback directly and records whether a transaction is open. */
   private static final class RecordingTransactions implements TransactionOperations {
-    boolean active;
+    Boolean active = false;
 
     @Override
     public <T> T execute(TransactionCallback<T> action) {

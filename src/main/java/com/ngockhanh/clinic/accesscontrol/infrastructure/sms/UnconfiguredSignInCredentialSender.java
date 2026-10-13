@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class UnconfiguredSignInCredentialSender implements SignInCredentialSender {
   @Override
-  public boolean send(SignInCredentialMessage message) {
+  public Boolean send(SignInCredentialMessage message) {
     log.warn(
         "Sign-in credential SMS not sent; no SMS gateway configured: accountId={}",
         message.accountId());

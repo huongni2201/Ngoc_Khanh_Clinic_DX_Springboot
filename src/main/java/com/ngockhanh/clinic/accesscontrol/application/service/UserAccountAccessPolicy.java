@@ -57,7 +57,7 @@ public class UserAccountAccessPolicy {
   }
 
   private static void require(UserPrincipal principal, String permission) {
-    boolean allowed =
+    Boolean allowed =
         principal != null
             && principal.userId() != null
             && "STAFF".equals(principal.principalType())

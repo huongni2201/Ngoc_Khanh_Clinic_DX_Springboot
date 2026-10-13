@@ -13,5 +13,5 @@ public interface StaffMemberMyBatisMapper {
   StaffAccountOwnerView lockById(@Param("id") UUID id);
 
   List<StaffOwnerCandidateView> searchActiveWithoutAccount(
-      @Param("pattern") String pattern, @Param("limit") int limit);
+      @Param("pattern") String pattern, @Param("limit") Integer limit);
 }

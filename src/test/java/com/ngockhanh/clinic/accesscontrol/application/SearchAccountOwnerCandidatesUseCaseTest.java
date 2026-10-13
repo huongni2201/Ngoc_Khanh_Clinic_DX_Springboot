@@ -51,12 +51,12 @@ class SearchAccountOwnerCandidatesUseCaseTest {
 
   private static final UserPrincipal ADMIN = admin(UserAccountAccessPolicy.OWNER_SEARCH_PERMISSION);
 
-  private static StaffOwnerCandidate staff(int index, String phone) {
+  private static StaffOwnerCandidate staff(Integer index, String phone) {
     return new StaffOwnerCandidate(
         UUID.randomUUID(), "NV-" + index, "Staff " + index, "Khoa Khám Bệnh", phone, null);
   }
 
-  private static PatientOwnerCandidate patient(int index) {
+  private static PatientOwnerCandidate patient(Integer index) {
     return new PatientOwnerCandidate(
         UUID.randomUUID(),
         "BN-" + index,

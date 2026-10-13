@@ -26,7 +26,7 @@ public interface PatientAccountOwnerDirectory {
    * @param limit maximum number of rows
    * @return candidates ordered by full name, including patients that already have an account
    */
-  List<PatientOwnerCandidate> searchActive(String keyword, int limit);
+  List<PatientOwnerCandidate> searchActive(String keyword, Integer limit);
 
   /**
    * Patient as needed to link an account.
@@ -35,7 +35,7 @@ public interface PatientAccountOwnerDirectory {
    * @param active whether the patient is in ACTIVE status
    * @param phone phone number as stored, or null
    */
-  record PatientAccountOwner(UUID id, boolean active, String phone) {
+  record PatientAccountOwner(UUID id, Boolean active, String phone) {
     @Override
     public String toString() {
       return "PatientAccountOwner[id=" + id + ", active=" + active + "]";

@@ -30,7 +30,7 @@ Requires an allowed `Origin`. Request:
 | `accountType` | required, `STAFF` or `PATIENT` |
 | `ownerId` | required, staff member id (STAFF) or patient id (PATIENT) |
 | `username` | required, 1 to 150 printable ASCII characters (no diacritics), no leading or trailing space, unique, compared exactly (case-sensitive) |
-| `temporaryPassword` | required, at least 8 characters with an uppercase letter, a digit and a special character, at most 72 UTF-8 bytes after NFKC normalization |
+| `temporaryPassword` | required, not blank; no complexity policy. Bcrypt reads at most 72 UTF-8 bytes after NFKC normalization, so a longer password is rejected with `Invalid request` |
 | `roleIds` | required array, at most 20; STAFF: at least one active role other than `PATIENT`; PATIENT: empty, the `PATIENT` role is granted automatically |
 
 ```json
@@ -67,7 +67,7 @@ by the exact text and shows its own wording.
 | Status | Message | When |
 |---|---|---|
 | 400 | `Invalid request: <fields>` | structural validation; `data` lists the fields |
-| 400 | `Temporary password does not meet the password policy` | password policy or 72-byte limit |
+| 400 | `Invalid request` | password longer than 72 UTF-8 bytes |
 | 400 | `A staff account requires at least one role` | STAFF with no role |
 | 400 | `A patient account takes no roles` | PATIENT with roles |
 | 400 | `A role can be selected only once` | duplicate role id |

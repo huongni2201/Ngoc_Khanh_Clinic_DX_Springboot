@@ -25,7 +25,7 @@ public class MyBatisPatientAccountOwnerDirectory implements PatientAccountOwnerD
   }
 
   @Override
-  public List<PatientOwnerCandidate> searchActive(String keyword, int limit) {
+  public List<PatientOwnerCandidate> searchActive(String keyword, Integer limit) {
     return mapper.searchActive(keyword, likePattern(keyword), limit).stream()
         .map(
             row ->

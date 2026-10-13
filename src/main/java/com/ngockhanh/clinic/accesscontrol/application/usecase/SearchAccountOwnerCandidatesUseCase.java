@@ -29,10 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SearchAccountOwnerCandidatesUseCase {
   /** Maximum number of candidates returned. */
-  static final int LIMIT = 20;
+  static final Integer LIMIT = 20;
 
   /** Patients read before removing those that already have an account. */
-  static final int PATIENT_OVERFETCH = 100;
+  static final Integer PATIENT_OVERFETCH = 100;
 
   private final UserAccountAccessPolicy access;
   private final StaffMemberRepository staffMembers;

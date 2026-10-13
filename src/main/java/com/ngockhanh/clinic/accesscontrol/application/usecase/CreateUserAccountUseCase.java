@@ -15,7 +15,6 @@ import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepositor
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.AccountOwner;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.AssignableRole;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SmsPhoneNumber;
-import com.ngockhanh.clinic.accesscontrol.domain.valueobject.TemporaryPasswordPolicy;
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
@@ -65,10 +64,8 @@ public class CreateUserAccountUseCase {
   public static final String ROLE_NOT_ASSIGNABLE = "Role is not assignable";
 
   /** 400 message contracts. */
-  public static final String PASSWORD_POLICY =
-      "Temporary password does not meet the password policy";
-
   public static final String STAFF_ROLE_REQUIRED = "A staff account requires at least one role";
+
   public static final String PATIENT_ROLES_FORBIDDEN = "A patient account takes no roles";
   public static final String DUPLICATE_ROLE = "A role can be selected only once";
 
@@ -92,11 +89,12 @@ public class CreateUserAccountUseCase {
    * @return the created account; {@code smsDelivered} is false when the SMS was not accepted, in
    *     which case the account still exists
    * @throws ApplicationException of type {@code ACCESS_DENIED} without the create permission, or of
-   *     type {@code INVALID_INPUT} for a password outside the policy or an invalid role selection
+   *     type {@code INVALID_INPUT} for an invalid role selection
    * @throws ResourceNotFoundException if the owner does not exist
    * @throws ConflictException if the username is taken, the owner is inactive, already has an
    *     account or has no valid mobile number, or a role cannot be granted
-   * @throws IllegalArgumentException if a required input is missing or the account type is unknown
+   * @throws IllegalArgumentException if a required input is missing, the account type is unknown or
+   *     the password exceeds the 72-byte bcrypt input limit
    * @throws IllegalStateException if called inside an existing transaction
    */
   public CreateUserAccountResponse execute(
@@ -107,7 +105,8 @@ public class CreateUserAccountUseCase {
     if (command == null
         || command.ownerId() == null
         || command.username() == null
-        || command.temporaryPassword() == null)
+        || command.temporaryPassword() == null
+        || command.temporaryPassword().isBlank())
       throw new IllegalArgumentException("Account owner, username and password are required");
     AccountType type =
         AccountType.from(command.accountType())
@@ -118,10 +117,8 @@ public class CreateUserAccountUseCase {
       throw invalid(PATIENT_ROLES_FORBIDDEN);
     if (new LinkedHashSet<>(command.roleIds()).size() != command.roleIds().size())
       throw invalid(DUPLICATE_ROLE);
-    if (!TemporaryPasswordPolicy.isSatisfiedBy(command.temporaryPassword()))
-      throw invalid(PASSWORD_POLICY);
     // Hashing is slow by design; it runs before the transaction so no row lock waits on it.
-    String passwordHash = encode(command.temporaryPassword());
+    String passwordHash = passwords.encode(command.temporaryPassword());
 
     Created created =
         transactions.execute(status -> create(type, command, passwordHash, principal.userId()));
@@ -132,7 +129,7 @@ public class CreateUserAccountUseCase {
         account.type(),
         account.roles().size());
 
-    boolean smsDelivered =
+    Boolean smsDelivered =
         send(
             new SignInCredentialMessage(
                 account.id(),
@@ -219,18 +216,9 @@ public class CreateUserAccountUseCase {
         .orElseThrow(() -> new IllegalStateException("The active PATIENT role is not seeded"));
   }
 
-  private String encode(String password) {
+  private Boolean send(SignInCredentialMessage message) {
     try {
-      return passwords.encode(password);
-    } catch (IllegalArgumentException tooLong) {
-      // UserPasswordEncoder rejects passwords above 72 UTF-8 bytes after normalization.
-      throw invalid(PASSWORD_POLICY);
-    }
-  }
-
-  private boolean send(SignInCredentialMessage message) {
-    try {
-      return sender.send(message);
+      return Boolean.TRUE.equals(sender.send(message));
     } catch (RuntimeException failure) {
       log.warn(
           "Sign-in credential SMS failed: accountId={}, errorType={}",

@@ -23,7 +23,7 @@ public interface StaffMemberRepository {
    * @param limit maximum number of rows
    * @return candidates ordered by full name
    */
-  List<StaffOwnerCandidate> searchActiveWithoutAccount(String keyword, int limit);
+  List<StaffOwnerCandidate> searchActiveWithoutAccount(String keyword, Integer limit);
 
   /**
    * Staff member offered as an account owner.

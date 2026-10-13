@@ -5,4 +5,4 @@ package com.ngockhanh.clinic.accesscontrol.application.response;
  *
  * @param available true when no account uses the username
  */
-public record UsernameAvailabilityResponse(boolean available) {}
+public record UsernameAvailabilityResponse(Boolean available) {}

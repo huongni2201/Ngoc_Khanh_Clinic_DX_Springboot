@@ -13,7 +13,7 @@ public interface SignInCredentialSender {
    * @param message recipient and sign-in information
    * @return true only when the SMS gateway accepted the message
    */
-  boolean send(SignInCredentialMessage message);
+  Boolean send(SignInCredentialMessage message);
 
   /**
    * Sign-in information for one account. {@link #toString()} hides everything but the account id.

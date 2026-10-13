@@ -100,7 +100,7 @@ class UserAccountSecurityWebMvcTest {
   private record Route(
       String name,
       String permission,
-      int successStatus,
+      Integer successStatus,
       Supplier<AbstractMockHttpServletRequestBuilder<?>> request) {
     @Override
     public String toString() {
@@ -228,6 +228,15 @@ class UserAccountSecurityWebMvcTest {
     verifyNoInteractions(create);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"\"temporaryPassword\":\"\"", "\"temporaryPassword\":\"   \""})
+  void createRejectsABlankPassword(String password) throws Exception {
+    String body = BODY.replace("\"temporaryPassword\":\"" + PASSWORD + "\"", password);
+
+    assertThat(createWith(body)).contains("\"field\":\"temporaryPassword\"");
+    verifyNoInteractions(create);
+  }
+
   @Test
   void createRejectsMissingOwnerTypeAndRoles() throws Exception {
     String body =
@@ -278,7 +287,7 @@ class UserAccountSecurityWebMvcTest {
     return response.getContentAsString();
   }
 
-  private int status(Route route, String session, String origin) throws Exception {
+  private Integer status(Route route, String session, String origin) throws Exception {
     var request = route.request().get();
     if (origin != null) request.header("Origin", origin);
     if (session != null) request.cookie(new Cookie(COOKIE, session));

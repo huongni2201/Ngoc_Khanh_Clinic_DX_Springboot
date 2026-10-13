@@ -297,20 +297,30 @@ class UserAccountCreationIntegrationTest {
   }
 
   @Test
-  void weakPasswordsAreRejectedWithThePolicyMessage() throws Exception {
-    mvc.perform(
-            post("/api/v1/user-accounts")
-                .header("Origin", ORIGIN)
-                .cookie(admin)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {"accountType":"STAFF","ownerId":"%s","username":"weak.%s",
-                     "temporaryPassword":"abcdefgh","roleIds":["%s"]}
-                    """
-                        .formatted(staffMember("0912345672", "ACTIVE"), suffix, role("NURSE"))))
+  void aSimplePasswordIsAcceptedAndABlankOneIsRejected() throws Exception {
+    String username = "simple." + suffix;
+    createWithPassword(staffMember("0912345672", "ACTIVE"), username, "abc")
+        .andExpect(status().isCreated());
+    signIn(username, "abc");
+
+    createWithPassword(staffMember("0912345675", "ACTIVE"), "blank." + suffix, " ")
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value(CreateUserAccountUseCase.PASSWORD_POLICY));
+        .andExpect(jsonPath("$.data[0].field").value("temporaryPassword"));
+  }
+
+  private ResultActions createWithPassword(UUID owner, String username, String password)
+      throws Exception {
+    return mvc.perform(
+        post("/api/v1/user-accounts")
+            .header("Origin", ORIGIN)
+            .cookie(admin)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(
+                """
+                {"accountType":"STAFF","ownerId":"%s","username":"%s",
+                 "temporaryPassword":"%s","roleIds":["%s"]}
+                """
+                    .formatted(owner, username, password, role("NURSE"))));
   }
 
   @Test

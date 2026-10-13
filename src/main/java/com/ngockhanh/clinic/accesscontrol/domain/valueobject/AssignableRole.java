@@ -12,19 +12,19 @@ import java.util.UUID;
  * @param active whether the role currently grants its permissions
  */
 public record AssignableRole(
-    UUID id, String code, String name, String description, boolean active) {
+    UUID id, String code, String name, String description, Boolean active) {
   /** Code of the role reserved for patient portal accounts. */
   public static final String PATIENT_ROLE_CODE = "PATIENT";
 
   public AssignableRole {
-    if (id == null || code == null || code.isBlank())
+    if (id == null || code == null || code.isBlank() || active == null)
       throw new IllegalArgumentException("Role identity is required");
   }
 
   /**
    * @return true for the role reserved for patient accounts
    */
-  public boolean isPatientRole() {
+  public Boolean isPatientRole() {
     return PATIENT_ROLE_CODE.equals(code);
   }
 }

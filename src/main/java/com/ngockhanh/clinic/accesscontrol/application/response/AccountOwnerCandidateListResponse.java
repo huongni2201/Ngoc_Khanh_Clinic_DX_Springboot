@@ -9,7 +9,7 @@ import java.util.List;
  * @param limited true when more profiles may match and the keyword should be refined
  */
 public record AccountOwnerCandidateListResponse(
-    List<AccountOwnerCandidateResponse> items, boolean limited) {
+    List<AccountOwnerCandidateResponse> items, Boolean limited) {
   public AccountOwnerCandidateListResponse {
     items = items == null ? List.of() : List.copyOf(items);
   }

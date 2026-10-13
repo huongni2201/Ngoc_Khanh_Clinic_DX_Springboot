@@ -14,5 +14,5 @@ public interface PatientAccountOwnerMyBatisMapper {
   List<PatientAccountOwnerView> searchActive(
       @Param("keyword") String keyword,
       @Param("pattern") String pattern,
-      @Param("limit") int limit);
+      @Param("limit") Integer limit);
 }

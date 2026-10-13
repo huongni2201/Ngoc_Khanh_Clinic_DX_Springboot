@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.accesscontrol.api.request;
 
 import com.ngockhanh.clinic.accesscontrol.application.command.CreateUserAccountCommand;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -9,13 +10,13 @@ import java.util.UUID;
 import lombok.Builder;
 
 /**
- * Account creation input (UC-005). Structural rules only: the password policy and the role rules of
- * each account type are enforced by the use case. Messages never repeat the submitted values.
+ * Account creation input (UC-005). Structural rules only: the role rules of each account type are
+ * enforced by the use case. Messages never repeat the submitted values.
  *
  * @param accountType STAFF or PATIENT
  * @param ownerId staff member or patient that will own the account
  * @param username printable ASCII, no leading or trailing spaces, at most 150 characters
- * @param temporaryPassword temporary password, at most 72 characters
+ * @param temporaryPassword temporary password, required, no complexity policy
  * @param roleIds initial roles of a STAFF account; empty for a PATIENT account
  */
 @Builder
@@ -30,9 +31,7 @@ public record CreateUserAccountRequest(
             regexp = UsernameRules.PATTERN,
             message = "Username must use letters without diacritics, digits or symbols")
         String username,
-    @NotNull(message = "Temporary password is required")
-        @Size(max = 72, message = "Temporary password must not exceed 72 characters")
-        String temporaryPassword,
+    @NotBlank(message = "Temporary password is required") String temporaryPassword,
     @NotNull(message = "Roles are required")
         @Size(max = 20, message = "At most 20 roles can be selected")
         List<@NotNull(message = "Role is required") UUID> roleIds) {

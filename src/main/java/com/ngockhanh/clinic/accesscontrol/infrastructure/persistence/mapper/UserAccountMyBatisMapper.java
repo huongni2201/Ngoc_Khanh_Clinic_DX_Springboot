@@ -11,16 +11,16 @@ import org.apache.ibatis.annotations.Param;
 /** Account writes and existence checks of account creation (UC-005). */
 @Mapper
 public interface UserAccountMyBatisMapper {
-  boolean existsByUsername(@Param("username") String username);
+  Boolean existsByUsername(@Param("username") String username);
 
-  boolean existsByStaffMember(@Param("staffMemberId") UUID staffMemberId);
+  Boolean existsByStaffMember(@Param("staffMemberId") UUID staffMemberId);
 
-  boolean existsByPatient(@Param("patientId") UUID patientId);
+  Boolean existsByPatient(@Param("patientId") UUID patientId);
 
   List<UUID> findLinkedPatientIds(@Param("patientIds") Collection<UUID> patientIds);
 
   /** Inserts the account; returns 0 when its id, username or owner is already used. */
-  int insertIfAbsent(AccountRecord account);
+  Integer insertIfAbsent(AccountRecord account);
 
-  int insertAccountRoles(@Param("grants") List<AccountRoleRecord> grants);
+  Integer insertAccountRoles(@Param("grants") List<AccountRoleRecord> grants);
 }
