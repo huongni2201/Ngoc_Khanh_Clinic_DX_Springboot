@@ -167,13 +167,14 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(25);
+    assertThat(endpoints).hasSize(31);
     Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
     grantRole("CLINIC_MANAGER");
+    grantRole("ADMINISTRATOR");
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
@@ -186,8 +187,10 @@ class AuthIntegrationTest {
   }
 
   @Test
-  void everyEndpointPermissionIsSeededForTheClinicManager() {
+  void everyEndpointPermissionIsSeededForItsOwningRole() {
     for (PermissionRecord endpoint : permissions.findEndpointPermissions()) {
+      String owner =
+          endpoint.code().startsWith("USER_ACCOUNT_") ? "ADMINISTRATOR" : "CLINIC_MANAGER";
       assertThat(
               jdbc.queryForList(
                   "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
@@ -195,7 +198,7 @@ class AuthIntegrationTest {
                   String.class,
                   endpoint.code()))
           .as(endpoint.code())
-          .contains("CLINIC_MANAGER");
+          .contains(owner);
     }
   }
 

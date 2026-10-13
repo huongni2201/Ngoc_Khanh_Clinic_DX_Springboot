@@ -159,7 +159,8 @@ All schema changes use `src/main/resources/db/migration/V<version>__<description
 Never edit applied shared migrations or use runtime auto-DDL in production.
 Fresh installs apply V001 (final schema, including the batch name and
 organization-site address CHECK constraints), V002 (access-control seed) and V003
-(catalog seed). The owner-authorized 2026-10-08 consolidation incorporates the
+(catalog seed), then V004 (role `DATA_ENTRY_STAFF` renamed `NURSE`) and V005 (user
+account endpoint permissions). The owner-authorized 2026-10-08 consolidation incorporates the
 former V004–V007 amendments directly into V001/V003 for fresh databases only.
 The 2026-10-11 consolidation folds the former V008 (batch site-name column dropped)
 and V009 (batch name and organization-site address CHECK constraints) into V001 the same way.

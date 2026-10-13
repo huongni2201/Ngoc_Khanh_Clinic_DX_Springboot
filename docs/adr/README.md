@@ -12,6 +12,7 @@ or complete implementation.
 | [0014](0014-session-cookie-redis-login.md) | Session-cookie login backed by Redis | 2026-10-05 |
 | [0015](0015-endpoint-permission-rbac.md) | Per-endpoint permission enforcement | 2026-10-07 |
 | [0016](0016-organization-tax-code-identity.md) | Organization tax-code identity | 2026-10-06 |
+| [0017](0017-sign-in-credential-sms-delivery.md) | Post-commit SMS delivery of new account credentials | 2026-10-13 |
 
 The Organization decision was renumbered from the duplicate ADR-0014 on
 2026-10-08. Its acceptance date and business decision are unchanged. Retained IDs

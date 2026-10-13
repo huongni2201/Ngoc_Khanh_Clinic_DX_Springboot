@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.patient.infrastructure.persistence.mapper.PatientAccountOwnerMyBatisMapper">
+    <select id="lockById" resultType="com.ngockhanh.clinic.patient.infrastructure.persistence.view.PatientAccountOwnerView">
+        SELECT id, patient_code, full_name, date_of_birth, phone, status
+        FROM public.patients
+        WHERE id = #{id}
+        FOR SHARE
+    </select>
+    <!-- The identification number only matches exactly, so partial national IDs reveal nothing. -->
+    <select id="searchActive" resultType="com.ngockhanh.clinic.patient.infrastructure.persistence.view.PatientAccountOwnerView">
+        SELECT id, patient_code, full_name, date_of_birth, phone, status
+        FROM public.patients
+        WHERE status = 'ACTIVE'
+          AND (patient_code ILIKE #{pattern} ESCAPE '\'
+               OR full_name ILIKE #{pattern} ESCAPE '\'
+               OR phone LIKE #{pattern} ESCAPE '\'
+               OR identification_number = #{keyword})
+        ORDER BY full_name, id
+        LIMIT #{limit}
+    </select>
+</mapper>

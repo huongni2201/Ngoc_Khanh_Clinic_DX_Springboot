@@ -35,6 +35,14 @@ normalization. The session protocol is described in
 [ADR-0014](../adr/0014-session-cookie-redis-login.md); refresh-token storage
 fields do not invent a new endpoint.
 
+## Account creation
+
+An Administrator creates an ACTIVE account for an existing ACTIVE staff member or
+patient without an account (UC-005, [contract](../api/user-accounts.md)). STAFF
+accounts receive at least one active non-PATIENT role; PATIENT accounts receive only
+the PATIENT role. Account, grants and audit commit together; the sign-in SMS is
+sent after the commit ([ADR-0017](../adr/0017-sign-in-credential-sms-delivery.md)).
+
 ## Organization and Batch
 
 Organization has an optional unique tax code, general contact channels and one

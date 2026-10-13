@@ -6,8 +6,8 @@ remaining work, not accepted permissions, schema changes or deployed features.
 
 ## Endpoint authorization
 
-`EndpointPermissions` reads the 25 business endpoint mappings stored by V002 at
-startup under [ADR-0015](../adr/0015-endpoint-permission-rbac.md). The former route
+`EndpointPermissions` reads the 27 business endpoint mappings stored by V002 and the
+4 user account mappings of V005 at startup under [ADR-0015](../adr/0015-endpoint-permission-rbac.md). The former route
 gaps are closed: Organization DELETE uses `ORGANIZATION_DELETE`, Batch DELETE uses
 `HEALTH_EXAMINATION_BATCH_DELETE`, and catalog service lookup uses
 `SERVICE_CATALOG_VIEW`. All are granted to CLINIC_MANAGER. Local TEST and
@@ -30,6 +30,13 @@ matching HTTP and application enforcement, and coverage of all business mappings
 Verify wrong account type, missing permission, literal-before-wildcard ordering,
 direct application callers and seed-to-session authorization. Permission snapshots
 refresh on sign-in; automatic revocation on grant change is still missing.
+
+## User accounts
+
+UC-005 creation exists. No SMS gateway is integrated (`smsDelivered` is always false),
+and Administrator password reset, user list/details, editing and deactivation
+(UC-006 to UC-010) have no endpoints. The three UC-005 read permissions of V005 must be
+added to the SRS Permission Matrix 4.4.
 
 ## Session go-live blockers
 

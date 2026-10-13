@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserAccountMyBatisMapper">
+    <select id="existsByUsername" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM public.accounts WHERE username = #{username})
+    </select>
+    <select id="existsByStaffMember" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM public.accounts WHERE staff_member_id = #{staffMemberId})
+    </select>
+    <select id="existsByPatient" resultType="boolean">
+        SELECT EXISTS (SELECT 1 FROM public.accounts WHERE patient_id = #{patientId})
+    </select>
+    <select id="findLinkedPatientIds" resultType="java.util.UUID">
+        SELECT patient_id FROM public.accounts
+        WHERE patient_id IN
+        <foreach collection="patientIds" item="patientId" open="(" separator="," close=")">#{patientId}</foreach>
+    </select>
+    <!-- No conflict target: a duplicate id, username or owner leaves the row out instead of aborting
+         the transaction, and the caller re-checks which identity was taken. -->
+    <insert id="insertIfAbsent">
+        INSERT INTO public.accounts
+            (id, account_type, username, password_hash, staff_member_id, patient_id, status, created_at, updated_at)
+        VALUES
+            (#{id}, #{accountType}, #{username}, #{passwordHash}, #{staffMemberId}, #{patientId}, #{status},
+             #{createdAt}, #{updatedAt})
+        ON CONFLICT DO NOTHING
+    </insert>
+    <insert id="insertAccountRoles">
+        INSERT INTO public.account_roles (account_id, role_id, granted_by, granted_at)
+        VALUES
+        <foreach collection="grants" item="grant" separator=",">
+            (#{grant.accountId}, #{grant.roleId}, #{grant.grantedBy}, #{grant.grantedAt})
+        </foreach>
+    </insert>
+</mapper>

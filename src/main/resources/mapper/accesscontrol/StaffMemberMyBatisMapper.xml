@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.StaffMemberMyBatisMapper">
+    <select id="lockById" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffAccountOwnerView">
+        SELECT id, status, phone FROM public.staff_members WHERE id = #{id} FOR SHARE
+    </select>
+    <!-- The department name is catalog reference data read-only here (docs/architecture/02-module-contracts.md). -->
+    <select id="searchActiveWithoutAccount" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffOwnerCandidateView">
+        SELECT s.id, s.staff_code, s.full_name, d.name AS department_name, s.phone, s.email
+        FROM public.staff_members s
+        LEFT JOIN public.departments d ON d.id = s.primary_department_id
+        WHERE s.status = 'ACTIVE'
+          AND NOT EXISTS (SELECT 1 FROM public.accounts a WHERE a.staff_member_id = s.id)
+          AND (s.staff_code ILIKE #{pattern} ESCAPE '\'
+               OR s.full_name ILIKE #{pattern} ESCAPE '\'
+               OR s.phone LIKE #{pattern} ESCAPE '\')
+        ORDER BY s.full_name, s.id
+        LIMIT #{limit}
+    </select>
+</mapper>

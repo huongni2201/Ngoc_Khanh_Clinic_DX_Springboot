@@ -13,6 +13,7 @@ All paths below start with `/api/v1`. `O` means
 | Module | Mapped routes | Contract |
 |---|---|---|
 | accesscontrol | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | [Login](login.md) |
+| accesscontrol | `POST /user-accounts`, `GET /user-accounts/owner-candidates`, `GET /user-accounts/username-availability`, `GET /user-accounts/assignable-roles` | [User account creation](user-accounts.md) (UC-005) |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
 | healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion` |
@@ -21,7 +22,8 @@ All paths below start with `/api/v1`. `O` means
 | healthexamination | `GET B/examination-details`, `GET B/examination-details/summary`, `GET B/examination-details/export`, `POST B/examination-details/imports` | [Examination details](examination-details-and-report.md) |
 | healthexamination | `GET B/reports/payment-summary`, `GET B/reports/payment-summary/docx` | [Payment report](examination-details-and-report.md) |
 
-V002 stores a method/route/permission mapping for all 25 business operations under
+V002 stores a method/route/permission mapping for 27 business operations and V005
+adds the 4 user account operations (31 in total) under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST and ADMINISTRATOR roles use
@@ -60,8 +62,9 @@ The single-step service-reconciliation import is a separate workflow.
 
 ## Database compatibility
 
-Fresh databases apply one final schema initializer V001 and data-only seeds
-V002/V003. Earlier migration histories cannot use the rewritten baseline as an
+Fresh databases apply one final schema initializer V001, data-only seeds
+V002/V003, the `DATA_ENTRY_STAFF` to `NURSE` role rename V004 and the user account
+endpoint mappings V005. Earlier migration histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings
 and separate detail/summary/export permissions in V002, as defined by ADR-0015.

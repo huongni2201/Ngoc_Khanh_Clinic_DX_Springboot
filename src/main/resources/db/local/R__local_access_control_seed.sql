@@ -19,7 +19,7 @@ VALUES
     ('LOCAL_ROLE_RECEPTIONIST', 'Local Receptionist', 'ACTIVE'),
     ('LOCAL_ROLE_GP', 'Local General Practitioner', 'ACTIVE'),
     ('LOCAL_ROLE_DIAGNOSTIC_DOCTOR', 'Local Diagnostic Doctor', 'ACTIVE'),
-    ('LOCAL_ROLE_DATA_ENTRY_STAFF', 'Local Data Entry Staff', 'ACTIVE'),
+    ('LOCAL_ROLE_NURSE', 'Local Nurse', 'ACTIVE'),
     ('LOCAL_ROLE_CLINIC_MANAGER', 'Local Clinic Manager', 'ACTIVE'),
     ('LOCAL_ROLE_TEST', 'Local API Test Staff', 'ACTIVE')
 ON CONFLICT (staff_code) DO NOTHING;
@@ -46,7 +46,7 @@ WITH role_accounts(role_code, username, staff_code) AS (
         ('RECEPTIONIST', 'receptionist', 'LOCAL_ROLE_RECEPTIONIST'),
         ('GENERAL_PRACTITIONER', 'general_practitioner', 'LOCAL_ROLE_GP'),
         ('DIAGNOSTIC_DOCTOR', 'diagnostic_doctor', 'LOCAL_ROLE_DIAGNOSTIC_DOCTOR'),
-        ('DATA_ENTRY_STAFF', 'data_entry_staff', 'LOCAL_ROLE_DATA_ENTRY_STAFF'),
+        ('NURSE', 'nurse', 'LOCAL_ROLE_NURSE'),
         ('CLINIC_MANAGER', 'clinic_manager', 'LOCAL_ROLE_CLINIC_MANAGER'),
         ('TEST', 'test', 'LOCAL_ROLE_TEST')
 )
@@ -80,7 +80,7 @@ WITH role_accounts(role_code, username, staff_code) AS (
         ('RECEPTIONIST', 'receptionist', 'LOCAL_ROLE_RECEPTIONIST'),
         ('GENERAL_PRACTITIONER', 'general_practitioner', 'LOCAL_ROLE_GP'),
         ('DIAGNOSTIC_DOCTOR', 'diagnostic_doctor', 'LOCAL_ROLE_DIAGNOSTIC_DOCTOR'),
-        ('DATA_ENTRY_STAFF', 'data_entry_staff', 'LOCAL_ROLE_DATA_ENTRY_STAFF'),
+        ('NURSE', 'nurse', 'LOCAL_ROLE_NURSE'),
         ('CLINIC_MANAGER', 'clinic_manager', 'LOCAL_ROLE_CLINIC_MANAGER'),
         ('TEST', 'test', 'LOCAL_ROLE_TEST')
 )
@@ -104,6 +104,20 @@ JOIN public.accounts AS grantor ON grantor.username = 'administrator' AND granto
 WHERE account.username = 'patient' AND account.account_type = 'PATIENT' AND account.status = 'ACTIVE'
   AND patient.patient_code = 'LOCAL_ROLE_PATIENT'
 ON CONFLICT (account_id, role_id) DO NOTHING;
+
+-- Owner candidates for UC-005 Create User Account: an active staff member and an active patient with
+-- a valid mobile number and no user account. Their phone numbers are synthetic.
+INSERT INTO public.staff_members (staff_code, full_name, phone, email, primary_department_id, status)
+SELECT 'LOCAL_OWNER_CANDIDATE_STAFF', 'Local Owner Candidate Staff', '0900000101',
+       'owner.candidate.staff@example.invalid', department.id, 'ACTIVE'
+FROM (SELECT 1) AS seed
+LEFT JOIN public.departments AS department ON department.code = 'KHAM_BENH'
+ON CONFLICT (staff_code) DO NOTHING;
+
+INSERT INTO public.patients (patient_code, full_name, date_of_birth, sex, identification_number, phone, status)
+VALUES ('LOCAL_OWNER_CANDIDATE_PATIENT', 'Local Owner Candidate Patient', DATE '1990-05-15', 'OTHER',
+        'LOCAL-OWNER-CANDIDATE-PATIENT', '0900000102', 'ACTIVE')
+ON CONFLICT (patient_code) DO NOTHING;
 
 -- Local only: the ADMINISTRATOR holds every permission to ease manual testing of all endpoints.
 INSERT INTO public.role_permissions (role_id, permission_id)

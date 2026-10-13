@@ -83,7 +83,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+    // V001 was applied above, so this run applies V002 to V005.
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -91,7 +92,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003");
+        .containsExactly("001", "002", "003", "004", "005");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -208,18 +209,18 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "RECEPTIONIST",
             "GENERAL_PRACTITIONER",
             "DIAGNOSTIC_DOCTOR",
-            "DATA_ENTRY_STAFF",
+            "NURSE",
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(124);
+        .isEqualTo(127);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(128);
+        .isEqualTo(131);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(27);
+        .isEqualTo(31);
     assertThat(
             jdbc.queryForList(
                 """
@@ -241,7 +242,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         .as("only PATIENT holds OWN_* permissions, and it holds nothing else")
         .isEmpty();
     assertThat(rolesGranted(jdbc, "PARTICIPANT_EXAMINATION_RECORD_VIEW"))
-        .containsExactlyInAnyOrder("GENERAL_PRACTITIONER", "DATA_ENTRY_STAFF", "CLINIC_MANAGER");
+        .containsExactlyInAnyOrder("GENERAL_PRACTITIONER", "NURSE", "CLINIC_MANAGER");
     assertThat(rolesGranted(jdbc, "REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT"))
         .containsExactly("CLINIC_MANAGER");
     assertThat(rolesGranted(jdbc, "AUDIT_LOG_VIEW")).containsExactly("ADMINISTRATOR");
@@ -257,6 +258,20 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "HEALTH_EXAMINATION_REPORT_READ")) {
       assertThat(rolesGranted(jdbc, permission)).containsExactly("CLINIC_MANAGER");
     }
+    for (String permission :
+        List.of(
+            "USER_ACCOUNT_CREATE",
+            "USER_ACCOUNT_OWNER_SEARCH",
+            "USER_ACCOUNT_USERNAME_CHECK",
+            "USER_ACCOUNT_ASSIGNABLE_ROLE_VIEW")) {
+      assertThat(rolesGranted(jdbc, permission)).as(permission).containsExactly("ADMINISTRATOR");
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM public.permissions WHERE description LIKE '%Data Entry Staff%'",
+                Integer.class))
+        .as("V004 renames the role in permission descriptions")
+        .isZero();
   }
 
   private static List<String> rolesGranted(JdbcTemplate jdbc, String permission) {

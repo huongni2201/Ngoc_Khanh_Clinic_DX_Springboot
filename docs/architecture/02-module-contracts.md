@@ -26,6 +26,10 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 
 - `accesscontrol::access` publishes the authenticated principal (`UserPrincipal`).
   Session revocation is not published yet; see [ADR-0014](../adr/0014-session-cookie-redis-login.md).
+- `accesscontrol::patient-account-owners` publishes `PatientAccountOwnerDirectory`, implemented
+  by `patient` (`MyBatisPatientAccountOwnerDirectory`), so account creation (UC-005) reads
+  patients without depending on the patient module. Its staff owner search reads the
+  catalog-owned `departments.name` read-only through a documented `LEFT JOIN`.
 - `catalog` publishes service lookup with current unit price through its query contract.
 - `audit::recording` publishes `AuditWriter`. Audit owns its adapters and
   depends on the published shared ID generator, without accesscontrol persistence access.

@@ -37,15 +37,15 @@ class LocalAccessControlSeedIntegrationTest {
                     + "JOIN public.accounts account ON account.id=grant_row.account_id "
                     + "JOIN public.roles role ON role.id=grant_row.role_id "
                     + "WHERE account.username IN ('administrator','receptionist',"
-                    + "'general_practitioner','diagnostic_doctor','data_entry_staff',"
+                    + "'general_practitioner','diagnostic_doctor','nurse',"
                     + "'clinic_manager','patient','test') ORDER BY role.code",
                 String.class))
         .containsExactly(
             "ADMINISTRATOR",
             "CLINIC_MANAGER",
-            "DATA_ENTRY_STAFF",
             "DIAGNOSTIC_DOCTOR",
             "GENERAL_PRACTITIONER",
+            "NURSE",
             "PATIENT",
             "RECEPTIONIST",
             "TEST");
@@ -91,5 +91,22 @@ class LocalAccessControlSeedIntegrationTest {
                     + "WHERE role.code='ADMINISTRATOR'",
                 Integer.class))
         .isEqualTo(jdbc.queryForObject("SELECT COUNT(*) FROM public.permissions", Integer.class));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.staff_members staff "
+                    + "WHERE staff.staff_code='LOCAL_OWNER_CANDIDATE_STAFF' AND staff.status='ACTIVE' "
+                    + "AND NOT EXISTS (SELECT 1 FROM public.accounts a WHERE a.staff_member_id=staff.id)",
+                Integer.class))
+        .as("UC-005 staff owner candidate without an account")
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM public.patients patient "
+                    + "WHERE patient.patient_code='LOCAL_OWNER_CANDIDATE_PATIENT' "
+                    + "AND patient.status='ACTIVE' "
+                    + "AND NOT EXISTS (SELECT 1 FROM public.accounts a WHERE a.patient_id=patient.id)",
+                Integer.class))
+        .as("UC-005 patient owner candidate without an account")
+        .isEqualTo(1);
   }
 }

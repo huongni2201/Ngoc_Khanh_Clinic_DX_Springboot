@@ -22,7 +22,8 @@ actor may perform each action.
   into schema V001 and seed V002. `V002__seed_roles_and_permissions.sql`
   seeds the whole matrix:
   seven roles (`PATIENT`, `RECEPTIONIST`, `GENERAL_PRACTITIONER`,
-  `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
+  `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF` (renamed `NURSE` by V004), `CLINIC_MANAGER`,
+  `ADMINISTRATOR`),
   one permission per matrix row and one `role_permissions` row per non-"No" cell.
 - Permission codes are `<ENTITY>_<ACTION>`; patient-portal codes start with
   `OWN_` and are granted only to `PATIENT`.
@@ -57,6 +58,21 @@ entry for one Participant). V002 seeds them and grants both to every role that h
 `HEALTH_EXAMINATION_SERVICE_RECONCILE`. Sessions must sign in again to receive them. See
 [the examination detail contract](../api/examination-details-and-report.md).
 
+### User account creation amendment — 2026-10-13
+
+UC-005 Create User Account adds a new migration instead of editing V002:
+
+- `V004__rename_data_entry_staff_role_to_nurse.sql` renames the role `DATA_ENTRY_STAFF`
+  to `NURSE` (name "Nurse") to match the SRS actor. Grants follow the role id and are kept;
+  sessions show the new code after the next sign-in.
+- `V005__map_user_account_endpoints.sql` maps `USER_ACCOUNT_CREATE` to
+  `POST /api/v1/user-accounts` and adds one permission per read endpoint of the Create
+  User Account screen: `USER_ACCOUNT_OWNER_SEARCH` (`GET .../owner-candidates`),
+  `USER_ACCOUNT_USERNAME_CHECK` (`GET .../username-availability`) and
+  `USER_ACCOUNT_ASSIGNABLE_ROLE_VIEW` (`GET .../assignable-roles`). All four belong to
+  `ADMINISTRATOR` only; the three new codes must be added to the SRS matrix. See
+  [the user account contract](../api/user-accounts.md).
+
 ### Enforcement
 
 - Each endpoint is stored with its permission: `permissions.http_method` and
@@ -89,7 +105,8 @@ entry for one Participant). V002 seeds them and grants both to every role that h
 
 - Each new endpoint needs a stored permission with its method and route, or it
   returns 403.
-- The 25 business endpoints are granted to `CLINIC_MANAGER`.
+- The 27 business endpoints of V002 are granted to `CLINIC_MANAGER`; the 4 user
+  account endpoints of V005 are granted to `ADMINISTRATOR`.
 - In the `local` profile only, the local seed grants every permission to
   `TEST` and `ADMINISTRATOR` to ease manual testing. Both use the same endpoint
   checks; no role bypasses unmapped endpoints.
