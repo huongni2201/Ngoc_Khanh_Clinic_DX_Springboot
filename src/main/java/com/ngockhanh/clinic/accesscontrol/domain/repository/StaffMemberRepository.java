@@ -21,9 +21,9 @@ public interface StaffMemberRepository {
    *
    * @param keyword search text
    * @param limit maximum number of rows
-   * @return candidates ordered by full name
+   * @return eligible staff owners ordered by full name
    */
-  List<StaffOwnerCandidate> searchActiveWithoutAccount(String keyword, Integer limit);
+  List<EligibleStaffOwner> searchActiveWithoutAccount(String keyword, Integer limit);
 
   /**
    * Staff member offered as an account owner.
@@ -35,7 +35,7 @@ public interface StaffMemberRepository {
    * @param phone phone number as stored, or null
    * @param email email, or null
    */
-  record StaffOwnerCandidate(
+  record EligibleStaffOwner(
       UUID id,
       String staffCode,
       String fullName,

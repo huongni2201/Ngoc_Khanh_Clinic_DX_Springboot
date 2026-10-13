@@ -19,8 +19,8 @@ import com.ngockhanh.clinic.accesscontrol.application.port.out.owner.PatientAcco
 import com.ngockhanh.clinic.accesscontrol.application.port.out.owner.PatientAccountOwnerDirectory.PatientAccountOwner;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.accesscontrol.application.response.CreateUserAccountResponse;
-import com.ngockhanh.clinic.accesscontrol.application.service.UserAccountAccessPolicy;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateUserAccountUseCase;
+import com.ngockhanh.clinic.accesscontrol.application.usecase.SearchEligibleOwnersUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.entity.NewUserAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.RoleRepository;
@@ -77,7 +77,6 @@ class CreateUserAccountUseCaseTest {
 
   private final CreateUserAccountUseCase useCase =
       new CreateUserAccountUseCase(
-          new UserAccountAccessPolicy(),
           accounts,
           staffMembers,
           patients,
@@ -126,7 +125,7 @@ class CreateUserAccountUseCaseTest {
   }
 
   private UserPrincipal admin() {
-    return admin(UserAccountAccessPolicy.CREATE_PERMISSION);
+    return admin(CreateUserAccountUseCase.PERMISSION);
   }
 
   private CreateUserAccountCommand staffCommand(List<UUID> roleIds) {
@@ -237,7 +236,7 @@ class CreateUserAccountUseCaseTest {
             () ->
                 useCase.execute(
                     staffCommand(List.of(doctor.id())),
-                    admin(UserAccountAccessPolicy.OWNER_SEARCH_PERMISSION)))
+                    admin(SearchEligibleOwnersUseCase.PERMISSION)))
         .isInstanceOfSatisfying(
             ApplicationException.class,
             denied -> assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));

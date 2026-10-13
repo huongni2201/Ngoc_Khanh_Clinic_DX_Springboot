@@ -6,7 +6,6 @@ import com.ngockhanh.clinic.accesscontrol.application.port.out.SignInCredentialS
 import com.ngockhanh.clinic.accesscontrol.application.port.out.owner.PatientAccountOwnerDirectory;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.accesscontrol.application.response.CreateUserAccountResponse;
-import com.ngockhanh.clinic.accesscontrol.application.service.UserAccountAccessPolicy;
 import com.ngockhanh.clinic.accesscontrol.domain.entity.NewUserAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.RoleRepository;
@@ -51,6 +50,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Service
 @RequiredArgsConstructor
 public class CreateUserAccountUseCase {
+  /** Permission required to create a user account (ADR-0015, V005). */
+  public static final String PERMISSION = "USER_ACCOUNT_CREATE";
+
   static final String ACTION = "CREATE_USER_ACCOUNT";
   static final String RESOURCE_TYPE = "ACCOUNT";
 
@@ -69,7 +71,6 @@ public class CreateUserAccountUseCase {
   public static final String PATIENT_ROLES_FORBIDDEN = "A patient account takes no roles";
   public static final String DUPLICATE_ROLE = "A role can be selected only once";
 
-  private final UserAccountAccessPolicy access;
   private final UserAccountRepository accounts;
   private final StaffMemberRepository staffMembers;
   private final PatientAccountOwnerDirectory patients;
@@ -99,7 +100,7 @@ public class CreateUserAccountUseCase {
    */
   public CreateUserAccountResponse execute(
       CreateUserAccountCommand command, UserPrincipal principal) {
-    access.requireCreate(principal);
+    requirePermission(principal);
     if (TransactionSynchronizationManager.isActualTransactionActive())
       throw new IllegalStateException("Account creation must not join an existing transaction");
     if (command == null
@@ -244,4 +245,20 @@ public class CreateUserAccountUseCase {
   }
 
   private record Created(NewUserAccount account, SmsPhoneNumber phone) {}
+
+  /**
+   * Authorizes every supported caller, not only HTTP: an actor ID alone proves nothing, the
+   * principal must be a STAFF account whose roles carry {@link #PERMISSION}.
+   */
+  private static void requirePermission(UserPrincipal principal) {
+    Boolean allowed =
+        principal != null
+            && principal.userId() != null
+            && "STAFF".equals(principal.principalType())
+            && principal.roleAssignments().stream()
+                .anyMatch(role -> role.permissions().contains(PERMISSION));
+    if (!allowed)
+      throw new ApplicationException(
+          ApplicationException.Type.ACCESS_DENIED, "You are not authorized to perform this action");
+  }
 }

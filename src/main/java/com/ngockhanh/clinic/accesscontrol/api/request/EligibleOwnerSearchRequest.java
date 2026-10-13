@@ -8,11 +8,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Query parameters of the account owner candidate search (UC-005). */
+/** Query parameters of the eligible owner search (UC-005). */
 @Getter
 @Setter
 @NoArgsConstructor
-public class AccountOwnerCandidateSearchRequest {
+public class EligibleOwnerSearchRequest {
   @NotNull(message = "Account type is required")
   @Pattern(regexp = "STAFF|PATIENT", message = "Account type must be STAFF or PATIENT")
   private String accountType;
@@ -23,6 +23,6 @@ public class AccountOwnerCandidateSearchRequest {
 
   @Override
   public String toString() {
-    return "AccountOwnerCandidateSearchRequest[accountType=" + accountType + "]";
+    return "EligibleOwnerSearchRequest[accountType=" + accountType + "]";
   }
 }

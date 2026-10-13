@@ -175,7 +175,7 @@ class UserAccountCreationIntegrationTest {
     String username = "nguyen.van." + suffix;
 
     mvc.perform(
-            get("/api/v1/user-accounts/owner-candidates")
+            get("/api/v1/user-accounts/eligible-owners")
                 .param("accountType", "STAFF")
                 .param("keyword", suffix)
                 .cookie(admin))
@@ -232,7 +232,7 @@ class UserAccountCreationIntegrationTest {
         .doesNotContain(TEMPORARY_PASSWORD);
 
     mvc.perform(
-            get("/api/v1/user-accounts/owner-candidates")
+            get("/api/v1/user-accounts/eligible-owners")
                 .param("accountType", "STAFF")
                 .param("keyword", suffix)
                 .cookie(admin))
@@ -248,7 +248,7 @@ class UserAccountCreationIntegrationTest {
     UUID owner = patient("0987111222");
 
     mvc.perform(
-            get("/api/v1/user-accounts/owner-candidates")
+            get("/api/v1/user-accounts/eligible-owners")
                 .param("accountType", "PATIENT")
                 .param("keyword", "ID-" + suffix)
                 .cookie(admin))
@@ -351,7 +351,7 @@ class UserAccountCreationIntegrationTest {
     staffMember("0912345674", "ACTIVE");
 
     mvc.perform(
-            get("/api/v1/user-accounts/owner-candidates")
+            get("/api/v1/user-accounts/eligible-owners")
                 .param("accountType", "STAFF")
                 .param("keyword", "%%")
                 .cookie(admin))

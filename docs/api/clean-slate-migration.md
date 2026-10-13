@@ -13,7 +13,7 @@ All paths below start with `/api/v1`. `O` means
 | Module | Mapped routes | Contract |
 |---|---|---|
 | accesscontrol | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | [Login](login.md) |
-| accesscontrol | `POST /user-accounts`, `GET /user-accounts/owner-candidates`, `GET /user-accounts/username-availability`, `GET /user-accounts/assignable-roles` | [User account creation](user-accounts.md) (UC-005) |
+| accesscontrol | `POST /user-accounts`, `GET /user-accounts/eligible-owners`, `GET /user-accounts/username-availability`, `GET /user-accounts/assignable-roles` | [User account creation](user-accounts.md) (UC-005) |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
 | healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion` |

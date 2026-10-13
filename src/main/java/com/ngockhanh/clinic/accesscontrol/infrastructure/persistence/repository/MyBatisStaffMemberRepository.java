@@ -30,11 +30,11 @@ public class MyBatisStaffMemberRepository implements StaffMemberRepository {
   }
 
   @Override
-  public List<StaffOwnerCandidate> searchActiveWithoutAccount(String keyword, Integer limit) {
+  public List<EligibleStaffOwner> searchActiveWithoutAccount(String keyword, Integer limit) {
     return mapper.searchActiveWithoutAccount(likePattern(keyword), limit).stream()
         .map(
             row ->
-                new StaffOwnerCandidate(
+                new EligibleStaffOwner(
                     row.id(),
                     row.staffCode(),
                     row.fullName(),

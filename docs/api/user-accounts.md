@@ -17,7 +17,7 @@ All four are granted to `ADMINISTRATOR` only. Sign in again after migration.
 | Route | Permission |
 |---|---|
 | `POST /api/v1/user-accounts` | `USER_ACCOUNT_CREATE` |
-| `GET /api/v1/user-accounts/owner-candidates` | `USER_ACCOUNT_OWNER_SEARCH` |
+| `GET /api/v1/user-accounts/eligible-owners` | `USER_ACCOUNT_OWNER_SEARCH` |
 | `GET /api/v1/user-accounts/username-availability` | `USER_ACCOUNT_USERNAME_CHECK` |
 | `GET /api/v1/user-accounts/assignable-roles` | `USER_ACCOUNT_ASSIGNABLE_ROLE_VIEW` |
 
@@ -79,7 +79,7 @@ by the exact text and shows its own wording.
 | 409 | `Account owner has no valid mobile phone number` | no mobile number for the SMS |
 | 409 | `Role is not assignable` | unknown, inactive or `PATIENT` role for a STAFF account |
 
-## GET /api/v1/user-accounts/owner-candidates
+## GET /api/v1/user-accounts/eligible-owners
 
 Query: `accountType` (`STAFF` or `PATIENT`, required) and `keyword` (2 to 100
 characters, required). Returns at most 20 ACTIVE profiles without an account,

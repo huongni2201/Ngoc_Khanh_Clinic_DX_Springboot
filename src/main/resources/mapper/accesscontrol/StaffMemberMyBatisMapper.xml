@@ -5,7 +5,7 @@
         SELECT id, status, phone FROM public.staff_members WHERE id = #{id} FOR SHARE
     </select>
     <!-- The department name is catalog reference data read-only here (docs/architecture/02-module-contracts.md). -->
-    <select id="searchActiveWithoutAccount" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffOwnerCandidateView">
+    <select id="searchActiveWithoutAccount" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.EligibleStaffOwnerView">
         SELECT s.id, s.staff_code, s.full_name, d.name AS department_name, s.phone, s.email
         FROM public.staff_members s
         LEFT JOIN public.departments d ON d.id = s.primary_department_id

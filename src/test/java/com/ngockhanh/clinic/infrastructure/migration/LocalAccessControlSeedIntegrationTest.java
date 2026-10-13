@@ -94,19 +94,19 @@ class LocalAccessControlSeedIntegrationTest {
     assertThat(
             jdbc.queryForObject(
                 "SELECT COUNT(*) FROM public.staff_members staff "
-                    + "WHERE staff.staff_code='LOCAL_OWNER_CANDIDATE_STAFF' AND staff.status='ACTIVE' "
+                    + "WHERE staff.staff_code='LOCAL_ELIGIBLE_OWNER_STAFF' AND staff.status='ACTIVE' "
                     + "AND NOT EXISTS (SELECT 1 FROM public.accounts a WHERE a.staff_member_id=staff.id)",
                 Integer.class))
-        .as("UC-005 staff owner candidate without an account")
+        .as("UC-005 eligible staff owner without an account")
         .isEqualTo(1);
     assertThat(
             jdbc.queryForObject(
                 "SELECT COUNT(*) FROM public.patients patient "
-                    + "WHERE patient.patient_code='LOCAL_OWNER_CANDIDATE_PATIENT' "
+                    + "WHERE patient.patient_code='LOCAL_ELIGIBLE_OWNER_PATIENT' "
                     + "AND patient.status='ACTIVE' "
                     + "AND NOT EXISTS (SELECT 1 FROM public.accounts a WHERE a.patient_id=patient.id)",
                 Integer.class))
-        .as("UC-005 patient owner candidate without an account")
+        .as("UC-005 eligible patient owner without an account")
         .isEqualTo(1);
   }
 }

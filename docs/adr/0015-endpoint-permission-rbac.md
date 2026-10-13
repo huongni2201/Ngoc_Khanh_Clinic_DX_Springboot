@@ -67,7 +67,7 @@ UC-005 Create User Account adds a new migration instead of editing V002:
   sessions show the new code after the next sign-in.
 - `V005__map_user_account_endpoints.sql` maps `USER_ACCOUNT_CREATE` to
   `POST /api/v1/user-accounts` and adds one permission per read endpoint of the Create
-  User Account screen: `USER_ACCOUNT_OWNER_SEARCH` (`GET .../owner-candidates`),
+  User Account screen: `USER_ACCOUNT_OWNER_SEARCH` (`GET .../eligible-owners`),
   `USER_ACCOUNT_USERNAME_CHECK` (`GET .../username-availability`) and
   `USER_ACCOUNT_ASSIGNABLE_ROLE_VIEW` (`GET .../assignable-roles`). All four belong to
   `ADMINISTRATOR` only; the three new codes must be added to the SRS matrix. See

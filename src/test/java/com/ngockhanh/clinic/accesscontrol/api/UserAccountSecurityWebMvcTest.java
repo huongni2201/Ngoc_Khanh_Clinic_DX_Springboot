@@ -7,14 +7,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 import com.ngockhanh.clinic.accesscontrol.api.controller.UserAccountController;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.AccountOwnerCandidateListResponse;
 import com.ngockhanh.clinic.accesscontrol.application.response.CreateUserAccountResponse;
+import com.ngockhanh.clinic.accesscontrol.application.response.EligibleOwnerListResponse;
 import com.ngockhanh.clinic.accesscontrol.application.response.UsernameAvailabilityResponse;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CheckUsernameAvailabilityUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateUserAccountUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListAssignableRolesUseCase;
-import com.ngockhanh.clinic.accesscontrol.application.usecase.SearchAccountOwnerCandidatesUseCase;
+import com.ngockhanh.clinic.accesscontrol.application.usecase.SearchEligibleOwnersUseCase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityConfiguration;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
@@ -79,7 +79,7 @@ class UserAccountSecurityWebMvcTest {
           .thenReturn(
               List.of(
                   endpoint("POST", "", "USER_ACCOUNT_CREATE"),
-                  endpoint("GET", "/owner-candidates", "USER_ACCOUNT_OWNER_SEARCH"),
+                  endpoint("GET", "/eligible-owners", "USER_ACCOUNT_OWNER_SEARCH"),
                   endpoint("GET", "/username-availability", "USER_ACCOUNT_USERNAME_CHECK"),
                   endpoint("GET", "/assignable-roles", "USER_ACCOUNT_ASSIGNABLE_ROLE_VIEW")));
       return mapper;
@@ -93,7 +93,7 @@ class UserAccountSecurityWebMvcTest {
   @Autowired MockMvc mvc;
   @MockitoBean AuthenticateSessionUseCase authenticate;
   @MockitoBean CreateUserAccountUseCase create;
-  @MockitoBean SearchAccountOwnerCandidatesUseCase ownerSearch;
+  @MockitoBean SearchEligibleOwnersUseCase ownerSearch;
   @MockitoBean CheckUsernameAvailabilityUseCase usernameCheck;
   @MockitoBean ListAssignableRolesUseCase assignableRoles;
 
@@ -116,11 +116,11 @@ class UserAccountSecurityWebMvcTest {
             201,
             () -> post(BASE).contentType(MediaType.APPLICATION_JSON).content(BODY)),
         new Route(
-            "owner candidates",
+            "eligible owners",
             "USER_ACCOUNT_OWNER_SEARCH",
             200,
             () ->
-                get(BASE + "/owner-candidates")
+                get(BASE + "/eligible-owners")
                     .param("accountType", "STAFF")
                     .param("keyword", "Nguyen")),
         new Route(
@@ -149,7 +149,7 @@ class UserAccountSecurityWebMvcTest {
                 .smsDelivered(false)
                 .build());
     when(ownerSearch.execute(any(), any(), any()))
-        .thenReturn(new AccountOwnerCandidateListResponse(List.of(), false));
+        .thenReturn(new EligibleOwnerListResponse(List.of(), false));
     when(usernameCheck.execute(any(), any())).thenReturn(new UsernameAvailabilityResponse(true));
     when(assignableRoles.execute(any())).thenReturn(List.of());
   }
@@ -259,7 +259,7 @@ class UserAccountSecurityWebMvcTest {
 
     var response =
         mvc.perform(
-                get(BASE + "/owner-candidates")
+                get(BASE + "/eligible-owners")
                     .param("accountType", "STAFF")
                     .param("keyword", "N")
                     .cookie(new Cookie(COOKIE, "session")))

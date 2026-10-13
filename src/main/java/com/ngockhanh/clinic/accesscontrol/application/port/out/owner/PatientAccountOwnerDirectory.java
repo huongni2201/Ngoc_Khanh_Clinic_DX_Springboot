@@ -24,9 +24,9 @@ public interface PatientAccountOwnerDirectory {
    *
    * @param keyword search text
    * @param limit maximum number of rows
-   * @return candidates ordered by full name, including patients that already have an account
+   * @return patients ordered by full name, including patients that already have an account
    */
-  List<PatientOwnerCandidate> searchActive(String keyword, Integer limit);
+  List<EligiblePatientOwner> searchActive(String keyword, Integer limit);
 
   /**
    * Patient as needed to link an account.
@@ -51,6 +51,6 @@ public interface PatientAccountOwnerDirectory {
    * @param dateOfBirth date of birth
    * @param phone phone number as stored, or null
    */
-  record PatientOwnerCandidate(
+  record EligiblePatientOwner(
       UUID id, String patientCode, String fullName, LocalDate dateOfBirth, String phone) {}
 }

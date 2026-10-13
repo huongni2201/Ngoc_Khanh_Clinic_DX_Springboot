@@ -105,18 +105,18 @@ WHERE account.username = 'patient' AND account.account_type = 'PATIENT' AND acco
   AND patient.patient_code = 'LOCAL_ROLE_PATIENT'
 ON CONFLICT (account_id, role_id) DO NOTHING;
 
--- Owner candidates for UC-005 Create User Account: an active staff member and an active patient with
+-- Eligible owners for UC-005 Create User Account: an active staff member and an active patient with
 -- a valid mobile number and no user account. Their phone numbers are synthetic.
 INSERT INTO public.staff_members (staff_code, full_name, phone, email, primary_department_id, status)
-SELECT 'LOCAL_OWNER_CANDIDATE_STAFF', 'Local Owner Candidate Staff', '0900000101',
-       'owner.candidate.staff@example.invalid', department.id, 'ACTIVE'
+SELECT 'LOCAL_ELIGIBLE_OWNER_STAFF', 'Local Eligible Owner Staff', '0900000101',
+       'eligible.owner.staff@example.invalid', department.id, 'ACTIVE'
 FROM (SELECT 1) AS seed
 LEFT JOIN public.departments AS department ON department.code = 'KHAM_BENH'
 ON CONFLICT (staff_code) DO NOTHING;
 
 INSERT INTO public.patients (patient_code, full_name, date_of_birth, sex, identification_number, phone, status)
-VALUES ('LOCAL_OWNER_CANDIDATE_PATIENT', 'Local Owner Candidate Patient', DATE '1990-05-15', 'OTHER',
-        'LOCAL-OWNER-CANDIDATE-PATIENT', '0900000102', 'ACTIVE')
+VALUES ('LOCAL_ELIGIBLE_OWNER_PATIENT', 'Local Eligible Owner Patient', DATE '1990-05-15', 'OTHER',
+        'LOCAL-ELIGIBLE-OWNER-PATIENT', '0900000102', 'ACTIVE')
 ON CONFLICT (patient_code) DO NOTHING;
 
 -- Local only: the ADMINISTRATOR holds every permission to ease manual testing of all endpoints.

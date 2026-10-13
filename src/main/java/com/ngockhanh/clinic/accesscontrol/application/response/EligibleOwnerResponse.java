@@ -5,8 +5,8 @@ import java.util.UUID;
 import lombok.Builder;
 
 /**
- * Staff member or patient that can own a new account. Staff candidates carry a department and an
- * email; patient candidates carry a date of birth. The other fields are null.
+ * Staff member or patient that can own a new account. Staff owners carry a department and an email;
+ * patient owners carry a date of birth. The other fields are null.
  *
  * @param ownerId staff member or patient identifier
  * @param ownerCode staff code or patient code
@@ -19,7 +19,7 @@ import lombok.Builder;
  *     phone number cannot
  */
 @Builder
-public record AccountOwnerCandidateResponse(
+public record EligibleOwnerResponse(
     UUID ownerId,
     String ownerCode,
     String fullName,

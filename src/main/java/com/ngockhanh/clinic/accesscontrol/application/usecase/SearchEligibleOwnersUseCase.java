@@ -1,16 +1,16 @@
 package com.ngockhanh.clinic.accesscontrol.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.port.out.owner.PatientAccountOwnerDirectory;
-import com.ngockhanh.clinic.accesscontrol.application.port.out.owner.PatientAccountOwnerDirectory.PatientOwnerCandidate;
+import com.ngockhanh.clinic.accesscontrol.application.port.out.owner.PatientAccountOwnerDirectory.EligiblePatientOwner;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.AccountOwnerCandidateListResponse;
-import com.ngockhanh.clinic.accesscontrol.application.response.AccountOwnerCandidateResponse;
-import com.ngockhanh.clinic.accesscontrol.application.service.UserAccountAccessPolicy;
+import com.ngockhanh.clinic.accesscontrol.application.response.EligibleOwnerListResponse;
+import com.ngockhanh.clinic.accesscontrol.application.response.EligibleOwnerResponse;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.StaffMemberRepository;
-import com.ngockhanh.clinic.accesscontrol.domain.repository.StaffMemberRepository.StaffOwnerCandidate;
+import com.ngockhanh.clinic.accesscontrol.domain.repository.StaffMemberRepository.EligibleStaffOwner;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.SmsPhoneNumber;
+import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -27,72 +27,75 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SearchAccountOwnerCandidatesUseCase {
-  /** Maximum number of candidates returned. */
+public class SearchEligibleOwnersUseCase {
+  /** Permission required to search eligible owners (ADR-0015, V005). */
+  public static final String PERMISSION = "USER_ACCOUNT_OWNER_SEARCH";
+
+  /** Maximum number of eligible owners returned. */
   static final Integer LIMIT = 20;
 
   /** Patients read before removing those that already have an account. */
   static final Integer PATIENT_OVERFETCH = 100;
 
-  private final UserAccountAccessPolicy access;
   private final StaffMemberRepository staffMembers;
   private final PatientAccountOwnerDirectory patients;
   private final UserAccountRepository accounts;
 
   /**
-   * Searches account owner candidates. Staff members match on staff code, full name or phone
-   * number; patients on patient code, full name, phone number or the exact identification number.
+   * Searches eligible owners: active profiles without an account. Staff members match on staff
+   * code, full name or phone number; patients on patient code, full name, phone number or the exact
+   * identification number.
    *
    * @param accountType STAFF or PATIENT
    * @param keyword search text
    * @param principal authenticated Administrator
-   * @return at most 20 candidates ordered by full name, and whether the keyword should be refined
+   * @return at most 20 eligible owners ordered by full name, and whether the keyword should be
+   *     refined
    * @throws com.ngockhanh.clinic.shared.exception.ApplicationException of type {@code
    *     ACCESS_DENIED} without the owner search permission
    * @throws IllegalArgumentException if the account type is unknown or the keyword is blank
    */
   @Transactional(readOnly = true)
-  public AccountOwnerCandidateListResponse execute(
+  public EligibleOwnerListResponse execute(
       String accountType, String keyword, UserPrincipal principal) {
-    access.requireOwnerSearch(principal);
+    requirePermission(principal);
     AccountType type =
         AccountType.from(accountType)
             .orElseThrow(() -> new IllegalArgumentException("Unknown account type"));
     if (keyword == null || keyword.isBlank())
       throw new IllegalArgumentException("Keyword is required");
     String text = keyword.strip();
-    AccountOwnerCandidateListResponse result =
-        type == AccountType.STAFF ? staff(text) : patients(text);
+    EligibleOwnerListResponse result = type == AccountType.STAFF ? staff(text) : patients(text);
     log.debug(
-        "Account owner candidates searched: accountType={}, resultCount={}, limited={}",
+        "Eligible owners searched: accountType={}, resultCount={}, limited={}",
         type,
         result.items().size(),
         result.limited());
     return result;
   }
 
-  private AccountOwnerCandidateListResponse staff(String keyword) {
-    List<StaffOwnerCandidate> rows = staffMembers.searchActiveWithoutAccount(keyword, LIMIT + 1);
-    return new AccountOwnerCandidateListResponse(
-        rows.stream().limit(LIMIT).map(SearchAccountOwnerCandidatesUseCase::toResponse).toList(),
+  private EligibleOwnerListResponse staff(String keyword) {
+    List<EligibleStaffOwner> rows = staffMembers.searchActiveWithoutAccount(keyword, LIMIT + 1);
+    return new EligibleOwnerListResponse(
+        rows.stream().limit(LIMIT).map(SearchEligibleOwnersUseCase::toResponse).toList(),
         rows.size() > LIMIT);
   }
 
-  private AccountOwnerCandidateListResponse patients(String keyword) {
-    List<PatientOwnerCandidate> rows = patients.searchActive(keyword, PATIENT_OVERFETCH);
+  private EligibleOwnerListResponse patients(String keyword) {
+    List<EligiblePatientOwner> rows = patients.searchActive(keyword, PATIENT_OVERFETCH);
     Set<UUID> linked =
         rows.isEmpty()
             ? Set.of()
-            : accounts.findLinkedPatientIds(rows.stream().map(PatientOwnerCandidate::id).toList());
-    List<PatientOwnerCandidate> free =
+            : accounts.findLinkedPatientIds(rows.stream().map(EligiblePatientOwner::id).toList());
+    List<EligiblePatientOwner> free =
         rows.stream().filter(row -> !linked.contains(row.id())).toList();
-    return new AccountOwnerCandidateListResponse(
-        free.stream().limit(LIMIT).map(SearchAccountOwnerCandidatesUseCase::toResponse).toList(),
+    return new EligibleOwnerListResponse(
+        free.stream().limit(LIMIT).map(SearchEligibleOwnersUseCase::toResponse).toList(),
         free.size() > LIMIT || rows.size() == PATIENT_OVERFETCH);
   }
 
-  private static AccountOwnerCandidateResponse toResponse(StaffOwnerCandidate row) {
-    return AccountOwnerCandidateResponse.builder()
+  private static EligibleOwnerResponse toResponse(EligibleStaffOwner row) {
+    return EligibleOwnerResponse.builder()
         .ownerId(row.id())
         .ownerCode(row.staffCode())
         .fullName(row.fullName())
@@ -103,8 +106,8 @@ public class SearchAccountOwnerCandidatesUseCase {
         .build();
   }
 
-  private static AccountOwnerCandidateResponse toResponse(PatientOwnerCandidate row) {
-    return AccountOwnerCandidateResponse.builder()
+  private static EligibleOwnerResponse toResponse(EligiblePatientOwner row) {
+    return EligibleOwnerResponse.builder()
         .ownerId(row.id())
         .ownerCode(row.patientCode())
         .fullName(row.fullName())
@@ -116,5 +119,21 @@ public class SearchAccountOwnerCandidatesUseCase {
 
   private static String smsNumber(String phone) {
     return SmsPhoneNumber.parse(phone).map(SmsPhoneNumber::value).orElse(null);
+  }
+
+  /**
+   * Authorizes every supported caller, not only HTTP: an actor ID alone proves nothing, the
+   * principal must be a STAFF account whose roles carry {@link #PERMISSION}.
+   */
+  private static void requirePermission(UserPrincipal principal) {
+    Boolean allowed =
+        principal != null
+            && principal.userId() != null
+            && "STAFF".equals(principal.principalType())
+            && principal.roleAssignments().stream()
+                .anyMatch(role -> role.permissions().contains(PERMISSION));
+    if (!allowed)
+      throw new ApplicationException(
+          ApplicationException.Type.ACCESS_DENIED, "You are not authorized to perform this action");
   }
 }

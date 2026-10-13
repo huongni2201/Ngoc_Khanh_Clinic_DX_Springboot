@@ -8,8 +8,8 @@ import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.accesscontrol.application.response.AssignableRoleResponse;
-import com.ngockhanh.clinic.accesscontrol.application.service.UserAccountAccessPolicy;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CheckUsernameAvailabilityUseCase;
+import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateUserAccountUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListAssignableRolesUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.RoleRepository;
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
@@ -23,7 +23,6 @@ import org.junit.jupiter.api.Test;
 class UserAccountReadUseCasesTest {
   private final UserAccountRepository accounts = mock(UserAccountRepository.class);
   private final RoleRepository roles = mock(RoleRepository.class);
-  private final UserAccountAccessPolicy access = new UserAccountAccessPolicy();
 
   private static UserPrincipal staff(String permission) {
     return UserPrincipal.builder()
@@ -41,8 +40,8 @@ class UserAccountReadUseCasesTest {
 
   @Test
   void usernameAvailabilityIsTheAbsenceOfAnAccount() {
-    var useCase = new CheckUsernameAvailabilityUseCase(access, accounts);
-    UserPrincipal admin = staff(UserAccountAccessPolicy.USERNAME_CHECK_PERMISSION);
+    var useCase = new CheckUsernameAvailabilityUseCase(accounts);
+    UserPrincipal admin = staff(CheckUsernameAvailabilityUseCase.PERMISSION);
     when(accounts.existsByUsername("taken")).thenReturn(true);
 
     assertThat(useCase.execute("taken", admin).available()).isFalse();
@@ -51,30 +50,29 @@ class UserAccountReadUseCasesTest {
 
   @Test
   void usernameCheckNeedsItsPermission() {
-    var useCase = new CheckUsernameAvailabilityUseCase(access, accounts);
+    var useCase = new CheckUsernameAvailabilityUseCase(accounts);
 
-    assertThatThrownBy(
-            () -> useCase.execute("user", staff(UserAccountAccessPolicy.CREATE_PERMISSION)))
+    assertThatThrownBy(() -> useCase.execute("user", staff(CreateUserAccountUseCase.PERMISSION)))
         .isInstanceOf(ApplicationException.class);
     verifyNoInteractions(accounts);
   }
 
   @Test
   void assignableRolesAreTheActiveStaffRoles() {
-    var useCase = new ListAssignableRolesUseCase(access, roles);
+    var useCase = new ListAssignableRolesUseCase(roles);
     AssignableRole nurse =
         new AssignableRole(UUID.randomUUID(), "NURSE", "Nurse", "Prepares", true);
     when(roles.findActiveStaffRoles()).thenReturn(List.of(nurse));
 
-    assertThat(useCase.execute(staff(UserAccountAccessPolicy.ASSIGNABLE_ROLE_VIEW_PERMISSION)))
+    assertThat(useCase.execute(staff(ListAssignableRolesUseCase.PERMISSION)))
         .containsExactly(new AssignableRoleResponse(nurse.id(), "NURSE", "Nurse", "Prepares"));
   }
 
   @Test
   void assignableRolesNeedTheirPermission() {
-    var useCase = new ListAssignableRolesUseCase(access, roles);
+    var useCase = new ListAssignableRolesUseCase(roles);
 
-    assertThatThrownBy(() -> useCase.execute(staff(UserAccountAccessPolicy.CREATE_PERMISSION)))
+    assertThatThrownBy(() -> useCase.execute(staff(CreateUserAccountUseCase.PERMISSION)))
         .isInstanceOf(ApplicationException.class);
     verifyNoInteractions(roles);
   }

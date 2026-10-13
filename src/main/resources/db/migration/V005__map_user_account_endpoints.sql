@@ -5,7 +5,7 @@
 INSERT INTO public.permissions (code, name, description)
 VALUES
     ('USER_ACCOUNT_OWNER_SEARCH',
-     'Find account owner candidates',
+     'Find eligible account owners',
      'User Account. UC-005. Active staff members or patients without a user account. Not in the SRS Permission Matrix 4.4 yet.'),
     ('USER_ACCOUNT_USERNAME_CHECK',
      'Check username availability',
@@ -31,7 +31,7 @@ SET http_method = endpoint_map.http_method, endpoint = endpoint_map.endpoint
 FROM (
     VALUES
         ('USER_ACCOUNT_CREATE', 'POST', '/api/v1/user-accounts'),
-        ('USER_ACCOUNT_OWNER_SEARCH', 'GET', '/api/v1/user-accounts/owner-candidates'),
+        ('USER_ACCOUNT_OWNER_SEARCH', 'GET', '/api/v1/user-accounts/eligible-owners'),
         ('USER_ACCOUNT_USERNAME_CHECK', 'GET', '/api/v1/user-accounts/username-availability'),
         ('USER_ACCOUNT_ASSIGNABLE_ROLE_VIEW', 'GET', '/api/v1/user-accounts/assignable-roles')
 ) AS endpoint_map(code, http_method, endpoint)

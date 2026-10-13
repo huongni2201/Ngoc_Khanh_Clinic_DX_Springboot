@@ -1,17 +1,17 @@
 package com.ngockhanh.clinic.accesscontrol.api.controller;
 
-import com.ngockhanh.clinic.accesscontrol.api.request.AccountOwnerCandidateSearchRequest;
 import com.ngockhanh.clinic.accesscontrol.api.request.CreateUserAccountRequest;
+import com.ngockhanh.clinic.accesscontrol.api.request.EligibleOwnerSearchRequest;
 import com.ngockhanh.clinic.accesscontrol.api.request.UsernameAvailabilityRequest;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.AccountOwnerCandidateListResponse;
 import com.ngockhanh.clinic.accesscontrol.application.response.AssignableRoleResponse;
 import com.ngockhanh.clinic.accesscontrol.application.response.CreateUserAccountResponse;
+import com.ngockhanh.clinic.accesscontrol.application.response.EligibleOwnerListResponse;
 import com.ngockhanh.clinic.accesscontrol.application.response.UsernameAvailabilityResponse;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CheckUsernameAvailabilityUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateUserAccountUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListAssignableRolesUseCase;
-import com.ngockhanh.clinic.accesscontrol.application.usecase.SearchAccountOwnerCandidatesUseCase;
+import com.ngockhanh.clinic.accesscontrol.application.usecase.SearchEligibleOwnersUseCase;
 import com.ngockhanh.clinic.shared.web.ApiResponse;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserAccountController {
   private final CreateUserAccountUseCase createUseCase;
-  private final SearchAccountOwnerCandidatesUseCase ownerSearchUseCase;
+  private final SearchEligibleOwnersUseCase ownerSearchUseCase;
   private final CheckUsernameAvailabilityUseCase usernameAvailabilityUseCase;
   private final ListAssignableRolesUseCase assignableRolesUseCase;
 
@@ -62,13 +62,13 @@ public class UserAccountController {
    *
    * @param request account type and keyword
    * @param principal authenticated staff principal
-   * @return 200 with at most 20 candidates
+   * @return 200 with at most 20 eligible owners
    */
-  @GetMapping("/owner-candidates")
-  public ResponseEntity<ApiResponse<AccountOwnerCandidateListResponse>> ownerCandidates(
-      @Valid @ModelAttribute AccountOwnerCandidateSearchRequest request,
+  @GetMapping("/eligible-owners")
+  public ResponseEntity<ApiResponse<EligibleOwnerListResponse>> eligibleOwners(
+      @Valid @ModelAttribute EligibleOwnerSearchRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    AccountOwnerCandidateListResponse response =
+    EligibleOwnerListResponse response =
         ownerSearchUseCase.execute(request.getAccountType(), request.getKeyword(), principal);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
