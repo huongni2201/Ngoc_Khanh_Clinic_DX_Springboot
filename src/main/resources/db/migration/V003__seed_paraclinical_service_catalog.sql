@@ -20,7 +20,6 @@
 --   * Rows the export marked inactive are inserted with active = false.
 --   * Source group fixes: the four 'Nội soi ... gây mê/không gây mê' rows were filed under laboratory
 --     and are typed OTHER; Fibroscan is typed OTHER; 'Dịch vụ khác' is typed OTHER.
---   * ON CONFLICT DO NOTHING keeps the migration safe on databases that already hold these rows.
 
 INSERT INTO public.departments (code, name, department_type)
 VALUES
@@ -35,8 +34,7 @@ VALUES
     ('RANG_HAM_MAT', 'Khoa Răng hàm mặt', 'CLINICAL'),
     ('KHAM_SK', 'Khám SK', 'CLINICAL'),
     ('HANH_CHINH', 'Hành chính', 'ADMINISTRATIVE'),
-    ('DA_LIEU', 'Khoa Da liễu', 'CLINICAL')
-ON CONFLICT (code) DO NOTHING;
+    ('DA_LIEU', 'Khoa Da liễu', 'CLINICAL');
 
 INSERT INTO public.rooms (department_id, code, name, room_type)
 SELECT department.id, seed.code, seed.name, seed.room_type
@@ -64,8 +62,7 @@ FROM (VALUES
     ('KHOA_DA_LIEU_P602', 'Khoa Da liễu (P602-Tầng 6)', 'DA_LIEU', 'EXAMINATION'),
     ('SIEU_AM_O_BUNG_TONG_QUAT', 'Siêu âm ổ bụng tổng quát', 'CHAN_DOAN_HINH_ANH', 'PARACLINICAL')
 ) AS seed (code, name, department_code, room_type)
-JOIN public.departments AS department ON department.code = seed.department_code
-ON CONFLICT (code) DO NOTHING;
+JOIN public.departments AS department ON department.code = seed.department_code;
 
 INSERT INTO public.services (code, name, service_type, performing_department_id, unit_price, active)
 SELECT seed.code, seed.name, seed.service_type, department.id, seed.unit_price, seed.active
@@ -357,5 +354,4 @@ FROM (VALUES
     ('CLS58544', 'Triglycerid (Mỡ máu)', 'LAB', 40000::numeric, true),
     ('CLS58549', 'Ure (CN thận)', 'LAB', 40000::numeric, true)
 ) AS seed (code, name, service_type, unit_price, active)
-JOIN public.departments AS department ON department.code = 'CHAN_DOAN_HINH_ANH'
-ON CONFLICT (code) DO NOTHING;
+JOIN public.departments AS department ON department.code = 'CHAN_DOAN_HINH_ANH';

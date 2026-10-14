@@ -24,7 +24,7 @@ Response 200 (`ApiResponse`), `data` is the authenticated principal:
 | `patientId` | patient ID for PATIENT accounts, otherwise null |
 | `username` | account username |
 | `principalType` | `STAFF` or `PATIENT` |
-| `roleAssignments[]` | `roleId`, `roleCode`, `permissions[]` of active roles at sign-in |
+| `roleAssignments[]` | `roleId`, `roleCode`, `permissions[]` of the account's single role at sign-in (empty when that role is inactive) |
 | `idleExpiresAt` | session expiry if no further request is made |
 | `absoluteExpiresAt` | hard session expiry (sign-in + 8 hours) |
 

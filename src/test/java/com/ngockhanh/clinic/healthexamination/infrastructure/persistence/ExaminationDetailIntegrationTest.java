@@ -170,7 +170,7 @@ class ExaminationDetailIntegrationTest {
         "INSERT INTO public.staff_members(id,staff_code,full_name,status) VALUES (?,'ACTOR','Synthetic Actor','ACTIVE')",
         staff);
     jdbc.update(
-        "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status) VALUES (?,'STAFF','actor','test-password-hash',?,'ACTIVE')",
+        "INSERT INTO public.accounts(id,account_type,role_id,username,password_hash,staff_member_id,status) VALUES (?,'STAFF',(SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'),'actor','test-password-hash',?,'ACTIVE')",
         actor,
         staff);
     jdbc.update(

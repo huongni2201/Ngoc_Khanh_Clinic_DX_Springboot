@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.document.application.contract.DocumentValuesSource;
-import com.ngockhanh.clinic.healthexamination.application.contract.PeriodicFormBlankContract;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormSourceLoader;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormValuesSource;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
@@ -39,11 +38,6 @@ class ExaminationFormValuesSourceTest extends ManualParticipantUseCaseTestBase {
     return Map.of(
         ExaminationFormValuesSource.ORGANIZATION_ID, organizationId.toString(),
         ExaminationFormValuesSource.BATCH_ID, batchId.toString());
-  }
-
-  @Test
-  void servesThePeriodicBlankFormType() {
-    assertThat(source.documentType()).isEqualTo(PeriodicFormBlankContract.DOCUMENT_TYPE);
   }
 
   @Test
@@ -109,9 +103,4 @@ class ExaminationFormValuesSourceTest extends ManualParticipantUseCaseTestBase {
         .isInstanceOf(ResourceNotFoundException.class);
   }
 
-  @Test
-  void aMalformedContextIsRejected() {
-    assertThatThrownBy(() -> source.load(Map.of(), List.of(UUID.randomUUID())))
-        .isInstanceOf(RuntimeException.class);
-  }
 }

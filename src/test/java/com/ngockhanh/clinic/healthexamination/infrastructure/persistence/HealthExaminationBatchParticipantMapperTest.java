@@ -11,6 +11,58 @@ import org.apache.ibatis.session.Configuration;
 import org.junit.jupiter.api.Test;
 
 class HealthExaminationBatchParticipantMapperTest {
+  private static final String MAPPER =
+      "com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationBatchParticipantMyBatisMapper.";
+
+  private static Configuration loadMapper() throws Exception {
+    var config = new Configuration();
+    config.getTypeHandlerRegistry().register(UUID.class, UuidTypeHandler.class);
+    String resource = "mapper/healthexamination/HealthExaminationBatchParticipantMyBatisMapper.xml";
+    try (var input = HealthExaminationBatchParticipantMapperTest.class.getClassLoader().getResourceAsStream(resource)) {
+      assertThat(input).isNotNull();
+      new XMLMapperBuilder(input, config, resource, config.getSqlFragments()).parse();
+    }
+    return config;
+  }
+
+  private static String printableSql(Configuration config, boolean includeAttended, String order) {
+    return config
+        .getMappedStatement(MAPPER + "findPrintableIdsOfDay")
+        .getBoundSql(
+            Map.of(
+                "batchId", UUID.randomUUID(),
+                "batchDayId", UUID.randomUUID(),
+                "includeAttended", includeAttended,
+                "order", order))
+        .getSql()
+        .replaceAll("\\s+", " ");
+  }
+
+  @Test
+  void printableDayNeverIncludesAbsentOrCancelledAndAttendedOnlyOnRequest() throws Exception {
+    var config = loadMapper();
+
+    assertThat(printableSql(config, false, "DEPARTMENT"))
+        .contains("p.roster_status='ACTIVE'", "p.attendance_status IN ('UNCONFIRMED')")
+        .doesNotContain("ATTENDED", "ABSENT");
+    assertThat(printableSql(config, true, "DEPARTMENT"))
+        .contains("p.attendance_status IN ('UNCONFIRMED','ATTENDED')")
+        .doesNotContain("ABSENT");
+  }
+
+  @Test
+  void printableDayOrdersByDepartmentThenImportRowThenCodeUnlessAskedOtherwise() throws Exception {
+    var config = loadMapper();
+
+    assertThat(printableSql(config, false, "DEPARTMENT"))
+        .contains(
+            "ORDER BY p.department_name ASC, p.source_row_number ASC NULLS LAST, p.participant_code ASC NULLS LAST, p.id ASC");
+    assertThat(printableSql(config, false, "CODE"))
+        .contains("ORDER BY p.participant_code ASC NULLS LAST, p.id ASC");
+    assertThat(printableSql(config, false, "IMPORT_ORDER"))
+        .contains("ORDER BY p.source_row_number ASC NULLS LAST, p.participant_code ASC NULLS LAST, p.id ASC");
+  }
+
   @Test
   void updateBindsTheParticipantScopeAndVersionAndGuardsTheLiveBatch() throws Exception {
     var config = new Configuration();

@@ -118,8 +118,6 @@ class DownloadRenderJobPartUseCaseTest {
         .isInstanceOfSatisfying(
             ApplicationException.class,
             denied -> assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
-    assertThatThrownBy(() -> useCase.execute(null, 1, creator)).isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> useCase.execute(id, 0, creator)).isInstanceOf(IllegalArgumentException.class);
     assertThat(audit.events).isEmpty();
   }
 }

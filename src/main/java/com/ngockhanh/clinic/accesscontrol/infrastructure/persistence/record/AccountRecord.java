@@ -9,6 +9,7 @@ import lombok.Builder;
 public record AccountRecord(
     UUID id,
     String accountType,
+    UUID roleId,
     String username,
     String passwordHash,
     UUID staffMemberId,

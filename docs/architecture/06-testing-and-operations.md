@@ -21,7 +21,7 @@ optimistic conflicts, atomic business/audit rollback, price history and immutabl
 versions. Access-control integration additionally uses Redis. Report real skips/failures;
 H2, mocks and schema text tests are not evidence of PostgreSQL compatibility.
 
-The current schema has 64 business tables. Contract tests assert every table's
+The current schema has 65 business tables. Contract tests assert every table's
 record columns/order/types/owner and no removed table records. Runtime SQL table
 checks supplement, rather than replace, actual PostgreSQL execution.
 
@@ -44,9 +44,12 @@ not permission to weaken tests or retain obsolete runtime adapters.
 Use Java 25 and PostgreSQL 18. The owner-requested consolidation on 2026-10-08
 establishes the baseline for fresh databases: V001 creates the final schema,
 V002 seeds access-control roles/permissions/grants, and V003 seeds the catalog.
-The 2026-10-11 consolidation folds the batch site-name removal and the batch name and site-address CHECK constraints (former V008 and V009) into that baseline.
-The former V004–V007 amendments are incorporated directly into V001 and V003.
+The 2026-10-11 and 2026-10-13 consolidations fold every later amendment (former V004–V009) and the
+removal of `account_roles` into those three files; V002 also carries the print, bulk-print and
+batch-start endpoint permissions.
 See [persistence baseline](04-persistence.md#current-baseline) for their responsibilities.
+A database created before these edits cannot be reused: Flyway reports changed checksums and missing
+versions, so recreate it (for the Compose database, `docker compose down -v`).
 Clean build output before verification or packaging after consolidation so deleted
 migration resources cannot survive under `target/classes/db/migration`.
 Databases with any earlier migration history require a separate reviewed conversion procedure.
@@ -55,7 +58,10 @@ Never replace applied checksums or point this baseline at deployed historical da
 Document printing needs a Gotenberg 8 service (`NKC_DOCUMENT_GOTENBERG_URL`, see
 [examination form print](../api/examination-form-print.md#cấu-hình)). Production must run it
 without Internet egress. The starter template is seeded at startup and the application fails
-fast if V004 has not been applied; set `nkc.document.seed-starter-templates=false` to skip it.
+fast if it does not match its contract; set `nkc.document.seed-starter-templates=false` to skip it.
+The seeder records the SHA-256 of `health-examination-v1.docx` and never replaces it, so editing that file after
+a database has seeded it makes every print fail on the checksum: recreate local databases, and ship a
+changed template as a new version under ADR-0018.
 
 IT maintains document templates under
 [ADR-0018](../adr/0018-it-managed-document-templates.md); there is no product template
@@ -63,7 +69,7 @@ editing/upload/publish workflow. Content needs business/clinical approval and PD
 validation before release. The seeder never updates an existing type: a replacement
 needs a new immutable file reference/version and a reviewed release/migration,
 including the effective-period transition. Keep referenced packaged resources at
-their original paths; replacing `starter-v1.docx` in place is not a version upgrade.
+their original paths; replacing `health-examination-v1.docx` in place is not a version upgrade.
 
 Bulk printing needs `NKC_DOCUMENT_STORAGE_ROOT` (a writable directory; without it job creation returns
 503) and Gotenberg's `--api-timeout` at least `nkc.document.gotenberg.merge-timeout` (90 s). The worker

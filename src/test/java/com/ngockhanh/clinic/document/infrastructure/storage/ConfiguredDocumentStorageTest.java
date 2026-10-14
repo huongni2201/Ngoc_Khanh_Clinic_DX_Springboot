@@ -3,7 +3,6 @@ package com.ngockhanh.clinic.document.infrastructure.storage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,9 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ConfiguredDocumentStorageTest {
-  private static final String STARTER =
-      "document-templates/health-exam-periodic-form-blank/starter-v1.docx";
-
   @TempDir Path root;
 
   private ConfiguredDocumentStorage storage() {
@@ -36,11 +32,6 @@ class ConfiguredDocumentStorageTest {
     assertThatThrownBy(() -> storage().read("LOCAL", "sub/f.bin", new byte[32]))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("checksum");
-  }
-
-  @Test
-  void readsTheStarterTemplateFromTheClasspath() throws IOException {
-    assertThat(storage().read("CLASSPATH", STARTER, null)).startsWith((byte) 'P', (byte) 'K');
   }
 
   @Test

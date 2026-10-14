@@ -33,9 +33,8 @@ class LocalAccessControlSeedIntegrationTest {
 
     assertThat(
             jdbc.queryForList(
-                "SELECT role.code FROM public.account_roles grant_row "
-                    + "JOIN public.accounts account ON account.id=grant_row.account_id "
-                    + "JOIN public.roles role ON role.id=grant_row.role_id "
+                "SELECT role.code FROM public.accounts account "
+                    + "JOIN public.roles role ON role.id=account.role_id "
                     + "WHERE account.username IN ('administrator','receptionist',"
                     + "'general_practitioner','diagnostic_doctor','data_entry_staff',"
                     + "'clinic_manager','patient','test') ORDER BY role.code",
@@ -58,14 +57,11 @@ class LocalAccessControlSeedIntegrationTest {
         .isEqualTo(jdbc.queryForObject("SELECT COUNT(*) FROM public.permissions", Long.class));
     assertThat(
             jdbc.queryForObject(
-                "SELECT patient.account_type || '|' || grantor.account_type "
-                    + "FROM public.account_roles grant_row "
-                    + "JOIN public.accounts patient ON patient.id=grant_row.account_id "
-                    + "JOIN public.accounts grantor ON grantor.id=grant_row.granted_by "
-                    + "JOIN public.roles role ON role.id=grant_row.role_id "
-                    + "WHERE patient.username='patient' AND role.code='PATIENT'",
+                "SELECT account.account_type || '|' || role.code FROM public.accounts account "
+                    + "JOIN public.roles role ON role.id=account.role_id "
+                    + "WHERE account.username='patient'",
                 String.class))
-        .isEqualTo("PATIENT|STAFF");
+        .isEqualTo("PATIENT|PATIENT");
     assertThat(
             jdbc.queryForList(
                 "SELECT permission.code FROM public.role_permissions grant_row "
@@ -80,6 +76,8 @@ class LocalAccessControlSeedIntegrationTest {
             "PARTICIPANT_IMPORT",
             "PARTICIPANT_EXAMINATION_RECORD_VIEW",
             "PARTICIPANT_EXAMINATION_RECORD_REVIEW",
+            "PARTICIPANT_EXAMINATION_FORM_PRINT",
+            "PARTICIPANT_EXAMINATION_FORM_BULK_PRINT",
             "PARTICIPANT_CREATE",
             "PARTICIPANT_UPDATE",
             "PARTICIPANT_REMOVE",

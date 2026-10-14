@@ -38,7 +38,7 @@ class HealthExaminationDatabaseMigrationIntegrationTest {
             UUID.class);
     UUID account =
         jdbc.queryForObject(
-            "INSERT INTO public.accounts(account_type,username,password_hash,staff_member_id,status) VALUES ('STAFF','test-actor','TEST_INVALID_HASH',?,'ACTIVE') RETURNING id",
+            "INSERT INTO public.accounts(account_type,role_id,username,password_hash,staff_member_id,status) VALUES ('STAFF',(SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'),'test-actor','TEST_INVALID_HASH',?,'ACTIVE') RETURNING id",
             UUID.class,
             staff);
     UUID organization =

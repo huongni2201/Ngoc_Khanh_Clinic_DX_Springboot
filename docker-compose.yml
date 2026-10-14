@@ -22,7 +22,7 @@ services:
     volumes:
       - document_data:/var/lib/nkc/documents
     ports:
-      - "8080:8080"
+      - "8081:8080"
 
   postgres:
     image: postgres:18-alpine
@@ -32,7 +32,7 @@ services:
       # Development-only fallback; set POSTGRES_PASSWORD outside local development.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:

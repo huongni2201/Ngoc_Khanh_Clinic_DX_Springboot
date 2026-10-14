@@ -1,10 +1,12 @@
--- Consolidated access-control seed for fresh databases, applied after V001.
--- No accounts or local demo data are created here.
-
--- Roles, permissions and role grants of the SRS Permission Matrix 4.4 (ADR-0015).
--- One permission per matrix row; sign-in and password rows need no permission.
--- "Restricted n" cells are granted here; footnote n limits are enforced by the use case.
--- Future matrix changes require a new migration.
+-- Access-control seed for fresh databases, applied after V001. No accounts or demo data are created.
+--
+-- Roles, permissions and role grants of the SRS Permission Matrix 4.4 (ADR-0015). One permission
+-- per matrix row; sign-in and password rows need no permission. "Restricted n" cells are granted
+-- here; footnote n limits are enforced by the use case. A permission protects at most one endpoint,
+-- named by its HTTP method and the route template declared by the controller; permissions without
+-- an endpoint belong to use cases that have no public route yet, and the ones marked "Not in the
+-- SRS Permission Matrix 4.4 yet" are additions to the matrix. Future matrix changes require a new
+-- migration.
 
 INSERT INTO public.roles (code, name, description)
 VALUES
@@ -14,117 +16,134 @@ VALUES
     ('DIAGNOSTIC_DOCTOR', 'Diagnostic Doctor', 'Performs diagnostic services and records, finalizes, amends and prints diagnostic results.'),
     ('DATA_ENTRY_STAFF', 'Data Entry Staff', 'Prepares participant examination records, enters batch examination data and issues completed records.'),
     ('CLINIC_MANAGER', 'Clinic Manager', 'Manages organizations, health examination batches, participants, clinic master data and operational reports.'),
-    ('ADMINISTRATOR', 'Administrator', 'Manages user accounts, roles and permissions, reviews audit logs and submits national health data.')
-ON CONFLICT (code) DO NOTHING;
+    ('ADMINISTRATOR', 'Administrator', 'Manages user accounts, roles and permissions, reviews audit logs and submits national health data.');
 
-INSERT INTO public.permissions (code, name, description)
+INSERT INTO public.permissions (code, name, description, http_method, endpoint)
 VALUES
-    ('USER_ACCOUNT_CREATE', 'Create a user account', 'User Account. UC-005.'),
-    ('USER_ACCOUNT_STATUS_UPDATE', 'Deactivate or reactivate a user account', 'User Account. UC-006, UC-007.'),
-    ('ROLE_MANAGE', 'View, create, update and deactivate roles', 'Roles and Permissions. UC-008.'),
-    ('ROLE_PERMISSION_ASSIGN', 'Assign or remove role permissions', 'Roles and Permissions. UC-009.'),
-    ('USER_ROLE_ASSIGN', 'Assign or remove user roles', 'Roles and Permissions. UC-010.'),
-    ('PATIENT_VIEW', 'Find patient and view demographic summary', 'Patient. UC-011, UC-012. Restricted: Receptionist footnote 3; General Practitioner footnote 4.'),
-    ('PATIENT_CREATE', 'Create a patient profile', 'Patient. UC-013.'),
-    ('PATIENT_UPDATE', 'Update personal and contact information', 'Patient. UC-014. Restricted: Receptionist footnote 3.'),
-    ('PATIENT_HISTORY_VIEW', 'View previous examinations and clinical history', 'Patient safety and history. UC-015. Restricted: Receptionist footnote 3; General Practitioner footnote 4.'),
-    ('PATIENT_SAFETY_UPDATE', 'Record or update allergies, conditions and warnings', 'Patient safety and history. UC-016, UC-017. Restricted: General Practitioner footnote 4.'),
-    ('RECEPTION_WORKLIST_VIEW', 'View reception worklist', 'Encounter. UC-018. Restricted: Receptionist footnote 3.'),
-    ('ENCOUNTER_CREATE', 'Receive an outpatient and create encounter', 'Encounter. UC-020. Restricted: Receptionist footnote 3.'),
-    ('ENCOUNTER_ROOM_CHANGE', 'Change encounter room', 'Encounter. UC-021. Restricted: Receptionist footnote 3.'),
-    ('ENCOUNTER_CANCEL', 'Cancel before examination begins', 'Encounter. UC-022. Restricted: Receptionist footnote 3.'),
-    ('GENERAL_PRACTITIONER_WORKLIST_VIEW', 'View assigned general practitioner worklist', 'Encounter. UC-023. Restricted: General Practitioner footnote 4.'),
-    ('ENCOUNTER_FINDINGS_RECORD', 'Record clinical examination findings', 'Encounter. UC-024. Restricted: General Practitioner footnote 4.'),
-    ('PATIENT_SAFETY_VIEW', 'Review relevant history and safety information', 'Patient safety and history. UC-025. Restricted: General Practitioner footnote 4.'),
-    ('DIAGNOSTIC_PROGRESS_VIEW', 'View diagnostic progress for the encounter', 'Diagnostic Service Request. UC-026. Restricted: General Practitioner footnote 4.'),
-    ('DIAGNOSTIC_RESULT_REVIEW', 'Review available results for the encounter', 'Diagnostic Result. UC-027. Restricted: General Practitioner footnote 4.'),
-    ('ENCOUNTER_DIAGNOSIS_RECORD', 'Record final diagnosis', 'Encounter. UC-028. Restricted: General Practitioner footnote 4.'),
-    ('ENCOUNTER_CONCLUSION_RECORD', 'Record clinical conclusion and follow-up recommendations', 'Encounter. UC-029. Restricted: General Practitioner footnote 4.'),
-    ('ENCOUNTER_COMPLETE', 'Complete the clinical encounter', 'Encounter. UC-030. Restricted: General Practitioner footnote 4.'),
-    ('ENCOUNTER_AMEND', 'Amend completed record with traceable history', 'Encounter. UC-031. Restricted: General Practitioner footnote 4.'),
-    ('DIAGNOSTIC_SERVICE_REQUEST_CREATE', 'Create a diagnostic service request', 'Diagnostic Service Request. UC-032. Restricted: General Practitioner footnote 4.'),
-    ('DIAGNOSTIC_SERVICE_REQUEST_UPDATE', 'Update before processing', 'Diagnostic Service Request. UC-033. Restricted: General Practitioner footnote 4.'),
-    ('DIAGNOSTIC_SERVICE_REQUEST_CANCEL', 'Cancel before service begins', 'Diagnostic Service Request. UC-034. Restricted: General Practitioner footnote 4.'),
-    ('DIAGNOSTIC_SERVICE_REQUEST_PRINT', 'Print diagnostic order', 'Diagnostic Service Request. UC-035. Restricted: Diagnostic Doctor footnote 5.'),
-    ('DIAGNOSTIC_RESULT_VIEW', 'View diagnostic results and status', 'Diagnostic Result. UC-036. Restricted: Diagnostic Doctor footnote 5.'),
-    ('DIAGNOSTIC_RESULT_RECORD', 'Record diagnostic result', 'Diagnostic Result. UC-037. Restricted: Diagnostic Doctor footnote 5.'),
-    ('DIAGNOSTIC_RESULT_FINALIZE', 'Finalize diagnostic result', 'Diagnostic Result. UC-038. Restricted: Diagnostic Doctor footnote 5.'),
-    ('DIAGNOSTIC_RESULT_AMEND', 'Amend finalized result and preserve prior version', 'Diagnostic Result. UC-039. Restricted: Diagnostic Doctor footnote 5.'),
-    ('DIAGNOSTIC_RESULT_PRINT', 'Print finalized result for the patient', 'Diagnostic Result. UC-040. Restricted: Diagnostic Doctor footnote 5.'),
-    ('PAYMENT_VIEW', 'View encounter charges and payment history', 'Invoice and Payment. UC-041, UC-042. Restricted: Receptionist footnote 3.'),
-    ('PAYMENT_COLLECT', 'Collect examination and diagnostic service fees', 'Invoice and Payment. UC-043, UC-044. Restricted: Receptionist footnote 3.'),
-    ('PAYMENT_QR_CREATE', 'Generate QR payment request', 'Invoice and Payment. UC-045. Restricted: Receptionist footnote 3.'),
-    ('PAYMENT_REFUND', 'Refund payment', 'Invoice and Payment. UC-046. Restricted: Receptionist footnote 3.'),
-    ('PAYMENT_CANCEL', 'Cancel pending payment', 'Invoice and Payment. UC-047. Restricted: Receptionist footnote 3.'),
-    ('PAYMENT_RECONCILE', 'Reconcile payment', 'Invoice and Payment. UC-048. Restricted: Receptionist footnote 3.'),
-    ('PAYMENT_RECEIPT_PRINT', 'Print payment receipt', 'Invoice and Payment. UC-049. Restricted: Receptionist footnote 3.'),
-    ('PRESCRIPTION_CREATE', 'Create a prescription', 'Prescription. UC-050. Restricted: General Practitioner footnote 4.'),
-    ('PRESCRIPTION_UPDATE', 'Edit before finalization', 'Prescription. UC-051. Restricted: General Practitioner footnote 4.'),
-    ('PRESCRIPTION_PRINT', 'Print prescription', 'Prescription. UC-052. Restricted: General Practitioner footnote 4.'),
-    ('APPOINTMENT_VIEW', 'View appointment schedule', 'Appointment. UC-053. Restricted: Receptionist footnote 3; General Practitioner footnote 4.'),
-    ('APPOINTMENT_CREATE', 'Create appointment or clinical follow-up', 'Appointment. UC-054. Restricted: Receptionist footnote 3; General Practitioner footnote 4.'),
-    ('APPOINTMENT_RESCHEDULE', 'Reschedule appointment', 'Appointment. UC-055. Restricted: Receptionist footnote 3.'),
-    ('APPOINTMENT_CANCEL', 'Cancel appointment', 'Appointment. UC-056. Restricted: Receptionist footnote 3.'),
-    ('APPOINTMENT_NO_SHOW_MARK', 'Mark appointment as no-show', 'Appointment. UC-057. Restricted: Receptionist footnote 3.'),
-    ('OWN_ENCOUNTER_VIEW', 'View own examination history and detail', 'Encounter. UC-058, UC-059. Restricted: Patient footnote 2.'),
-    ('OWN_DIAGNOSTIC_REPORT_VIEW', 'View own released diagnostic reports', 'Diagnostic Report. UC-060. Restricted: Patient footnote 2.'),
-    ('OWN_PRESCRIPTION_VIEW', 'View prescriptions issued to self', 'Prescription. UC-061. Restricted: Patient footnote 2.'),
-    ('OWN_APPOINTMENT_VIEW', 'View own appointments', 'Appointment. UC-062. Restricted: Patient footnote 2.'),
-    ('OWN_CONTACT_UPDATE', 'Update own contact information', 'Patient. UC-063. Restricted: Patient footnote 2.'),
-    ('ORGANIZATION_SEARCH', 'Search organizations', 'Organization. UC-064. Restricted: Clinic Manager footnote 7.'),
-    ('ORGANIZATION_VIEW', 'View organization details', 'Organization. UC-065. Restricted: Clinic Manager footnote 7.'),
-    ('ORGANIZATION_CREATE', 'Create organization', 'Organization. UC-066. Restricted: Clinic Manager footnote 7.'),
-    ('ORGANIZATION_UPDATE', 'Update organization', 'Organization. UC-067. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_VIEW', 'View organization batches', 'Health Examination Batch. UC-068. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_CREATE', 'Create a health examination batch', 'Health Examination Batch. UC-069. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_UPDATE', 'Update examination batch', 'Health Examination Batch. UC-070. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_START', 'Start examination batch', 'Health Examination Batch. UC-071. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_CLOSE', 'Close examination batch', 'Health Examination Batch. UC-072. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_CANCEL', 'Cancel examination batch', 'Health Examination Batch. UC-073. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_SERVICE_CONFIGURE', 'Configure batch examination services', 'Health Examination Batch. UC-074. Restricted: Clinic Manager footnote 7.'),
-    ('HEALTH_EXAMINATION_BATCH_PRICE_CONFIGURE', 'Configure batch service prices', 'Health Examination Batch. UC-075. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_VIEW', 'View batch participants', 'Participant. UC-076. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_TEMPLATE_DOWNLOAD', 'Download import template', 'Participant. UC-077. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_IMPORT', 'Import participant list', 'Participant. UC-078. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_UPDATE', 'Update batch participant information', 'Participant. UC-079. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_REMOVE', 'Remove batch participant', 'Participant. UC-080. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_EXAMINATION_RECORD_VIEW', 'View participant health examination details', 'Participant Examination Record. UC-081. Restricted: General Practitioner footnote 4; Data Entry Staff footnote 6; Clinic Manager footnote 7.'),
-    ('PARTICIPANT_EXAMINATION_RECORD_PREPARE', 'Prepare record and link to patient', 'Participant Examination Record. UC-082. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_IDENTITY_CONFLICT_RESOLVE', 'Resolve identity and demographic data conflicts', 'Patient and Participant. UC-083. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_FORM_CREATE', 'Create health examination form', 'Participant Examination Form. UC-084. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_FORM_PRINT', 'Print individual or bulk examination forms', 'Participant Examination Form. UC-085, UC-086. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_DATA_ENTER', 'Enter examination data', 'Participant Examination Record. UC-087. Restricted: Data Entry Staff footnote 6.'),
-    ('BATCH_EXAMINATION_DATA_UPLOAD', 'Upload examination data', 'Batch Examination Data. UC-088. Restricted: Data Entry Staff footnote 6.'),
-    ('BATCH_EXAMINATION_DATA_IMPORT_REVIEW', 'Review import examination data', 'Batch Examination Data. UC-089. Restricted: Data Entry Staff footnote 6.'),
-    ('BATCH_EXAMINATION_DATA_MISSING_REVIEW', 'Review missing examination data', 'Batch Examination Data. UC-090. Restricted: Data Entry Staff footnote 6.'),
-    ('BATCH_EXAMINATION_DATA_COMPLETION_VIEW', 'View participant and batch data completion', 'Batch Examination Data. UC-091, UC-092. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_RECORD_REVIEW', 'Review participant examination data', 'Participant Examination Record. UC-093. Restricted: Clinic Manager footnote 7.'),
-    ('PARTICIPANT_EXAMINATION_CONCLUSION_RECORD', 'Record health examination conclusion', 'Participant Examination Record. UC-094. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_RECORD_COMPLETE', 'Complete participant health examination', 'Participant Examination Record. UC-095. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_RECORD_ISSUE', 'Issue completed record', 'Participant Examination Record. UC-096. Restricted: Data Entry Staff footnote 6.'),
-    ('PARTICIPANT_EXAMINATION_RECORD_AMEND', 'Amend issued record', 'Participant Examination Record. UC-097. Restricted: Data Entry Staff footnote 6.'),
-    ('REPORT_PARTICIPANT_EXAMINATION_EXPORT', 'Export participant examination detail report', 'Reports and Analytics. UC-098. Restricted: Data Entry Staff footnote 6.'),
-    ('REPORT_EXAMINATION_SERVICE_SUMMARY_EXPORT', 'Export examination service summary report', 'Reports and Analytics. UC-099. Restricted: Data Entry Staff footnote 6.'),
-    ('REPORT_BATCH_DATA_COMPLETION_EXPORT', 'Export batch data completion report', 'Reports and Analytics. UC-100. Restricted: Data Entry Staff footnote 6.'),
-    ('REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT', 'Export batch financial summary', 'Reports and Analytics. UC-101. Restricted: Clinic Manager footnote 7.'),
-    ('DASHBOARD_VIEW', 'View operation dashboard', 'Reports and Analytics. UC-102. Restricted: Clinic Manager footnote 7.'),
-    ('ANALYTICS_VISIT_VIEW', 'Analyze visits, encounter outcomes and service utilization', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.'),
-    ('ANALYTICS_STAFF_ACTIVITY_VIEW', 'Analyze department, room and doctor activity', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.'),
-    ('ANALYTICS_DIAGNOSTIC_APPOINTMENT_VIEW', 'Analyze diagnostic performance and appointment activity', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.'),
-    ('ANALYTICS_REVENUE_VIEW', 'Analyze revenue and payment activity', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.'),
-    ('REPORT_OPERATIONAL_EXPORT', 'Export operational reports', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.'),
-    ('MASTER_DATA_STAFF_FACILITY_MANAGE', 'Manage staff profiles, departments, specialties and rooms', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.'),
-    ('MASTER_DATA_SERVICE_CATALOG_MANAGE', 'Manage service catalog and service prices', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.'),
-    ('MASTER_DATA_LAB_MEDICATION_MANAGE', 'Manage laboratory test catalog and clinic medications', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.'),
-    ('MASTER_DATA_DOCUMENT_TEMPLATE_MANAGE', 'Manage document templates', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.'),
-    ('MASTER_DATA_NOTIFICATION_TEMPLATE_MANAGE', 'Manage notification templates', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.'),
-    ('AUDIT_LOG_VIEW', 'Review system activity audit logs', 'Audit Logs. UC-124.'),
-    ('NATIONAL_SUBMISSION_PREPARE', 'Prepare data package', 'National Health Data Submission. UC-125.'),
-    ('NATIONAL_SUBMISSION_VALIDATE', 'Validate data package', 'National Health Data Submission. UC-126.'),
-    ('NATIONAL_SUBMISSION_SUBMIT', 'Submit data', 'National Health Data Submission. UC-127.'),
-    ('NATIONAL_SUBMISSION_STATUS_VIEW', 'View submission status', 'National Health Data Submission. UC-128.'),
-    ('NATIONAL_SUBMISSION_ERROR_REVIEW', 'Review submission errors', 'National Health Data Submission. UC-129.'),
-    ('NATIONAL_SUBMISSION_RETRY', 'Retry failed submission after resolution', 'National Health Data Submission. UC-130.');
+    ('USER_ACCOUNT_CREATE', 'Create a user account', 'User Account. UC-005.', NULL, NULL),
+    ('USER_ACCOUNT_STATUS_UPDATE', 'Deactivate or reactivate a user account', 'User Account. UC-006, UC-007.', NULL, NULL),
+    ('ROLE_MANAGE', 'View, create, update and deactivate roles', 'Roles and Permissions. UC-008.', NULL, NULL),
+    ('ROLE_PERMISSION_ASSIGN', 'Assign or remove role permissions', 'Roles and Permissions. UC-009.', NULL, NULL),
+    ('USER_ROLE_ASSIGN', 'Assign or remove user roles', 'Roles and Permissions. UC-010.', NULL, NULL),
+    ('PATIENT_VIEW', 'Find patient and view demographic summary', 'Patient. UC-011, UC-012. Restricted: Receptionist footnote 3; General Practitioner footnote 4.', NULL, NULL),
+    ('PATIENT_CREATE', 'Create a patient profile', 'Patient. UC-013.', NULL, NULL),
+    ('PATIENT_UPDATE', 'Update personal and contact information', 'Patient. UC-014. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PATIENT_HISTORY_VIEW', 'View previous examinations and clinical history', 'Patient safety and history. UC-015. Restricted: Receptionist footnote 3; General Practitioner footnote 4.', NULL, NULL),
+    ('PATIENT_SAFETY_UPDATE', 'Record or update allergies, conditions and warnings', 'Patient safety and history. UC-016, UC-017. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('RECEPTION_WORKLIST_VIEW', 'View reception worklist', 'Encounter. UC-018. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('ENCOUNTER_CREATE', 'Receive an outpatient and create encounter', 'Encounter. UC-020. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('ENCOUNTER_ROOM_CHANGE', 'Change encounter room', 'Encounter. UC-021. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('ENCOUNTER_CANCEL', 'Cancel before examination begins', 'Encounter. UC-022. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('GENERAL_PRACTITIONER_WORKLIST_VIEW', 'View assigned general practitioner worklist', 'Encounter. UC-023. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('ENCOUNTER_FINDINGS_RECORD', 'Record clinical examination findings', 'Encounter. UC-024. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('PATIENT_SAFETY_VIEW', 'Review relevant history and safety information', 'Patient safety and history. UC-025. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('DIAGNOSTIC_PROGRESS_VIEW', 'View diagnostic progress for the encounter', 'Diagnostic Service Request. UC-026. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('DIAGNOSTIC_RESULT_REVIEW', 'Review available results for the encounter', 'Diagnostic Result. UC-027. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('ENCOUNTER_DIAGNOSIS_RECORD', 'Record final diagnosis', 'Encounter. UC-028. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('ENCOUNTER_CONCLUSION_RECORD', 'Record clinical conclusion and follow-up recommendations', 'Encounter. UC-029. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('ENCOUNTER_COMPLETE', 'Complete the clinical encounter', 'Encounter. UC-030. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('ENCOUNTER_AMEND', 'Amend completed record with traceable history', 'Encounter. UC-031. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('DIAGNOSTIC_SERVICE_REQUEST_CREATE', 'Create a diagnostic service request', 'Diagnostic Service Request. UC-032. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('DIAGNOSTIC_SERVICE_REQUEST_UPDATE', 'Update before processing', 'Diagnostic Service Request. UC-033. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('DIAGNOSTIC_SERVICE_REQUEST_CANCEL', 'Cancel before service begins', 'Diagnostic Service Request. UC-034. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('DIAGNOSTIC_SERVICE_REQUEST_PRINT', 'Print diagnostic order', 'Diagnostic Service Request. UC-035. Restricted: Diagnostic Doctor footnote 5.', NULL, NULL),
+    ('DIAGNOSTIC_RESULT_VIEW', 'View diagnostic results and status', 'Diagnostic Result. UC-036. Restricted: Diagnostic Doctor footnote 5.', NULL, NULL),
+    ('DIAGNOSTIC_RESULT_RECORD', 'Record diagnostic result', 'Diagnostic Result. UC-037. Restricted: Diagnostic Doctor footnote 5.', NULL, NULL),
+    ('DIAGNOSTIC_RESULT_FINALIZE', 'Finalize diagnostic result', 'Diagnostic Result. UC-038. Restricted: Diagnostic Doctor footnote 5.', NULL, NULL),
+    ('DIAGNOSTIC_RESULT_AMEND', 'Amend finalized result and preserve prior version', 'Diagnostic Result. UC-039. Restricted: Diagnostic Doctor footnote 5.', NULL, NULL),
+    ('DIAGNOSTIC_RESULT_PRINT', 'Print finalized result for the patient', 'Diagnostic Result. UC-040. Restricted: Diagnostic Doctor footnote 5.', NULL, NULL),
+    ('PAYMENT_VIEW', 'View encounter charges and payment history', 'Invoice and Payment. UC-041, UC-042. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PAYMENT_COLLECT', 'Collect examination and diagnostic service fees', 'Invoice and Payment. UC-043, UC-044. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PAYMENT_QR_CREATE', 'Generate QR payment request', 'Invoice and Payment. UC-045. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PAYMENT_REFUND', 'Refund payment', 'Invoice and Payment. UC-046. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PAYMENT_CANCEL', 'Cancel pending payment', 'Invoice and Payment. UC-047. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PAYMENT_RECONCILE', 'Reconcile payment', 'Invoice and Payment. UC-048. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PAYMENT_RECEIPT_PRINT', 'Print payment receipt', 'Invoice and Payment. UC-049. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('PRESCRIPTION_CREATE', 'Create a prescription', 'Prescription. UC-050. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('PRESCRIPTION_UPDATE', 'Edit before finalization', 'Prescription. UC-051. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('PRESCRIPTION_PRINT', 'Print prescription', 'Prescription. UC-052. Restricted: General Practitioner footnote 4.', NULL, NULL),
+    ('APPOINTMENT_VIEW', 'View appointment schedule', 'Appointment. UC-053. Restricted: Receptionist footnote 3; General Practitioner footnote 4.', NULL, NULL),
+    ('APPOINTMENT_CREATE', 'Create appointment or clinical follow-up', 'Appointment. UC-054. Restricted: Receptionist footnote 3; General Practitioner footnote 4.', NULL, NULL),
+    ('APPOINTMENT_RESCHEDULE', 'Reschedule appointment', 'Appointment. UC-055. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('APPOINTMENT_CANCEL', 'Cancel appointment', 'Appointment. UC-056. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('APPOINTMENT_NO_SHOW_MARK', 'Mark appointment as no-show', 'Appointment. UC-057. Restricted: Receptionist footnote 3.', NULL, NULL),
+    ('OWN_ENCOUNTER_VIEW', 'View own examination history and detail', 'Encounter. UC-058, UC-059. Restricted: Patient footnote 2.', NULL, NULL),
+    ('OWN_DIAGNOSTIC_REPORT_VIEW', 'View own released diagnostic reports', 'Diagnostic Report. UC-060. Restricted: Patient footnote 2.', NULL, NULL),
+    ('OWN_PRESCRIPTION_VIEW', 'View prescriptions issued to self', 'Prescription. UC-061. Restricted: Patient footnote 2.', NULL, NULL),
+    ('OWN_APPOINTMENT_VIEW', 'View own appointments', 'Appointment. UC-062. Restricted: Patient footnote 2.', NULL, NULL),
+    ('OWN_CONTACT_UPDATE', 'Update own contact information', 'Patient. UC-063. Restricted: Patient footnote 2.', NULL, NULL),
+    ('ORGANIZATION_SEARCH', 'Search organizations', 'Organization. UC-064. Restricted: Clinic Manager footnote 7.', 'GET', '/api/v1/organizations'),
+    ('ORGANIZATION_VIEW', 'View organization details', 'Organization. UC-065. Restricted: Clinic Manager footnote 7.', 'GET', '/api/v1/organizations/{organizationId}'),
+    ('ORGANIZATION_CREATE', 'Create organization', 'Organization. UC-066. Restricted: Clinic Manager footnote 7.', 'POST', '/api/v1/organizations'),
+    ('ORGANIZATION_UPDATE', 'Update organization', 'Organization. UC-067. Restricted: Clinic Manager footnote 7.', 'PUT', '/api/v1/organizations/{organizationId}'),
+    ('HEALTH_EXAMINATION_BATCH_VIEW', 'View organization batches', 'Health Examination Batch. UC-068. Restricted: Clinic Manager footnote 7.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches'),
+    ('HEALTH_EXAMINATION_BATCH_CREATE', 'Create a health examination batch', 'Health Examination Batch. UC-069. Restricted: Clinic Manager footnote 7.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches'),
+    ('HEALTH_EXAMINATION_BATCH_UPDATE', 'Update examination batch', 'Health Examination Batch. UC-070. Restricted: Clinic Manager footnote 7.', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
+    ('HEALTH_EXAMINATION_BATCH_START', 'Start examination batch', 'Health Examination Batch. UC-071. Moves a DRAFT batch to READY. Restricted: Clinic Manager footnote 7.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/start'),
+    ('HEALTH_EXAMINATION_BATCH_CLOSE', 'Close examination batch', 'Health Examination Batch. UC-072. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('HEALTH_EXAMINATION_BATCH_CANCEL', 'Cancel examination batch', 'Health Examination Batch. UC-073. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('HEALTH_EXAMINATION_BATCH_SERVICE_CONFIGURE', 'Configure batch examination services', 'Health Examination Batch. UC-074. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('HEALTH_EXAMINATION_BATCH_PRICE_CONFIGURE', 'Configure batch service prices', 'Health Examination Batch. UC-075. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('PARTICIPANT_VIEW', 'View batch participants', 'Participant. UC-076. Restricted: Clinic Manager footnote 7.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants'),
+    ('PARTICIPANT_TEMPLATE_DOWNLOAD', 'Download import template', 'Participant. UC-077. Restricted: Clinic Manager footnote 7.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template'),
+    ('PARTICIPANT_IMPORT', 'Import participant list', 'Participant. UC-078. Restricted: Clinic Manager footnote 7.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports'),
+    ('PARTICIPANT_UPDATE', 'Update batch participant information', 'Participant. UC-079. Restricted: Clinic Manager footnote 7.', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
+    ('PARTICIPANT_REMOVE', 'Remove batch participant', 'Participant. UC-080. Restricted: Clinic Manager footnote 7.', 'DELETE', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
+    ('PARTICIPANT_EXAMINATION_RECORD_VIEW', 'View participant health examination details', 'Participant Examination Record. UC-081. Restricted: General Practitioner footnote 4; Data Entry Staff footnote 6; Clinic Manager footnote 7.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_RECORD_PREPARE', 'Prepare record and link to patient', 'Participant Examination Record. UC-082. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_IDENTITY_CONFLICT_RESOLVE', 'Resolve identity and demographic data conflicts', 'Patient and Participant. UC-083. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_FORM_CREATE', 'Create health examination form', 'Participant Examination Form. UC-084. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_FORM_PRINT', 'Print one examination form', 'Participant Examination Form. UC-085. Restricted: Data Entry Staff footnote 6. Bulk printing (UC-086) has its own permission.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/examination-form'),
+    ('PARTICIPANT_EXAMINATION_FORM_BULK_PRINT', 'Print many examination forms', 'Participant Examination Form. UC-086. Creates a background print job for the chosen Participants of a batch.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs'),
+    ('DOCUMENT_RENDER_JOB_READ', 'View a print job', 'Document render job. Progress, skipped records and parts of a job the caller created.', 'GET', '/api/v1/document-render-jobs/{jobId}'),
+    ('DOCUMENT_RENDER_JOB_DOWNLOAD', 'Download a print job part', 'Document render job. Downloads one merged PDF part of a job the caller created.', 'GET', '/api/v1/document-render-jobs/{jobId}/parts/{partNo}'),
+    ('PARTICIPANT_EXAMINATION_DATA_ENTER', 'Enter examination data', 'Participant Examination Record. UC-087. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('BATCH_EXAMINATION_DATA_UPLOAD', 'Upload examination data', 'Batch Examination Data. UC-088. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('BATCH_EXAMINATION_DATA_IMPORT_REVIEW', 'Review import examination data', 'Batch Examination Data. UC-089. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('BATCH_EXAMINATION_DATA_MISSING_REVIEW', 'Review missing examination data', 'Batch Examination Data. UC-090. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('BATCH_EXAMINATION_DATA_COMPLETION_VIEW', 'View participant and batch data completion', 'Batch Examination Data. UC-091, UC-092. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_RECORD_REVIEW', 'Review participant examination data', 'Participant Examination Record. UC-093. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_CONCLUSION_RECORD', 'Record health examination conclusion', 'Participant Examination Record. UC-094. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_RECORD_COMPLETE', 'Complete participant health examination', 'Participant Examination Record. UC-095. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_RECORD_ISSUE', 'Issue completed record', 'Participant Examination Record. UC-096. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('PARTICIPANT_EXAMINATION_RECORD_AMEND', 'Amend issued record', 'Participant Examination Record. UC-097. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('REPORT_PARTICIPANT_EXAMINATION_EXPORT', 'Export participant examination detail report', 'Reports and Analytics. UC-098. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('REPORT_EXAMINATION_SERVICE_SUMMARY_EXPORT', 'Export examination service summary report', 'Reports and Analytics. UC-099. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('REPORT_BATCH_DATA_COMPLETION_EXPORT', 'Export batch data completion report', 'Reports and Analytics. UC-100. Restricted: Data Entry Staff footnote 6.', NULL, NULL),
+    ('REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT', 'Export batch financial summary', 'Reports and Analytics. UC-101. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('DASHBOARD_VIEW', 'View operation dashboard', 'Reports and Analytics. UC-102. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('ANALYTICS_VISIT_VIEW', 'Analyze visits, encounter outcomes and service utilization', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('ANALYTICS_STAFF_ACTIVITY_VIEW', 'Analyze department, room and doctor activity', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('ANALYTICS_DIAGNOSTIC_APPOINTMENT_VIEW', 'Analyze diagnostic performance and appointment activity', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('ANALYTICS_REVENUE_VIEW', 'Analyze revenue and payment activity', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('REPORT_OPERATIONAL_EXPORT', 'Export operational reports', 'Reports and Analytics. UC-103 to UC-113. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('MASTER_DATA_STAFF_FACILITY_MANAGE', 'Manage staff profiles, departments, specialties and rooms', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('MASTER_DATA_SERVICE_CATALOG_MANAGE', 'Manage service catalog and service prices', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('MASTER_DATA_LAB_MEDICATION_MANAGE', 'Manage laboratory test catalog and clinic medications', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('MASTER_DATA_DOCUMENT_TEMPLATE_MANAGE', 'Manage document templates', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('MASTER_DATA_NOTIFICATION_TEMPLATE_MANAGE', 'Manage notification templates', 'Clinic Master Data. UC-114 to UC-123. Restricted: Clinic Manager footnote 7.', NULL, NULL),
+    ('AUDIT_LOG_VIEW', 'Review system activity audit logs', 'Audit Logs. UC-124.', NULL, NULL),
+    ('NATIONAL_SUBMISSION_PREPARE', 'Prepare data package', 'National Health Data Submission. UC-125.', NULL, NULL),
+    ('NATIONAL_SUBMISSION_VALIDATE', 'Validate data package', 'National Health Data Submission. UC-126.', NULL, NULL),
+    ('NATIONAL_SUBMISSION_SUBMIT', 'Submit data', 'National Health Data Submission. UC-127.', NULL, NULL),
+    ('NATIONAL_SUBMISSION_STATUS_VIEW', 'View submission status', 'National Health Data Submission. UC-128.', NULL, NULL),
+    ('NATIONAL_SUBMISSION_ERROR_REVIEW', 'Review submission errors', 'National Health Data Submission. UC-129.', NULL, NULL),
+    ('NATIONAL_SUBMISSION_RETRY', 'Retry failed submission after resolution', 'National Health Data Submission. UC-130.', NULL, NULL),
+    ('PARTICIPANT_CREATE', 'Create a batch participant', 'Add one Participant manually to a health examination batch.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants'),
+    ('PARTICIPANT_REACTIVATE', 'Reactivate a batch participant', 'Return a cancelled Participant to the active roster.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/reactivate'),
+    ('HEALTH_EXAMINATION_SERVICE_READ', 'Read health examination service details', 'View the Participant by service matrix of a health examination batch.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details'),
+    ('HEALTH_EXAMINATION_SERVICE_RECONCILE', 'Reconcile health examination services', 'Import an Excel file that records the services performed for Participants of a batch.', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/imports'),
+    ('HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD', 'Download examination detail import template', 'Download the Excel template, pre-filled with the roster and the recorded services, used to import examination details. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/import-template'),
+    ('HEALTH_EXAMINATION_SERVICE_RECORD', 'Record examination details of one participant', 'Record attendance and the performed services of a single Participant by hand. Not in the SRS Permission Matrix 4.4 yet.', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/{participantId}'),
+    ('HEALTH_EXAMINATION_REPORT_READ', 'Read health examination payment report', 'View the payment summary of a health examination batch.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary'),
+    ('ORGANIZATION_DELETE', 'Delete organization', 'Organization. Not in the SRS Permission Matrix 4.4 yet.', 'DELETE', '/api/v1/organizations/{organizationId}'),
+    ('HEALTH_EXAMINATION_BATCH_DETAIL_VIEW', 'View examination batch details', 'Health Examination Batch. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
+    ('HEALTH_EXAMINATION_BATCH_DELETE', 'Delete examination batch', 'Health Examination Batch. Not in the SRS Permission Matrix 4.4 yet.', 'DELETE', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
+    ('PARTICIPANT_DETAIL_VIEW', 'View batch participant details', 'Participant. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
+    ('HEALTH_EXAMINATION_SERVICE_SUMMARY_READ', 'Read health examination service summary', 'Summary of the Participant by service matrix of a batch. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/summary'),
+    ('HEALTH_EXAMINATION_SERVICE_EXPORT', 'Export health examination service details', 'Export the Participant by service matrix of a batch to Excel. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/export'),
+    ('HEALTH_EXAMINATION_REPORT_EXPORT', 'Export health examination payment report', 'Export the payment summary of a batch to Word. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary/docx'),
+    ('SERVICE_CATALOG_VIEW', 'View service catalog', 'Clinic Master Data. Not in the SRS Permission Matrix 4.4 yet.', 'GET', '/api/v1/catalog/services');
 
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id
@@ -241,164 +260,33 @@ FROM (
         ('ADMINISTRATOR', 'NATIONAL_SUBMISSION_SUBMIT'),
         ('ADMINISTRATOR', 'NATIONAL_SUBMISSION_STATUS_VIEW'),
         ('ADMINISTRATOR', 'NATIONAL_SUBMISSION_ERROR_REVIEW'),
-        ('ADMINISTRATOR', 'NATIONAL_SUBMISSION_RETRY')
+        ('ADMINISTRATOR', 'NATIONAL_SUBMISSION_RETRY'),
+        ('CLINIC_MANAGER', 'PARTICIPANT_CREATE'),
+        ('CLINIC_MANAGER', 'PARTICIPANT_REACTIVATE'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_SERVICE_READ'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_SERVICE_RECONCILE'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_SERVICE_RECORD'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_REPORT_READ'),
+        ('CLINIC_MANAGER', 'ORGANIZATION_DELETE'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_BATCH_DETAIL_VIEW'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_BATCH_DELETE'),
+        ('CLINIC_MANAGER', 'PARTICIPANT_DETAIL_VIEW'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_SERVICE_SUMMARY_READ'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_SERVICE_EXPORT'),
+        ('CLINIC_MANAGER', 'HEALTH_EXAMINATION_REPORT_EXPORT'),
+        ('CLINIC_MANAGER', 'SERVICE_CATALOG_VIEW'),
+        ('CLINIC_MANAGER', 'PARTICIPANT_EXAMINATION_FORM_PRINT'),
+        ('RECEPTIONIST', 'PARTICIPANT_EXAMINATION_FORM_PRINT'),
+        ('CLINIC_MANAGER', 'PARTICIPANT_EXAMINATION_FORM_BULK_PRINT'),
+        ('CLINIC_MANAGER', 'DOCUMENT_RENDER_JOB_READ'),
+        ('CLINIC_MANAGER', 'DOCUMENT_RENDER_JOB_DOWNLOAD'),
+        ('DATA_ENTRY_STAFF', 'PARTICIPANT_EXAMINATION_FORM_BULK_PRINT'),
+        ('DATA_ENTRY_STAFF', 'DOCUMENT_RENDER_JOB_READ'),
+        ('DATA_ENTRY_STAFF', 'DOCUMENT_RENDER_JOB_DOWNLOAD'),
+        ('RECEPTIONIST', 'PARTICIPANT_EXAMINATION_FORM_BULK_PRINT'),
+        ('RECEPTIONIST', 'DOCUMENT_RENDER_JOB_READ'),
+        ('RECEPTIONIST', 'DOCUMENT_RENDER_JOB_DOWNLOAD')
 ) AS grant_matrix(role_code, permission_code)
 JOIN public.roles r ON r.code = grant_matrix.role_code
 JOIN public.permissions p ON p.code = grant_matrix.permission_code;
-
--- Retain superseded roster codes in the catalog without granting them.
--- Runtime endpoints use the SRS Participant permissions seeded above (ADR-0015).
-INSERT INTO public.permissions (code, name, description)
-VALUES
-    ('HEALTH_EXAMINATION_PARTICIPANT_READ',
-     'Read health examination Participants',
-     'List the Participant roster of a health examination batch.'),
-    ('HEALTH_EXAMINATION_PARTICIPANT_IMPORT',
-     'Import health examination Participants',
-     'Download the Participant Excel template and add Participants to a health examination batch.')
-ON CONFLICT (code) DO NOTHING;
-
--- Permission of the manual Participant changes of a health examination batch:
---   HEALTH_EXAMINATION_PARTICIPANT_MANAGE add one Participant, read one in full, edit and cancel it
--- Only the permission catalog is added. Roles that already exist receive the grants below; roles
--- created later must be granted explicitly. No permission is granted to every staff account.
-
-INSERT INTO public.permissions (code, name, description)
-VALUES
-    ('HEALTH_EXAMINATION_PARTICIPANT_MANAGE',
-     'Manage health examination Participants',
-     'Add a Participant to a health examination batch by hand, read it in full, edit and cancel it.')
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO public.role_permissions (role_id, permission_id)
-SELECT role.id, permission.id
-FROM public.roles AS role
-JOIN public.permissions AS permission
-  ON permission.code = 'HEALTH_EXAMINATION_PARTICIPANT_MANAGE'
-WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Manual creation and reactivation have separate endpoint permissions.
-INSERT INTO public.permissions (code, name, description)
-VALUES
-    ('PARTICIPANT_CREATE', 'Create a batch participant', 'Add one Participant manually to a health examination batch.'),
-    ('PARTICIPANT_REACTIVATE', 'Reactivate a batch participant', 'Return a cancelled Participant to the active roster.')
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO public.role_permissions (role_id, permission_id)
-SELECT role.id, permission.id
-FROM public.roles AS role
-JOIN public.permissions AS permission
-    ON permission.code IN ('PARTICIPANT_CREATE', 'PARTICIPANT_REACTIVATE')
-WHERE role.code = 'CLINIC_MANAGER'
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Permissions of the examination detail matrix and the payment report of a health examination batch:
---   HEALTH_EXAMINATION_SERVICE_READ               view the examination detail matrix
---   HEALTH_EXAMINATION_SERVICE_RECONCILE          import an examination detail Excel file
---   HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD  download the import template, pre-filled with the
---                                                 roster and the recorded services
---   HEALTH_EXAMINATION_SERVICE_RECORD             record the examination details of one Participant
---                                                 by hand
---   HEALTH_EXAMINATION_REPORT_READ                view the payment report
--- Only the permission catalog is added. Roles that already exist receive the grants below, and
--- whoever may import a file may also fetch the template and enter one Participant by hand; roles
--- created later must be granted explicitly. No permission is granted to every staff account.
--- Accounts must sign in again to receive the permissions.
-
-INSERT INTO public.permissions (code, name, description)
-VALUES
-    ('HEALTH_EXAMINATION_SERVICE_READ',
-     'Read health examination service details',
-     'View the Participant by service matrix of a health examination batch.'),
-    ('HEALTH_EXAMINATION_SERVICE_RECONCILE',
-     'Reconcile health examination services',
-     'Import an Excel file that records the services performed for Participants of a batch.'),
-    ('HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD',
-     'Download examination detail import template',
-     'Download the Excel template, pre-filled with the roster and the recorded services, used to import examination details. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_SERVICE_RECORD',
-     'Record examination details of one participant',
-     'Record attendance and the performed services of a single Participant by hand. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_REPORT_READ',
-     'Read health examination payment report',
-     'View the payment summary of a health examination batch.')
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO public.role_permissions (role_id, permission_id)
-SELECT role.id, permission.id
-FROM public.roles AS role
-JOIN public.permissions AS permission
-  ON permission.code IN (
-      'HEALTH_EXAMINATION_SERVICE_READ',
-      'HEALTH_EXAMINATION_SERVICE_RECONCILE',
-      'HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD',
-      'HEALTH_EXAMINATION_SERVICE_RECORD',
-      'HEALTH_EXAMINATION_REPORT_READ')
-WHERE role.code IN ('ADMIN', 'CLINIC_MANAGER')
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
--- Endpoint of each permission (ADR-0015). A permission protects at most one endpoint, named by its
--- HTTP method and the route template declared by the controller. Endpoints that shared a permission
--- received their own one below; these and the delete/catalog permissions are not in the SRS matrix yet.
-INSERT INTO public.permissions (code, name, description)
-VALUES
-    ('ORGANIZATION_DELETE', 'Delete organization', 'Organization. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_BATCH_DETAIL_VIEW', 'View examination batch details', 'Health Examination Batch. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_BATCH_DELETE', 'Delete examination batch', 'Health Examination Batch. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('PARTICIPANT_DETAIL_VIEW', 'View batch participant details', 'Participant. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_SERVICE_SUMMARY_READ', 'Read health examination service summary', 'Summary of the Participant by service matrix of a batch. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_SERVICE_EXPORT', 'Export health examination service details', 'Export the Participant by service matrix of a batch to Excel. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('HEALTH_EXAMINATION_REPORT_EXPORT', 'Export health examination payment report', 'Export the payment summary of a batch to Word. Not in the SRS Permission Matrix 4.4 yet.'),
-    ('SERVICE_CATALOG_VIEW', 'View service catalog', 'Clinic Master Data. Not in the SRS Permission Matrix 4.4 yet.')
-ON CONFLICT (code) DO NOTHING;
-
-INSERT INTO public.role_permissions (role_id, permission_id)
-SELECT role.id, permission.id
-FROM public.roles AS role
-JOIN public.permissions AS permission
-  ON permission.code IN (
-      'ORGANIZATION_DELETE',
-      'HEALTH_EXAMINATION_BATCH_DETAIL_VIEW',
-      'HEALTH_EXAMINATION_BATCH_DELETE',
-      'PARTICIPANT_DETAIL_VIEW',
-      'HEALTH_EXAMINATION_SERVICE_SUMMARY_READ',
-      'HEALTH_EXAMINATION_SERVICE_EXPORT',
-      'HEALTH_EXAMINATION_REPORT_EXPORT',
-      'SERVICE_CATALOG_VIEW')
-WHERE role.code = 'CLINIC_MANAGER'
-ON CONFLICT (role_id, permission_id) DO NOTHING;
-
-UPDATE public.permissions AS permission
-SET http_method = endpoint_map.http_method, endpoint = endpoint_map.endpoint
-FROM (
-    VALUES
-        ('ORGANIZATION_SEARCH', 'GET', '/api/v1/organizations'),
-        ('ORGANIZATION_CREATE', 'POST', '/api/v1/organizations'),
-        ('ORGANIZATION_VIEW', 'GET', '/api/v1/organizations/{organizationId}'),
-        ('ORGANIZATION_UPDATE', 'PUT', '/api/v1/organizations/{organizationId}'),
-        ('ORGANIZATION_DELETE', 'DELETE', '/api/v1/organizations/{organizationId}'),
-        ('HEALTH_EXAMINATION_BATCH_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches'),
-        ('HEALTH_EXAMINATION_BATCH_CREATE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches'),
-        ('HEALTH_EXAMINATION_BATCH_DETAIL_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
-        ('HEALTH_EXAMINATION_BATCH_UPDATE', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
-        ('HEALTH_EXAMINATION_BATCH_DELETE', 'DELETE', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}'),
-        ('PARTICIPANT_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants'),
-        ('PARTICIPANT_CREATE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants'),
-        ('PARTICIPANT_TEMPLATE_DOWNLOAD', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template'),
-        ('PARTICIPANT_IMPORT', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports'),
-        ('PARTICIPANT_DETAIL_VIEW', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
-        ('PARTICIPANT_UPDATE', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
-        ('PARTICIPANT_REMOVE', 'DELETE', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}'),
-        ('PARTICIPANT_REACTIVATE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/reactivate'),
-        ('HEALTH_EXAMINATION_SERVICE_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details'),
-        ('HEALTH_EXAMINATION_SERVICE_SUMMARY_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/summary'),
-        ('HEALTH_EXAMINATION_SERVICE_EXPORT', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/export'),
-        ('HEALTH_EXAMINATION_SERVICE_RECONCILE', 'POST', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/imports'),
-        ('HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/import-template'),
-        ('HEALTH_EXAMINATION_SERVICE_RECORD', 'PUT', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details/{participantId}'),
-        ('HEALTH_EXAMINATION_REPORT_READ', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary'),
-        ('HEALTH_EXAMINATION_REPORT_EXPORT', 'GET', '/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/reports/payment-summary/docx'),
-        ('SERVICE_CATALOG_VIEW', 'GET', '/api/v1/catalog/services')
-) AS endpoint_map(code, http_method, endpoint)
-WHERE permission.code = endpoint_map.code;

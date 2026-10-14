@@ -10,11 +10,11 @@
     </select>
     <select id="findActiveGrants" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.projection.RoleGrantRow">
         SELECT r.id AS role_id, r.code AS role_code, p.code AS permission_code
-        FROM public.account_roles ar
-        JOIN public.roles r ON r.id = ar.role_id AND r.active = true
+        FROM public.accounts a
+        JOIN public.roles r ON r.id = a.role_id AND r.active = true
         LEFT JOIN public.role_permissions rp ON rp.role_id = r.id
         LEFT JOIN public.permissions p ON p.id = rp.permission_id
-        WHERE ar.account_id = #{accountId}
+        WHERE a.id = #{accountId}
         ORDER BY r.code, p.code
     </select>
     <select id="findEndpointPermissions" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord">

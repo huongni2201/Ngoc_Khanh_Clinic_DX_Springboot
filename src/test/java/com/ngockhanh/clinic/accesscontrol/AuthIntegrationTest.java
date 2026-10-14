@@ -72,6 +72,8 @@ class AuthIntegrationTest {
   @Autowired ApplicationContext context;
   @Autowired UserLoginMyBatisMapper permissions;
 
+  private static final String NO_PERMISSION_ROLE = "SYNTHETIC_EMPTY";
+
   UUID accountId;
   String username;
 
@@ -86,11 +88,15 @@ class AuthIntegrationTest {
         staffId.toString().substring(0, 20),
         "Synthetic staff");
     jdbc.update(
-        "INSERT INTO accounts(id,account_type,username,password_hash,staff_member_id,status) VALUES (?,'STAFF',?,?,?,'ACTIVE')",
+        "INSERT INTO roles(code,name,description) VALUES (?,'Synthetic role','Staff role without permissions, test only') ON CONFLICT (code) DO NOTHING",
+        NO_PERMISSION_ROLE);
+    jdbc.update(
+        "INSERT INTO accounts(id,account_type,role_id,username,password_hash,staff_member_id,status) SELECT ?,'STAFF',id,?,?,?,'ACTIVE' FROM roles WHERE code = ?",
         accountId,
         username,
         passwords.encode(PASSWORD),
-        staffId);
+        staffId,
+        NO_PERMISSION_ROLE);
   }
 
   private ResultActions login(String name, String password, Cookie... previous) throws Exception {
@@ -103,13 +109,12 @@ class AuthIntegrationTest {
     return mvc.perform(request);
   }
 
-  /** Grants a seeded role; the account grants it to itself because no administrator exists here. */
-  private void grantRole(String roleCode) {
+  /** Moves the account to a seeded role; an account holds exactly one role. */
+  private void assignRole(String roleCode) {
     jdbc.update(
-        "INSERT INTO account_roles(account_id,role_id,granted_by) SELECT ?, id, ? FROM roles WHERE code = ?",
-        accountId,
-        accountId,
-        roleCode);
+        "UPDATE accounts SET role_id = (SELECT id FROM roles WHERE code = ?) WHERE id = ?",
+        roleCode,
+        accountId);
   }
 
   /** Calls a stored endpoint with an Origin and an empty body for writes. */
@@ -144,7 +149,7 @@ class AuthIntegrationTest {
 
   @Test
   void signInAuthenticatesLaterRequestsAndSignOutEndsTheSession() throws Exception {
-    grantRole("CLINIC_MANAGER");
+    assignRole("CLINIC_MANAGER");
     Cookie session = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     assertThat(session).isNotNull();
     assertThat(session.isHttpOnly()).isTrue();
@@ -167,15 +172,15 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(25);
-    Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    assertThat(endpoints).hasSize(32);
+    Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
-      call(endpoint, withoutRole).andExpect(status().isForbidden());
+      call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
 
-    grantRole("CLINIC_MANAGER");
+    assignRole("CLINIC_MANAGER");
     for (PermissionRecord endpoint : endpoints) {
-      call(endpoint, withoutRole).andExpect(status().isForbidden());
+      call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
 
     Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
@@ -239,7 +244,7 @@ class AuthIntegrationTest {
         patientId.toString().substring(0, 20),
         patientId.toString().substring(0, 20));
     jdbc.update(
-        "UPDATE accounts SET account_type='PATIENT', staff_member_id=NULL, patient_id=? WHERE id=?",
+        "UPDATE accounts SET account_type='PATIENT', role_id=(SELECT id FROM roles WHERE code='PATIENT'), staff_member_id=NULL, patient_id=? WHERE id=?",
         patientId,
         accountId);
 

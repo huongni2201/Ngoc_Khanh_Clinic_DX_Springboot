@@ -34,7 +34,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Exercises the real examination form controller through the production cookie, Origin and
- * permission filters, with the permission bound exactly as {@code V005} stores it.
+ * permission filters, with the permission bound exactly as {@code V002} stores it.
  */
 @WebMvcTest(
     controllers = ExaminationFormController.class,

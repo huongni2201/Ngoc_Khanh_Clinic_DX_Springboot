@@ -50,7 +50,7 @@ Base path: `/api/v1/organizations/{organizationId}/health-examination-batches`.
 | POST collection | 201 batch detail | `HEALTH_EXAMINATION_BATCH_CREATE` |
 | PUT `/{batchId}` | 200 batch detail | `HEALTH_EXAMINATION_BATCH_UPDATE` |
 | DELETE `/{batchId}?rowVersion={n}` | 204 | `HEALTH_EXAMINATION_BATCH_DELETE` |
-| POST `/{batchId}/start` body `{"rowVersion": n}` | 200 batch detail (READY) | `HEALTH_EXAMINATION_BATCH_START` (V007) |
+| POST `/{batchId}/start` body `{"rowVersion": n}` | 200 batch detail (READY) | `HEALTH_EXAMINATION_BATCH_START` |
 
 Create/PUT fields:
 

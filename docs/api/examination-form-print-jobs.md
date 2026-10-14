@@ -16,16 +16,39 @@ Chưa có: upload/publish mẫu, đánh dấu (bookmark) hay đệm trang để 
 
 | Route | Permission | Ghi chú |
 |---|---|---|
-| `POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs` | `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` | Header `Idempotency-Key` (UUID) bắt buộc; body `{"participantIds": [uuid, ...]}` |
+| `POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs` | `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` | Header `Idempotency-Key` (UUID) bắt buộc; body chọn người theo danh sách hoặc theo ngày khám (xem bên dưới) |
 | `GET /api/v1/document-render-jobs/{jobId}` | `DOCUMENT_RENDER_JOB_READ` | Trạng thái và tiến độ |
 | `GET /api/v1/document-render-jobs/{jobId}/parts/{partNo}` | `DOCUMENT_RENDER_JOB_DOWNLOAD` | `application/pdf`, `attachment; filename="phieu-kham-<mã đợt>-phan-<n>.pdf"`, `Cache-Control: no-store` |
 
-V006 gán cả ba permission cho CLINIC_MANAGER, DATA_ENTRY_STAFF, RECEPTIONIST (một endpoint một permission, [ADR-0015](../adr/0015-endpoint-permission-rbac.md)).
+V002 gán cả ba permission cho CLINIC_MANAGER, DATA_ENTRY_STAFF, RECEPTIONIST (một endpoint một permission, [ADR-0015](../adr/0015-endpoint-permission-rbac.md)).
 Tài khoản phải là STAFF; mọi route trả `Cache-Control: no-store`.
 
 ## Tạo job (POST)
 
-- `participantIds`: 1–5000 phần tử không null trong body; sau khi kiểm tra, job nhận tối đa **1000** người (`nkc.document.jobs.max-records`), không trùng id. Thứ tự trong body là thứ tự in.
+### Body
+
+Hai cách chọn người in, phân biệt bằng `scope`:
+
+| `scope` | Trường dùng | Ý nghĩa |
+|---|---|---|
+| `IDS` (mặc định) | `participantIds` | In đúng các người được liệt kê. 1–5000 phần tử không null trong body; sau khi kiểm tra, job nhận tối đa **1000** người (`nkc.document.jobs.max-records`), không trùng id. Thứ tự trong body là thứ tự in |
+| `BATCH_DAY` | `batchDayId`, `includeAttended`, `sort` | In theo **ngày khám**: backend tự chọn người **ngay lúc tạo job** nên người được thêm, dời hay hủy sau đó không làm đổi job. Không được gửi kèm `participantIds`; `IDS` không được gửi kèm `batchDayId` |
+
+```jsonc
+// theo ngày khám
+{ "scope": "BATCH_DAY", "batchDayId": "…", "includeAttended": false, "sort": "DEPARTMENT" }
+// theo danh sách
+{ "scope": "IDS", "participantIds": ["…", "…"] }
+```
+
+Quy tắc chọn người của `BATCH_DAY`:
+
+- Chỉ người `ACTIVE` của đúng ngày đó. Người đã hủy và người `ABSENT` **không bao giờ** được in.
+- Mặc định chỉ người `UNCONFIRMED` (chưa khám). `includeAttended: true` thêm người `ATTENDED` để in lại.
+- `sort`: `DEPARTMENT` (mặc định: phòng ban → thứ tự dòng trong file import → mã người khám), `CODE` (mã người khám), `IMPORT_ORDER` (thứ tự dòng trong file import → mã).
+- Ngày không thuộc đợt → 404. Ngày không còn ai để in → 409. Quá 1000 người → 400.
+- Tên file tải về có thêm ngày khám: `phieu-kham-<mã đợt>-<yyyyMMdd>-phan-<n>.pdf`.
+- Nếu retry cùng `Idempotency-Key` mà giữa hai lần gọi danh sách của ngày đã đổi (có người được thêm hoặc đã khám), backend trả 409 vì nội dung job khác; tạo lại với key mới.
 - Lúc tạo chỉ kiểm tra quyền, Organization/Batch và trạng thái batch (READY/FINALIZED). Danh sách Participant được đọc lúc xử lý, nên người không còn hợp lệ được **bỏ qua có ghi lý do** thay vì làm hỏng cả job.
 - Job chỉ lưu id và ngữ cảnh (organizationId, batchId, tên file), không lưu dữ liệu cá nhân.
 - Cùng `Idempotency-Key` + cùng nội dung của cùng tài khoản trả lại đúng job cũ (vẫn 202); cùng key khác nội dung → 409.
@@ -34,10 +57,10 @@ Tài khoản phải là STAFF; mọi route trả `Cache-Control: no-store`.
 | Mã | Khi nào |
 |---|---|
 | 202 | đã xếp hàng |
-| 400 | thiếu/sai header hoặc body, danh sách rỗng, trùng id, quá 1000 người |
+| 400 | thiếu/sai header hoặc body, danh sách rỗng, trùng id, quá 1000 người, `BATCH_DAY` thiếu `batchDayId` hoặc kèm `participantIds`, `IDS` kèm `batchDayId` |
 | 403 | thiếu permission hoặc không phải STAFF |
-| 404 | Organization/Batch không khớp hoặc batch đã xóa mềm |
-| 409 | batch chưa READY/FINALIZED; `Idempotency-Key` đã dùng cho nội dung khác; tài khoản đang có 3 job chờ/chạy |
+| 404 | Organization/Batch không khớp hoặc batch đã xóa mềm; ngày khám không thuộc đợt (`BATCH_DAY`) |
+| 409 | batch chưa READY/FINALIZED; ngày khám không còn ai để in (`BATCH_DAY`); `Idempotency-Key` đã dùng cho nội dung khác; tài khoản đang có 3 job chờ/chạy |
 | 503 | chưa cấu hình thư mục lưu trữ `nkc.document.storage.local-root` |
 
 ## Xem job (GET)

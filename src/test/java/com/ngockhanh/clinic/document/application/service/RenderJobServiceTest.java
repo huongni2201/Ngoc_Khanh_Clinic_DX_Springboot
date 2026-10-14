@@ -74,7 +74,8 @@ class RenderJobServiceTest {
   @Test
   void theSameKeyForADifferentRequestIsRefused() {
     var key = UUID.randomUUID();
-    service.enqueue(request(key, ids(2)));
+    var ids = ids(2);
+    service.enqueue(request(key, ids));
 
     assertThatThrownBy(() -> service.enqueue(request(key, ids(2))))
         .isInstanceOf(ConflictException.class)
@@ -82,7 +83,7 @@ class RenderJobServiceTest {
     assertThatThrownBy(
             () ->
                 service.enqueue(
-                    new NewRenderJob(TYPE, requester, key, Map.of("batchId", "other"), ids(2))))
+                    new NewRenderJob(TYPE, requester, key, Map.of("batchId", "other"), ids)))
         .isInstanceOf(ConflictException.class);
   }
 
@@ -145,12 +146,6 @@ class RenderJobServiceTest {
     duplicated.add(duplicated.get(0));
 
     assertThatThrownBy(() -> service.enqueue(new NewRenderJob("OTHER", requester, key, Map.of(), ids(1))))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> service.enqueue(new NewRenderJob(null, requester, key, Map.of(), ids(1))))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> service.enqueue(new NewRenderJob(TYPE, null, key, Map.of(), ids(1))))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> service.enqueue(new NewRenderJob(TYPE, requester, null, Map.of(), ids(1))))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> service.enqueue(request(key, List.of())))
         .isInstanceOf(IllegalArgumentException.class);

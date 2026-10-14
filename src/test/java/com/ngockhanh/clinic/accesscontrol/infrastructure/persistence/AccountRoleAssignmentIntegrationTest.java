@@ -19,8 +19,8 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 class AccountRoleAssignmentIntegrationTest {
   @Container static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:18-alpine");
   private static JdbcTemplate jdbc;
-  private UUID staffAccount;
-  private UUID patientAccount;
+  private UUID staffMember;
+  private UUID patient;
 
   @BeforeAll
   static void migrateTheCurrentSchema() {
@@ -35,68 +35,86 @@ class AccountRoleAssignmentIntegrationTest {
   }
 
   @BeforeEach
-  void createSyntheticAccounts() {
-    UUID staff =
+  void createSyntheticOwners() {
+    staffMember =
         jdbc.queryForObject(
             "INSERT INTO public.staff_members(staff_code,full_name,status) VALUES (?,'Synthetic staff','ACTIVE') RETURNING id",
             UUID.class,
             UUID.randomUUID().toString().substring(0, 20));
-    staffAccount =
-        jdbc.queryForObject(
-            "INSERT INTO public.accounts(account_type,username,password_hash,staff_member_id,status) VALUES ('STAFF',?,'TEST_INVALID_HASH',?,'ACTIVE') RETURNING id",
-            UUID.class,
-            "staff-" + UUID.randomUUID(),
-            staff);
-    UUID patient =
+    patient =
         jdbc.queryForObject(
             "INSERT INTO public.patients(patient_code,full_name,date_of_birth,sex,identification_number,status) VALUES (?,'Synthetic patient',DATE '2000-01-01','OTHER',?,'ACTIVE') RETURNING id",
             UUID.class,
             "P-" + UUID.randomUUID(),
             UUID.randomUUID().toString());
-    patientAccount =
-        jdbc.queryForObject(
-            "INSERT INTO public.accounts(account_type,username,password_hash,patient_id,status) VALUES ('PATIENT',?,'TEST_INVALID_HASH',?,'ACTIVE') RETURNING id",
-            UUID.class,
-            "patient-" + UUID.randomUUID(),
-            patient);
   }
 
   @Test
-  void staffCanGrantThePatientRoleToAPatientAccount() {
-    assertThat(grant(patientAccount, "PATIENT", staffAccount)).isEqualTo(1);
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT granted_by FROM public.account_roles WHERE account_id=?",
-                UUID.class,
-                patientAccount))
-        .isEqualTo(staffAccount);
+  void aStaffAccountHoldsExactlyOneStaffRole() {
+    UUID account = insertStaffAccount("CLINIC_MANAGER");
+    assertThat(roleCodeOf(account)).isEqualTo("CLINIC_MANAGER");
+    assertThat(jdbc.update("UPDATE public.accounts SET role_id=(SELECT id FROM public.roles WHERE code='RECEPTIONIST') WHERE id=?", account))
+        .isEqualTo(1);
+    assertThat(roleCodeOf(account)).isEqualTo("RECEPTIONIST");
   }
 
   @Test
-  void aPatientCannotReceiveAStaffRole() {
-    assertThatThrownBy(() -> grant(patientAccount, "CLINIC_MANAGER", staffAccount))
+  void aPatientAccountHoldsThePatientRole() {
+    assertThat(roleCodeOf(insertPatientAccount("PATIENT"))).isEqualTo("PATIENT");
+  }
+
+  @Test
+  void aPatientCannotHoldAStaffRole() {
+    assertThatThrownBy(() -> insertPatientAccount("CLINIC_MANAGER"))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test
-  void aStaffAccountCannotReceiveThePatientRole() {
-    assertThatThrownBy(() -> grant(staffAccount, "PATIENT", staffAccount))
+  void aStaffAccountCannotHoldThePatientRole() {
+    assertThatThrownBy(() -> insertStaffAccount("PATIENT"))
+        .isInstanceOf(DataIntegrityViolationException.class);
+    UUID account = insertStaffAccount("CLINIC_MANAGER");
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "UPDATE public.accounts SET role_id=(SELECT id FROM public.roles WHERE code='PATIENT') WHERE id=?",
+                    account))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
   @Test
-  void aPatientCannotGrantRolesEvenToItself() {
-    assertThatThrownBy(() -> grant(patientAccount, "PATIENT", patientAccount))
-        .isInstanceOf(DataIntegrityViolationException.class);
-    assertThatThrownBy(() -> grant(staffAccount, "CLINIC_MANAGER", patientAccount))
+  void anAccountCannotBeCreatedWithoutARole() {
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    "INSERT INTO public.accounts(account_type,username,password_hash,staff_member_id,status) VALUES ('STAFF',?,'TEST_INVALID_HASH',?,'ACTIVE')",
+                    "staff-" + UUID.randomUUID(),
+                    staffMember))
         .isInstanceOf(DataIntegrityViolationException.class);
   }
 
-  private int grant(UUID account, String role, UUID grantor) {
-    return jdbc.update(
-        "INSERT INTO public.account_roles(account_id,role_id,granted_by) SELECT ?,id,? FROM public.roles WHERE code=?",
-        account,
-        grantor,
+  private UUID insertStaffAccount(String role) {
+    return jdbc.queryForObject(
+        "INSERT INTO public.accounts(account_type,role_id,username,password_hash,staff_member_id,status) SELECT 'STAFF',id,?,'TEST_INVALID_HASH',?,'ACTIVE' FROM public.roles WHERE code=? RETURNING id",
+        UUID.class,
+        "staff-" + UUID.randomUUID(),
+        staffMember,
         role);
+  }
+
+  private UUID insertPatientAccount(String role) {
+    return jdbc.queryForObject(
+        "INSERT INTO public.accounts(account_type,role_id,username,password_hash,patient_id,status) SELECT 'PATIENT',id,?,'TEST_INVALID_HASH',?,'ACTIVE' FROM public.roles WHERE code=? RETURNING id",
+        UUID.class,
+        "patient-" + UUID.randomUUID(),
+        patient,
+        role);
+  }
+
+  private static String roleCodeOf(UUID account) {
+    return jdbc.queryForObject(
+        "SELECT r.code FROM public.accounts a JOIN public.roles r ON r.id=a.role_id WHERE a.id=?",
+        String.class,
+        account);
   }
 }

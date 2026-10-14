@@ -7,9 +7,7 @@
 -- Participant terminology follows the project owner request.
 -- Flyway owns the transaction; no outer BEGIN/COMMIT or database creation.
 -- Do not apply to an existing database carrying any earlier migration history.
--- This baseline does not adapt the existing Java/MyBatis contracts to the new model.
--- Source syntax fix: include the ImportJob ID placeholder in its configuration error.
--- Generated from design dated 2026-10-03.
+-- Generated from design dated 2026-10-03; later amendments are folded into this file.
 --
 -- Conventions preserved from the design:
 --   * UUIDv7 primary keys via PostgreSQL 18 uuidv7()
@@ -189,6 +187,8 @@ CREATE TABLE public.permissions (
 CREATE TABLE public.accounts (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     account_type varchar(20) NOT NULL,
+    -- One role per account; the PATIENT role belongs to PATIENT accounts, every other to STAFF.
+    role_id uuid NOT NULL REFERENCES public.roles(id) ON DELETE RESTRICT,
     username varchar(150) NOT NULL UNIQUE,
     password_hash text NOT NULL,
     staff_member_id uuid NULL UNIQUE REFERENCES public.staff_members(id) ON DELETE RESTRICT,
@@ -219,14 +219,6 @@ CREATE TABLE public.accounts (
     CONSTRAINT ck_accounts_refresh_revocation CHECK (
         refresh_token_revoked_at IS NULL OR refresh_token_hash IS NOT NULL
     )
-);
-
-CREATE TABLE public.account_roles (
-    account_id uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
-    role_id uuid NOT NULL REFERENCES public.roles(id) ON DELETE RESTRICT,
-    granted_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
-    granted_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (account_id, role_id)
 );
 
 CREATE TABLE public.role_permissions (
@@ -1107,6 +1099,7 @@ CREATE TABLE public.files (
     checksum bytea NOT NULL,
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT uq_document_files_storage UNIQUE (storage_provider, storage_key),
+    CONSTRAINT ck_document_files_provider CHECK (storage_provider IN ('CLASSPATH', 'LOCAL', 'S3')),
     CONSTRAINT ck_document_files_size CHECK (size_bytes >= 0)
 );
 
@@ -1115,26 +1108,65 @@ CREATE TABLE public.templates (
     code varchar(100) NOT NULL UNIQUE,
     name varchar(300) NOT NULL,
     template_type varchar(100) NOT NULL,
-    active boolean NOT NULL DEFAULT true
+    active boolean NOT NULL DEFAULT true,
+    -- Exactly one default template per template type; the other templates of a type are variants.
+    is_default boolean NOT NULL DEFAULT false,
+    row_version bigint NOT NULL DEFAULT 0,
+    CONSTRAINT ck_document_templates_default_active CHECK (NOT is_default OR active)
 );
 
+CREATE UNIQUE INDEX ux_document_templates_default
+    ON public.templates (template_type) WHERE is_default;
+
+-- A version is DRAFT -> PUBLISHED | DISCARDED. A published version never changes its file or layout;
+-- a newer version supersedes it. Starter versions are seeded by the application.
 CREATE TABLE public.template_versions (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     template_id uuid NOT NULL REFERENCES public.templates(id) ON DELETE RESTRICT,
     version_no integer NOT NULL,
     file_id uuid NOT NULL REFERENCES public.files(id) ON DELETE RESTRICT,
+    status varchar(20) NOT NULL,
+    contract_version integer NOT NULL,
     paper_size varchar(20) NOT NULL,
     orientation varchar(20) NOT NULL,
     render_mode varchar(30) NOT NULL,
-    active_from timestamptz(3) NOT NULL,
+    -- Layout read from the .docx at upload time; one paper size and orientation per version.
+    page_width_mm numeric(6,1) NULL,
+    page_height_mm numeric(6,1) NULL,
+    -- Pages one record occupies (a folded booklet form has 2); NULL when it varies.
+    pages_per_record smallint NULL,
+    active_from timestamptz(3) NULL,
     retired_at timestamptz(3) NULL,
+    validation_report jsonb NULL,
+    preview_file_id uuid NULL REFERENCES public.files(id) ON DELETE RESTRICT,
+    -- created_by is NULL only for a version seeded by the system (starter template).
+    created_by uuid NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+    published_by uuid NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+    published_at timestamptz(3) NULL,
+    note text NULL,
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    row_version bigint NOT NULL DEFAULT 0,
     CONSTRAINT uq_document_template_versions_no UNIQUE (template_id, version_no),
     CONSTRAINT ck_document_template_versions_no CHECK (version_no > 0),
+    CONSTRAINT ck_document_template_versions_status CHECK (status IN ('DRAFT', 'PUBLISHED', 'DISCARDED')),
+    CONSTRAINT ck_document_template_versions_contract CHECK (contract_version > 0),
     CONSTRAINT ck_document_template_versions_paper CHECK (paper_size IN ('A3', 'A4', 'A5', 'A6', 'CUSTOM')),
     CONSTRAINT ck_document_template_versions_orientation CHECK (orientation IN ('PORTRAIT', 'LANDSCAPE')),
     CONSTRAINT ck_document_template_versions_render_mode CHECK (render_mode IN ('MASTER_FORM', 'ONE_PER_SERVICE', 'MERGE_BY_TEMPLATE')),
-    CONSTRAINT ck_document_template_versions_period CHECK (retired_at IS NULL OR retired_at > active_from)
+    CONSTRAINT ck_document_template_versions_custom_size
+        CHECK (paper_size <> 'CUSTOM' OR (page_width_mm IS NOT NULL AND page_height_mm IS NOT NULL)),
+    CONSTRAINT ck_document_template_versions_size_positive
+        CHECK ((page_width_mm IS NULL OR page_width_mm > 0) AND (page_height_mm IS NULL OR page_height_mm > 0)),
+    CONSTRAINT ck_document_template_versions_pages_per_record
+        CHECK (pages_per_record IS NULL OR pages_per_record > 0),
+    CONSTRAINT ck_document_template_versions_period CHECK (retired_at IS NULL OR retired_at > active_from),
+    CONSTRAINT ck_document_template_versions_published
+        CHECK (status <> 'PUBLISHED' OR (active_from IS NOT NULL AND published_at IS NOT NULL)),
+    -- A draft has no period or publisher. A scheduled version cancelled before it took effect is
+    -- DISCARDED and keeps its period and publisher as a record of what was cancelled.
+    CONSTRAINT ck_document_template_versions_draft_clean
+        CHECK (status <> 'DRAFT'
+               OR (active_from IS NULL AND retired_at IS NULL AND published_by IS NULL AND published_at IS NULL))
 );
 
 CREATE TABLE public.service_template_mappings (
@@ -1183,6 +1215,68 @@ CREATE UNIQUE INDEX ux_issued_rep_prescription_version_type
 CREATE UNIQUE INDEX ux_issued_rep_assessment_version_type
     ON public.issued_representations(assessment_version_id, document_type)
     WHERE assessment_version_id IS NOT NULL;
+
+-- Bulk printing: a render job renders many documents in the background and keeps the merged PDFs
+-- as temporary files that expire. Jobs hold identifiers only, never the personal data of the
+-- people printed.
+CREATE TABLE public.document_render_jobs (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    document_type varchar(100) NOT NULL,
+    requested_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+    idempotency_key uuid NOT NULL,
+    -- Free-form identifiers the owning module needs to load the records (organization, batch ...).
+    context jsonb NOT NULL,
+    source_ids uuid[] NOT NULL,
+    status varchar(20) NOT NULL,
+    total_count integer NOT NULL,
+    processed_count integer NOT NULL DEFAULT 0,
+    -- [{"id": "...", "reason": "CANCELLED"}]: records left out of the output, with the reason.
+    skipped jsonb NOT NULL DEFAULT '[]'::jsonb,
+    error_code varchar(50) NULL,
+    template_version_id uuid NULL REFERENCES public.template_versions(id) ON DELETE RESTRICT,
+    attempt_count integer NOT NULL DEFAULT 0,
+    lock_token uuid NULL,
+    locked_until timestamptz(3) NULL,
+    created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at timestamptz(3) NULL,
+    finished_at timestamptz(3) NULL,
+    expires_at timestamptz(3) NULL,
+    row_version bigint NOT NULL DEFAULT 0,
+    CONSTRAINT uq_document_render_jobs_idempotency UNIQUE (requested_by, idempotency_key),
+    CONSTRAINT ck_document_render_jobs_status
+        CHECK (status IN ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'EXPIRED')),
+    CONSTRAINT ck_document_render_jobs_total CHECK (total_count BETWEEN 1 AND 5000),
+    CONSTRAINT ck_document_render_jobs_ids CHECK (cardinality(source_ids) = total_count),
+    CONSTRAINT ck_document_render_jobs_progress CHECK (processed_count BETWEEN 0 AND total_count),
+    CONSTRAINT ck_document_render_jobs_attempts CHECK (attempt_count >= 0),
+    CONSTRAINT ck_document_render_jobs_lease CHECK (
+        (status = 'RUNNING' AND lock_token IS NOT NULL AND locked_until IS NOT NULL)
+        OR
+        (status <> 'RUNNING' AND lock_token IS NULL AND locked_until IS NULL)
+    ),
+    CONSTRAINT ck_document_render_jobs_finished CHECK (
+        (status IN ('SUCCEEDED', 'FAILED', 'EXPIRED')) = (finished_at IS NOT NULL AND expires_at IS NOT NULL)
+    )
+);
+
+-- Claiming looks for queued jobs and for running jobs whose lease ran out.
+CREATE INDEX ix_document_render_jobs_claim
+    ON public.document_render_jobs(status, locked_until, created_at);
+CREATE INDEX ix_document_render_jobs_expiry
+    ON public.document_render_jobs(expires_at) WHERE status IN ('SUCCEEDED', 'FAILED');
+CREATE INDEX ix_document_render_jobs_requester
+    ON public.document_render_jobs(requested_by, status);
+
+-- One merged PDF per part of a job (at most a fixed number of records each).
+CREATE TABLE public.document_render_job_outputs (
+    job_id uuid NOT NULL REFERENCES public.document_render_jobs(id) ON DELETE CASCADE,
+    part_no integer NOT NULL,
+    file_id uuid NOT NULL UNIQUE REFERENCES public.files(id) ON DELETE RESTRICT,
+    record_count integer NOT NULL,
+    PRIMARY KEY (job_id, part_no),
+    CONSTRAINT ck_document_render_job_outputs_part CHECK (part_no > 0),
+    CONSTRAINT ck_document_render_job_outputs_count CHECK (record_count > 0)
+);
 
 -- ============================================================================
 -- 12. INTEGRATION
@@ -1551,40 +1645,25 @@ CREATE INDEX ix_audit_events_correlation ON public.audit_events(correlation_id) 
 -- 17. VALIDATION / IMMUTABILITY TRIGGERS
 -- ============================================================================
 
--- 17.1 Access control: PATIENT roles require patient accounts; other roles and grantors require staff.
+-- 17.1 Access control: the PATIENT role requires a PATIENT account; every other role requires STAFF.
 CREATE OR REPLACE FUNCTION public.trg_validate_account_role()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_target_type text;
-    v_grantor_type text;
     v_role_code text;
 BEGIN
-    SELECT account_type INTO v_target_type
-    FROM public.accounts
-    WHERE id = NEW.account_id;
-
     SELECT code INTO v_role_code
     FROM public.roles
     WHERE id = NEW.role_id;
 
     IF v_role_code = 'PATIENT' THEN
-        IF v_target_type IS DISTINCT FROM 'PATIENT' THEN
-            RAISE EXCEPTION 'Staff/non-patient account % cannot be assigned the PATIENT role', NEW.account_id
+        IF NEW.account_type IS DISTINCT FROM 'PATIENT' THEN
+            RAISE EXCEPTION 'Staff account % cannot hold the PATIENT role', NEW.id
                 USING ERRCODE = '23514';
         END IF;
-    ELSIF v_target_type IS DISTINCT FROM 'STAFF' THEN
-        RAISE EXCEPTION 'Patient/non-staff account % cannot be assigned a staff role', NEW.account_id
-            USING ERRCODE = '23514';
-    END IF;
-
-    SELECT account_type INTO v_grantor_type
-    FROM public.accounts
-    WHERE id = NEW.granted_by;
-
-    IF v_grantor_type IS DISTINCT FROM 'STAFF' THEN
-        RAISE EXCEPTION 'Role grantor % must be a STAFF account', NEW.granted_by
+    ELSIF NEW.account_type IS DISTINCT FROM 'STAFF' THEN
+        RAISE EXCEPTION 'Patient account % cannot hold a staff role', NEW.id
             USING ERRCODE = '23514';
     END IF;
 
@@ -1592,8 +1671,8 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER trg_account_roles_validate
-BEFORE INSERT OR UPDATE ON public.account_roles
+CREATE TRIGGER trg_accounts_role_validate
+BEFORE INSERT OR UPDATE OF account_type, role_id ON public.accounts
 FOR EACH ROW EXECUTE FUNCTION public.trg_validate_account_role();
 
 -- 17.2 Encounter <-> Appointment ownership.
@@ -2580,12 +2659,17 @@ CREATE TRIGGER trg_health_exam_record_version_items_immutable
 BEFORE INSERT OR UPDATE OR DELETE ON public.health_examination_record_version_items
 FOR EACH ROW EXECUTE FUNCTION public.trg_protect_official_record_version_items();
 
--- 17.9 Document effective-period validation and issued metadata immutability.
+-- 17.9 Document template lifecycle, effective periods and file protection.
+-- The period check only concerns published versions; drafts have no period.
 CREATE OR REPLACE FUNCTION public.trg_validate_template_version_period()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
+    IF NEW.status <> 'PUBLISHED' THEN
+        RETURN NEW;
+    END IF;
+
     -- Serialize edits per logical template to prevent concurrent overlapping ranges.
     PERFORM pg_advisory_xact_lock(hashtextextended(NEW.template_id::text, 0));
 
@@ -2594,6 +2678,7 @@ BEGIN
         FROM public.template_versions tv
         WHERE tv.template_id = NEW.template_id
           AND tv.id <> NEW.id
+          AND tv.status = 'PUBLISHED'
           AND tstzrange(tv.active_from, COALESCE(tv.retired_at, 'infinity'::timestamptz), '[)')
               && tstzrange(NEW.active_from, COALESCE(NEW.retired_at, 'infinity'::timestamptz), '[)')
     ) THEN
@@ -2606,7 +2691,7 @@ END;
 $$;
 
 CREATE TRIGGER trg_document_template_versions_period
-BEFORE INSERT OR UPDATE OF template_id, active_from, retired_at ON public.template_versions
+BEFORE INSERT OR UPDATE OF template_id, active_from, retired_at, status ON public.template_versions
 FOR EACH ROW EXECUTE FUNCTION public.trg_validate_template_version_period();
 
 CREATE OR REPLACE FUNCTION public.trg_validate_service_template_mapping_period()
@@ -2636,13 +2721,17 @@ CREATE TRIGGER trg_document_service_template_mappings_period
 BEFORE INSERT OR UPDATE OF service_id, active_from, retired_at ON public.service_template_mappings
 FOR EACH ROW EXECUTE FUNCTION public.trg_validate_service_template_mapping_period();
 
+-- A source file or preview of a template version cannot be changed or deleted while referenced.
 CREATE OR REPLACE FUNCTION public.trg_protect_referenced_file()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM public.template_versions tv WHERE tv.file_id = OLD.id) THEN
-        RAISE EXCEPTION 'Document source file % is referenced by a TemplateVersion and cannot be changed/deleted', OLD.id
+    IF EXISTS (
+        SELECT 1 FROM public.template_versions tv
+        WHERE tv.file_id = OLD.id OR tv.preview_file_id = OLD.id
+    ) THEN
+        RAISE EXCEPTION 'Document file % is referenced by a TemplateVersion and cannot be changed/deleted', OLD.id
             USING ERRCODE = '55000';
     END IF;
     IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
@@ -2654,25 +2743,85 @@ CREATE TRIGGER trg_document_files_immutable_when_referenced
 BEFORE UPDATE OR DELETE ON public.files
 FOR EACH ROW EXECUTE FUNCTION public.trg_protect_referenced_file();
 
-CREATE OR REPLACE FUNCTION public.trg_protect_issued_template_version()
+-- Content and layout are immutable from the first insert; only the lifecycle may move forward.
+CREATE OR REPLACE FUNCTION public.trg_guard_template_version_mutation()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM public.issued_representations ir WHERE ir.template_version_id = OLD.id
-    ) THEN
-        RAISE EXCEPTION 'TemplateVersion % has been used for an issued representation and is immutable', OLD.id
+    IF TG_OP = 'DELETE' THEN
+        RAISE EXCEPTION 'TemplateVersion % cannot be deleted', OLD.id USING ERRCODE = '55000';
+    END IF;
+
+    IF NEW.template_id IS DISTINCT FROM OLD.template_id
+       OR NEW.version_no IS DISTINCT FROM OLD.version_no
+       OR NEW.file_id IS DISTINCT FROM OLD.file_id
+       OR NEW.contract_version IS DISTINCT FROM OLD.contract_version
+       OR NEW.paper_size IS DISTINCT FROM OLD.paper_size
+       OR NEW.orientation IS DISTINCT FROM OLD.orientation
+       OR NEW.render_mode IS DISTINCT FROM OLD.render_mode
+       OR NEW.page_width_mm IS DISTINCT FROM OLD.page_width_mm
+       OR NEW.page_height_mm IS DISTINCT FROM OLD.page_height_mm
+       OR NEW.pages_per_record IS DISTINCT FROM OLD.pages_per_record
+       OR NEW.created_by IS DISTINCT FROM OLD.created_by
+       OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
+        RAISE EXCEPTION 'TemplateVersion % content and layout are immutable', OLD.id
             USING ERRCODE = '55000';
     END IF;
-    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+
+    IF OLD.status = 'DISCARDED' THEN
+        RAISE EXCEPTION 'TemplateVersion % is discarded and cannot change', OLD.id
+            USING ERRCODE = '55000';
+    END IF;
+
+    IF OLD.status = 'PUBLISHED' THEN
+        -- A version scheduled for the future can be cancelled; one already in effect is retired.
+        IF NEW.status = 'DISCARDED' THEN
+            IF OLD.active_from <= CURRENT_TIMESTAMP
+               OR NEW.active_from IS DISTINCT FROM OLD.active_from
+               OR NEW.retired_at IS DISTINCT FROM OLD.retired_at
+               OR NEW.published_by IS DISTINCT FROM OLD.published_by
+               OR NEW.published_at IS DISTINCT FROM OLD.published_at
+               OR NEW.validation_report IS DISTINCT FROM OLD.validation_report
+               OR NEW.preview_file_id IS DISTINCT FROM OLD.preview_file_id
+               OR NEW.note IS DISTINCT FROM OLD.note THEN
+                RAISE EXCEPTION 'Only a not yet effective TemplateVersion % can be cancelled', OLD.id
+                    USING ERRCODE = '55000';
+            END IF;
+            RETURN NEW;
+        END IF;
+        IF NEW.status <> 'PUBLISHED'
+           OR NEW.active_from IS DISTINCT FROM OLD.active_from
+           OR NEW.published_by IS DISTINCT FROM OLD.published_by
+           OR NEW.published_at IS DISTINCT FROM OLD.published_at
+           OR NEW.validation_report IS DISTINCT FROM OLD.validation_report
+           OR NEW.preview_file_id IS DISTINCT FROM OLD.preview_file_id
+           OR NEW.note IS DISTINCT FROM OLD.note THEN
+            RAISE EXCEPTION 'Published TemplateVersion % can only be retired or have its retirement moved', OLD.id
+                USING ERRCODE = '55000';
+        END IF;
+        -- A retirement that already took effect is history.
+        IF OLD.retired_at IS NOT NULL AND OLD.retired_at <= CURRENT_TIMESTAMP
+           AND NEW.retired_at IS DISTINCT FROM OLD.retired_at THEN
+            RAISE EXCEPTION 'TemplateVersion % was already retired and cannot change', OLD.id
+                USING ERRCODE = '55000';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    -- OLD.status = 'DRAFT': it may be edited, then published or discarded. The table CHECK
+    -- constraints already keep a draft or discarded version free of any period or publisher.
+    IF NEW.status = 'PUBLISHED' AND NEW.retired_at IS NOT NULL THEN
+        RAISE EXCEPTION 'TemplateVersion % cannot be published with a retirement', OLD.id
+            USING ERRCODE = '55000';
+    END IF;
     RETURN NEW;
 END;
 $$;
 
-CREATE TRIGGER trg_document_template_versions_immutable_when_issued
+CREATE TRIGGER trg_document_template_versions_guard
 BEFORE UPDATE OR DELETE ON public.template_versions
-FOR EACH ROW EXECUTE FUNCTION public.trg_protect_issued_template_version();
+FOR EACH ROW EXECUTE FUNCTION public.trg_guard_template_version_mutation();
 
 CREATE OR REPLACE FUNCTION public.trg_validate_issued_representation()
 RETURNS trigger

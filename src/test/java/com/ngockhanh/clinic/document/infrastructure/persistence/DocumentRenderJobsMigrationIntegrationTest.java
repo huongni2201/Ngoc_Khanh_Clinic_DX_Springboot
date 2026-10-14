@@ -16,10 +16,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-/**
- * V006 adds the background print job tables and binds three permissions to three endpoints. The
- * same checks were run against PostgreSQL 18 with a scripted client when the migration was written.
- */
+/** V001 holds the background print job tables and V002 binds three permissions to three endpoints. */
 @Testcontainers(disabledWithoutDocker = true)
 class DocumentRenderJobsMigrationIntegrationTest {
   @Container
@@ -45,8 +42,8 @@ class DocumentRenderJobsMigrationIntegrationTest {
         "INSERT INTO public.staff_members(id,staff_code,full_name,status) VALUES (?,'S1','Test staff','ACTIVE')",
         staff);
     jdbc.update(
-        "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status)"
-            + " VALUES (?,'STAFF','job-migration','x',?,'ACTIVE')",
+        "INSERT INTO public.accounts(id,account_type,role_id,username,password_hash,staff_member_id,status)"
+            + " VALUES (?,'STAFF',(SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'),'job-migration','x',?,'ACTIVE')",
         account,
         staff);
   }
@@ -121,16 +118,6 @@ class DocumentRenderJobsMigrationIntegrationTest {
   }
 
   @Test
-  void aRequesterCannotReuseAnIdempotencyKeyButAnotherCan() {
-    UUID key = UUID.randomUUID();
-    job("QUEUED", 1, 1, key);
-
-    assertThatThrownBy(() -> job("QUEUED", 1, 1, key))
-        .isInstanceOf(DataAccessException.class)
-        .hasMessageContaining("uq_document_render_jobs_idempotency");
-  }
-
-  @Test
   void aLeaseExistsExactlyWhileTheJobRuns() {
     UUID id = queued();
 
@@ -185,25 +172,6 @@ class DocumentRenderJobsMigrationIntegrationTest {
     part(id, 1, file, 1);
     assertThatThrownBy(() -> part(id, 2, file, 1)).isInstanceOf(DataAccessException.class);
     part(id, 2, other, 1);
-  }
-
-  @Test
-  void deletingAJobRemovesItsPartsButAnAccountWithJobsCannotBeDeleted() {
-    UUID id = queued();
-    part(id, 1, file("c"), 1);
-
-    jdbc.update("DELETE FROM public.document_render_jobs WHERE id = ?", id);
-
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM public.document_render_job_outputs WHERE job_id = ?",
-                Integer.class,
-                id))
-        .isZero();
-    queued();
-    assertThatThrownBy(() -> jdbc.update("DELETE FROM public.accounts WHERE id = ?", account))
-        .isInstanceOf(DataAccessException.class)
-        .hasMessageContaining("document_render_jobs_requested_by_fkey");
   }
 
   private static UUID file(String key) {

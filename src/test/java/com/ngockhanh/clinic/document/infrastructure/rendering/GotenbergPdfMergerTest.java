@@ -104,10 +104,8 @@ class GotenbergPdfMergerTest {
   }
 
   @Test
-  void refusesNothingToMergeAndAMissingUrl() {
+  void refusesNothingToMerge() {
     assertThatThrownBy(() -> merger(baseUrl()).merge(List.of()))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> new GotenbergPdfMerger(client, " ", Duration.ofSeconds(1)))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

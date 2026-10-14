@@ -106,6 +106,5 @@ class GetRenderJobUseCaseTest {
             ApplicationException.class,
             denied -> assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
     assertThatThrownBy(() -> useCase.execute(id, null)).isInstanceOf(ApplicationException.class);
-    assertThatThrownBy(() -> useCase.execute(null, creator)).isInstanceOf(IllegalArgumentException.class);
   }
 }

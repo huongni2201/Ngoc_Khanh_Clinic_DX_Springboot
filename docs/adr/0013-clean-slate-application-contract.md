@@ -24,9 +24,9 @@ This clean-slate contract is the accepted business/schema baseline.
 
 ### Persistence and concurrency
 
-- Owner amendment — 2026-10-08: keep one final schema initializer (V001),
-  access-control inserts (V002) and catalog inserts (V003) for a **fresh database only**.
-  Fold the former V004–V007 changes into the initializer and catalog seed.
+- Owner amendment — 2026-10-08, extended 2026-10-11 and 2026-10-13: keep one final schema
+  initializer (V001), access-control inserts (V002) and catalog inserts (V003) for a
+  **fresh database only**. Every later change (former V004–V009) is folded into these files.
   Never apply these rewritten files
   to an environment with an earlier migration history. Deployed data
   conversion requires a separate approved migration procedure.
@@ -42,10 +42,11 @@ This clean-slate contract is the accepted business/schema baseline.
 ### Access control
 
 - Access control (`accesscontrol`, formerly `identity`) owns `accounts`,
-  `staff_members`, `account_roles`, `roles`, `permissions` and
-  `role_permissions`. Credentials use `password_hash`.
-- Role grants are account/role pairs with `granted_by` and `granted_at`, without
-  fabricated assignment IDs, validity windows or department/batch scopes.
+  `staff_members`, `roles`, `permissions` and `role_permissions`. Credentials use
+  `password_hash`.
+- Owner amendment — 2026-10-13: an account holds exactly one role (`accounts.role_id`, required);
+  the `account_roles` table is removed. There are no assignment IDs, validity windows,
+  department/batch scopes or grantor columns.
 - The session protocol is decided in
   [ADR-0014](0014-session-cookie-redis-login.md). A refresh-token storage column
   does not specify a new public authentication protocol. No refresh-token

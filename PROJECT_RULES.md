@@ -157,17 +157,15 @@ documented business-code uniqueness. Justify indexes with real query patterns.
 
 All schema changes use `src/main/resources/db/migration/V<version>__<description>.sql`.
 Never edit applied shared migrations or use runtime auto-DDL in production.
-Fresh installs apply V001 (final schema, including the batch name and
-organization-site address CHECK constraints), V002 (access-control seed), V003
-(catalog seed), V004, V005 and V006. The owner-authorized 2026-10-08 consolidation incorporates the
-former V004–V007 amendments directly into V001/V003 for fresh databases only.
-The 2026-10-11 consolidation folds the former V008 (batch site-name column dropped)
-and V009 (batch name and organization-site address CHECK constraints) into V001 the same way.
-V004 (document template lifecycle), V005 (examination-form print permission) and V006
-(document render jobs and their permissions) are
-additive migrations on top of that baseline, not folded into V001/V002; a database already
-on V003 upgrades normally. Existing applied migration histories require conversion under
-[deployment policy](docs/architecture/06-testing-and-operations.md#deployment).
+Fresh installs apply exactly three migrations: V001 (final schema), V002 (access-control seed) and
+V003 (catalog seed). The owner-authorized consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 fold
+every earlier amendment (former V004–V009) into these files for fresh databases only. The 2026-10-13
+consolidation also removed the `account_roles` table: an account holds exactly one role
+(`accounts.role_id`, required). Flyway rejects a database that applied an earlier history, because the
+edited files have new checksums and the removed versions are missing; recreate local databases, and
+existing deployed histories require conversion under
+[deployment policy](docs/architecture/06-testing-and-operations.md#deployment). Later changes are new
+migrations after V003.
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
 

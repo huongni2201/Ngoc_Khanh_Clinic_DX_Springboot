@@ -6,7 +6,7 @@ In nhiều người một lần (job nền): xem [In hàng loạt](examination-f
 Không triển khai chức năng sửa/upload/publish mẫu trên ứng dụng: IT quản lý thay đổi,
 bên nghiệp vụ/chuyên môn duyệt nội dung theo [ADR-0018](../adr/0018-it-managed-document-templates.md).
 Phiếu có mã vạch Code128 của mã người khám (xem [Mã vạch](#mã-vạch)).
-Đợt khám phải đã **bắt đầu** (`POST …/health-examination-batches/{batchId}/start`, DRAFT → READY, V007) thì mới in được; xem [Batch](organizations-and-batches.md#health-examination-batch).
+Đợt khám phải đã **bắt đầu** (`POST …/health-examination-batches/{batchId}/start`, DRAFT → READY) thì mới in được; xem [Batch](organizations-and-batches.md#health-examination-batch).
 
 ## Route
 
@@ -14,7 +14,7 @@ Phiếu có mã vạch Code128 của mã người khám (xem [Mã vạch](#mã-v
 
 | Mục | Giá trị |
 |---|---|
-| Permission | `PARTICIPANT_EXAMINATION_FORM_PRINT` (V005 gán endpoint này; CLINIC_MANAGER, DATA_ENTRY_STAFF, RECEPTIONIST) |
+| Permission | `PARTICIPANT_EXAMINATION_FORM_PRINT` (V002 gán endpoint này; CLINIC_MANAGER, DATA_ENTRY_STAFF, RECEPTIONIST) |
 | 200 | `application/pdf`, `Content-Disposition: inline; filename="phieu-kham-<participantCode>.pdf"`, `Cache-Control: no-store` |
 | 403 | thiếu permission hoặc không phải tài khoản STAFF |
 | 404 | Organization/Batch/Participant không khớp, batch đã xóa mềm, hoặc chưa có phiên bản mẫu hiệu lực |
@@ -23,7 +23,7 @@ Phiếu có mã vạch Code128 của mã người khám (xem [Mã vạch](#mã-v
 | 503 | Gotenberg không phản hồi / trả lỗi (`DependencyUnavailableException`) |
 
 Permission được gắn vào đúng một endpoint theo [ADR-0015](../adr/0015-endpoint-permission-rbac.md).
-In hàng loạt (UC-086) dùng permission riêng `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` (V006), xem [In hàng loạt](examination-form-print-jobs.md).
+In hàng loạt (UC-086) dùng permission riêng `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT`, xem [In hàng loạt](examination-form-print-jobs.md).
 
 ## Dữ liệu và quy ước hiển thị
 
@@ -54,10 +54,10 @@ Hợp đồng placeholder `HEALTH_EXAM_PERIODIC_FORM_BLANK` v1 do `healthexamina
 ## Mẫu và phiên bản
 
 - Phiên bản hiệu lực là bản `PUBLISHED` có `active_from <= now` và chưa `retired_at`, của template mặc định đang hoạt động theo `template_type`.
-- Khi khởi động, `StarterTemplateSeeder` nạp `document-templates/health-exam-periodic-form-blank/starter-v1.docx` thành v1 PUBLISHED
+- Khi khởi động, `StarterTemplateSeeder` nạp `document-templates/health-exam-periodic-form-blank/health-examination-v1.docx` thành v1 PUBLISHED
   **chỉ khi** loại tài liệu chưa có phiên bản nào. Tắt bằng `nkc.document.seed-starter-templates=false`.
 - Khổ giấy và hướng được đọc từ `w:pgSz` của docx (A3/A4/A5/A6/CUSTOM, sai số 1,5 mm); starter là A3 ngang, 2 trang cho mỗi người.
-- Nội dung và bố cục một phiên bản không đổi sau khi tạo; chỉ vòng đời DRAFT → PUBLISHED | DISCARDED và việc hết hiệu lực được phép (V004).
+- Nội dung và bố cục một phiên bản không đổi sau khi tạo; chỉ vòng đời DRAFT → PUBLISHED | DISCARDED và việc hết hiệu lực được phép (V001).
 - Thay mẫu cần phiên bản mới, tham chiếu file riêng và quy trình phát hành/migration do IT review;
   sửa file starter rồi khởi động lại không cập nhật mẫu đã có. Giữ file và tham chiếu lịch sử.
 - Phiếu trắng vẫn render theo yêu cầu bằng phiên bản hiệu lực; chưa lưu PDF để bảo đảm

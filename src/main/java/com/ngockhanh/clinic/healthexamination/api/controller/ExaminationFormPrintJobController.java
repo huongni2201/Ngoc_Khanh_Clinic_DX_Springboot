@@ -35,7 +35,7 @@ public class ExaminationFormPrintJobController {
    *
    * @param organizationId owning organization
    * @param batchId batch identifier
-   * @param request the Participants to print, in print order
+   * @param request the Participants to print (listed, or all of an examination day)
    * @param idempotencyKey client-chosen key; a retry with the same key and body returns the same job
    * @param principal authenticated staff principal
    * @return 202 with the job identifier and a {@code Location} header to poll
@@ -48,10 +48,10 @@ public class ExaminationFormPrintJobController {
       @RequestHeader("Idempotency-Key") UUID idempotencyKey,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Examination form print job request: organizationId={}, batchId={}, participants={}",
+        "Examination form print job request: organizationId={}, batchId={}, scope={}",
         organizationId,
         batchId,
-        request.participantIds().size());
+        request.scope() == null ? "IDS" : request.scope());
     ExaminationFormPrintJobResponse response =
         useCase.execute(organizationId, batchId, request.toCommand(idempotencyKey), principal);
     return ResponseEntity.accepted()

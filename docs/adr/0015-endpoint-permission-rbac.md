@@ -31,7 +31,8 @@ actor may perform each action.
 - A "Restricted n" cell grants the permission. The use case enforces footnote n
   (scope, state) when it is implemented.
 - The seed creates no accounts. Matrix changes require a new migration; applied V002 is
-  never edited.
+  never edited. The endpoint bindings and the print, bulk-print and batch-start permissions
+  were folded into V002 on 2026-10-13.
 
 ### Participant permission amendment — 2026-10-07
 
@@ -43,10 +44,9 @@ policies and HTTP rules enforce the same permission; the legacy MANAGE grant is
 not accepted.
 See [the manual Participant contract](../api/participant-manual-crud.md).
 
-Owner amendment — 2026-10-07: patient accounts receive only the `PATIENT` role;
-an active STAFF account is required as `granted_by`. The former V004 amendment,
-consolidated into V001 for fresh databases under ADR-0013, enforces this pairing
-while continuing to reject patient accounts receiving staff roles.
+Owner amendment — 2026-10-07, revised 2026-10-13: an account holds exactly one role
+(`accounts.role_id`). Patient accounts receive only the `PATIENT` role and staff accounts
+never do; a V001 trigger enforces the pairing. There is no grantor column.
 
 ### Examination detail entry amendment — 2026-10-12
 

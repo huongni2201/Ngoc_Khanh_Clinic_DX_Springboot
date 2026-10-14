@@ -5,35 +5,31 @@
 PostgreSQL 18, MyBatis and Flyway remain the persistence stack. The owner-selected
 clean-slate contract follows [the current domain workflows](03-domain-and-workflows.md).
 Fresh databases apply `../../src/main/resources/db/migration/V001__create_schema.sql`
-in one public application schema. V001 creates the final schema with 64 business
+in one public application schema. V001 creates the final schema with 65 business
 tables, including batch `deleted_at`, the service reconciliation import type,
-the six optional Participant personal-detail columns and nullable Organization
-`phone`. The account-role trigger allows `PATIENT` only on patient accounts;
-all other roles and every grantor require STAFF accounts.
+the six optional Participant personal-detail columns, nullable Organization
+`phone`, the template-version lifecycle and the bulk-print render-job tables. An
+account holds exactly one role (`accounts.role_id`, required); the account-role trigger
+allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-The owner-requested consolidation on 2026-10-08 keeps one schema initializer and
-two data-only seed migrations. The 2026-10-11 consolidation folds the former
-V008 and V009 changes into V001, so fresh databases apply three baseline migrations plus the additive V004–V006:
+Fresh databases apply three migrations: one schema initializer and two data-only seeds. The
+owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
+amendment (V004–V009, and the removal of `account_roles`) into them:
 
 | Migration | Responsibility |
 |---|---|
-| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers. The batch table has no `examination_site_name`; a batch site is its type and address only, and two CHECK constraints require a non-space batch name and a non-blank organization-site address |
-| `V002__seed_roles_and_permissions.sql` | Roles, permissions and role grants |
+| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
+| `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
-| `V004__document_template_lifecycle.sql` | Additive: template-version lifecycle (DRAFT → PUBLISHED \| DISCARDED), page layout, protection triggers |
-| `V005__document_print_permissions.sql` | Additive: `PARTICIPANT_EXAMINATION_FORM_PRINT` endpoint permission |
-| `V006__document_render_jobs.sql` | Additive: `document_render_jobs`, `document_render_job_outputs` and the three bulk-print permissions |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
-HIS id and no separator. Seeded services start at `row_version = 0`. V004–V007
-are folded into these definitions; no catalog code rewrite is required. The
+HIS id and no separator. Seeded services start at `row_version = 0`. The
 two deferred foreign-key declarations in V001 only resolve tables created later
 in the same initializer.
-The former V008 and V009 changes are folded into V001 and no longer exist as separate
-migrations. Without `examination_site_name`, normal SQL no longer reads or writes stored
+The batch site-name removal and the batch CHECK constraints are part of V001. Without `examination_site_name`, normal SQL no longer reads or writes stored
 site names. A conversion that drops that column from an existing database may leave the
-old bytes until rows are rewritten; this is not a secure-erasure procedure. Neither change
-converts the V004–V007 histories, which still need the reviewed procedure below.
+old bytes until rows are rewritten; this is not a secure-erasure procedure. Folding the changes
+converts no existing history; a database that applied one still needs the reviewed procedure below.
 
 The batch CHECK constraints rewrite no rows. Clinic batches keep an empty address.
 Before a reviewed conversion applies them to a database that may hold older rows, count
@@ -59,7 +55,7 @@ belong in `infrastructure/persistence/view`, mapped by adapters to typed port re
 contracts; see [model placement](../../PROJECT_RULES.md#9-domain-vs-persistence-model).
 Domain objects and API responses never expose persistence records or views.
 
-- Access control: accounts, staff members, account-role grants, roles and permissions.
+- Access control: accounts (one role each), staff members, roles, permissions and role permissions.
 - Catalog: departments, rooms, specialties, services, medicines and lab definitions.
 - Patient: patient master, allergies and conditions.
 - Encounter: encounters and assignment fields stored on each encounter.
@@ -121,11 +117,11 @@ baseline triggers. Portal release rows reference exact versions and remain
 independent of notification delivery. Render-on-demand uses source and template
 versions; the schema contains no generated-document or printer tables.
 
-Render jobs (V006): `document_render_jobs` (status, lease, attempts, source ids, skipped list,
+Render jobs: `document_render_jobs` (status, lease, attempts, source ids, skipped list,
 `expires_at`; unique `(requested_by, idempotency_key)`) and `document_render_job_outputs` (one `files`
-row per merged part, `LOCAL` provider). V006 is additive and also seeds three endpoint permissions.
+row per merged part, `LOCAL` provider). V002 seeds their three endpoint permissions.
 
-Template versions (V004) move DRAFT → PUBLISHED | DISCARDED. `files.storage_provider` is
+Template versions move DRAFT → PUBLISHED | DISCARDED. `files.storage_provider` is
 CLASSPATH, LOCAL or S3; only CLASSPATH and LOCAL have adapters. Each version stores its
 `contract_version`, page size read from the docx and `pages_per_record`. There is one default
 template per `template_type` (partial unique index). A trigger forbids changing a version's
