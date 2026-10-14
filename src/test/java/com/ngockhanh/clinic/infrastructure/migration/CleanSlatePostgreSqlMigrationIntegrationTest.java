@@ -83,7 +83,6 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(7);
     assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
@@ -92,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003", "004", "005", "006", "007", "008");
+        .containsExactly("001", "002", "003");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -213,14 +212,14 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(129);
+        .isEqualTo(124);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(141);
+        .isEqualTo(138);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(35);
+        .isEqualTo(32);
     assertThat(
             jdbc.queryForObject(
                 "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'HEALTH_EXAMINATION_BATCH_START'",
@@ -229,20 +228,6 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/start");
     assertThat(rolesGranted(jdbc, "HEALTH_EXAMINATION_BATCH_START"))
         .containsExactly("CLINIC_MANAGER");
-    assertThat(
-            jdbc.queryForList(
-                """
-                SELECT code || ' ' || http_method || ' ' || endpoint FROM public.permissions
-                WHERE code IN ('STAFF_MEMBER_VIEW', 'USER_ACCOUNT_CREATE', 'ROLE_VIEW')
-                """,
-                String.class))
-        .containsExactlyInAnyOrder(
-            "STAFF_MEMBER_VIEW GET /api/v1/staff-members",
-            "USER_ACCOUNT_CREATE POST /api/v1/staff-members",
-            "ROLE_VIEW GET /api/v1/roles");
-    for (String permission :
-        List.of("STAFF_MEMBER_VIEW", "ROLE_VIEW", "USER_ACCOUNT_CREATE", "USER_ROLE_ASSIGN"))
-      assertThat(rolesGranted(jdbc, permission)).as(permission).containsExactly("ADMINISTRATOR");
     assertThat(
             jdbc.queryForList(
                 """

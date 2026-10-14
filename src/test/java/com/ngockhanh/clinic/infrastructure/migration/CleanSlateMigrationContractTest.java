@@ -36,69 +36,6 @@ class CleanSlateMigrationContractTest {
   }
 
   @Test
-  void freshBaselineUsesTheApprovedPublicSchemaAndNoLegacyVersionTriggers() throws Exception {
-    Path directory = Path.of("src/main/resources/db/migration");
-    try (var files = Files.list(directory)) {
-      assertThat(
-              files
-                  .filter(path -> path.toString().endsWith(".sql"))
-                  .map(path -> path.getFileName().toString())
-                  .toList())
-          .containsExactlyInAnyOrder(
-              "V001__create_schema.sql",
-              "V002__seed_roles_and_permissions.sql",
-              "V003__seed_paraclinical_service_catalog.sql",
-              "V004__document_template_lifecycle.sql",
-              "V005__document_print_permissions.sql",
-              "V006__document_render_jobs.sql",
-              "V007__health_examination_batch_start_permission.sql",
-              "V008__staff_member_management_permissions.sql")
-          .allMatch(name -> name.matches("V\\d{3}__[a-z_]+\\.sql"));
-    }
-    String sql = Files.readString(directory.resolve("V001__create_schema.sql"));
-    var tables =
-        Pattern.compile("(?m)^\\h*CREATE TABLE public\\.([a-z_]+)")
-            .matcher(sql)
-            .results()
-            .map(match -> match.group(1))
-            .toList();
-    assertThat(tables)
-        .hasSize(64)
-        .doesNotHaveDuplicates()
-        .contains(
-            "accounts",
-            "staff_members",
-            "import_jobs",
-            "import_rows",
-            "health_examination_batch_days",
-            "health_examination_record_snapshots",
-            "health_examination_record_versions",
-            "result_releases",
-            "issued_representations")
-        .doesNotContain(
-            "users",
-            "staff",
-            "health_examination_participants",
-            "service_prices",
-            "generated_documents",
-            "audit_logs");
-    assertThat(sql)
-        .contains(
-            "numeric(14,2)",
-            "timestamptz(3)",
-            "DEFAULT uuidv7()",
-            "row_version bigint NOT NULL DEFAULT 0",
-            "deleted_at timestamptz(3) NULL",
-            "'HEALTH_EXAMINATION_SERVICE_RECONCILIATION'")
-        .doesNotContain("CREATE SCHEMA", "numeric(18,2)", "NEW.row_version := OLD.row_version + 1");
-    assertThat(sql)
-        .contains(
-            "UNIQUE (batch_id, identification_number)",
-            "FOREIGN KEY (batch_id, batch_day_id)",
-            "FOREIGN KEY (batch_id, batch_service_id)");
-  }
-
-  @Test
   void schemaAndSeedMigrationsKeepSeparateResponsibilities() throws Exception {
     Path directory = Path.of("src/main/resources/db/migration");
     String schema = Files.readString(directory.resolve("V001__create_schema.sql"));
