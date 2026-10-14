@@ -23,6 +23,8 @@ V008 and V009 changes into V001, so fresh databases apply three baseline migrati
 | `V004__document_template_lifecycle.sql` | Additive: template-version lifecycle (DRAFT → PUBLISHED \| DISCARDED), page layout, protection triggers |
 | `V005__document_print_permissions.sql` | Additive: `PARTICIPANT_EXAMINATION_FORM_PRINT` endpoint permission |
 | `V006__document_render_jobs.sql` | Additive: `document_render_jobs`, `document_render_job_outputs` and the three bulk-print permissions |
+| `V007__health_examination_batch_start_permission.sql` | Additive: `HEALTH_EXAMINATION_BATCH_START` endpoint permission |
+| `V008__staff_member_management_permissions.sql` | Additive: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. V004–V007

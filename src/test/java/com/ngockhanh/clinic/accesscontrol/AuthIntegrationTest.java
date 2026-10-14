@@ -167,23 +167,28 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(25);
+    assertThat(endpoints).hasSize(35);
     Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
     grantRole("CLINIC_MANAGER");
+    grantRole("ADMINISTRATOR");
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutRole).andExpect(status().isForbidden());
     }
 
-    Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    Cookie granted = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
-      int status = call(endpoint, manager).andReturn().getResponse().getStatus();
+      int status = call(endpoint, granted).andReturn().getResponse().getStatus();
       assertThat(status).as(endpoint.httpMethod() + " " + endpoint.endpoint()).isNotIn(401, 403);
     }
   }
+
+  /** Staff administration routes (V008) belong to the Administrator, not the Clinic Manager. */
+  private static final java.util.Set<String> ADMINISTRATION_PERMISSIONS =
+      java.util.Set.of("STAFF_MEMBER_VIEW", "USER_ACCOUNT_CREATE", "ROLE_VIEW");
 
   @Test
   void everyEndpointPermissionIsSeededForTheClinicManager() {
@@ -195,7 +200,10 @@ class AuthIntegrationTest {
                   String.class,
                   endpoint.code()))
           .as(endpoint.code())
-          .contains("CLINIC_MANAGER");
+          .contains(
+              ADMINISTRATION_PERMISSIONS.contains(endpoint.code())
+                  ? "ADMINISTRATOR"
+                  : "CLINIC_MANAGER");
     }
   }
 

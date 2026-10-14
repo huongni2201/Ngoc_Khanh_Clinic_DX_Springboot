@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.StaffMemberMyBatisMapper">
+    <insert id="insert">
+        INSERT INTO public.staff_members (id, staff_code, full_name, date_of_birth, sex, phone, email, status)
+        VALUES (#{id}, #{staffCode}, #{fullName}, #{dateOfBirth}, #{sex}, #{phone}, #{email}, #{status})
+    </insert>
+
+    <select id="lockSequence" resultType="java.lang.Integer">
+        SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(#{key}, 0))
+    </select>
+
+    <select id="highestStaffCodeNumber" resultType="java.lang.Long">
+        SELECT COALESCE(MAX(CAST(substr(staff_code, char_length(#{prefix}) + 1) AS bigint)), 0)
+        FROM public.staff_members
+        WHERE starts_with(staff_code, #{prefix})
+          AND substr(staff_code, char_length(#{prefix}) + 1) ~ '^[0-9]{1,9}$'
+    </select>
+
+    <sql id="searchFrom">
+        FROM public.staff_members s
+        LEFT JOIN public.accounts a ON a.staff_member_id = s.id AND a.account_type = 'STAFF'
+        <where>
+            <if test="pattern != null">
+                s.staff_code ILIKE #{pattern} ESCAPE '\'
+                OR s.full_name ILIKE #{pattern} ESCAPE '\'
+                OR a.username ILIKE #{pattern} ESCAPE '\'
+            </if>
+        </where>
+    </sql>
+
+    <!-- Column order matches the StaffMemberListView components. -->
+    <select id="search" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffMemberListView">
+        SELECT s.id, s.staff_code, s.full_name, s.date_of_birth, s.sex, s.phone, s.email, s.status,
+               s.row_version, a.id AS account_id, a.username, a.status AS account_status
+        <include refid="searchFrom"/>
+        ORDER BY
+        <choose>
+            <when test="sortKey == 'staffCode' and sortBy == 'DESC'">s.staff_code DESC, s.id DESC</when>
+            <when test="sortKey == 'staffCode'">s.staff_code ASC, s.id ASC</when>
+            <when test="sortKey == 'fullName' and sortBy == 'DESC'">s.full_name DESC, s.id DESC</when>
+            <when test="sortKey == 'fullName'">s.full_name ASC, s.id ASC</when>
+            <when test="sortBy == 'DESC'">s.id DESC</when>
+            <otherwise>s.id ASC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="java.lang.Long">
+        SELECT COUNT(*) <include refid="searchFrom"/>
+    </select>
+
+    <select id="findActiveRoleCodes" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.AccountRoleCodeView">
+        SELECT ar.account_id, r.code AS role_code
+        FROM public.account_roles ar
+        JOIN public.roles r ON r.id = ar.role_id AND r.active = true
+        WHERE ar.account_id IN
+        <foreach collection="accountIds" item="accountId" open="(" separator="," close=")">#{accountId}</foreach>
+        ORDER BY ar.account_id, r.code
+    </select>
+</mapper>

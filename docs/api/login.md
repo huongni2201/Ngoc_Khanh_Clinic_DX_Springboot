@@ -89,7 +89,9 @@ rejected. Production must set `NKC_AUTH_ALLOWED_ORIGINS` and keep
 
 ## Provisioning accounts
 
-Store password hashes produced by `UserPasswordEncoder` (NFKC-normalized,
+Administrators create staff members with their STAFF accounts through
+`POST /api/v1/staff-members` ([staff members](staff-members.md)); the username is generated.
+For SQL provisioning outside the application, store password hashes produced by `UserPasswordEncoder` (NFKC-normalized,
 bcrypt, `{bcrypt}` prefix, at most 72 UTF-8 bytes). Never pass passwords as
 command-line arguments or store plaintext. [Provisioning SQL](../../scripts/auth/provision-staff.sql)
 shows the account and role rows to insert.

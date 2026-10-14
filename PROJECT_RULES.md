@@ -163,8 +163,9 @@ organization-site address CHECK constraints), V002 (access-control seed), V003
 former V004–V007 amendments directly into V001/V003 for fresh databases only.
 The 2026-10-11 consolidation folds the former V008 (batch site-name column dropped)
 and V009 (batch name and organization-site address CHECK constraints) into V001 the same way.
-V004 (document template lifecycle), V005 (examination-form print permission) and V006
-(document render jobs and their permissions) are
+V004 (document template lifecycle), V005 (examination-form print permission), V006
+(document render jobs and their permissions), V007 (batch start permission) and V008 (staff
+member and role permissions) are
 additive migrations on top of that baseline, not folded into V001/V002; a database already
 on V003 upgrades normally. Existing applied migration histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment).
