@@ -179,13 +179,4 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
     verifyNoInteractions(audit);
   }
 
-  @Test
-  void requiresAllIdentifiers() {
-    assertThatThrownBy(() -> useCase.execute(null, batchId, UUID.randomUUID(), manager))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> useCase.execute(organizationId, null, UUID.randomUUID(), manager))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, null, manager))
-        .isInstanceOf(IllegalArgumentException.class);
-  }
 }

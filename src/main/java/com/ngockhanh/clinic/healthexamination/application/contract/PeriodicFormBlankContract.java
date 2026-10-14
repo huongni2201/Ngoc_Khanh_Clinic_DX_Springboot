@@ -66,7 +66,7 @@ public class PeriodicFormBlankContract implements DocumentTypeContract {
 
   @Override
   public String starterResource() {
-    return "document-templates/health-exam-periodic-form-blank/starter-v1.docx";
+    return "document-templates/health-exam-periodic-form-blank/health-examination-v1.docx";
   }
 
   /** The form is a folded A3 booklet: two landscape pages per Participant. */

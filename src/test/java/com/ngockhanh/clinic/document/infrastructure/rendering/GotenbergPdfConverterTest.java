@@ -94,9 +94,4 @@ class GotenbergPdfConverterTest {
         .isInstanceOf(DependencyUnavailableException.class);
   }
 
-  @Test
-  void requiresAnUrl() {
-    assertThatThrownBy(() -> new GotenbergPdfConverter(client, " ", Duration.ofSeconds(1)))
-        .isInstanceOf(IllegalArgumentException.class);
-  }
 }

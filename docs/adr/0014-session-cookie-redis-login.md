@@ -18,7 +18,7 @@ Control". Business controllers already read the authenticated `UserPrincipal`.
 
 - Rename the `identity` module to `accesscontrol`
   (`com.ngockhanh.clinic.accesscontrol`). It owns `accounts`, `staff_members`,
-  `roles`, `permissions`, `account_roles` and `role_permissions`.
+  `roles`, `permissions` and `role_permissions`.
 - `accesscontrol::access` publishes `UserPrincipal`.
 
 ### Session protocol

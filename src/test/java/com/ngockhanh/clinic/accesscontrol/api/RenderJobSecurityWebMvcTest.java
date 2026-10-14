@@ -38,7 +38,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Exercises the real print job controller through the production cookie, Origin and permission
- * filters, with the two permissions bound exactly as {@code V006} stores them. The two endpoints
+ * filters, with the two permissions bound exactly as {@code V002} stores them. The two endpoints
  * share a prefix, so each permission must open only its own.
  */
 @WebMvcTest(

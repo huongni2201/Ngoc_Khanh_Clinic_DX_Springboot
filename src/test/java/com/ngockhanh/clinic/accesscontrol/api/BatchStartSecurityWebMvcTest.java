@@ -41,7 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Exercises the real batch controller's start endpoint through the production cookie, Origin and
- * permission filters, with the permission bound exactly as {@code V007} stores it.
+ * permission filters, with the permission bound exactly as {@code V002} stores it.
  */
 @WebMvcTest(
     controllers = OrganizationBatchController.class,

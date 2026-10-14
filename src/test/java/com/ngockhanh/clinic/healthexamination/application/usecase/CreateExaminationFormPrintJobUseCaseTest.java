@@ -13,16 +13,19 @@ import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.document.application.rendering.RenderJobs;
 import com.ngockhanh.clinic.healthexamination.application.command.CreateExaminationFormPrintJobCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.ExaminationFormPrintScope;
 import com.ngockhanh.clinic.healthexamination.application.contract.PeriodicFormBlankContract;
+import com.ngockhanh.clinic.healthexamination.application.port.out.PrintableParticipantReader;
+import com.ngockhanh.clinic.healthexamination.application.query.ExaminationFormPrintOrder;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormSourceLoader;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormValuesSource;
 import com.ngockhanh.clinic.healthexamination.application.service.ExportFileNames;
 import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
-import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +36,7 @@ import org.mockito.ArgumentCaptor;
 
 class CreateExaminationFormPrintJobUseCaseTest extends ManualParticipantUseCaseTestBase {
   private final RenderJobs jobs = mock(RenderJobs.class);
+  private final PrintableParticipantReader dayReader = mock(PrintableParticipantReader.class);
   private final ExaminationFormSourceLoader loader =
       new ExaminationFormSourceLoader(
           support,
@@ -40,17 +44,18 @@ class CreateExaminationFormPrintJobUseCaseTest extends ManualParticipantUseCaseT
           participants,
           Clock.fixed(com.ngockhanh.clinic.healthexamination.RosterFixtures.NOW, ZoneOffset.UTC));
   private final CreateExaminationFormPrintJobUseCase useCase =
-      new CreateExaminationFormPrintJobUseCase(access, loader, jobs, audit);
+      new CreateExaminationFormPrintJobUseCase(access, loader, dayReader, jobs, audit);
   private final UUID key = UUID.randomUUID();
   private final List<UUID> ids = List.of(UUID.randomUUID(), UUID.randomUUID());
   private final UUID jobId = UUID.randomUUID();
+  private final UUID dayId = UUID.randomUUID();
 
   CreateExaminationFormPrintJobUseCaseTest() {
     super("PARTICIPANT_EXAMINATION_FORM_BULK_PRINT");
   }
 
   private CreateExaminationFormPrintJobCommand command() {
-    return new CreateExaminationFormPrintJobCommand(ids, key);
+    return CreateExaminationFormPrintJobCommand.ofIds(ids, key);
   }
 
   @Test
@@ -65,7 +70,7 @@ class CreateExaminationFormPrintJobUseCaseTest extends ManualParticipantUseCaseT
               denied ->
                   assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
 
-    verifyNoInteractions(batches, organizations, jobs, audit);
+    verifyNoInteractions(batches, organizations, dayReader, jobs, audit);
   }
 
   @Test
@@ -137,42 +142,105 @@ class CreateExaminationFormPrintJobUseCaseTest extends ManualParticipantUseCaseT
     when(organizations.findById(any())).thenReturn(Optional.empty());
     assertThatThrownBy(() -> useCase.execute(organizationId, batchId, command(), manager))
         .isInstanceOf(ResourceNotFoundException.class);
-    verifyNoInteractions(jobs, audit);
+    verifyNoInteractions(dayReader, jobs, audit);
+  }
+
+  private CreateExaminationFormPrintJobCommand dayCommand(boolean includeAttended) {
+    return new CreateExaminationFormPrintJobCommand(
+        ExaminationFormPrintScope.BATCH_DAY,
+        List.of(),
+        dayId,
+        includeAttended,
+        ExaminationFormPrintOrder.CODE,
+        key);
   }
 
   @Test
-  void queueingProblemsAreReportedAndNothingIsAudited() {
+  void printingByDayQueuesTheParticipantsChosenByTheBackendInTheirOrder() {
     givenOpenBatch();
-    when(jobs.enqueue(any()))
-        .thenThrow(new ConflictException("Too many print jobs"))
-        .thenThrow(new DependencyUnavailableException("Document storage is not configured", null))
-        .thenThrow(new IllegalArgumentException("Between 1 and 1000 records are required"));
+    when(dayReader.readDay(
+            organizationId, batchId, dayId, true, ExaminationFormPrintOrder.CODE))
+        .thenReturn(
+            Optional.of(
+                new PrintableParticipantReader.PrintableDay(LocalDate.of(2026, 10, 15), ids)));
+    when(jobs.enqueue(any())).thenReturn(new RenderJobs.Queued(jobId, false));
 
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, command(), manager))
-        .isInstanceOf(ConflictException.class);
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, command(), manager))
-        .isInstanceOf(DependencyUnavailableException.class);
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, command(), manager))
-        .isInstanceOf(IllegalArgumentException.class);
-    verifyNoInteractions(audit);
+    var response = useCase.execute(organizationId, batchId, dayCommand(true), manager);
+
+    assertThat(response.jobId()).isEqualTo(jobId);
+    var request = ArgumentCaptor.forClass(RenderJobs.NewRenderJob.class);
+    verify(jobs).enqueue(request.capture());
+    assertThat(request.getValue().recordIds()).containsExactlyElementsOf(ids);
+    assertThat(request.getValue().context())
+        .containsEntry(
+            RenderJobs.FILE_NAME_KEY,
+            ExportFileNames.of("phieu-kham-", batch.code() + "-20261015", ".pdf"));
+    verify(audit)
+        .record(
+            eq(manager.userId()),
+            eq("CREATE_EXAMINATION_FORM_PRINT_JOB"),
+            eq("DOCUMENT_RENDER_JOB"),
+            eq(jobId),
+            isNull(),
+            eq(Map.of("organizationId", organizationId, "batchId", batchId, "participantCount", 2)));
   }
 
   @Test
-  void requiresTheIdentifiersAndTheIdempotencyKey() {
-    assertThatThrownBy(() -> useCase.execute(null, batchId, command(), manager))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> useCase.execute(organizationId, null, command(), manager))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, null, manager))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () ->
-                useCase.execute(
-                    organizationId,
-                    batchId,
-                    new CreateExaminationFormPrintJobCommand(ids, null),
-                    manager))
-        .isInstanceOf(IllegalArgumentException.class);
+  void printingByDayReportsAnUnknownDayAsNotFoundAndAnEmptyDayAsAConflict() {
+    givenOpenBatch();
+    when(dayReader.readDay(any(), any(), any(), eq(false), any())).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, dayCommand(false), manager))
+        .isInstanceOf(ResourceNotFoundException.class);
+
+    when(dayReader.readDay(any(), any(), any(), eq(false), any()))
+        .thenReturn(
+            Optional.of(
+                new PrintableParticipantReader.PrintableDay(LocalDate.of(2026, 10, 15), List.of())));
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, dayCommand(false), manager))
+        .isInstanceOf(ConflictException.class);
     verifyNoInteractions(jobs, audit);
+  }
+
+  @Test
+  void aDayPrintNeedsTheDayAndRefusesAListAndAListedPrintRefusesADay() {
+    givenOpenBatch();
+    var noDay =
+        new CreateExaminationFormPrintJobCommand(
+            ExaminationFormPrintScope.BATCH_DAY,
+            List.of(),
+            null,
+            false,
+            ExaminationFormPrintOrder.DEPARTMENT,
+            key);
+    var dayAndList =
+        new CreateExaminationFormPrintJobCommand(
+            ExaminationFormPrintScope.BATCH_DAY,
+            ids,
+            dayId,
+            false,
+            ExaminationFormPrintOrder.DEPARTMENT,
+            key);
+    var listAndDay =
+        new CreateExaminationFormPrintJobCommand(
+            ExaminationFormPrintScope.IDS,
+            ids,
+            dayId,
+            false,
+            ExaminationFormPrintOrder.DEPARTMENT,
+            key);
+
+    for (var command : List.of(noDay, dayAndList, listAndDay))
+      assertThatThrownBy(() -> useCase.execute(organizationId, batchId, command, manager))
+          .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(dayReader, jobs, audit);
+  }
+
+  @Test
+  void printingByDayStillRequiresAPrintableBatch() {
+    givenBatch(BatchStatus.DRAFT, null, true);
+
+    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, dayCommand(false), manager))
+        .isInstanceOf(ConflictException.class);
+    verifyNoInteractions(dayReader, jobs, audit);
   }
 }

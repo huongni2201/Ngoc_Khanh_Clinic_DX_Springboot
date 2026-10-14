@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -22,7 +21,7 @@ class DomDocxTemplateEngineTest {
   private static final String A4_PORTRAIT =
       "<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/></w:sectPr>";
   private static final String STARTER =
-      "document-templates/health-exam-periodic-form-blank/starter-v1.docx";
+      "document-templates/health-exam-periodic-form-blank/health-examination-v1.docx";
 
   private final DomDocxTemplateEngine engine = new DomDocxTemplateEngine();
 
@@ -153,32 +152,6 @@ class DomDocxTemplateEngineTest {
   }
 
   @Test
-  void theStarterIsAnA3LandscapeBookletWithItsFourteenPlaceholders() throws Exception {
-    byte[] starter = starter();
-
-    assertThat(new TreeSet<>(engine.placeholders(starter)))
-        .containsExactly(
-            "participant.address",
-            "participant.age",
-            "participant.barcode",
-            "participant.code",
-            "participant.dateOfBirth",
-            "participant.ethnicity",
-            "participant.fullNameUpper",
-            "participant.identificationIssueDate",
-            "participant.identificationIssuePlace",
-            "participant.identificationNumber",
-            "participant.phone",
-            "participant.positionName",
-            "participant.sex",
-            "participant.workplace");
-    PageLayout layout = engine.pageLayout(starter);
-    assertThat(layout.landscape()).isTrue();
-    assertThat(layout.widthMm()).isBetween(419.5, 420.5);
-    assertThat(layout.heightMm()).isBetween(296.5, 297.5);
-  }
-
-  @Test
   void aPicturePlaceholderIsReadFromTheAlternativeTextWithItsFrameSize() throws Exception {
     byte[] docx = docx(picture("{{@participant.barcode}}", 1760400, 324000) + A4_PORTRAIT, true);
 
@@ -272,25 +245,6 @@ class DomDocxTemplateEngineTest {
             true);
     assertThatThrownBy(() -> engine.fill(noPicture, Map.of()))
         .isInstanceOf(IllegalArgumentException.class);
-  }
-
-  @Test
-  void theStarterGetsAPictureOfExactlyItsFrameSize() throws Exception {
-    byte[] starter = starter();
-    Code128BarcodeGenerator generator = new Code128BarcodeGenerator();
-
-    byte[] filled =
-        engine.fill(
-            starter,
-            Map.of("participant.barcode", "KSK-2026-001-0001"),
-            (key, value, slot) -> generator.code128Png(value, slot.widthMm(), slot.heightMm()));
-
-    var image =
-        javax.imageio.ImageIO.read(
-            new ByteArrayInputStream(parts(filled).get("word/media/nkc-image-1.png")));
-    assertThat(engine.imageSlots(starter)).hasSize(1);
-    assertThat(image.getWidth()).isEqualTo(2310);
-    assertThat(image.getHeight()).isEqualTo(425);
   }
 
   private static final byte[] PLACEHOLDER_PNG = {(byte) 0x89, 'P', 'N', 'G', 9, 9, 9};

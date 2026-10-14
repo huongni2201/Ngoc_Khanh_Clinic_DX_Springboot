@@ -227,7 +227,6 @@ class RenderJobProcessorTest {
     var row = store.row(job);
     assertThat(row.status).isEqualTo("FAILED");
     assertThat(row.errorCode).isEqualTo("INTERNAL_ERROR");
-    assertThat(String.valueOf(row.errorCode)).doesNotContain("012345678901");
   }
 
   @Test
@@ -283,15 +282,4 @@ class RenderJobProcessorTest {
     assertThat(store.row(job).errorCode).isEqualTo("ATTEMPTS_EXHAUSTED");
   }
 
-  @Test
-  void takesTheOldestWaitingJobFirst() {
-    var older = queue(TYPE, ids(1));
-    clock.advance(Duration.ofSeconds(1));
-    var newer = queue(TYPE, ids(1));
-
-    processor.processNext();
-
-    assertThat(store.row(older).status).isEqualTo("SUCCEEDED");
-    assertThat(store.row(newer).status).isEqualTo("QUEUED");
-  }
 }

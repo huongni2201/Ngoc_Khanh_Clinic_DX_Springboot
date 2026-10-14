@@ -58,7 +58,7 @@ class StarterTemplateSeederTest {
     byte[] starter = storage.read("CLASSPATH", contract.starterResource(), null);
     assertThat(file.storageProvider()).isEqualTo("CLASSPATH");
     assertThat(file.storageKey()).isEqualTo(contract.starterResource());
-    assertThat(file.originalFilename()).isEqualTo("starter-v1.docx");
+    assertThat(file.originalFilename()).isEqualTo("health-examination-v1.docx");
     assertThat(file.sizeBytes()).isEqualTo(starter.length);
     assertThat(file.checksum()).isEqualTo(MessageDigest.getInstance("SHA-256").digest(starter));
     assertThat(catalog.locked).containsExactly(PeriodicFormBlankContract.DOCUMENT_TYPE);

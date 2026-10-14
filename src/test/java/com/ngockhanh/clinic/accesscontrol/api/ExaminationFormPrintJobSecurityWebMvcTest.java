@@ -35,7 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * Exercises the real bulk print controller through the production cookie, Origin and permission
- * filters, with the permission bound exactly as {@code V006} stores it.
+ * filters, with the permission bound exactly as {@code V002} stores it.
  */
 @WebMvcTest(
     controllers = ExaminationFormPrintJobController.class,

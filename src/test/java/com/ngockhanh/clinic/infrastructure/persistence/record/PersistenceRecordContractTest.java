@@ -66,6 +66,8 @@ class PersistenceRecordContractTest {
       template_versions document TemplateVersionRecord
       service_template_mappings document ServiceTemplateMappingRecord
       issued_representations document IssuedRepresentationRecord
+      document_render_jobs document DocumentRenderJobRecord
+      document_render_job_outputs document DocumentRenderJobOutputRecord
       system_connections integration SystemConnectionRecord
       external_code_mappings integration ExternalCodeMappingRecord
       health_data_submissions integration HealthDataSubmissionRecord
@@ -82,7 +84,6 @@ class PersistenceRecordContractTest {
       roles accesscontrol RoleRecord
       permissions accesscontrol PermissionRecord
       accounts accesscontrol AccountRecord
-      account_roles accesscontrol AccountRoleRecord
       role_permissions accesscontrol RolePermissionRecord
       audit_events audit AuditEventRecord
       organizations healthexamination OrganizationRecord
@@ -103,7 +104,7 @@ class PersistenceRecordContractTest {
         Files.readString(Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables = new HashMap<String, String>();
     TABLE.matcher(sql).results().forEach(match -> tables.put(match.group(1), match.group(2)));
-    assertThat(tables).hasSize(64);
+    assertThat(tables).hasSize(65);
     appendColumnsAddedByLaterMigrations(tables);
     var mapped = new HashSet<String>();
     var expectedPaths = new HashSet<Path>();
@@ -186,7 +187,7 @@ class PersistenceRecordContractTest {
 
   private static Class<?> javaType(String sqlType, String definition) {
     boolean required = definition.contains("NOT NULL") || definition.contains("PRIMARY KEY");
-    if (sqlType.equals("uuid")) return UUID.class;
+    if (sqlType.equals("uuid")) return definition.startsWith("[]") ? UUID[].class : UUID.class;
     if (sqlType.startsWith("numeric")) return BigDecimal.class;
     if (sqlType.startsWith("timestamptz")) return Instant.class;
     return switch (sqlType) {

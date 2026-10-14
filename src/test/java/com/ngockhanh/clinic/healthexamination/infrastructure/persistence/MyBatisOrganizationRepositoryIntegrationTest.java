@@ -654,7 +654,7 @@ class MyBatisOrganizationRepositoryIntegrationTest {
         "ACT-" + staffId.toString().substring(0, 26),
         "Synthetic Actor");
     jdbc.update(
-        "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status) VALUES (?,'STAFF',?,'test-password-hash',?,'ACTIVE')",
+        "INSERT INTO public.accounts(id,account_type,role_id,username,password_hash,staff_member_id,status) VALUES (?,'STAFF',(SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'),?,'test-password-hash',?,'ACTIVE')",
         accountId,
         "org-actor-" + staffId,
         staffId);

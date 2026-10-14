@@ -74,8 +74,8 @@ class RenderJobStoreIntegrationTest {
         "INSERT INTO public.staff_members(id,staff_code,full_name,status) VALUES (?,'S1','Test staff','ACTIVE')",
         staff);
     jdbc.update(
-        "INSERT INTO public.accounts(id,account_type,username,password_hash,staff_member_id,status)"
-            + " VALUES (?,'STAFF','job-tester','x',?,'ACTIVE')",
+        "INSERT INTO public.accounts(id,account_type,role_id,username,password_hash,staff_member_id,status)"
+            + " VALUES (?,'STAFF',(SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'),'job-tester','x',?,'ACTIVE')",
         account,
         staff);
   }

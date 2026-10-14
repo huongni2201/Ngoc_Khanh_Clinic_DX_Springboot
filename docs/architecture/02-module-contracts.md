@@ -5,7 +5,7 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 
 | Context | Owned tables/concepts |
 |---|---|
-| accesscontrol | accounts, staff_members, roles, permissions, account_roles, role_permissions |
+| accesscontrol | accounts, staff_members, roles, permissions, role_permissions |
 | patient | patients, patient_allergies, patient_conditions |
 | catalog | departments, rooms, specialties, services, medicines, lab_tests, lab_analytes, lab_test_analytes |
 | encounter | encounters, including assigned room/doctor and independent visit lifecycle |

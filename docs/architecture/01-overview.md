@@ -41,7 +41,7 @@ mappers, records or aggregates; use published application contracts instead.
 Mapped workflows include authentication, Organization/Batch configuration,
 Participant roster/import and examination-detail reconciliation/payment reports;
 see [API inventory](../api/clean-slate-migration.md) for permission gaps.
-Infrastructure represents all 64 schema tables in
+Infrastructure represents all 65 schema tables in
 owning modules. Record presence does not claim all clinic workflows or HTTP APIs
 are implemented. New clinical, payment, release or rendering operations require
 explicit use-case contracts and tests, not generated CRUD scaffolding.

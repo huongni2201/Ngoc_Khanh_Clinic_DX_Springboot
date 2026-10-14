@@ -13,22 +13,22 @@ WHERE id = $1 AND account_type = 'STAFF' AND status = 'ACTIVE'
   AND EXISTS (SELECT 1 FROM public.staff_members s
               WHERE s.id = accounts.staff_member_id AND s.status = 'ACTIVE');
 
--- $1 new account UUIDv7; $2 existing staff member ID; $3 trimmed username;
--- $4 encoded hash. The staff member has at most one account.
-PREPARE create_staff_account(uuid, uuid, varchar, text) AS
-INSERT INTO public.accounts (id, account_type, staff_member_id, status, username, password_hash)
-SELECT $1, 'STAFF', s.id, 'ACTIVE', $3, $4
-FROM public.staff_members s WHERE s.id = $2 AND s.status = 'ACTIVE';
-
--- Roles and their permissions are seeded by V002 (ADR-0015); look up $2 with
+-- Roles and their permissions are seeded by V002 (ADR-0015); look up $3 with
 -- SELECT id FROM public.roles WHERE code = 'CLINIC_MANAGER'.
--- $1 staff account; $2 existing active role; $3 granting account.
--- Grants use the (account_id, role_id) primary key, with no location/time scopes.
-PREPARE grant_existing_staff_role(uuid, uuid, uuid) AS
-INSERT INTO public.account_roles (account_id, role_id, granted_by)
-SELECT a.id, r.id, grantor.id
-FROM public.accounts a JOIN public.roles r ON r.id = $2 AND r.active
-JOIN public.accounts grantor ON grantor.id = $3 AND grantor.status = 'ACTIVE'
-WHERE a.id = $1 AND a.account_type = 'STAFF' AND a.status = 'ACTIVE'
+-- $1 new account UUIDv7; $2 existing staff member ID; $3 existing active staff role;
+-- $4 trimmed username; $5 encoded hash. The staff member has at most one account and an account
+-- holds exactly one role, with no location/time scopes.
+PREPARE create_staff_account(uuid, uuid, uuid, varchar, text) AS
+INSERT INTO public.accounts (id, account_type, role_id, staff_member_id, status, username, password_hash)
+SELECT $1, 'STAFF', r.id, s.id, 'ACTIVE', $4, $5
+FROM public.staff_members s JOIN public.roles r ON r.id = $3 AND r.active
+WHERE s.id = $2 AND s.status = 'ACTIVE';
+
+-- $1 staff account; $2 existing active staff role that replaces the current one.
+PREPARE change_staff_role(uuid, uuid) AS
+UPDATE public.accounts a
+SET role_id = r.id, updated_at = CURRENT_TIMESTAMP
+FROM public.roles r
+WHERE r.id = $2 AND r.active AND a.id = $1 AND a.account_type = 'STAFF' AND a.status = 'ACTIVE'
   AND EXISTS (SELECT 1 FROM public.staff_members s
               WHERE s.id = a.staff_member_id AND s.status = 'ACTIVE');

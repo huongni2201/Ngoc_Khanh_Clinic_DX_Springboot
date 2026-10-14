@@ -84,6 +84,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .load();
 
     assertThat(flyway.migrate().migrationsExecuted).isEqualTo(7);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -122,7 +123,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                   AND table_name <> 'flyway_schema_history'
                 """,
                 String.class))
-        .hasSize(64)
+        .hasSize(65)
+        .doesNotContain("account_roles")
         .contains(
             "accounts",
             "staff_members",
@@ -198,8 +200,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
   /**
    * V002 seeds the SRS Permission Matrix 4.4 (ADR-0015) and current endpoint permissions, among
    * them the two examination detail entry permissions (import template download and manual record)
-   * granted to the roles that may reconcile. The two legacy roster permissions are superseded by
-   * the matrix codes and stay ungranted.
+   * granted to the roles that may reconcile. Every permission is granted to at least one role.
    */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
@@ -249,8 +250,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 WHERE NOT EXISTS (SELECT 1 FROM public.role_permissions rp WHERE rp.permission_id = p.id)
                 """,
                 String.class))
-        .containsExactlyInAnyOrder(
-            "HEALTH_EXAMINATION_PARTICIPANT_READ", "HEALTH_EXAMINATION_PARTICIPANT_IMPORT");
+        .isEmpty();
     assertThat(
             jdbc.queryForList(
                 """
@@ -271,7 +271,6 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         List.of(
             "PARTICIPANT_CREATE",
             "PARTICIPANT_REACTIVATE",
-            "HEALTH_EXAMINATION_PARTICIPANT_MANAGE",
             "HEALTH_EXAMINATION_SERVICE_READ",
             "HEALTH_EXAMINATION_SERVICE_RECONCILE",
             "HEALTH_EXAMINATION_SERVICE_TEMPLATE_DOWNLOAD",

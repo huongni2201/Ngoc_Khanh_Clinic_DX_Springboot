@@ -23,11 +23,12 @@ Patient contacts/addresses/merge-history tables require an explicit new contract
 ## Account authentication
 
 Account owns username/password_hash and exactly one STAFF or PATIENT owner.
-StaffMember is clinic staff, separate from an organization Participant. Role
-assignments are account/role pairs with grantedBy/grantedAt, without invented
-assignment IDs, time windows or location scopes. Login requires active account,
-valid credentials and a valid owner; roles can be empty. Authentication itself
-does not grant clinical or portal access.
+StaffMember is clinic staff, separate from an organization Participant. An account
+holds exactly one role, with no invented assignment IDs, time windows or location
+scopes; the PATIENT role belongs to patient accounts and every other role to staff
+accounts. Login requires active account, valid credentials and a valid owner; an
+inactive role grants nothing. Authentication itself does not grant clinical or
+portal access.
 
 Username is case-sensitive and is not trimmed. Passwords are not trimmed, but
 are NFKC-normalized before bcrypt verification; the 72-byte limit applies after

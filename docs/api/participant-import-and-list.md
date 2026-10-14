@@ -14,9 +14,7 @@ failures use `result: "NG"`, and null `message`/`data` are omitted.
 | `POST /imports` | `PARTICIPANT_IMPORT` |
 
 SRS Permission Matrix codes (ADR-0015), granted to CLINIC_MANAGER by Flyway V002.
-The local seed additionally grants every permission to TEST; it creates no ADMIN role.
-The legacy codes `HEALTH_EXAMINATION_PARTICIPANT_READ` and
-`HEALTH_EXAMINATION_PARTICIPANT_IMPORT` are superseded and no longer checked. Permissions are a
+The local seed additionally grants every permission to TEST. Permissions are a
 login snapshot: sign in again after the migration.
 
 ## `GET /` - list

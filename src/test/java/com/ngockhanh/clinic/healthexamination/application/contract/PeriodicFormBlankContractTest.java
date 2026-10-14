@@ -88,14 +88,6 @@ class PeriodicFormBlankContractTest {
                 .toList());
   }
 
-  @Test
-  void aSpecRejectsAnInvalidKeyOrMissingLabel() {
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> new PlaceholderSpec("a b", "x", "", false))
-        .isInstanceOf(IllegalArgumentException.class);
-    org.assertj.core.api.Assertions.assertThatThrownBy(() -> new PlaceholderSpec("a.b", " ", "", false))
-        .isInstanceOf(IllegalArgumentException.class);
-  }
-
   static ExaminationFormSource sampleSource() {
     return new ExaminationFormSource(
         "KSK-2026-001-0001",

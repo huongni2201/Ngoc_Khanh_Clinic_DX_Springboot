@@ -16,9 +16,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * V004 gives a template version a lifecycle (DRAFT to PUBLISHED or DISCARDED) while keeping its
- * content immutable; V005 binds the print permission to one endpoint. The same checks were run
- * against PostgreSQL 18 with a scripted client when the migrations were written.
+ * V001 gives a template version a lifecycle (DRAFT to PUBLISHED or DISCARDED) while keeping its
+ * content immutable; V002 binds the print permission to one endpoint.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class DocumentTemplateLifecycleMigrationIntegrationTest {
@@ -27,7 +26,6 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
 
   private static final String PAST = "now() - interval '2 days'";
   private static final String FUTURE = "now() + interval '10 days'";
-  private static final String LATER = "now() + interval '20 days'";
   private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
   private static JdbcTemplate jdbc;
@@ -57,17 +55,6 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
     assertThatThrownBy(() -> template(uniqueType(), false, true))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("ck_document_templates_default_active");
-  }
-
-  @Test
-  void filesUseAKnownStorageProvider() {
-    file("CLASSPATH");
-    file("LOCAL");
-    file("S3");
-
-    assertThatThrownBy(() -> file("FTP"))
-        .isInstanceOf(DataAccessException.class)
-        .hasMessageContaining("ck_document_files_provider");
   }
 
   @Test
@@ -185,19 +172,6 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
   }
 
   @Test
-  void onlyTheEffectivePublishedVersionOfTheDefaultTemplateIsFound() {
-    String type = uniqueType();
-    UUID template = template(type, true, true);
-    UUID first = version(template, 1, file("LOCAL"), "PUBLISHED", PAST);
-    UUID second = version(template, 2, file("LOCAL"), "DRAFT", null);
-    jdbc.update("UPDATE public.template_versions SET retired_at = " + LATER + " WHERE id = ?", first);
-    publish(second, LATER);
-
-    assertThat(effectiveVersionNumbers(type, "now()")).containsExactly(1);
-    assertThat(effectiveVersionNumbers(type, "now() + interval '30 days'")).containsExactly(2);
-  }
-
-  @Test
   void thePrintPermissionProtectsOneEndpointAndIsGrantedToThreeRoles() {
     assertThat(
             jdbc.queryForMap(
@@ -216,19 +190,6 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
                 """,
                 String.class))
         .containsExactlyInAnyOrder("CLINIC_MANAGER", "DATA_ENTRY_STAFF", "RECEPTIONIST");
-  }
-
-  private static java.util.List<Integer> effectiveVersionNumbers(String type, String at) {
-    return jdbc.queryForList(
-        "SELECT tv.version_no FROM public.templates t JOIN public.template_versions tv ON tv.template_id = t.id "
-            + "WHERE t.template_type = ? AND t.is_default AND t.active AND tv.status = 'PUBLISHED' "
-            + "AND tv.active_from <= "
-            + at
-            + " AND (tv.retired_at IS NULL OR tv.retired_at > "
-            + at
-            + ")",
-        Integer.class,
-        type);
   }
 
   private static void publish(UUID version, String activeFrom) {

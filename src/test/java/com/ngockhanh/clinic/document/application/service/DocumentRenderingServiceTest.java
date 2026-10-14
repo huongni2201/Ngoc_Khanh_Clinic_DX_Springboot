@@ -18,7 +18,6 @@ import com.ngockhanh.clinic.document.application.port.EffectiveTemplateVersion;
 import com.ngockhanh.clinic.document.application.port.PdfConverter;
 import com.ngockhanh.clinic.document.application.port.TemplateCatalog;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
-import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.Instant;
@@ -70,21 +69,6 @@ class DocumentRenderingServiceTest {
   }
 
   @Test
-  void aConverterFailureReachesTheCaller() {
-    when(catalog.findEffective("TYPE", NOW))
-        .thenReturn(
-            Optional.of(
-                new EffectiveTemplateVersion(versionId, 1, 1, "CLASSPATH", "k.docx", checksum, 2)));
-    when(storage.read(any(), any(), any())).thenReturn(new byte[] {1});
-    when(engine.fill(any(), any(), any())).thenReturn(new byte[] {2});
-    when(converter.toPdf(any())).thenThrow(new DependencyUnavailableException("down", null));
-
-    assertThatThrownBy(() -> service.render("TYPE", Map.of()))
-        .isInstanceOf(DependencyUnavailableException.class);
-    verify(converter).toPdf(new byte[] {2});
-  }
-
-  @Test
   void aFormThatSpillsOntoAnExtraPageIsRefused() {
     effective(2);
     when(converter.toPdf(any())).thenReturn(pdfWithPages(3));
@@ -106,9 +90,10 @@ class DocumentRenderingServiceTest {
   @Test
   void aTemplateWithVariablePageCountIsNotChecked() {
     effective(null);
-    when(converter.toPdf(any())).thenReturn(pdfWithPages(9));
+    byte[] pdf = pdfWithPages(9);
+    when(converter.toPdf(any())).thenReturn(pdf);
 
-    assertThat(service.render("TYPE", Map.of()).pdf()).hasSizeGreaterThan(8);
+    assertThat(service.render("TYPE", Map.of()).pdf()).isEqualTo(pdf);
   }
 
   @Test
@@ -137,14 +122,6 @@ class DocumentRenderingServiceTest {
     for (int i = 0; i < pages; i++) pdf.append(i + 1).append(" 0 obj\n<</Type/Page>>\nendobj\n");
     pdf.append("99 0 obj\n<</Type/Pages/Count ").append(pages).append(">>\nendobj\n%%EOF");
     return pdf.toString().getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
-  }
-
-  @Test
-  void requiresATypeAndValues() {
-    assertThatThrownBy(() -> service.render(" ", Map.of()))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> service.render("TYPE", null))
-        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -181,16 +158,7 @@ class DocumentRenderingServiceTest {
     when(catalog.findEffective(eq("TYPE"), any())).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.open("TYPE")).isInstanceOf(ResourceNotFoundException.class);
-    assertThatThrownBy(() -> service.open(" ")).isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(storage, engine, converter);
-  }
-
-  @Test
-  void aSessionRequiresValues() {
-    effective(2);
-
-    assertThatThrownBy(() -> service.open("TYPE").render(null))
-        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test

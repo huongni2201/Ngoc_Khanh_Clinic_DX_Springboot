@@ -27,6 +27,9 @@ All paths below start with `/api/v1`. `O` means
 
 V002 stores a method/route/permission mapping for the 25 initial business operations, V005
 adds the 26th for `PARTICIPANT_EXAMINATION_FORM_PRINT`, V006 adds three more (bulk print, job read, job download), V007 binds `HEALTH_EXAMINATION_BATCH_START` to batch start and V008 binds the three staff member/role routes (35 in total), under
+V002 stores a method/route/permission mapping for 32 business operations, including
+`PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
+job download) and `HEALTH_EXAMINATION_BATCH_START`, under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST and ADMINISTRATOR roles use
@@ -72,6 +75,8 @@ The single-step service-reconciliation import is a separate workflow.
 
 ## Database compatibility
 
+Fresh databases apply one final schema initializer V001 and the data-only seeds
+V002/V003. Earlier migration histories cannot use the rewritten baseline as an
 Fresh databases apply one final schema initializer V001, data-only seeds
 V002/V003, and the additive V004 (template lifecycle), V005 (print permission), V006 (print jobs and their permissions), V007 (batch start endpoint permission) and V008 (staff member and role endpoint permissions). Earlier migration histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)

@@ -31,9 +31,9 @@ to change without a code change or a deployment. The document module held schema
 - **Version lifecycle.** `DRAFT → PUBLISHED | DISCARDED`. The effective version is the `PUBLISHED`
   one whose period contains the render instant. File, layout and contract version never change after
   creation; a published version may only be retired, or cancelled before it takes effect; published
-  periods of one template never overlap; a referenced file cannot change or be deleted (V004
+  periods of one template never overlap; a referenced file cannot change or be deleted (V001
   triggers). Page size and orientation are read from the `.docx`, not typed in.
-- **Starter template.** The code ships `starter-v1.docx`; startup seeds it as `PUBLISHED` version 1
+- **Starter template.** The code ships `health-examination-v1.docx`; startup seeds it as `PUBLISHED` version 1
   only when the type has no version at all. After that the templates belong to the clinic.
 - **Rendering on demand, nothing stored.** The blank form is a working document, not an issued one:
   no PDF is stored and `issued_representations` is not written. The source facts are read in one short
@@ -43,7 +43,7 @@ to change without a code change or a deployment. The document module held schema
   refused with 409 instead of printed.
 - **Permission.** `PARTICIPANT_EXAMINATION_FORM_PRINT` protects only the single-print endpoint
   ([ADR-0015](0015-endpoint-permission-rbac.md)); bulk printing has its own (see Addendum).
-- **Migrations are additive.** V004, V005 and V006 extend the V001–V003 baseline instead of being folded into it.
+- **Migrations.** The document tables and triggers are in V001 and the permissions in V002 (folded on 2026-10-13); future changes are additive migrations after V003.
 
 ## Addendum: bulk printing (proposed)
 
@@ -60,7 +60,7 @@ to change without a code change or a deployment. The document module held schema
   unavailable.
 - **Access.** Only the account that created the job can read or download it (others get 404). Three
   permissions, one per endpoint: `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT`, `DOCUMENT_RENDER_JOB_READ`,
-  `DOCUMENT_RENDER_JOB_DOWNLOAD` (V006). Limits: 1000 records per job, 3 active jobs per account.
+  `DOCUMENT_RENDER_JOB_DOWNLOAD` (V002). Limits: 1000 records per job, 3 active jobs per account.
 - **Not decided:** parallel rendering, object storage for parts, longer retention, notification on completion.
 
 ## Consequences

@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationBatchParticipantRecord;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ParticipantSummaryView;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -68,4 +69,18 @@ public interface HealthExaminationBatchParticipantMyBatisMapper {
       @Param("sortBy") String sortBy,
       @Param("offset") long offset,
       @Param("limit") int limit);
+
+  /** Date of a day of the batch, or null when the day is not a day of that batch. */
+  LocalDate findBatchDayDate(@Param("batchId") UUID batchId, @Param("batchDayId") UUID batchDayId);
+
+  /**
+   * Active Participants of a day, in print order. Absent Participants are never returned and
+   * attended ones only when {@code includeAttended} is true. {@code order} is the name of an
+   * {@code ExaminationFormPrintOrder}.
+   */
+  List<UUID> findPrintableIdsOfDay(
+      @Param("batchId") UUID batchId,
+      @Param("batchDayId") UUID batchDayId,
+      @Param("includeAttended") boolean includeAttended,
+      @Param("order") String order);
 }

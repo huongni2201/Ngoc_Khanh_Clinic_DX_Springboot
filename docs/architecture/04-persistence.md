@@ -5,20 +5,21 @@
 PostgreSQL 18, MyBatis and Flyway remain the persistence stack. The owner-selected
 clean-slate contract follows [the current domain workflows](03-domain-and-workflows.md).
 Fresh databases apply `../../src/main/resources/db/migration/V001__create_schema.sql`
-in one public application schema. V001 creates the final schema with 64 business
+in one public application schema. V001 creates the final schema with 65 business
 tables, including batch `deleted_at`, the service reconciliation import type,
-the six optional Participant personal-detail columns and nullable Organization
-`phone`. The account-role trigger allows `PATIENT` only on patient accounts;
-all other roles and every grantor require STAFF accounts.
+the six optional Participant personal-detail columns, nullable Organization
+`phone`, the template-version lifecycle and the bulk-print render-job tables. An
+account holds exactly one role (`accounts.role_id`, required); the account-role trigger
+allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-The owner-requested consolidation on 2026-10-08 keeps one schema initializer and
-two data-only seed migrations. The 2026-10-11 consolidation folds the former
-V008 and V009 changes into V001, so fresh databases apply three baseline migrations plus the additive V004–V006:
+Fresh databases apply three migrations: one schema initializer and two data-only seeds. The
+owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
+amendment (V004–V009, and the removal of `account_roles`) into them:
 
 | Migration | Responsibility |
 |---|---|
-| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers. The batch table has no `examination_site_name`; a batch site is its type and address only, and two CHECK constraints require a non-space batch name and a non-blank organization-site address |
-| `V002__seed_roles_and_permissions.sql` | Roles, permissions and role grants |
+| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
+| `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
 | `V004__document_template_lifecycle.sql` | Additive: template-version lifecycle (DRAFT → PUBLISHED \| DISCARDED), page layout, protection triggers |
 | `V005__document_print_permissions.sql` | Additive: `PARTICIPANT_EXAMINATION_FORM_PRINT` endpoint permission |
@@ -27,15 +28,13 @@ V008 and V009 changes into V001, so fresh databases apply three baseline migrati
 | `V008__staff_member_management_permissions.sql` | Additive: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
-HIS id and no separator. Seeded services start at `row_version = 0`. V004–V007
-are folded into these definitions; no catalog code rewrite is required. The
+HIS id and no separator. Seeded services start at `row_version = 0`. The
 two deferred foreign-key declarations in V001 only resolve tables created later
 in the same initializer.
-The former V008 and V009 changes are folded into V001 and no longer exist as separate
-migrations. Without `examination_site_name`, normal SQL no longer reads or writes stored
+The batch site-name removal and the batch CHECK constraints are part of V001. Without `examination_site_name`, normal SQL no longer reads or writes stored
 site names. A conversion that drops that column from an existing database may leave the
-old bytes until rows are rewritten; this is not a secure-erasure procedure. Neither change
-converts the V004–V007 histories, which still need the reviewed procedure below.
+old bytes until rows are rewritten; this is not a secure-erasure procedure. Folding the changes
+converts no existing history; a database that applied one still needs the reviewed procedure below.
 
 The batch CHECK constraints rewrite no rows. Clinic batches keep an empty address.
 Before a reviewed conversion applies them to a database that may hold older rows, count
