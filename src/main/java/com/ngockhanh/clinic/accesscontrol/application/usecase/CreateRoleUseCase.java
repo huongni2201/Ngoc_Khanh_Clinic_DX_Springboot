@@ -43,7 +43,8 @@ public class CreateRoleUseCase {
    * @throws ApplicationException of type {@code ACCESS_DENIED} without {@code ROLE_CREATE}
    * @throws IllegalArgumentException when the code format, a length or a required value is invalid
    * @throws FieldConflictException (HTTP 409) when the code or, ignoring case, the name is used
-   * @throws UnprocessableEntityException (HTTP 422) when the source role is unknown or inactive
+   * @throws UnprocessableEntityException (HTTP 422) when the source role is unknown, inactive or
+   *     {@code PATIENT}
    */
   @Transactional
   public RoleSummary execute(CreateRoleCommand command, UserPrincipal principal) {
@@ -66,7 +67,8 @@ public class CreateRoleUseCase {
             ? null
             : roles
                 .findById(command.copyFromRoleId())
-                .filter(candidate -> Boolean.TRUE.equals(candidate.active()))
+                .filter(
+                    candidate -> Boolean.TRUE.equals(candidate.active()) && !candidate.isPatient())
                 .orElseThrow(
                     () -> new UnprocessableEntityException("The source role is not available"));
 

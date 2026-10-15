@@ -90,13 +90,15 @@ class CreateRoleUseCaseTest {
   }
 
   @Test
-  void rejectsAnInactiveOrUnknownSourceRoleWithoutWriting() {
+  void rejectsAnInactiveUnknownOrPatientSourceRoleWithoutWriting() {
     Role inactive = Role.restore(UUID.randomUUID(), "NURSE", "Nurse", null, false, 0L);
+    Role patient = Role.restore(UUID.randomUUID(), "PATIENT", "Patient", null, true, 0L);
     when(roles.existsByCode(any())).thenReturn(false);
     when(roles.existsByName(any(), any())).thenReturn(false);
     when(roles.findById(inactive.id())).thenReturn(Optional.of(inactive));
+    when(roles.findById(patient.id())).thenReturn(Optional.of(patient));
 
-    for (UUID source : new UUID[] {inactive.id(), UUID.randomUUID()})
+    for (UUID source : new UUID[] {inactive.id(), patient.id(), UUID.randomUUID()})
       assertThatThrownBy(
               () ->
                   useCase.execute(

@@ -12,11 +12,13 @@ import java.util.regex.Pattern;
  * grants no permission (BR-06).
  *
  * <p>The {@code ADMINISTRATOR} role must stay active and keep the permissions that administer
- * roles, so that roles can always be administered again (owner decision 2026-10-15, not in the SRS
- * yet).
+ * roles, so that roles can always be administered again. The {@code PATIENT} role must stay active,
+ * because every patient portal account holds it. It never serves as the source of a staff role.
+ * Owner decisions 2026-10-15, not in the SRS yet.
  */
 public final class Role {
   public static final String ADMINISTRATOR_CODE = "ADMINISTRATOR";
+  public static final String PATIENT_CODE = "PATIENT";
   public static final Integer CODE_MAX_LENGTH = 80;
   public static final Integer NAME_MAX_LENGTH = 100;
   public static final Integer DESCRIPTION_MAX_LENGTH = 500;
@@ -72,11 +74,12 @@ public final class Role {
    * Replaces the name, description and active flag. The code never changes.
    *
    * @throws IllegalArgumentException when a length or a required value is invalid
-   * @throws ProtectedRoleException when the {@code ADMINISTRATOR} role would become inactive
+   * @throws ProtectedRoleException when the {@code ADMINISTRATOR} or {@code PATIENT} role would
+   *     become inactive
    */
   public void update(String name, String description, Boolean active) {
-    if (isAdministrator() && Boolean.FALSE.equals(active))
-      throw new ProtectedRoleException("The Administrator role cannot be deactivated");
+    if ((isAdministrator() || isPatient()) && Boolean.FALSE.equals(active))
+      throw new ProtectedRoleException("The " + code + " role cannot be deactivated");
     applyDetails(name, description, active);
   }
 
@@ -95,6 +98,11 @@ public final class Role {
 
   public Boolean isAdministrator() {
     return ADMINISTRATOR_CODE.equals(code);
+  }
+
+  /** The role of patient portal accounts; staff roles never take its permissions. */
+  public Boolean isPatient() {
+    return PATIENT_CODE.equals(code);
   }
 
   private void applyDetails(String name, String description, Boolean active) {

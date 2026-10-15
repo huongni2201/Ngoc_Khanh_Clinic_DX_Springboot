@@ -71,6 +71,17 @@ class RoleTest {
   }
 
   @Test
+  void thePatientRoleStaysActiveButMayBeRenamed() {
+    Role patient = Role.restore(UUID.randomUUID(), "PATIENT", "Patient", null, true, 0L);
+
+    assertThatThrownBy(() -> patient.update("Patient", null, false))
+        .isInstanceOf(ProtectedRoleException.class);
+    assertThat(patient.active()).isTrue();
+    assertThatCode(() -> patient.update("Bệnh nhân", null, true)).doesNotThrowAnyException();
+    assertThat(patient.isPatient()).isTrue();
+  }
+
+  @Test
   void otherRolesMayLoseAnyPermissionAndBeDeactivated() {
     Role nurse = Role.restore(UUID.randomUUID(), "NURSE", "Nurse", null, true, 0L);
 

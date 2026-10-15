@@ -43,7 +43,7 @@ case-insensitive), `status` (`ACTIVE` or `INACTIVE`; omitted lists both), `sortK
 | `code` | Required, max 80, uppercase letters, digits and underscores starting with a letter (`^[A-Z][A-Z0-9_]*$`). Unique. Never changes |
 | `name` | Required, max 100 after trimming. Unique ignoring case (BR-11) |
 | `description` | Optional, max 500; blank becomes null |
-| `copyFromRoleId` | Optional UUID of an active role whose permissions the new role receives |
+| `copyFromRoleId` | Optional UUID of an active role, other than `PATIENT`, whose permissions the new role receives |
 | `active` | Optional, default `true` |
 
 Response 201, message `Role created`. Audit `CREATE_ROLE` (code, name, active, copied role code).
@@ -87,11 +87,12 @@ on the same read is a conflict. Response 200, message `Role permissions updated`
 | 404 | Unknown `roleId` |
 | 409 with `data` | `FieldConflictException`: `[{"field":"code" or "name","code":"Duplicate"}]`, the code or name is used by another role |
 | 409 without `data` | Stale `rowVersion` (`Record was changed by another request`), or a protected Administrator change (`Business rule could not be completed`) |
-| 422 | `copyFromRoleId` is unknown or inactive; the role whose permissions change is inactive; a permission code does not exist |
+| 422 | `copyFromRoleId` is unknown, inactive or `PATIENT`; the role whose permissions change is inactive; a permission code does not exist |
 
-Protected Administrator change (owner decision 2026-10-15, not in the SRS yet): the `ADMINISTRATOR`
-role cannot be deactivated and never loses `ROLE_MANAGE`, `ROLE_UPDATE`, `PERMISSION_VIEW`,
-`ROLE_PERMISSION_VIEW` or `ROLE_PERMISSION_ASSIGN`.
+Protected roles (owner decisions 2026-10-15, not in the SRS yet): the `ADMINISTRATOR` role cannot
+be deactivated and never loses `ROLE_MANAGE`, `ROLE_UPDATE`, `PERMISSION_VIEW`,
+`ROLE_PERMISSION_VIEW` or `ROLE_PERMISSION_ASSIGN`. The `PATIENT` role, held by every patient
+portal account, cannot be deactivated and is never a `copyFromRoleId` source.
 
 ## Role
 
