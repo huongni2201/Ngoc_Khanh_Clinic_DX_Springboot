@@ -31,7 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,24 +59,24 @@ class CreateStaffMemberUseCaseTest {
   void allocateCodes() {
     when(staffMembers.nextStaffCode()).thenReturn("NV-0007");
     when(accounts.nextUsername(new UsernameBase("annv"))).thenReturn("annv2");
-    when(roles.findActiveByCodes(Set.of("GENERAL_PRACTITIONER"))).thenReturn(List.of(DOCTOR));
+    when(roles.findActiveByCode("GENERAL_PRACTITIONER")).thenReturn(Optional.of(DOCTOR));
   }
 
   @Test
   void createsTheStaffMemberAndAccountWithGeneratedCodesAndAuditsBoth() {
     var admin = admin();
 
-    var response = useCase.execute(command(List.of("GENERAL_PRACTITIONER")), admin);
+    var response = useCase.execute(command("GENERAL_PRACTITIONER"), admin);
 
     var savedAccount = ArgumentCaptor.forClass(StaffAccount.class);
     verify(staffMembers).save(any(StaffMember.class));
     verify(accounts).save(savedAccount.capture());
-    assertThat(savedAccount.getValue().grantedBy()).isEqualTo(admin.userId());
+    assertThat(savedAccount.getValue().role()).isEqualTo(DOCTOR);
     assertThat(passwords.matches("Tam@12345", savedAccount.getValue().passwordHash())).isTrue();
     assertThat(response.staffCode()).isEqualTo("NV-0007");
     assertThat(response.status()).isEqualTo("ACTIVE");
     assertThat(response.account().username()).isEqualTo("annv2");
-    assertThat(response.account().roleCodes()).containsExactly("GENERAL_PRACTITIONER");
+    assertThat(response.account().roleCode()).isEqualTo("GENERAL_PRACTITIONER");
     assertThat(response.toString()).doesNotContain("Tam@12345", "{bcrypt}");
     verify(audit)
         .record(eq(admin.userId()), eq("CREATE_STAFF_MEMBER"), eq("STAFF_MEMBER"), eq(response.id()), isNull(), any());
@@ -102,7 +102,7 @@ class CreateStaffMemberUseCaseTest {
                         UUID.randomUUID(), "X", List.of(StaffAdministrationPolicy.CREATE_PERMISSION))))
             .build();
 
-    assertThatThrownBy(() -> useCase.execute(command(List.of("GENERAL_PRACTITIONER")), createOnly))
+    assertThatThrownBy(() -> useCase.execute(command("GENERAL_PRACTITIONER"), createOnly))
         .isInstanceOf(ApplicationException.class)
         .extracting(error -> ((ApplicationException) error).type())
         .isEqualTo(ApplicationException.Type.ACCESS_DENIED);
@@ -110,14 +110,14 @@ class CreateStaffMemberUseCaseTest {
   }
 
   @Test
-  void rejectsUnknownOrPatientRolesAsAConflictWithoutWriting() {
-    when(roles.findActiveByCodes(Set.of("GENERAL_PRACTITIONER", "GONE"))).thenReturn(List.of(DOCTOR));
-    assertThatThrownBy(() -> useCase.execute(command(List.of("GENERAL_PRACTITIONER", "GONE")), admin()))
+  void rejectsAnUnknownOrPatientRoleAsAConflictWithoutWriting() {
+    when(roles.findActiveByCode("GONE")).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> useCase.execute(command("GONE"), admin()))
         .isInstanceOf(ConflictException.class);
 
-    when(roles.findActiveByCodes(Set.of("PATIENT")))
-        .thenReturn(List.of(new RoleRef(UUID.randomUUID(), "PATIENT")));
-    assertThatThrownBy(() -> useCase.execute(command(List.of("PATIENT")), admin()))
+    when(roles.findActiveByCode("PATIENT"))
+        .thenReturn(Optional.of(new RoleRef(UUID.randomUUID(), "PATIENT")));
+    assertThatThrownBy(() -> useCase.execute(command("PATIENT"), admin()))
         .isInstanceOf(ConflictException.class);
 
     verify(staffMembers, never()).save(any());
@@ -150,11 +150,11 @@ class CreateStaffMemberUseCaseTest {
         .build();
   }
 
-  private static CreateStaffMemberCommand command(List<String> roleCodes) {
+  private static CreateStaffMemberCommand command(String roleCode) {
     return CreateStaffMemberCommand.builder()
         .fullName("Nguyễn Văn An")
         .initialPassword("Tam@12345")
-        .roleCodes(roleCodes)
+        .roleCode(roleCode)
         .build();
   }
 
@@ -162,7 +162,7 @@ class CreateStaffMemberUseCaseTest {
     return CreateStaffMemberCommand.builder()
         .fullName("Nguyễn Văn An")
         .initialPassword(password)
-        .roleCodes(List.of("GENERAL_PRACTITIONER"))
+        .roleCode("GENERAL_PRACTITIONER")
         .build();
   }
 }

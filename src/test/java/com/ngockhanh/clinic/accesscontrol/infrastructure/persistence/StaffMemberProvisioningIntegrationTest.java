@@ -103,15 +103,15 @@ class StaffMemberProvisioningIntegrationTest {
 
   @BeforeEach
   void onlyTheAdministratorExists() {
-    jdbc.execute("TRUNCATE public.audit_events, public.account_roles, public.accounts, public.staff_members CASCADE");
+    jdbc.execute("TRUNCATE public.audit_events, public.accounts, public.staff_members CASCADE");
     UUID staffId = UUID.randomUUID();
     UUID accountId = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO public.staff_members (id, staff_code, full_name, status) VALUES (?, 'ADMIN-1', 'Admin', 'ACTIVE')",
         staffId);
     jdbc.update(
-        "INSERT INTO public.accounts (id, account_type, username, password_hash, staff_member_id, status)"
-            + " VALUES (?, 'STAFF', 'admin', '{bcrypt}x', ?, 'ACTIVE')",
+        "INSERT INTO public.accounts (id, account_type, role_id, username, password_hash, staff_member_id, status)"
+            + " SELECT ?, 'STAFF', id, 'admin', '{bcrypt}x', ?, 'ACTIVE' FROM public.roles WHERE code = 'ADMINISTRATOR'",
         accountId,
         staffId);
     admin =
@@ -137,7 +137,7 @@ class StaffMemberProvisioningIntegrationTest {
   void allocatesNextCodesAndUsernamesAndStoresASignInCapableAccount() {
     StaffMemberResponse first = create.execute(command("Nguyễn Văn An", "RECEPTIONIST"), admin);
     StaffMemberResponse second =
-        create.execute(command("Nguyễn Văn An", "GENERAL_PRACTITIONER", "RECEPTIONIST"), admin);
+        create.execute(command("Nguyễn Văn An", "GENERAL_PRACTITIONER"), admin);
     StaffMemberResponse other = create.execute(command("Đặng Thị Đào", "CLINIC_MANAGER"), admin);
 
     assertThat(List.of(first.staffCode(), second.staffCode(), other.staffCode()))
@@ -150,11 +150,12 @@ class StaffMemberProvisioningIntegrationTest {
     assertThat(passwords.matches("Tam@12345", account.passwordHash())).isTrue();
     assertThat(account.roles())
         .extracting(role -> role.roleCode())
-        .containsExactly("GENERAL_PRACTITIONER", "RECEPTIONIST");
+        .containsExactly("GENERAL_PRACTITIONER");
     assertThat(
             jdbc.queryForList(
-                "SELECT DISTINCT granted_by FROM public.account_roles", UUID.class))
-        .containsExactly(admin.userId());
+                "SELECT r.code FROM public.accounts a JOIN public.roles r ON r.id = a.role_id WHERE a.username = 'annv2'",
+                String.class))
+        .containsExactly("GENERAL_PRACTITIONER");
     assertThat(
             jdbc.queryForList(
                 "SELECT action FROM public.audit_events ORDER BY occurred_at, action", String.class))
@@ -169,7 +170,7 @@ class StaffMemberProvisioningIntegrationTest {
 
   @Test
   void listsStaffMembersWithAccountsRolesAndSearch() {
-    create.execute(command("Nguyễn Văn An", "RECEPTIONIST", "GENERAL_PRACTITIONER"), admin);
+    create.execute(command("Nguyễn Văn An", "GENERAL_PRACTITIONER"), admin);
     create.execute(command("Đặng Thị Đào", "CLINIC_MANAGER"), admin);
 
     var page =
@@ -177,7 +178,7 @@ class StaffMemberProvisioningIntegrationTest {
     assertThat(page.totalElements()).isEqualTo(1);
     var row = page.items().getFirst();
     assertThat(row.fullName()).isEqualTo("Nguyễn Văn An");
-    assertThat(row.account().roleCodes()).containsExactly("GENERAL_PRACTITIONER", "RECEPTIONIST");
+    assertThat(row.account().roleCode()).isEqualTo("GENERAL_PRACTITIONER");
 
     var byName =
         list.execute(
@@ -193,7 +194,7 @@ class StaffMemberProvisioningIntegrationTest {
   }
 
   @Test
-  void rollsBackTheStaffMemberAccountAndGrantsWhenTheAuditFails() {
+  void rollsBackTheStaffMemberAndAccountWhenTheAuditFails() {
     doThrow(new IllegalStateException("audit down"))
         .when(audit)
         .record(any(), eq("CREATE_ACCOUNT"), any(), any(), any(), any());
@@ -203,12 +204,11 @@ class StaffMemberProvisioningIntegrationTest {
 
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.staff_members", Integer.class)).isEqualTo(1);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.accounts", Integer.class)).isEqualTo(1);
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM public.account_roles", Integer.class)).isZero();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.audit_events", Integer.class)).isZero();
   }
 
   @Test
-  void rejectsThePatientRoleAndUnknownRolesWithoutWriting() {
+  void rejectsThePatientRoleAndAnUnknownRoleWithoutWriting() {
     assertThatThrownBy(() -> create.execute(command("Nguyễn Văn An", "PATIENT"), admin))
         .isInstanceOf(ConflictException.class);
     assertThatThrownBy(() -> create.execute(command("Nguyễn Văn An", "NO_SUCH_ROLE"), admin))
@@ -244,11 +244,11 @@ class StaffMemberProvisioningIntegrationTest {
     }
   }
 
-  private static CreateStaffMemberCommand command(String fullName, String... roleCodes) {
+  private static CreateStaffMemberCommand command(String fullName, String roleCode) {
     return CreateStaffMemberCommand.builder()
         .fullName(fullName)
         .initialPassword("Tam@12345")
-        .roleCodes(List.of(roleCodes))
+        .roleCode(roleCode)
         .build();
   }
 }

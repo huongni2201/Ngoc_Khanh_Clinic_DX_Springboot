@@ -1,7 +1,6 @@
 package com.ngockhanh.clinic.accesscontrol.application.command;
 
 import java.time.LocalDate;
-import java.util.List;
 import lombok.Builder;
 
 /**
@@ -9,7 +8,7 @@ import lombok.Builder;
  *
  * @param sex {@code MALE}, {@code FEMALE}, {@code OTHER}, {@code UNKNOWN} or null
  * @param initialPassword temporary password exactly as typed; never logged or returned
- * @param roleCodes codes of the roles to grant; duplicates are ignored
+ * @param roleCode code of the one role the account holds
  */
 @Builder
 public record CreateStaffMemberCommand(
@@ -19,15 +18,11 @@ public record CreateStaffMemberCommand(
     String phone,
     String email,
     String initialPassword,
-    List<String> roleCodes) {
-
-  public CreateStaffMemberCommand {
-    roleCodes = roleCodes == null ? List.of() : List.copyOf(roleCodes);
-  }
+    String roleCode) {
 
   /** Omits personal data and the password. */
   @Override
   public String toString() {
-    return "CreateStaffMemberCommand[roleCodes=" + roleCodes + "]";
+    return "CreateStaffMemberCommand[roleCode=" + roleCode + "]";
   }
 }

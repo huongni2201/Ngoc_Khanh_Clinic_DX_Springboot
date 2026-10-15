@@ -1,7 +1,6 @@
 package com.ngockhanh.clinic.accesscontrol.application.query;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
 
@@ -29,12 +28,8 @@ public record StaffMemberSummary(
    * Account of the staff member.
    *
    * @param status {@code ACTIVE}, {@code LOCKED} or {@code DISABLED}
-   * @param roleCodes codes of the active granted roles, ordered by code
+   * @param roleCode code of the one role the account holds
    */
   @Builder
-  public record Account(UUID id, String username, String status, List<String> roleCodes) {
-    public Account {
-      roleCodes = roleCodes == null ? List.of() : List.copyOf(roleCodes);
-    }
-  }
+  public record Account(UUID id, String username, String status, String roleCode) {}
 }

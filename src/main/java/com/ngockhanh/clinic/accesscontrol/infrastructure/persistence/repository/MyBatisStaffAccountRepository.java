@@ -5,8 +5,6 @@ import com.ngockhanh.clinic.accesscontrol.domain.repository.StaffAccountReposito
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.UsernameBase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.converter.StaffMemberPersistenceConverter;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.StaffAccountMyBatisMapper;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.AccountRoleRecord;
-import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -30,8 +28,5 @@ public class MyBatisStaffAccountRepository implements StaffAccountRepository {
   public void save(StaffAccount account) {
     if (!Objects.equals(mapper.insert(converter.toRecord(account)), 1))
       throw new IllegalStateException("Account was not inserted");
-    List<AccountRoleRecord> grants = converter.toRoleRecords(account);
-    if (!Objects.equals(mapper.insertRoles(grants), grants.size()))
-      throw new IllegalStateException("Account roles were not inserted");
   }
 }

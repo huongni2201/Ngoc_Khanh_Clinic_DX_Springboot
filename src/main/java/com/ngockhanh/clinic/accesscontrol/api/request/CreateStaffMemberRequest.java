@@ -8,7 +8,6 @@ import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
-import java.util.List;
 import lombok.Builder;
 
 /** Body of {@code POST /api/v1/staff-members} (docs/api/staff-members.md). */
@@ -20,7 +19,7 @@ public record CreateStaffMemberRequest(
     @Size(max = 30) String phone,
     @Email @Size(max = 255) String email,
     @NotNull @Size(min = 8, max = 1024) @BcryptPasswordLength String initialPassword,
-    @NotNull @Size(min = 1, max = 20) List<@NotBlank @Size(max = 80) String> roleCodes) {
+    @NotBlank @Size(max = 80) String roleCode) {
 
   public CreateStaffMemberCommand toCommand() {
     return CreateStaffMemberCommand.builder()
@@ -30,13 +29,13 @@ public record CreateStaffMemberRequest(
         .phone(phone)
         .email(email)
         .initialPassword(initialPassword)
-        .roleCodes(roleCodes)
+        .roleCode(roleCode)
         .build();
   }
 
   /** Omits personal data and the password. */
   @Override
   public String toString() {
-    return "CreateStaffMemberRequest[roleCodes=" + roleCodes + "]";
+    return "CreateStaffMemberRequest[roleCode=" + roleCode + "]";
   }
 }

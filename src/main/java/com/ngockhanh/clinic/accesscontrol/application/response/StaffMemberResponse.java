@@ -4,7 +4,6 @@ import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffMember;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
 
@@ -22,13 +21,9 @@ public record StaffMemberResponse(
     Long rowVersion,
     Account account) {
 
-  /** Account of the staff member; {@code roleCodes} are ordered by code. */
+  /** Account of the staff member and the code of the one role it holds. */
   @Builder
-  public record Account(UUID id, String username, String status, List<String> roleCodes) {
-    public Account {
-      roleCodes = roleCodes == null ? List.of() : List.copyOf(roleCodes);
-    }
-  }
+  public record Account(UUID id, String username, String status, String roleCode) {}
 
   public static StaffMemberResponse created(StaffMember staffMember, StaffAccount account) {
     return StaffMemberResponse.builder()
@@ -43,7 +38,7 @@ public record StaffMemberResponse(
         .rowVersion(staffMember.rowVersion())
         .account(
             new Account(
-                account.id(), account.username(), account.status().name(), account.roleCodes()))
+                account.id(), account.username(), account.status().name(), account.role().code()))
         .build();
   }
 
@@ -62,7 +57,7 @@ public record StaffMemberResponse(
         .account(
             account == null
                 ? null
-                : new Account(account.id(), account.username(), account.status(), account.roleCodes()))
+                : new Account(account.id(), account.username(), account.status(), account.roleCode()))
         .build();
   }
 }

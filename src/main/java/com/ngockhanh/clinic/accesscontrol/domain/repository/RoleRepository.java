@@ -1,16 +1,15 @@
 package com.ngockhanh.clinic.accesscontrol.domain.repository;
 
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleRef;
-import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 
-/** Looks up roles for grants. */
+/** Looks up roles for new accounts. */
 public interface RoleRepository {
   /**
-   * Finds the active roles among the codes. Unknown or inactive codes are absent from the result.
+   * Finds an active role by its exact code.
    *
-   * @param codes role codes, compared exactly
-   * @return matching active roles ordered by code
+   * @param code role code
+   * @return the role, or empty when the code is unknown or the role is inactive
    */
-  List<RoleRef> findActiveByCodes(Set<String> codes);
+  Optional<RoleRef> findActiveByCode(String code);
 }

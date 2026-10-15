@@ -9,9 +9,7 @@ import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.Sex;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.StaffMemberStatus;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleRef;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -21,18 +19,18 @@ class StaffAccountTest {
   private static final LocalDate TODAY = LocalDate.of(2026, 10, 13);
 
   @Test
-  void opensAnActiveAccountWithDistinctRolesOrderedByCode() {
-    var account = open(List.of(RECEPTIONIST, DOCTOR, RECEPTIONIST));
+  void opensAnActiveAccountHoldingOneRole() {
+    var account = open(DOCTOR);
 
     assertThat(account.status()).isEqualTo(AccountStatus.ACTIVE);
-    assertThat(account.roleCodes()).containsExactly("GENERAL_PRACTITIONER", "RECEPTIONIST");
+    assertThat(account.role()).isEqualTo(DOCTOR);
     assertThat(account.toString()).doesNotContain("{bcrypt}");
   }
 
   @Test
-  void requiresARoleAndNeverGrantsThePatientRole() {
-    assertThatThrownBy(() -> open(List.of())).isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(() -> open(List.of(new RoleRef(UUID.randomUUID(), "PATIENT"))))
+  void requiresARoleAndNeverHoldsThePatientRole() {
+    assertThatThrownBy(() -> open(null)).isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> open(new RoleRef(UUID.randomUUID(), "PATIENT")))
         .isInstanceOf(IllegalArgumentException.class);
   }
 
@@ -68,15 +66,13 @@ class StaffAccountTest {
         .isInstanceOf(IllegalArgumentException.class);
   }
 
-  private static StaffAccount open(List<RoleRef> roles) {
+  private static StaffAccount open(RoleRef role) {
     return StaffAccount.open(
         UUID.randomUUID(),
         UUID.randomUUID(),
         "annv1",
         "{bcrypt}hash",
-        roles,
-        UUID.randomUUID(),
-        Instant.parse("2026-10-13T01:00:00Z"));
+        role);
   }
 
   private static StaffAccount openWithUsername(String username) {
@@ -85,8 +81,6 @@ class StaffAccountTest {
         UUID.randomUUID(),
         username,
         "{bcrypt}hash",
-        List.of(RECEPTIONIST),
-        UUID.randomUUID(),
-        Instant.parse("2026-10-13T01:00:00Z"));
+        RECEPTIONIST);
   }
 }

@@ -1,10 +1,8 @@
 package com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper;
 
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.StaffMemberRecord;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.AccountRoleCodeView;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffMemberListView;
 import java.util.List;
-import java.util.UUID;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -31,7 +29,4 @@ public interface StaffMemberMyBatisMapper {
 
   /** Counts staff members with the same predicate as {@link #search}. */
   Long count(@Param("pattern") String pattern);
-
-  /** Active role codes of the accounts, ordered by account and code. */
-  List<AccountRoleCodeView> findActiveRoleCodes(@Param("accountIds") List<UUID> accountIds);
 }

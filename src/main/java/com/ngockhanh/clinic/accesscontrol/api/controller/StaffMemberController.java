@@ -57,7 +57,7 @@ public class StaffMemberController {
   /**
    * Creates a staff member and its STAFF account with generated staff code and username.
    *
-   * @param request staff member details, temporary password and roles
+   * @param request staff member details, temporary password and role
    * @param principal authenticated staff principal
    * @return the created staff member with its account
    */
@@ -65,7 +65,7 @@ public class StaffMemberController {
   public ResponseEntity<ApiResponse<StaffMemberResponse>> create(
       @Valid @RequestBody CreateStaffMemberRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
-    log.info("Create staff member request received: roles={}", request.roleCodes().size());
+    log.info("Create staff member request received");
     StaffMemberResponse response = createStaffMemberUseCase.execute(request.toCommand(), principal);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(HttpStatus.CREATED.value(), "Staff member created", response));

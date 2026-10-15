@@ -36,7 +36,7 @@ BEGIN
             ('STAFF_MEMBER_VIEW', 'GET', '/api/v1/staff-members'),
             ('USER_ACCOUNT_CREATE', 'POST', '/api/v1/staff-members'),
             ('ROLE_VIEW', 'GET', '/api/v1/roles'))) <> 3 THEN
-        RAISE EXCEPTION 'Staff member permissions must exist without another endpoint before V008';
+        RAISE EXCEPTION 'Staff member permissions must exist without another endpoint before V004';
     END IF;
 END
 $$;

@@ -3,7 +3,7 @@ package com.ngockhanh.clinic.accesscontrol.domain.repository;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.UsernameBase;
 
-/** Stores new staff accounts with their role grants. */
+/** Stores new staff accounts. */
 public interface StaffAccountRepository {
   /**
    * Allocates the next free username: the base followed by the next number, starting at 1. Holds a
@@ -15,10 +15,10 @@ public interface StaffAccountRepository {
   String nextUsername(UsernameBase base);
 
   /**
-   * Inserts the account and its role grants.
+   * Inserts the account with its role.
    *
    * @param account the account to insert
-   * @throws IllegalStateException when a row is not inserted
+   * @throws IllegalStateException when the row is not inserted
    */
   void save(StaffAccount account);
 }

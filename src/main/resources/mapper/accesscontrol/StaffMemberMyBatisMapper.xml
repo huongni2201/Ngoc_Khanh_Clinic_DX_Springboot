@@ -20,6 +20,7 @@
     <sql id="searchFrom">
         FROM public.staff_members s
         LEFT JOIN public.accounts a ON a.staff_member_id = s.id AND a.account_type = 'STAFF'
+        LEFT JOIN public.roles r ON r.id = a.role_id
         <where>
             <if test="pattern != null">
                 s.staff_code ILIKE #{pattern} ESCAPE '\'
@@ -32,7 +33,7 @@
     <!-- Column order matches the StaffMemberListView components. -->
     <select id="search" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffMemberListView">
         SELECT s.id, s.staff_code, s.full_name, s.date_of_birth, s.sex, s.phone, s.email, s.status,
-               s.row_version, a.id AS account_id, a.username, a.status AS account_status
+               s.row_version, a.id AS account_id, a.username, a.status AS account_status, r.code AS role_code
         <include refid="searchFrom"/>
         ORDER BY
         <choose>
@@ -48,14 +49,5 @@
 
     <select id="count" resultType="java.lang.Long">
         SELECT COUNT(*) <include refid="searchFrom"/>
-    </select>
-
-    <select id="findActiveRoleCodes" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.AccountRoleCodeView">
-        SELECT ar.account_id, r.code AS role_code
-        FROM public.account_roles ar
-        JOIN public.roles r ON r.id = ar.role_id AND r.active = true
-        WHERE ar.account_id IN
-        <foreach collection="accountIds" item="accountId" open="(" separator="," close=")">#{accountId}</foreach>
-        ORDER BY ar.account_id, r.code
     </select>
 </mapper>

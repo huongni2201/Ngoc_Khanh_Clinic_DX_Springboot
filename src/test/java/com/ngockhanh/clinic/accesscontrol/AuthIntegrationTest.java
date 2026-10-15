@@ -172,28 +172,35 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(32);
-    Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     assertThat(endpoints).hasSize(35);
-    Cookie withoutRole = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
 
+    // An account holds one role: business routes belong to the Clinic Manager, staff
+    // administration routes (V004) to the Administrator.
     assignRole("CLINIC_MANAGER");
-    assignRole("ADMINISTRATOR");
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
-
-    Cookie granted = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
-      int status = call(endpoint, granted).andReturn().getResponse().getStatus();
+      if (ADMINISTRATION_PERMISSIONS.contains(endpoint.code())) continue;
+      int status = call(endpoint, manager).andReturn().getResponse().getStatus();
+      assertThat(status).as(endpoint.httpMethod() + " " + endpoint.endpoint()).isNotIn(401, 403);
+    }
+
+    assignRole("ADMINISTRATOR");
+    Cookie administrator = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    for (PermissionRecord endpoint : endpoints) {
+      if (!ADMINISTRATION_PERMISSIONS.contains(endpoint.code())) continue;
+      int status = call(endpoint, administrator).andReturn().getResponse().getStatus();
       assertThat(status).as(endpoint.httpMethod() + " " + endpoint.endpoint()).isNotIn(401, 403);
     }
   }
 
-  /** Staff administration routes (V008) belong to the Administrator, not the Clinic Manager. */
+  /** Staff administration routes (V004) belong to the Administrator, not the Clinic Manager. */
   private static final java.util.Set<String> ADMINISTRATION_PERMISSIONS =
       java.util.Set.of("STAFF_MEMBER_VIEW", "USER_ACCOUNT_CREATE", "ROLE_VIEW");
 

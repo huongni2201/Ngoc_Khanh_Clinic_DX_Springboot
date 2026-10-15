@@ -7,11 +7,9 @@ import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffMember;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.AccountType;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleRef;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.AccountRecord;
-import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.AccountRoleRecord;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.StaffMemberRecord;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffMemberListView;
-import java.util.List;
 
 /** Maps staff administration domain objects and SQL views without querying. */
 public final class StaffMemberPersistenceConverter {
@@ -33,24 +31,12 @@ public final class StaffMemberPersistenceConverter {
     return AccountRecord.builder()
         .id(account.id())
         .accountType(AccountType.STAFF.name())
+        .roleId(account.role().id())
         .username(account.username())
         .passwordHash(account.passwordHash())
         .staffMemberId(account.staffMemberId())
         .status(account.status().name())
         .build();
-  }
-
-  public List<AccountRoleRecord> toRoleRecords(StaffAccount account) {
-    return account.roles().stream()
-        .map(
-            role ->
-                AccountRoleRecord.builder()
-                    .accountId(account.id())
-                    .roleId(role.id())
-                    .grantedBy(account.grantedBy())
-                    .grantedAt(account.grantedAt())
-                    .build())
-        .toList();
   }
 
   public RoleRef toRoleRef(RoleRecord role) {
@@ -61,7 +47,7 @@ public final class StaffMemberPersistenceConverter {
     return new AssignableRole(role.id(), role.code(), role.name(), role.description());
   }
 
-  public StaffMemberSummary toSummary(StaffMemberListView row, List<String> roleCodes) {
+  public StaffMemberSummary toSummary(StaffMemberListView row) {
     return StaffMemberSummary.builder()
         .id(row.id())
         .staffCode(row.staffCode())
@@ -76,7 +62,7 @@ public final class StaffMemberPersistenceConverter {
             row.accountId() == null
                 ? null
                 : new StaffMemberSummary.Account(
-                    row.accountId(), row.username(), row.accountStatus(), roleCodes))
+                    row.accountId(), row.username(), row.accountStatus(), row.roleCode()))
         .build();
   }
 }

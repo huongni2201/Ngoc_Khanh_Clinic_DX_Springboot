@@ -46,7 +46,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * Exercises the staff member and role controllers through the production cookie, Origin and
- * permission filters, with the endpoints bound exactly as {@code V008} stores them.
+ * permission filters, with the endpoints bound exactly as {@code V004} stores them.
  */
 @WebMvcTest(
     controllers = {StaffMemberController.class, RoleController.class},
@@ -66,7 +66,7 @@ class StaffMemberSecurityWebMvcTest {
   private static final String COOKIE = "__Host-NKC_SESSION";
   private static final String VALID_BODY =
       """
-      {"fullName":"Nguyễn Văn An","initialPassword":"Tam@12345","roleCodes":["GENERAL_PRACTITIONER"]}
+      {"fullName":"Nguyễn Văn An","initialPassword":"Tam@12345","roleCode":"GENERAL_PRACTITIONER"}
       """;
 
   /** The three endpoints and their permissions as stored in {@code public.permissions}. */
@@ -133,7 +133,7 @@ class StaffMemberSecurityWebMvcTest {
         .doesNotContain("Tam@12345");
     var command = ArgumentCaptor.forClass(CreateStaffMemberCommand.class);
     verify(create).execute(command.capture(), eq(admin));
-    assertThat(command.getValue().roleCodes()).containsExactly("GENERAL_PRACTITIONER");
+    assertThat(command.getValue().roleCode()).isEqualTo("GENERAL_PRACTITIONER");
     assertThat(command.getValue().initialPassword()).isEqualTo("Tam@12345");
   }
 
@@ -145,7 +145,7 @@ class StaffMemberSecurityWebMvcTest {
         perform(
             postJson(
                 """
-                {"fullName":"An","initialPassword":"%s","roleCodes":["RECEPTIONIST"]}
+                {"fullName":"An","initialPassword":"%s","roleCode":"RECEPTIONIST"}
                 """
                     .formatted("ệ".repeat(25))),
             "admin");
@@ -153,13 +153,13 @@ class StaffMemberSecurityWebMvcTest {
     assertThat(tooLong.getContentAsString()).contains("\"field\":\"initialPassword\"");
 
     var noRoles =
-        perform(postJson("{\"fullName\":\"An\",\"initialPassword\":\"Tam@12345\",\"roleCodes\":[]}"), "admin");
+        perform(postJson("{\"fullName\":\"An\",\"initialPassword\":\"Tam@12345\",\"roleCode\":\" \"}"), "admin");
     assertThat(noRoles.getStatus()).isEqualTo(400);
-    assertThat(noRoles.getContentAsString()).contains("\"field\":\"roleCodes\"");
+    assertThat(noRoles.getContentAsString()).contains("\"field\":\"roleCode\"");
 
     var noLetters =
         perform(
-            postJson("{\"fullName\":\"123\",\"initialPassword\":\"Tam@12345\",\"roleCodes\":[\"X\"]}"),
+            postJson("{\"fullName\":\"123\",\"initialPassword\":\"Tam@12345\",\"roleCode\":\"X\"}"),
             "admin");
     assertThat(noLetters.getStatus()).isEqualTo(400);
     verifyNoInteractions(create);

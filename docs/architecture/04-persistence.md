@@ -12,7 +12,7 @@ the six optional Participant personal-detail columns, nullable Organization
 account holds exactly one role (`accounts.role_id`, required); the account-role trigger
 allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-Fresh databases apply three migrations: one schema initializer and two data-only seeds. The
+Fresh databases apply one schema initializer, two data-only seeds and the additive V004. The
 owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
 amendment (V004–V009, and the removal of `account_roles`) into them:
 
@@ -21,11 +21,7 @@ amendment (V004–V009, and the removal of `account_roles`) into them:
 | `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
-| `V004__document_template_lifecycle.sql` | Additive: template-version lifecycle (DRAFT → PUBLISHED \| DISCARDED), page layout, protection triggers |
-| `V005__document_print_permissions.sql` | Additive: `PARTICIPANT_EXAMINATION_FORM_PRINT` endpoint permission |
-| `V006__document_render_jobs.sql` | Additive: `document_render_jobs`, `document_render_job_outputs` and the three bulk-print permissions |
-| `V007__health_examination_batch_start_permission.sql` | Additive: `HEALTH_EXAMINATION_BATCH_START` endpoint permission |
-| `V008__staff_member_management_permissions.sql` | Additive: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
+| `V004__staff_member_management_permissions.sql` | Additive, after the baseline: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. The
