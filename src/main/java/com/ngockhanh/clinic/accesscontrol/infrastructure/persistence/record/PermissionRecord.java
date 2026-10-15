@@ -6,4 +6,12 @@ import lombok.Builder;
 /** Persistence row of {@code public.permissions}. */
 @Builder
 public record PermissionRecord(
-    UUID id, String code, String name, String description, String httpMethod, String endpoint) {}
+    UUID id,
+    String code,
+    String name,
+    String description,
+    String httpMethod,
+    String endpoint,
+    String module,
+    String useCases,
+    boolean sensitive) {}

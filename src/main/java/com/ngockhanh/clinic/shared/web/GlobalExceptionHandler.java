@@ -5,6 +5,7 @@ import com.ngockhanh.clinic.shared.exception.BusinessRuleException;
 import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
+import com.ngockhanh.clinic.shared.exception.FieldConflictException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
 import com.ngockhanh.clinic.shared.exception.UnsupportedFileTypeException;
@@ -115,6 +116,23 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ConflictException.class)
   ResponseEntity<ApiResponse<Void>> conflict(ConflictException exception) {
     return error(HttpStatus.CONFLICT, exception.getMessage());
+  }
+
+  /** Names the field whose value another record already uses, like a validation error does. */
+  @ExceptionHandler(FieldConflictException.class)
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> fieldConflict(
+      FieldConflictException exception) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.error(
+                HttpStatus.CONFLICT.value(),
+                "Duplicate value: " + exception.field(),
+                List.of(
+                    new FieldErrorDetail(
+                        exception.field(),
+                        FieldConflictException.DUPLICATE,
+                        exception.getMessage()))));
   }
 
   @ExceptionHandler(UnprocessableEntityException.class)

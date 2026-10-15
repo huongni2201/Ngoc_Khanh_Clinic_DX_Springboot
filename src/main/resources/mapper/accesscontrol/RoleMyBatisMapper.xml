@@ -3,15 +3,138 @@
 <mapper namespace="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.RoleMyBatisMapper">
     <!-- Column order matches the RoleRecord components. -->
     <select id="findActiveByCode" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">
-        SELECT id, code, name, description, active
+        SELECT id, code, name, description, active, row_version
         FROM public.roles
         WHERE active = true AND code = #{code}
     </select>
 
     <select id="findAssignable" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">
-        SELECT id, code, name, description, active
+        SELECT id, code, name, description, active, row_version
         FROM public.roles
         WHERE active = true AND code &lt;&gt; 'PATIENT'
         ORDER BY code
+    </select>
+
+    <select id="findById" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">
+        SELECT id, code, name, description, active, row_version
+        FROM public.roles
+        WHERE id = #{id}
+    </select>
+
+    <select id="existsByCode" resultType="java.lang.Boolean">
+        SELECT EXISTS (SELECT 1 FROM public.roles WHERE code = #{code})
+    </select>
+
+    <!-- lower(name) is backed by uq_roles_name_lower (BR-11). -->
+    <select id="existsByName" resultType="java.lang.Boolean">
+        SELECT EXISTS (
+            SELECT 1 FROM public.roles
+            WHERE lower(name) = lower(#{name})
+            <if test="excludedId != null">AND id &lt;&gt; #{excludedId}</if>
+        )
+    </select>
+
+    <insert id="insert">
+        INSERT INTO public.roles (id, code, name, description, active, row_version)
+        VALUES (#{id}, #{code}, #{name}, #{description}, #{active}, #{rowVersion})
+    </insert>
+
+    <update id="update">
+        UPDATE public.roles
+        SET name = #{role.name}, description = #{role.description}, active = #{role.active},
+            row_version = row_version + 1
+        WHERE id = #{role.id} AND row_version = #{expectedRowVersion}
+    </update>
+
+    <update id="incrementRowVersion">
+        UPDATE public.roles
+        SET row_version = row_version + 1
+        WHERE id = #{id} AND row_version = #{expectedRowVersion}
+    </update>
+
+    <select id="findGrantedPermissionCodes" resultType="java.lang.String">
+        SELECT p.code
+        FROM public.role_permissions rp
+        JOIN public.permissions p ON p.id = rp.permission_id
+        WHERE rp.role_id = #{roleId}
+        ORDER BY p.code
+    </select>
+
+    <select id="countExistingPermissions" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM public.permissions
+        WHERE code IN <foreach collection="codes" item="code" open="(" separator="," close=")">#{code}</foreach>
+    </select>
+
+    <insert id="grantPermissions">
+        INSERT INTO public.role_permissions (role_id, permission_id)
+        SELECT #{roleId}, p.id
+        FROM public.permissions p
+        WHERE p.code IN <foreach collection="codes" item="code" open="(" separator="," close=")">#{code}</foreach>
+        ON CONFLICT (role_id, permission_id) DO NOTHING
+    </insert>
+
+    <delete id="revokePermissions">
+        DELETE FROM public.role_permissions rp
+        USING public.permissions p
+        WHERE rp.permission_id = p.id
+          AND rp.role_id = #{roleId}
+          AND p.code IN <foreach collection="codes" item="code" open="(" separator="," close=")">#{code}</foreach>
+    </delete>
+
+    <insert id="copyPermissions">
+        INSERT INTO public.role_permissions (role_id, permission_id)
+        SELECT #{targetRoleId}, permission_id
+        FROM public.role_permissions
+        WHERE role_id = #{sourceRoleId}
+        ON CONFLICT (role_id, permission_id) DO NOTHING
+    </insert>
+
+    <!-- Column order matches the RoleListView components. -->
+    <sql id="listColumns">
+        SELECT r.id, r.code, r.name, r.description, r.active, r.row_version,
+               (SELECT COUNT(*) FROM public.role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
+               (SELECT COUNT(*) FROM public.accounts a WHERE a.role_id = r.id) AS user_count
+        FROM public.roles r
+    </sql>
+
+    <sql id="searchWhere">
+        <where>
+            <if test="pattern != null">
+                r.name ILIKE #{pattern} ESCAPE '\'
+            </if>
+            <if test="active != null">AND r.active = #{active}</if>
+        </where>
+    </sql>
+
+    <select id="search" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.RoleListView">
+        <include refid="listColumns"/>
+        <include refid="searchWhere"/>
+        ORDER BY
+        <choose>
+            <when test="sortKey == 'name' and sortBy == 'DESC'">r.name DESC, r.id DESC</when>
+            <when test="sortKey == 'name'">r.name ASC, r.id ASC</when>
+            <when test="sortKey == 'code' and sortBy == 'DESC'">r.code DESC</when>
+            <when test="sortKey == 'code'">r.code ASC</when>
+            <when test="sortBy == 'DESC'">r.id DESC</when>
+            <otherwise>r.id ASC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM public.roles r
+        <include refid="searchWhere"/>
+    </select>
+
+    <select id="findListViewById" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.RoleListView">
+        <include refid="listColumns"/>
+        WHERE r.id = #{id}
+    </select>
+
+    <!-- Column order matches the PermissionRecord components. -->
+    <select id="findPermissionCatalog" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord">
+        SELECT id, code, name, description, http_method, endpoint, module, use_cases, sensitive
+        FROM public.permissions
+        ORDER BY module, code
     </select>
 </mapper>

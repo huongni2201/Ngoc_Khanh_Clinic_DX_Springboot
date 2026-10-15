@@ -60,6 +60,23 @@ entry for one Participant). V002 seeds them and grants both to every role that h
 `HEALTH_EXAMINATION_SERVICE_RECONCILE`. Sessions must sign in again to receive them. See
 [the examination detail contract](../api/examination-details-and-report.md).
 
+### Role administration amendment — 2026-10-15
+
+The owner approved role and role permission administration (SRS UC-008, UC-009;
+[the contract](../api/roles-and-permissions.md)). `V005__role_permission_management.sql`:
+
+- binds `ROLE_MANAGE` and `ROLE_PERMISSION_ASSIGN` to their endpoints and adds `ROLE_CREATE`,
+  `ROLE_UPDATE`, `PERMISSION_VIEW` and `ROLE_PERMISSION_VIEW`, granted to `ADMINISTRATOR`; these four
+  must be added to the SRS matrix;
+- adds `roles.row_version`, makes `roles.description` optional, enforces the role code format and a
+  case-insensitive unique role name (BR-11);
+- adds `permissions.module`, `use_cases` and `sensitive` for the Role Permissions screen. The
+  `sensitive` list awaits stakeholder confirmation.
+
+Permissions stay predefined: no endpoint creates one, because a permission only takes effect
+through the endpoint it is bound to. The `ADMINISTRATOR` role cannot be deactivated and keeps the
+role administration permissions, so roles can always be administered again (not in the SRS yet).
+
 ### Enforcement
 
 - Each endpoint is stored with its permission: `permissions.http_method` and
