@@ -10,7 +10,6 @@ import com.ngockhanh.clinic.accesscontrol.application.command.CreateStaffMemberC
 import com.ngockhanh.clinic.accesscontrol.application.query.ListStaffMembersQuery;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
-import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateStaffMemberUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListAssignableRolesUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListStaffMembersUseCase;
@@ -59,7 +58,6 @@ class StaffMemberProvisioningIntegrationTest {
       })
   @org.springframework.context.annotation.Import({
     ClockConfiguration.class,
-    StaffAdministrationPolicy.class,
     CreateStaffMemberUseCase.class,
     ListStaffMembersUseCase.class,
     ListAssignableRolesUseCase.class,
@@ -126,10 +124,10 @@ class StaffMemberProvisioningIntegrationTest {
                         UUID.randomUUID(),
                         "ADMINISTRATOR",
                         List.of(
-                            StaffAdministrationPolicy.VIEW_PERMISSION,
-                            StaffAdministrationPolicy.ROLE_VIEW_PERMISSION,
-                            StaffAdministrationPolicy.CREATE_PERMISSION,
-                            StaffAdministrationPolicy.ROLE_ASSIGN_PERMISSION))))
+                            ListStaffMembersUseCase.VIEW_PERMISSION,
+                            ListAssignableRolesUseCase.ROLE_VIEW_PERMISSION,
+                            CreateStaffMemberUseCase.CREATE_PERMISSION,
+                            CreateStaffMemberUseCase.ROLE_ASSIGN_PERMISSION))))
             .build();
   }
 

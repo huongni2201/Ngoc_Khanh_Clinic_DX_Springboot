@@ -3,7 +3,6 @@ package com.ngockhanh.clinic.accesscontrol.application.usecase;
 import com.ngockhanh.clinic.accesscontrol.application.command.CreateStaffMemberCommand;
 import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffMember;
 import com.ngockhanh.clinic.accesscontrol.domain.enums.Sex;
@@ -40,9 +39,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreateStaffMemberUseCase {
   static final String CREATE_STAFF_MEMBER = "CREATE_STAFF_MEMBER";
   static final String CREATE_ACCOUNT = "CREATE_ACCOUNT";
+  public static final String CREATE_PERMISSION = "USER_ACCOUNT_CREATE";
+  public static final String ROLE_ASSIGN_PERMISSION = "USER_ROLE_ASSIGN";
   private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
-  private final StaffAdministrationPolicy policy;
   private final StaffMemberRepository staffMembers;
   private final StaffAccountRepository accounts;
   private final RoleRepository roles;
@@ -64,7 +64,7 @@ public class CreateStaffMemberUseCase {
    */
   @Transactional
   public StaffMemberSummary execute(CreateStaffMemberCommand command, UserPrincipal principal) {
-    policy.requireCreate(principal);
+    requireCreate(principal);
     if (command == null) throw new IllegalArgumentException("Staff member command is required");
     if (command.roleCode() == null || command.roleCode().isBlank())
       throw new IllegalArgumentException("Role code is required");
@@ -122,6 +122,28 @@ public class CreateStaffMemberUseCase {
         staffMember.id(),
         account.id());
     return StaffMemberSummary.created(staffMember, account);
+  }
+
+  /**
+   * Requires permission to create an account and to grant its role. An actor ID alone proves
+   * nothing: the principal must be a staff account whose roles carry both permissions, whatever the
+   * caller (docs/api/staff-members.md).
+   */
+  private static void requireCreate(UserPrincipal principal) {
+    Boolean allowed =
+        principal != null
+            && principal.userId() != null
+            && "STAFF".equals(principal.principalType())
+            && holdsPermission(principal, CREATE_PERMISSION)
+            && holdsPermission(principal, ROLE_ASSIGN_PERMISSION);
+    if (!allowed)
+      throw new ApplicationException(
+          ApplicationException.Type.ACCESS_DENIED, "You are not authorized to perform this action");
+  }
+
+  private static Boolean holdsPermission(UserPrincipal principal, String permission) {
+    return principal.roleAssignments().stream()
+        .anyMatch(role -> role.permissions().contains(permission));
   }
 
   /**

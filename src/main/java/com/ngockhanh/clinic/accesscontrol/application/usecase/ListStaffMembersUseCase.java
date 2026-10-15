@@ -4,7 +4,6 @@ import com.ngockhanh.clinic.accesscontrol.application.port.out.StaffMemberDirect
 import com.ngockhanh.clinic.accesscontrol.application.query.ListStaffMembersQuery;
 import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.web.PageResponse;
@@ -23,10 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ListStaffMembersUseCase {
+  public static final String VIEW_PERMISSION = "STAFF_MEMBER_VIEW";
   static final Integer MAX_SEARCH_KEY_LENGTH = 100;
   private static final Set<String> SORT_KEYS = Set.of("id", "staffCode", "fullName");
 
-  private final StaffAdministrationPolicy policy;
   private final StaffMemberDirectory directory;
 
   /**
@@ -41,7 +40,7 @@ public class ListStaffMembersUseCase {
   @Transactional(readOnly = true)
   public PageResponse<StaffMemberSummary> execute(
       ListStaffMembersQuery query, UserPrincipal principal) {
-    policy.requireView(principal);
+    requireView(principal);
     if (query == null) throw new IllegalArgumentException("List query is required");
     Integer page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
     Integer size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
@@ -76,5 +75,22 @@ public class ListStaffMembersUseCase {
         result.items().size(),
         result.totalElements());
     return result;
+  }
+
+  /**
+   * Requires permission to list staff members. An actor ID alone proves nothing: the principal must
+   * be a staff account whose roles carry the permission, whatever the caller
+   * (docs/api/staff-members.md).
+   */
+  private static void requireView(UserPrincipal principal) {
+    Boolean allowed =
+        principal != null
+            && principal.userId() != null
+            && "STAFF".equals(principal.principalType())
+            && principal.roleAssignments().stream()
+                .anyMatch(role -> role.permissions().contains(VIEW_PERMISSION));
+    if (!allowed)
+      throw new ApplicationException(
+          ApplicationException.Type.ACCESS_DENIED, "You are not authorized to perform this action");
   }
 }

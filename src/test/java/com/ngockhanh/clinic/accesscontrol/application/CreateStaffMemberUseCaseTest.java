@@ -14,7 +14,6 @@ import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.accesscontrol.application.command.CreateStaffMemberCommand;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateStaffMemberUseCase;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffMember;
@@ -47,7 +46,6 @@ class CreateStaffMemberUseCaseTest {
   private final UserPasswordEncoder passwords = new UserPasswordEncoder();
   private final CreateStaffMemberUseCase useCase =
       new CreateStaffMemberUseCase(
-          new StaffAdministrationPolicy(),
           staffMembers,
           accounts,
           roles,
@@ -99,7 +97,7 @@ class CreateStaffMemberUseCaseTest {
             .roleAssignments(
                 List.of(
                     new UserPrincipal.Assignment(
-                        UUID.randomUUID(), "X", List.of(StaffAdministrationPolicy.CREATE_PERMISSION))))
+                        UUID.randomUUID(), "X", List.of(CreateStaffMemberUseCase.CREATE_PERMISSION))))
             .build();
 
     assertThatThrownBy(() -> useCase.execute(command("GENERAL_PRACTITIONER"), createOnly))
@@ -149,8 +147,8 @@ class CreateStaffMemberUseCaseTest {
                     UUID.randomUUID(),
                     "ADMINISTRATOR",
                     List.of(
-                        StaffAdministrationPolicy.CREATE_PERMISSION,
-                        StaffAdministrationPolicy.ROLE_ASSIGN_PERMISSION))))
+                        CreateStaffMemberUseCase.CREATE_PERMISSION,
+                        CreateStaffMemberUseCase.ROLE_ASSIGN_PERMISSION))))
         .build();
   }
 
