@@ -107,8 +107,8 @@ move a batch to FINALIZED or CLOSED.
 ## Authorization limits
 
 V002 grants the mapped Organization/Batch permissions above to CLINIC_MANAGER.
-The local seed additionally grants every permission to TEST and ADMINISTRATOR;
-these roles use the same endpoint checks. Current Organization/Batch use cases
+The local seed additionally grants every permission to TEST;
+it uses the same endpoint checks. Current Organization/Batch use cases
 still lack equivalent principal-based permission checks for direct callers.
 See [Open items](../architecture/07-open-items.md#endpoint-authorization) before
 using a mapped handler as evidence that an operation is production-ready.

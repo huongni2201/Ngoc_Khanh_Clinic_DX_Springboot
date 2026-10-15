@@ -32,6 +32,12 @@ class GlobalExceptionHandlerTest {
     assertError(
         handler.duplicate(new org.springframework.dao.DuplicateKeyException("unique index")), 409);
     assertError(handler.notFound(new ResourceNotFoundException("patient")), 404);
+    ResponseEntity<ApiResponse<Void>> unprocessable =
+        handler.unprocessable(
+            new com.ngockhanh.clinic.shared.exception.UnprocessableEntityException(
+                "The role is not available"));
+    assertError(unprocessable, 422);
+    assertThat(unprocessable.getBody().message()).isEqualTo("The role is not available");
     assertError(handler.concurrency(new ConcurrentUpdateException()), 409);
     ResponseEntity<ApiResponse<Void>> customConflict =
         handler.concurrency(

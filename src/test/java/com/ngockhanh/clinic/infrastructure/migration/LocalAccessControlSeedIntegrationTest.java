@@ -17,6 +17,39 @@ class LocalAccessControlSeedIntegrationTest {
   static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18-alpine");
 
   @Test
+  void grantsPermissionsAddedAfterTheSeedToTheLocalTestRoleOnTheNextMigrate() {
+    var flyway =
+        Flyway.configure()
+            .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+            .locations("classpath:db/migration", "classpath:db/local")
+            .load();
+    flyway.migrate();
+    var jdbc =
+        new JdbcTemplate(
+            new DriverManagerDataSource(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
+    // A permission added to an existing database after the repeatable seed already ran.
+    jdbc.update(
+        "INSERT INTO public.permissions (code, name, description) VALUES"
+            + " ('LOCAL_LATER_PERMISSION', 'Later', 'Added by a later migration') ON CONFLICT DO NOTHING");
+
+    assertThat(flyway.migrate().migrationsExecuted).isZero();
+
+    assertThat(
+            jdbc.queryForList(
+                "SELECT role.code FROM public.role_permissions grant_row "
+                    + "JOIN public.roles role ON role.id=grant_row.role_id "
+                    + "JOIN public.permissions permission ON permission.id=grant_row.permission_id "
+                    + "WHERE permission.code='LOCAL_LATER_PERMISSION'",
+                String.class))
+        .containsExactly("TEST");
+    jdbc.update(
+        "DELETE FROM public.role_permissions WHERE permission_id ="
+            + " (SELECT id FROM public.permissions WHERE code='LOCAL_LATER_PERMISSION')");
+    jdbc.update("DELETE FROM public.permissions WHERE code='LOCAL_LATER_PERMISSION'");
+  }
+
+  @Test
   void seedsRoleSpecificAccountsAndGrantsIdempotently() {
     var flyway =
         Flyway.configure()
@@ -36,15 +69,15 @@ class LocalAccessControlSeedIntegrationTest {
                 "SELECT role.code FROM public.accounts account "
                     + "JOIN public.roles role ON role.id=account.role_id "
                     + "WHERE account.username IN ('administrator','receptionist',"
-                    + "'general_practitioner','diagnostic_doctor','data_entry_staff',"
+                    + "'general_practitioner','diagnostic_doctor','nurse',"
                     + "'clinic_manager','patient','test') ORDER BY role.code",
                 String.class))
         .containsExactly(
             "ADMINISTRATOR",
             "CLINIC_MANAGER",
-            "DATA_ENTRY_STAFF",
             "DIAGNOSTIC_DOCTOR",
             "GENERAL_PRACTITIONER",
+            "NURSE",
             "PATIENT",
             "RECEPTIONIST",
             "TEST");
@@ -82,12 +115,5 @@ class LocalAccessControlSeedIntegrationTest {
             "PARTICIPANT_UPDATE",
             "PARTICIPANT_REMOVE",
             "PARTICIPANT_REACTIVATE");
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT COUNT(*) FROM public.role_permissions grant_row "
-                    + "JOIN public.roles role ON role.id=grant_row.role_id "
-                    + "WHERE role.code='ADMINISTRATOR'",
-                Integer.class))
-        .isEqualTo(jdbc.queryForObject("SELECT COUNT(*) FROM public.permissions", Integer.class));
   }
 }

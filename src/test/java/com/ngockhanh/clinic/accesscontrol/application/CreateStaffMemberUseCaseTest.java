@@ -26,7 +26,7 @@ import com.ngockhanh.clinic.accesscontrol.domain.valueobject.UsernameBase;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.UserPasswordEncoder;
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
-import com.ngockhanh.clinic.shared.exception.ConflictException;
+import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -110,15 +110,15 @@ class CreateStaffMemberUseCaseTest {
   }
 
   @Test
-  void rejectsAnUnknownOrPatientRoleAsAConflictWithoutWriting() {
+  void rejectsAnUnknownOrPatientRoleAsUnprocessableWithoutWriting() {
     when(roles.findActiveByCode("GONE")).thenReturn(Optional.empty());
     assertThatThrownBy(() -> useCase.execute(command("GONE"), admin()))
-        .isInstanceOf(ConflictException.class);
+        .isInstanceOf(UnprocessableEntityException.class);
 
     when(roles.findActiveByCode("PATIENT"))
         .thenReturn(Optional.of(new RoleRef(UUID.randomUUID(), "PATIENT")));
     assertThatThrownBy(() -> useCase.execute(command("PATIENT"), admin()))
-        .isInstanceOf(ConflictException.class);
+        .isInstanceOf(UnprocessableEntityException.class);
 
     verify(staffMembers, never()).save(any());
     verify(accounts, never()).save(any());
@@ -126,12 +126,16 @@ class CreateStaffMemberUseCaseTest {
   }
 
   @Test
-  void rejectsAPasswordThatIsTooShortOrTooLongForBcrypt() {
-    assertThatThrownBy(() -> useCase.execute(withPassword("short"), admin()))
-        .isInstanceOf(IllegalArgumentException.class);
+  void leavesThePasswordFormatToTheRequestButNeverHashesMoreThanBcryptReads() {
+    // 75 UTF-8 bytes: the encoder refuses it instead of silently truncating.
     assertThatThrownBy(() -> useCase.execute(withPassword("ệ".repeat(25)), admin()))
         .isInstanceOf(IllegalArgumentException.class);
     verify(staffMembers, never()).save(any());
+
+    var saved = ArgumentCaptor.forClass(StaffAccount.class);
+    useCase.execute(withPassword("A1!~" + "x".repeat(68)), admin());
+    verify(accounts).save(saved.capture());
+    assertThat(passwords.matches("A1!~" + "x".repeat(68), saved.getValue().passwordHash())).isTrue();
   }
 
   private static UserPrincipal admin() {

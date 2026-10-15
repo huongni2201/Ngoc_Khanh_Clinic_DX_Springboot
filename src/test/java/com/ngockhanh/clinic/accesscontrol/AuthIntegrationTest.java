@@ -11,6 +11,7 @@ import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import jakarta.servlet.http.Cookie;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,9 @@ class AuthIntegrationTest {
   private static final String COOKIE = "NKC_SESSION";
   private static final String ORIGIN = "http://localhost:3000";
   private static final String PASSWORD = "Mật khẩu-01";
+  /** Staff administration routes (V004) belong to the Administrator, not the Clinic Manager. */
+  private static final Set<String> ADMINISTRATION_PERMISSIONS =
+      Set.of("STAFF_MEMBER_VIEW", "USER_ACCOUNT_CREATE", "ROLE_VIEW");
 
   @Container static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:18-alpine");
 
@@ -200,12 +204,8 @@ class AuthIntegrationTest {
     }
   }
 
-  /** Staff administration routes (V004) belong to the Administrator, not the Clinic Manager. */
-  private static final java.util.Set<String> ADMINISTRATION_PERMISSIONS =
-      java.util.Set.of("STAFF_MEMBER_VIEW", "USER_ACCOUNT_CREATE", "ROLE_VIEW");
-
   @Test
-  void everyEndpointPermissionIsSeededForTheClinicManager() {
+  void everyEndpointPermissionIsSeededForItsOwningRole() {
     for (PermissionRecord endpoint : permissions.findEndpointPermissions()) {
       assertThat(
               jdbc.queryForList(

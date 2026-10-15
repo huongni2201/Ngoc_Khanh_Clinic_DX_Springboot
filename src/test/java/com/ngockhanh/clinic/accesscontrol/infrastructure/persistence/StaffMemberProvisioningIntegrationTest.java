@@ -9,7 +9,7 @@ import static org.mockito.Mockito.doThrow;
 import com.ngockhanh.clinic.accesscontrol.application.command.CreateStaffMemberCommand;
 import com.ngockhanh.clinic.accesscontrol.application.query.ListStaffMembersQuery;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.StaffMemberResponse;
+import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateStaffMemberUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListAssignableRolesUseCase;
@@ -17,7 +17,7 @@ import com.ngockhanh.clinic.accesscontrol.application.usecase.ListStaffMembersUs
 import com.ngockhanh.clinic.accesscontrol.domain.repository.UserAccountRepository;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.security.UserPasswordEncoder;
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
-import com.ngockhanh.clinic.shared.exception.ConflictException;
+import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
 import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
 import java.util.List;
 import java.util.UUID;
@@ -135,10 +135,10 @@ class StaffMemberProvisioningIntegrationTest {
 
   @Test
   void allocatesNextCodesAndUsernamesAndStoresASignInCapableAccount() {
-    StaffMemberResponse first = create.execute(command("Nguyễn Văn An", "RECEPTIONIST"), admin);
-    StaffMemberResponse second =
+    StaffMemberSummary first = create.execute(command("Nguyễn Văn An", "RECEPTIONIST"), admin);
+    StaffMemberSummary second =
         create.execute(command("Nguyễn Văn An", "GENERAL_PRACTITIONER"), admin);
-    StaffMemberResponse other = create.execute(command("Đặng Thị Đào", "CLINIC_MANAGER"), admin);
+    StaffMemberSummary other = create.execute(command("Đặng Thị Đào", "CLINIC_MANAGER"), admin);
 
     assertThat(List.of(first.staffCode(), second.staffCode(), other.staffCode()))
         .containsExactly("NV-0001", "NV-0002", "NV-0003");
@@ -184,7 +184,7 @@ class StaffMemberProvisioningIntegrationTest {
         list.execute(
             ListStaffMembersQuery.builder().sortKey("staffCode").sortBy("DESC").build(), admin);
     assertThat(byName.items())
-        .extracting(StaffMemberResponse::staffCode)
+        .extracting(StaffMemberSummary::staffCode)
         .containsExactly("NV-0002", "NV-0001", "ADMIN-1");
     assertThat(listRoles.execute(admin))
         .extracting(role -> role.code())
@@ -210,9 +210,9 @@ class StaffMemberProvisioningIntegrationTest {
   @Test
   void rejectsThePatientRoleAndAnUnknownRoleWithoutWriting() {
     assertThatThrownBy(() -> create.execute(command("Nguyễn Văn An", "PATIENT"), admin))
-        .isInstanceOf(ConflictException.class);
+        .isInstanceOf(UnprocessableEntityException.class);
     assertThatThrownBy(() -> create.execute(command("Nguyễn Văn An", "NO_SUCH_ROLE"), admin))
-        .isInstanceOf(ConflictException.class);
+        .isInstanceOf(UnprocessableEntityException.class);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.staff_members", Integer.class)).isEqualTo(1);
   }
 
@@ -222,22 +222,22 @@ class StaffMemberProvisioningIntegrationTest {
     CountDownLatch start = new CountDownLatch(1);
     ExecutorService pool = Executors.newFixedThreadPool(callers);
     try {
-      Callable<StaffMemberResponse> task =
+      Callable<StaffMemberSummary> task =
           () -> {
             start.await();
             return create.execute(command("Nguyễn Văn An", "RECEPTIONIST"), admin);
           };
-      List<Future<StaffMemberResponse>> results =
+      List<Future<StaffMemberSummary>> results =
           java.util.stream.Stream.generate(() -> pool.submit(task)).limit(callers).toList();
       start.countDown();
-      List<StaffMemberResponse> created = new java.util.ArrayList<>();
-      for (Future<StaffMemberResponse> result : results) created.add(result.get());
+      List<StaffMemberSummary> created = new java.util.ArrayList<>();
+      for (Future<StaffMemberSummary> result : results) created.add(result.get());
 
       assertThat(created)
           .extracting(response -> response.account().username())
           .containsExactlyInAnyOrder("annv1", "annv2", "annv3", "annv4");
       assertThat(created)
-          .extracting(StaffMemberResponse::staffCode)
+          .extracting(StaffMemberSummary::staffCode)
           .containsExactlyInAnyOrder("NV-0001", "NV-0002", "NV-0003", "NV-0004");
     } finally {
       pool.shutdownNow();

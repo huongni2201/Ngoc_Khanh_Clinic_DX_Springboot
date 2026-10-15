@@ -2,8 +2,8 @@ package com.ngockhanh.clinic.accesscontrol.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.port.out.StaffMemberDirectory;
 import com.ngockhanh.clinic.accesscontrol.application.query.ListStaffMembersQuery;
+import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.StaffMemberResponse;
 import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
@@ -39,7 +39,7 @@ public class ListStaffMembersUseCase {
    * @throws IllegalArgumentException when the query is null or a value is out of bounds
    */
   @Transactional(readOnly = true)
-  public PageResponse<StaffMemberResponse> execute(
+  public PageResponse<StaffMemberSummary> execute(
       ListStaffMembersQuery query, UserPrincipal principal) {
     policy.requireView(principal);
     if (query == null) throw new IllegalArgumentException("List query is required");
@@ -67,7 +67,7 @@ public class ListStaffMembersUseCase {
     if (!sortBy.equals("ASC") && !sortBy.equals("DESC"))
       throw new IllegalArgumentException("Sort direction must be ASC or DESC");
 
-    var result =
+    PageResponse<StaffMemberSummary> result =
         directory.search(page, size, searchKey.isEmpty() ? null : searchKey, sortKey, sortBy);
     log.debug(
         "Staff members listed: page={}, size={}, returned={}, total={}",
@@ -75,12 +75,6 @@ public class ListStaffMembersUseCase {
         size,
         result.items().size(),
         result.totalElements());
-    return PageResponse.<StaffMemberResponse>builder()
-        .items(result.items().stream().map(StaffMemberResponse::from).toList())
-        .page(result.page())
-        .size(result.size())
-        .totalElements(result.totalElements())
-        .totalPages(result.totalPages())
-        .build();
+    return result;
   }
 }

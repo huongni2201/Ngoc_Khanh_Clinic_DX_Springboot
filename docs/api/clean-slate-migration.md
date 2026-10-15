@@ -31,7 +31,7 @@ job download) and `HEALTH_EXAMINATION_BATCH_START`; V004 binds the three staff m
 (35 in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
-account with its endpoint permission. The local TEST and ADMINISTRATOR roles use
+account with its endpoint permission. The local TEST role uses
 the same checks, with all permissions granted by the local seed.
 [Open authorization items](../architecture/07-open-items.md#endpoint-authorization)
 records the remaining checks for direct application callers.

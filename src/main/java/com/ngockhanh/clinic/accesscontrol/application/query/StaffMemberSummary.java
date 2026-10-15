@@ -1,15 +1,14 @@
 package com.ngockhanh.clinic.accesscontrol.application.query;
 
+import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffAccount;
+import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffMember;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.Builder;
 
 /**
- * Staff member row of the administration list, with its account when one exists.
- *
- * @param sex enum name or null
- * @param status {@code ACTIVE}, {@code INACTIVE} or {@code SUSPENDED}
- * @param account null when the staff member has no account
+ * Staff member with its account (docs/api/staff-members.md): the read contract of the list port and
+ * the result of create, returned to HTTP callers as is. Never carries a password or hash.
  */
 @Builder
 public record StaffMemberSummary(
@@ -24,12 +23,24 @@ public record StaffMemberSummary(
     Long rowVersion,
     Account account) {
 
-  /**
-   * Account of the staff member.
-   *
-   * @param status {@code ACTIVE}, {@code LOCKED} or {@code DISABLED}
-   * @param roleCode code of the one role the account holds
-   */
+  /** Account of the staff member and the code of the one role it holds. */
   @Builder
   public record Account(UUID id, String username, String status, String roleCode) {}
+
+  public static StaffMemberSummary created(StaffMember staffMember, StaffAccount account) {
+    return StaffMemberSummary.builder()
+        .id(staffMember.id())
+        .staffCode(staffMember.staffCode())
+        .fullName(staffMember.fullName())
+        .dateOfBirth(staffMember.dateOfBirth())
+        .sex(staffMember.sex() == null ? null : staffMember.sex().name())
+        .phone(staffMember.phone())
+        .email(staffMember.email())
+        .status(staffMember.status().name())
+        .rowVersion(staffMember.rowVersion())
+        .account(
+            new Account(
+                account.id(), account.username(), account.status().name(), account.role().code()))
+        .build();
+  }
 }

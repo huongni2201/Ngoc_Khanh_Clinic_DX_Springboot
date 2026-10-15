@@ -238,9 +238,9 @@ detail. `message` names the rejected fields, and `data` lists them as
 `{field, code, message}`: `field` is the JSON path, `code` the failed constraint and
 `message` an English technical detail for developers. Clients localise by `field` and
 `code`. This field list is an explicit contract change to the envelope. No separate
-public string error code or trace ID exists. `ConcurrentUpdateException.errorCode()`
-is internal. New wire fields require an explicit contract change. Failed business
-commands never return HTTP 200.
+public string error code or trace ID exists: callers tell failures apart by `code`
+(the HTTP status). `ConcurrentUpdateException.errorCode()` is internal. New wire fields
+require an explicit contract change. Failed business commands never return HTTP 200.
 
 | Category | Current exception / handler | Status |
 |---|---|---|
@@ -252,6 +252,7 @@ commands never return HTTP 200.
 | Identity conflict | DuplicateKeyException | 409 |
 | Business rule | BusinessRuleException, module DomainException subclasses | 409 |
 | Lost update | ConcurrentUpdateException | 409 |
+| Unusable reference chosen by the caller (owner-approved 2026-10-15) | UnprocessableEntityException | 422 |
 | Rate limit | ApplicationException.Type.RATE_LIMITED | 429 |
 | Dependency unavailable | ApplicationException.Type.DEPENDENCY_UNAVAILABLE | 503 |
 | Unexpected failure | Central fallback | 500 |

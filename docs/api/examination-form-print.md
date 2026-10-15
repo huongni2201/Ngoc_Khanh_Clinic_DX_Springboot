@@ -14,7 +14,7 @@ Phiếu có mã vạch Code128 của mã người khám (xem [Mã vạch](#mã-v
 
 | Mục | Giá trị |
 |---|---|
-| Permission | `PARTICIPANT_EXAMINATION_FORM_PRINT` (V002 gán endpoint này; CLINIC_MANAGER, DATA_ENTRY_STAFF, RECEPTIONIST) |
+| Permission | `PARTICIPANT_EXAMINATION_FORM_PRINT` (V002 gán endpoint này; CLINIC_MANAGER, NURSE, RECEPTIONIST) |
 | 200 | `application/pdf`, `Content-Disposition: inline; filename="phieu-kham-<participantCode>.pdf"`, `Cache-Control: no-store` |
 | 403 | thiếu permission hoặc không phải tài khoản STAFF |
 | 404 | Organization/Batch/Participant không khớp, batch đã xóa mềm, hoặc chưa có phiên bản mẫu hiệu lực |

@@ -7,14 +7,8 @@ INSERT INTO public.roles (code, name, description)
 VALUES ('TEST', 'Local API Test', 'Local-only staff role with every permission for API testing.')
 ON CONFLICT (code) DO NOTHING;
 
--- Local only: the TEST and ADMINISTRATOR roles hold every permission to ease manual testing of all
--- endpoints.
-INSERT INTO public.role_permissions (role_id, permission_id)
-SELECT role.id, permission.id
-FROM public.roles AS role
-CROSS JOIN public.permissions AS permission
-WHERE role.code IN ('TEST', 'ADMINISTRATOR')
-ON CONFLICT (role_id, permission_id) DO NOTHING;
+-- Local only: the TEST role holds every permission to ease manual testing of all endpoints. The grant is the afterMigrate__local_full_permissions.sql callback, which runs after
+-- every migrate so that permissions added by later migrations are granted too.
 
 INSERT INTO public.staff_members (staff_code, full_name, status)
 VALUES
@@ -22,7 +16,7 @@ VALUES
     ('LOCAL_ROLE_RECEPTIONIST', 'Local Receptionist', 'ACTIVE'),
     ('LOCAL_ROLE_GP', 'Local General Practitioner', 'ACTIVE'),
     ('LOCAL_ROLE_DIAGNOSTIC_DOCTOR', 'Local Diagnostic Doctor', 'ACTIVE'),
-    ('LOCAL_ROLE_DATA_ENTRY_STAFF', 'Local Data Entry Staff', 'ACTIVE'),
+    ('LOCAL_ROLE_NURSE', 'Local Nurse', 'ACTIVE'),
     ('LOCAL_ROLE_CLINIC_MANAGER', 'Local Clinic Manager', 'ACTIVE'),
     ('LOCAL_ROLE_TEST', 'Local API Test Staff', 'ACTIVE')
 ON CONFLICT (staff_code) DO NOTHING;
@@ -37,7 +31,7 @@ WITH role_accounts(role_code, username, staff_code) AS (
         ('RECEPTIONIST', 'receptionist', 'LOCAL_ROLE_RECEPTIONIST'),
         ('GENERAL_PRACTITIONER', 'general_practitioner', 'LOCAL_ROLE_GP'),
         ('DIAGNOSTIC_DOCTOR', 'diagnostic_doctor', 'LOCAL_ROLE_DIAGNOSTIC_DOCTOR'),
-        ('DATA_ENTRY_STAFF', 'data_entry_staff', 'LOCAL_ROLE_DATA_ENTRY_STAFF'),
+        ('NURSE', 'nurse', 'LOCAL_ROLE_NURSE'),
         ('CLINIC_MANAGER', 'clinic_manager', 'LOCAL_ROLE_CLINIC_MANAGER'),
         ('TEST', 'test', 'LOCAL_ROLE_TEST')
 )

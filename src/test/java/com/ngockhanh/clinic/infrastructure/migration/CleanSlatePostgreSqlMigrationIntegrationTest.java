@@ -208,7 +208,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "RECEPTIONIST",
             "GENERAL_PRACTITIONER",
             "DIAGNOSTIC_DOCTOR",
-            "DATA_ENTRY_STAFF",
+            "NURSE",
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
@@ -262,7 +262,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         .as("only PATIENT holds OWN_* permissions, and it holds nothing else")
         .isEmpty();
     assertThat(rolesGranted(jdbc, "PARTICIPANT_EXAMINATION_RECORD_VIEW"))
-        .containsExactlyInAnyOrder("GENERAL_PRACTITIONER", "DATA_ENTRY_STAFF", "CLINIC_MANAGER");
+        .containsExactlyInAnyOrder("GENERAL_PRACTITIONER", "NURSE", "CLINIC_MANAGER");
     assertThat(rolesGranted(jdbc, "REPORT_BATCH_FINANCIAL_SUMMARY_EXPORT"))
         .containsExactly("CLINIC_MANAGER");
     assertThat(rolesGranted(jdbc, "AUDIT_LOG_VIEW")).containsExactly("ADMINISTRATOR");

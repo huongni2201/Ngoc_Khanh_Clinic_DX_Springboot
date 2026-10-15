@@ -3,8 +3,8 @@ package com.ngockhanh.clinic.accesscontrol.api.controller;
 import com.ngockhanh.clinic.accesscontrol.api.request.CreateStaffMemberRequest;
 import com.ngockhanh.clinic.accesscontrol.api.request.ListStaffMemberRequest;
 import com.ngockhanh.clinic.accesscontrol.application.query.ListStaffMembersQuery;
+import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.StaffMemberResponse;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateStaffMemberUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListStaffMembersUseCase;
 import com.ngockhanh.clinic.shared.web.ApiResponse;
@@ -39,7 +39,7 @@ public class StaffMemberController {
    * @return the requested page
    */
   @GetMapping
-  public ResponseEntity<ApiResponse<PageResponse<StaffMemberResponse>>> list(
+  public ResponseEntity<ApiResponse<PageResponse<StaffMemberSummary>>> list(
       @Valid @ModelAttribute ListStaffMemberRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
     ListStaffMembersQuery query =
@@ -62,11 +62,11 @@ public class StaffMemberController {
    * @return the created staff member with its account
    */
   @PostMapping
-  public ResponseEntity<ApiResponse<StaffMemberResponse>> create(
+  public ResponseEntity<ApiResponse<StaffMemberSummary>> create(
       @Valid @RequestBody CreateStaffMemberRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info("Create staff member request received");
-    StaffMemberResponse response = createStaffMemberUseCase.execute(request.toCommand(), principal);
+    StaffMemberSummary response = createStaffMemberUseCase.execute(request.toCommand(), principal);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResponse.success(HttpStatus.CREATED.value(), "Staff member created", response));
   }

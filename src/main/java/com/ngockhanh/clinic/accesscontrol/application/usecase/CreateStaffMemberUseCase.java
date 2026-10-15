@@ -1,8 +1,8 @@
 package com.ngockhanh.clinic.accesscontrol.application.usecase;
 
 import com.ngockhanh.clinic.accesscontrol.application.command.CreateStaffMemberCommand;
+import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.StaffMemberResponse;
 import com.ngockhanh.clinic.accesscontrol.application.service.StaffAdministrationPolicy;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffAccount;
 import com.ngockhanh.clinic.accesscontrol.domain.aggregate.StaffMember;
@@ -14,7 +14,7 @@ import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleRef;
 import com.ngockhanh.clinic.accesscontrol.domain.valueobject.UsernameBase;
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
-import com.ngockhanh.clinic.shared.exception.ConflictException;
+import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -40,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreateStaffMemberUseCase {
   static final String CREATE_STAFF_MEMBER = "CREATE_STAFF_MEMBER";
   static final String CREATE_ACCOUNT = "CREATE_ACCOUNT";
-  static final Integer PASSWORD_MIN_LENGTH = 8;
   private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
   private final StaffAdministrationPolicy policy;
@@ -60,10 +59,11 @@ public class CreateStaffMemberUseCase {
    * @throws ApplicationException of type {@code ACCESS_DENIED} without {@code USER_ACCOUNT_CREATE}
    *     and {@code USER_ROLE_ASSIGN}
    * @throws IllegalArgumentException when the details, password or role code are invalid
-   * @throws ConflictException when the role code is unknown, inactive or {@code PATIENT}
+   * @throws UnprocessableEntityException (HTTP 422) when the role code is unknown, inactive or
+   *     {@code PATIENT}
    */
   @Transactional
-  public StaffMemberResponse execute(CreateStaffMemberCommand command, UserPrincipal principal) {
+  public StaffMemberSummary execute(CreateStaffMemberCommand command, UserPrincipal principal) {
     policy.requireCreate(principal);
     if (command == null) throw new IllegalArgumentException("Staff member command is required");
     if (command.roleCode() == null || command.roleCode().isBlank())
@@ -73,7 +73,7 @@ public class CreateStaffMemberUseCase {
         roles
             .findActiveByCode(command.roleCode().trim())
             .filter(StaffAccount::isAssignable)
-            .orElseThrow(() -> new ConflictException("The role is not available"));
+            .orElseThrow(() -> new UnprocessableEntityException("The role is not available"));
 
     String passwordHash = hash(command.initialPassword());
     Sex sex = command.sex() == null ? null : Sex.valueOf(command.sex());
@@ -121,13 +121,15 @@ public class CreateStaffMemberUseCase {
         "Staff member and account insert executed; commit pending: staffMemberId={}, accountId={}",
         staffMember.id(),
         account.id());
-    return StaffMemberResponse.created(staffMember, account);
+    return StaffMemberSummary.created(staffMember, account);
   }
 
-  /** Passwords are not trimmed; the encoder rejects more than 72 bytes after NFKC normalization. */
+  /**
+   * The temporary password format (printable ASCII, 8 to 72 characters) is validated by the HTTP
+   * request. Passwords are never trimmed; the encoder still rejects one longer than bcrypt reads.
+   */
   private String hash(String password) {
-    if (password == null || password.length() < PASSWORD_MIN_LENGTH)
-      throw new IllegalArgumentException("Temporary password is too short");
+    if (password == null) throw new IllegalArgumentException("Temporary password is required");
     return passwords.encode(password);
   }
 }

@@ -15,7 +15,7 @@ import com.ngockhanh.clinic.accesscontrol.api.controller.RoleController;
 import com.ngockhanh.clinic.accesscontrol.api.controller.StaffMemberController;
 import com.ngockhanh.clinic.accesscontrol.application.command.CreateStaffMemberCommand;
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.accesscontrol.application.response.StaffMemberResponse;
+import com.ngockhanh.clinic.accesscontrol.application.query.StaffMemberSummary;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.AuthenticateSessionUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.CreateStaffMemberUseCase;
 import com.ngockhanh.clinic.accesscontrol.application.usecase.ListAssignableRolesUseCase;
@@ -98,7 +98,7 @@ class StaffMemberSecurityWebMvcTest {
   @Test
   void eachRouteRequiresItsOwnPermissionOnAStaffAccount() throws Exception {
     when(list.execute(any(), any()))
-        .thenReturn(PageResponse.<StaffMemberResponse>builder().items(List.of()).page(1).size(10).build());
+        .thenReturn(PageResponse.<StaffMemberSummary>builder().items(List.of()).page(1).size(10).build());
     when(roles.execute(any())).thenReturn(List.of());
 
     signedIn("viewer", VIEW);
@@ -114,11 +114,48 @@ class StaffMemberSecurityWebMvcTest {
   }
 
   @Test
+  void acceptsVietnameseNamesWrittenPrecomposedOrWithCombiningMarks() throws Exception {
+    UserPrincipal admin = signedIn("admin", CREATE);
+    when(create.execute(any(), eq(admin)))
+        .thenReturn(StaffMemberSummary.builder().id(UUID.randomUUID()).staffCode("NV-0001").build());
+
+    for (String name :
+        List.of(
+            "Nguyễn Văn An",
+            "ĐẶNG THỊ ĐÀO",
+            "Lê-Văn O'Neil",
+            "Trần T. Bình",
+            "Nguyễn Văn An")) {
+      var accepted =
+          perform(
+              postJson(
+                  "{\"fullName\":\"%s\",\"initialPassword\":\"Tam@12345\",\"roleCode\":\"X\"}"
+                      .formatted(name)),
+              "admin");
+      assertThat(accepted.getStatus()).as(name).isEqualTo(201);
+    }
+  }
+
+  @Test
+  void anUnavailableRoleIs422AndNotAConflict() throws Exception {
+    UserPrincipal admin = signedIn("admin", CREATE);
+    when(create.execute(any(), eq(admin)))
+        .thenThrow(
+            new com.ngockhanh.clinic.shared.exception.UnprocessableEntityException(
+                "The role is not available"));
+
+    var response = perform(postJson(VALID_BODY), "admin");
+
+    assertThat(response.getStatus()).isEqualTo(422);
+    assertThat(response.getContentAsString()).contains("\"code\":422").doesNotContain("errorCode");
+  }
+
+  @Test
   void createsWithTheBodyMappedToTheCommandAndReturns201() throws Exception {
     UserPrincipal admin = signedIn("admin", CREATE);
     when(create.execute(any(), eq(admin)))
         .thenReturn(
-            StaffMemberResponse.builder()
+            StaffMemberSummary.builder()
                 .id(UUID.randomUUID())
                 .staffCode("NV-0001")
                 .fullName("Nguyễn Văn An")
@@ -141,16 +178,30 @@ class StaffMemberSecurityWebMvcTest {
   void rejectsInvalidBodiesWithTheFieldList() throws Exception {
     signedIn("admin", CREATE);
 
-    var tooLong =
-        perform(
-            postJson(
-                """
-                {"fullName":"An","initialPassword":"%s","roleCode":"RECEPTIONIST"}
-                """
-                    .formatted("ệ".repeat(25))),
-            "admin");
-    assertThat(tooLong.getStatus()).isEqualTo(400);
-    assertThat(tooLong.getContentAsString()).contains("\"field\":\"initialPassword\"");
+    for (String password : List.of("ệ".repeat(25), "Mậtkhẩu123", "Tam 12345", "a".repeat(73))) {
+      var rejected =
+          perform(
+              postJson(
+                  """
+                  {"fullName":"An","initialPassword":"%s","roleCode":"RECEPTIONIST"}
+                  """
+                      .formatted(password)),
+              "admin");
+      assertThat(rejected.getStatus()).as(password).isEqualTo(400);
+      assertThat(rejected.getContentAsString()).contains("\"field\":\"initialPassword\"");
+    }
+
+    for (String name :
+        List.of("王小明", "Øyvind", "Straße", "Æsa", "Łukasz", "An 2", "An_B", " . - ")) {
+      var rejected =
+          perform(
+              postJson(
+                  "{\"fullName\":\"%s\",\"initialPassword\":\"Tam@12345\",\"roleCode\":\"X\"}"
+                      .formatted(name)),
+              "admin");
+      assertThat(rejected.getStatus()).as(name).isEqualTo(400);
+      assertThat(rejected.getContentAsString()).as(name).contains("\"field\":\"fullName\"");
+    }
 
     var noRoles =
         perform(postJson("{\"fullName\":\"An\",\"initialPassword\":\"Tam@12345\",\"roleCode\":\" \"}"), "admin");
