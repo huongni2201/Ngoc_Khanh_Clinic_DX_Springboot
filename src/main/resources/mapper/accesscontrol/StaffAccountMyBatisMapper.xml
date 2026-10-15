@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.StaffAccountMyBatisMapper">
+    <insert id="insert">
+        INSERT INTO public.accounts (id, account_type, role_id, username, password_hash, staff_member_id, status)
+        VALUES (#{id}, #{accountType}, #{roleId}, #{username}, #{passwordHash}, #{staffMemberId}, #{status})
+    </insert>
+
+    <select id="lockSequence" resultType="java.lang.Integer">
+        SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(#{key}, 0))
+    </select>
+
+    <select id="highestUsernameNumber" resultType="java.lang.Long">
+        SELECT COALESCE(MAX(CAST(substr(username, char_length(#{base}) + 1) AS bigint)), 0)
+        FROM public.accounts
+        WHERE starts_with(username, #{base})
+          AND substr(username, char_length(#{base}) + 1) ~ '^[0-9]{1,9}$'
+    </select>
+</mapper>

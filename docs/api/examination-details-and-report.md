@@ -10,8 +10,8 @@ An Organization/Batch pair that does not match, or a soft-deleted batch, is 404.
 
 Flyway V002 seeds the permissions below and grants them to CLINIC_MANAGER; the template download and the manual
 record permissions go to every role that holds `HEALTH_EXAMINATION_SERVICE_RECONCILE` (today CLINIC_MANAGER).
-The local seed additionally grants every permission to TEST and ADMINISTRATOR;
-both still require a STAFF account and the matching stored endpoint permission.
+The local seed additionally grants every permission to TEST;
+it still requires a STAFF account and the matching stored endpoint permission.
 Permissions are a login snapshot: sign in again after the migration.
 
 | Permission | Routes |

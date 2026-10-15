@@ -13,6 +13,7 @@ All paths below start with `/api/v1`. `O` means
 | Module | Mapped routes | Contract |
 |---|---|---|
 | accesscontrol | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | [Login](login.md) |
+| accesscontrol | `GET/POST /staff-members`, `GET /roles` | [Staff members and roles](staff-members.md); POST creates the staff member and its STAFF account, permissions `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` (+ `USER_ROLE_ASSIGN`), `ROLE_VIEW` |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
 | healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B`, `POST B/start` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion`; start moves DRAFT to READY (`HEALTH_EXAMINATION_BATCH_START`) |
@@ -26,10 +27,11 @@ All paths below start with `/api/v1`. `O` means
 
 V002 stores a method/route/permission mapping for 32 business operations, including
 `PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
-job download) and `HEALTH_EXAMINATION_BATCH_START`, under
+job download) and `HEALTH_EXAMINATION_BATCH_START`; V004 binds the three staff member/role routes
+(35 in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
-account with its endpoint permission. The local TEST and ADMINISTRATOR roles use
+account with its endpoint permission. The local TEST role uses
 the same checks, with all permissions granted by the local seed.
 [Open authorization items](../architecture/07-open-items.md#endpoint-authorization)
 records the remaining checks for direct application callers.
@@ -72,8 +74,9 @@ The single-step service-reconciliation import is a separate workflow.
 
 ## Database compatibility
 
-Fresh databases apply one final schema initializer V001 and the data-only seeds
-V002/V003. Earlier migration histories cannot use the rewritten baseline as an
+Fresh databases apply one final schema initializer V001, data-only seeds
+V002/V003, and the additive V004 (staff member and role endpoint permissions). Earlier migration
+histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings
 and separate detail/summary/export permissions in V002, as defined by ADR-0015.

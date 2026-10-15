@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/nkclinic}
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/nkclinic}
     username: ${DB_USERNAME:nkclinic}
     password: ${DB_PASSWORD:12345678}
   flyway:

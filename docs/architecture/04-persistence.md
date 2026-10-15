@@ -12,7 +12,7 @@ the six optional Participant personal-detail columns, nullable Organization
 account holds exactly one role (`accounts.role_id`, required); the account-role trigger
 allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-Fresh databases apply three migrations: one schema initializer and two data-only seeds. The
+Fresh databases apply one schema initializer, two data-only seeds and the additive V004. The
 owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
 amendment (V004–V009, and the removal of `account_roles`) into them:
 
@@ -21,6 +21,7 @@ amendment (V004–V009, and the removal of `account_roles`) into them:
 | `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
+| `V004__staff_member_management_permissions.sql` | Additive, after the baseline: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. The
@@ -55,7 +56,7 @@ belong in `infrastructure/persistence/view`, mapped by adapters to typed port re
 contracts; see [model placement](../../PROJECT_RULES.md#9-domain-vs-persistence-model).
 Domain objects and API responses never expose persistence records or views.
 
-- Access control: accounts (one role each), staff members, roles, permissions and role permissions.
+- Access control: accounts, staff members, account-role grants, roles and permissions.
 - Catalog: departments, rooms, specialties, services, medicines and lab definitions.
 - Patient: patient master, allergies and conditions.
 - Encounter: encounters and assignment fields stored on each encounter.
@@ -117,11 +118,11 @@ baseline triggers. Portal release rows reference exact versions and remain
 independent of notification delivery. Render-on-demand uses source and template
 versions; the schema contains no generated-document or printer tables.
 
-Render jobs: `document_render_jobs` (status, lease, attempts, source ids, skipped list,
+Render jobs (V006): `document_render_jobs` (status, lease, attempts, source ids, skipped list,
 `expires_at`; unique `(requested_by, idempotency_key)`) and `document_render_job_outputs` (one `files`
-row per merged part, `LOCAL` provider). V002 seeds their three endpoint permissions.
+row per merged part, `LOCAL` provider). V006 is additive and also seeds three endpoint permissions.
 
-Template versions move DRAFT → PUBLISHED | DISCARDED. `files.storage_provider` is
+Template versions (V004) move DRAFT → PUBLISHED | DISCARDED. `files.storage_provider` is
 CLASSPATH, LOCAL or S3; only CLASSPATH and LOCAL have adapters. Each version stores its
 `contract_version`, page size read from the docx and `pages_per_record`. There is one default
 template per `template_type` (partial unique index). A trigger forbids changing a version's

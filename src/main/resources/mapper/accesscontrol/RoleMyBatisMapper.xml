@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.RoleMyBatisMapper">
+    <!-- Column order matches the RoleRecord components. -->
+    <select id="findActiveByCode" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">
+        SELECT id, code, name, description, active
+        FROM public.roles
+        WHERE active = true AND code = #{code}
+    </select>
+
+    <select id="findAssignable" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">
+        SELECT id, code, name, description, active
+        FROM public.roles
+        WHERE active = true AND code &lt;&gt; 'PATIENT'
+        ORDER BY code
+    </select>
+</mapper>

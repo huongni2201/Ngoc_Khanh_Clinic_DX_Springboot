@@ -20,7 +20,7 @@ Chưa có: upload/publish mẫu, đánh dấu (bookmark) hay đệm trang để 
 | `GET /api/v1/document-render-jobs/{jobId}` | `DOCUMENT_RENDER_JOB_READ` | Trạng thái và tiến độ |
 | `GET /api/v1/document-render-jobs/{jobId}/parts/{partNo}` | `DOCUMENT_RENDER_JOB_DOWNLOAD` | `application/pdf`, `attachment; filename="phieu-kham-<mã đợt>-phan-<n>.pdf"`, `Cache-Control: no-store` |
 
-V002 gán cả ba permission cho CLINIC_MANAGER, DATA_ENTRY_STAFF, RECEPTIONIST (một endpoint một permission, [ADR-0015](../adr/0015-endpoint-permission-rbac.md)).
+V002 gán cả ba permission cho CLINIC_MANAGER, NURSE, RECEPTIONIST (một endpoint một permission, [ADR-0015](../adr/0015-endpoint-permission-rbac.md)).
 Tài khoản phải là STAFF; mọi route trả `Cache-Control: no-store`.
 
 ## Tạo job (POST)

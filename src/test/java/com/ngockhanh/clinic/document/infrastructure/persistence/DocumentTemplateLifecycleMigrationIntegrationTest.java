@@ -189,7 +189,7 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
                 WHERE p.code = 'PARTICIPANT_EXAMINATION_FORM_PRINT'
                 """,
                 String.class))
-        .containsExactlyInAnyOrder("CLINIC_MANAGER", "DATA_ENTRY_STAFF", "RECEPTIONIST");
+        .containsExactlyInAnyOrder("CLINIC_MANAGER", "NURSE", "RECEPTIONIST");
   }
 
   private static void publish(UUID version, String activeFrom) {

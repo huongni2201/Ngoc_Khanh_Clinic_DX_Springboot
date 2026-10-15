@@ -22,8 +22,11 @@ actor may perform each action.
   into schema V001 and seed V002. `V002__seed_roles_and_permissions.sql`
   seeds the whole matrix:
   seven roles (`PATIENT`, `RECEPTIONIST`, `GENERAL_PRACTITIONER`,
-  `DIAGNOSTIC_DOCTOR`, `DATA_ENTRY_STAFF`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
+  `DIAGNOSTIC_DOCTOR`, `NURSE`, `CLINIC_MANAGER`, `ADMINISTRATOR`),
   one permission per matrix row and one `role_permissions` row per non-"No" cell.
+  Owner amendment — 2026-10-15: the former `DATA_ENTRY_STAFF` (Data Entry Staff) role is
+  renamed `NURSE` (Nurse) in V002 itself, with the same grants; databases created from the
+  earlier V002 must be recreated.
 - Permission codes are `<ENTITY>_<ACTION>`; patient-portal codes start with
   `OWN_` and are granted only to `PATIENT`.
 - The sign-in and password rows have no permission: every authenticated account
@@ -91,8 +94,8 @@ entry for one Participant). V002 seeds them and grants both to every role that h
   returns 403.
 - The 25 business endpoints are granted to `CLINIC_MANAGER`.
 - In the `local` profile only, the local seed grants every permission to
-  `TEST` and `ADMINISTRATOR` to ease manual testing. Both use the same endpoint
-  checks; no role bypasses unmapped endpoints.
+  `TEST` to ease manual testing. It uses the same endpoint checks; no role
+  bypasses unmapped endpoints.
 - The local/test mock batch actor is removed; batch creation uses the signed-in
   principal.
 - Permissions without endpoints are seeded but unused until their use cases ship.

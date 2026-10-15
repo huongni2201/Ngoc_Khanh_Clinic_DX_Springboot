@@ -6,6 +6,7 @@ import com.ngockhanh.clinic.shared.exception.ConcurrentUpdateException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
+import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
 import com.ngockhanh.clinic.shared.exception.UnsupportedFileTypeException;
 import java.util.ArrayList;
 import java.util.List;
@@ -114,6 +115,11 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(ConflictException.class)
   ResponseEntity<ApiResponse<Void>> conflict(ConflictException exception) {
     return error(HttpStatus.CONFLICT, exception.getMessage());
+  }
+
+  @ExceptionHandler(UnprocessableEntityException.class)
+  ResponseEntity<ApiResponse<Void>> unprocessable(UnprocessableEntityException exception) {
+    return error(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -95,7 +95,7 @@ class DocumentRenderJobsMigrationIntegrationTest {
                   String.class,
                   permission))
           .as(permission)
-          .containsExactlyInAnyOrder("CLINIC_MANAGER", "DATA_ENTRY_STAFF", "RECEPTIONIST");
+          .containsExactlyInAnyOrder("CLINIC_MANAGER", "NURSE", "RECEPTIONIST");
   }
 
   @Test

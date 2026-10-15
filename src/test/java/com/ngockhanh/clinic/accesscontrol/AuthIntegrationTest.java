@@ -11,6 +11,7 @@ import com.ngockhanh.clinic.accesscontrol.application.port.out.SessionStore;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import jakarta.servlet.http.Cookie;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +49,9 @@ class AuthIntegrationTest {
   private static final String COOKIE = "NKC_SESSION";
   private static final String ORIGIN = "http://localhost:3000";
   private static final String PASSWORD = "Mật khẩu-01";
+  /** Staff administration routes (V004) belong to the Administrator, not the Clinic Manager. */
+  private static final Set<String> ADMINISTRATION_PERMISSIONS =
+      Set.of("STAFF_MEMBER_VIEW", "USER_ACCOUNT_CREATE", "ROLE_VIEW");
 
   @Container static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:18-alpine");
 
@@ -172,26 +176,36 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(32);
+    assertThat(endpoints).hasSize(35);
     Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
 
+    // An account holds one role: business routes belong to the Clinic Manager, staff
+    // administration routes (V004) to the Administrator.
     assignRole("CLINIC_MANAGER");
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
-
     Cookie manager = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
+      if (ADMINISTRATION_PERMISSIONS.contains(endpoint.code())) continue;
       int status = call(endpoint, manager).andReturn().getResponse().getStatus();
+      assertThat(status).as(endpoint.httpMethod() + " " + endpoint.endpoint()).isNotIn(401, 403);
+    }
+
+    assignRole("ADMINISTRATOR");
+    Cookie administrator = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
+    for (PermissionRecord endpoint : endpoints) {
+      if (!ADMINISTRATION_PERMISSIONS.contains(endpoint.code())) continue;
+      int status = call(endpoint, administrator).andReturn().getResponse().getStatus();
       assertThat(status).as(endpoint.httpMethod() + " " + endpoint.endpoint()).isNotIn(401, 403);
     }
   }
 
   @Test
-  void everyEndpointPermissionIsSeededForTheClinicManager() {
+  void everyEndpointPermissionIsSeededForItsOwningRole() {
     for (PermissionRecord endpoint : permissions.findEndpointPermissions()) {
       assertThat(
               jdbc.queryForList(
@@ -200,7 +214,10 @@ class AuthIntegrationTest {
                   String.class,
                   endpoint.code()))
           .as(endpoint.code())
-          .contains("CLINIC_MANAGER");
+          .contains(
+              ADMINISTRATION_PERMISSIONS.contains(endpoint.code())
+                  ? "ADMINISTRATOR"
+                  : "CLINIC_MANAGER");
     }
   }
 
