@@ -4,7 +4,7 @@ package com.ngockhanh.clinic.healthexamination.application.response;
  * The generated XLSX template. The bytes are copied on construction and on read.
  *
  * @param content XLSX bytes
- * @param fileName fixed download name; it never contains data of the batch
+ * @param fileName fixed download name; it never contains data of the agreement
  */
 public record ParticipantImportTemplateResponse(byte[] content, String fileName) {
   public ParticipantImportTemplateResponse {

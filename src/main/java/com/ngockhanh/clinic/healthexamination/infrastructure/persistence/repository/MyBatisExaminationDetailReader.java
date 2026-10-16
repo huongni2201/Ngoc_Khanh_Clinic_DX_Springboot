@@ -9,7 +9,10 @@ import com.ngockhanh.clinic.healthexamination.application.query.PaymentAggregate
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.ExaminationDetailMyBatisMapper;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationCountView;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDetailRowView;
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PaymentParticipantCountView;
+import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PaymentSessionCountView;
 import com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PerformedServiceView;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,11 +34,11 @@ public class MyBatisExaminationDetailReader implements ExaminationDetailReader {
 
   @Override
   public Optional<ExaminationDetailPage> readPage(
-      UUID organizationId, UUID batchId, ExaminationDetailCriteria criteria) {
-    if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
+      UUID organizationId, UUID agreementId, ExaminationDetailCriteria criteria) {
+    if (!mapper.agreementInScope(organizationId, agreementId)) return Optional.empty();
     long total =
         mapper.countRows(
-            batchId,
+            agreementId,
             criteria.searchPattern(),
             criteria.rosterStatus(),
             criteria.attendanceStatus(),
@@ -44,7 +47,7 @@ public class MyBatisExaminationDetailReader implements ExaminationDetailReader {
       return Optional.of(new ExaminationDetailPage(List.of(), total));
     List<ExaminationDetailRowView> views =
         mapper.findRows(
-            batchId,
+            agreementId,
             criteria.searchPattern(),
             criteria.rosterStatus(),
             criteria.attendanceStatus(),
@@ -65,55 +68,63 @@ public class MyBatisExaminationDetailReader implements ExaminationDetailReader {
   }
 
   @Override
-  public Optional<ExaminationSummary> summarize(UUID organizationId, UUID batchId) {
-    if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
-    ExaminationCountView counts = mapper.countActiveParticipants(batchId);
+  public Optional<ExaminationSummary> summarize(UUID organizationId, UUID agreementId) {
+    if (!mapper.agreementInScope(organizationId, agreementId)) return Optional.empty();
+    ExaminationCountView counts = mapper.countActiveParticipants(agreementId);
     return Optional.of(
         new ExaminationSummary(
             counts.registered(),
             counts.unconfirmed(),
             counts.attended(),
-            counts.absent(),
+            counts.noShow(),
+            counts.unscheduled(),
             counts.reconciled(),
             counts.pendingReconciliation()));
   }
 
   @Override
-  public Optional<List<ExaminationDetailRow>> readAllActive(UUID organizationId, UUID batchId) {
-    if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
+  public Optional<List<ExaminationDetailRow>> readAllActive(UUID organizationId, UUID agreementId) {
+    if (!mapper.agreementInScope(organizationId, agreementId)) return Optional.empty();
     Map<UUID, List<UUID>> performed =
-        group(mapper.findPerformedServicesOfActiveParticipants(batchId));
+        group(mapper.findPerformedServicesOfActiveParticipants(agreementId));
     List<ExaminationDetailRow> rows = new ArrayList<>();
-    for (ExaminationDetailRowView view : mapper.findActiveRowsForExport(batchId))
+    for (ExaminationDetailRowView view : mapper.findActiveRowsForExport(agreementId))
       rows.add(row(view, performed));
     return Optional.of(rows);
   }
 
   @Override
   public Optional<ExaminationDetailRow> readOne(
-      UUID organizationId, UUID batchId, UUID participantId) {
-    if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
-    ExaminationDetailRowView view = mapper.findRow(batchId, participantId);
+      UUID organizationId, UUID agreementId, UUID participantId) {
+    if (!mapper.agreementInScope(organizationId, agreementId)) return Optional.empty();
+    ExaminationDetailRowView view = mapper.findRow(agreementId, participantId);
     if (view == null) return Optional.empty();
     Map<UUID, List<UUID>> performed = group(mapper.findPerformedServices(List.of(view.id())));
     return Optional.of(row(view, performed));
   }
 
   @Override
-  public Optional<PaymentAggregates> readPaymentAggregates(UUID organizationId, UUID batchId) {
-    if (!mapper.batchInScope(organizationId, batchId)) return Optional.empty();
-    ExaminationCountView counts = mapper.countActiveParticipants(batchId);
+  public Optional<PaymentAggregates> readPaymentAggregates(
+      UUID organizationId, UUID agreementId, LocalDate from, LocalDate to) {
+    if (!mapper.agreementInScope(organizationId, agreementId)) return Optional.empty();
+    PaymentParticipantCountView participantCounts =
+        mapper.countPaymentParticipants(agreementId, from, to);
+    PaymentSessionCountView sessionCounts = mapper.countPaymentSessions(agreementId, from, to);
     List<PaymentAggregates.PerformedService> lines =
-        mapper.aggregatePerformedServices(batchId).stream()
+        mapper.aggregatePerformedServices(agreementId, from, to).stream()
             .map(
                 view ->
                     new PaymentAggregates.PerformedService(
-                        view.batchServiceId(), view.unitPrice(), view.examinedCount()))
+                        view.agreementServiceId(), view.unitPrice(), view.examinedCount()))
             .toList();
     return Optional.of(
         new PaymentAggregates(
             new PaymentAggregates.ParticipantCounts(
-                counts.registered(), counts.attended(), counts.reconciled()),
+                participantCounts.registered(),
+                participantCounts.attended(),
+                participantCounts.reconciled(),
+                sessionCounts.sessions(),
+                sessionCounts.visits()),
             lines));
   }
 
@@ -121,8 +132,8 @@ public class MyBatisExaminationDetailReader implements ExaminationDetailReader {
     Map<UUID, List<UUID>> byParticipant = new HashMap<>();
     for (PerformedServiceView view : performed)
       byParticipant
-          .computeIfAbsent(view.batchParticipantId(), key -> new ArrayList<>())
-          .add(view.batchServiceId());
+          .computeIfAbsent(view.participantId(), key -> new ArrayList<>())
+          .add(view.agreementServiceId());
     return byParticipant;
   }
 
@@ -137,9 +148,9 @@ public class MyBatisExaminationDetailReader implements ExaminationDetailReader {
         view.identificationNumber(),
         view.departmentName(),
         view.positionName(),
-        view.examinationDate(),
+        view.nextSessionDate(),
         view.attendanceStatus(),
-        view.actualExaminationDate(),
+        view.lastAttendedDate(),
         view.reconciliationStatus(),
         performed.getOrDefault(view.id(), List.of()),
         view.rowVersion());

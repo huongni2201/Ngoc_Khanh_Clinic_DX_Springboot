@@ -8,14 +8,13 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 /**
- * Machine keys, Vietnamese header labels, order and layout of the Excel contract V1 shared by the
+ * Machine keys, Vietnamese header labels, order and layout of the Excel contract V2 shared by the
  * reader and the writer. Machine keys stay in code and in error messages; the worksheet shows the
  * Vietnamese labels.
  */
 final class ParticipantExcelColumns {
   static final String PARTICIPANTS_SHEET = "Participants";
   static final String INSTRUCTIONS_SHEET = "Instructions";
-  static final String EXAMINATION_DATES_NAME = "ExaminationDates";
 
   /**
    * Row number column written first in the template. It only numbers the rows for the person
@@ -36,7 +35,6 @@ final class ParticipantExcelColumns {
   static final String WORKPLACE = "workplace";
   static final String DEPARTMENT_NAME = "department_name";
   static final String POSITION_NAME = "position_name";
-  static final String EXAMINATION_DATE = "examination_date";
   static final String NOTE = "note";
 
   /**
@@ -58,7 +56,6 @@ final class ParticipantExcelColumns {
           WORKPLACE,
           DEPARTMENT_NAME,
           POSITION_NAME,
-          EXAMINATION_DATE,
           NOTE);
 
   /** Every column the template writes, left to right: the ordinal first, then the data columns. */
@@ -82,7 +79,6 @@ final class ParticipantExcelColumns {
           Map.entry(WORKPLACE, "Nơi Làm Việc"),
           Map.entry(DEPARTMENT_NAME, "Đơn Vị/Phòng Ban"),
           Map.entry(POSITION_NAME, "Chức Vụ"),
-          Map.entry(EXAMINATION_DATE, "Ngày Khám"),
           Map.entry(NOTE, "Ghi Chú"));
 
   private static final Map<String, String> KEY_BY_NORMALIZED_HEADER = new HashMap<>();
@@ -98,8 +94,8 @@ final class ParticipantExcelColumns {
 
   /**
    * The machine key of a header cell, or null when the text is not a template header. Matching
-   * ignores case, surrounding and repeated spaces and Unicode composition, so "ngày  sinh" and
-   * "Ngày Sinh" are the same header; accents are never dropped.
+   * ignores case, surrounding and repeated spaces and Unicode composition, so "ngày sinh" and "Ngày
+   * Sinh" are the same header; accents are never dropped.
    */
   static String keyOfHeader(String text) {
     return KEY_BY_NORMALIZED_HEADER.get(normalize(text));
@@ -114,11 +110,9 @@ final class ParticipantExcelColumns {
 
   /** Metadata keys in the first column of the Instructions sheet, rows 1 to 3. */
   static final String META_TEMPLATE_VERSION = "templateVersion";
-  static final String META_BATCH_ID = "batchId";
-  static final String META_BATCH_ROW_VERSION = "batchRowVersion";
 
-  /** Zero-based worksheet row of the first line of the examination date list. */
-  static final int DATE_LIST_FIRST_ROW = 14;
+  static final String META_AGREEMENT_ID = "agreementId";
+  static final String META_AGREEMENT_ROW_VERSION = "agreementRowVersion";
 
   private ParticipantExcelColumns() {}
 }

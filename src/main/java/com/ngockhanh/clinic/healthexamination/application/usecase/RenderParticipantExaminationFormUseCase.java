@@ -42,45 +42,53 @@ public class RenderParticipantExaminationFormUseCase {
    * Renders the form.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
-   * @param participantId Participant identifier inside the batch
+   * @param agreementId agreement identifier
+   * @param participantId Participant identifier inside the agreement
+   * @param sessionId session whose date the form shows, or null for the Participant's own schedule
    * @param principal authenticated staff caller
    * @return the PDF and its download name
    * @throws ApplicationException {@code ACCESS_DENIED} without the print permission
    * @throws IllegalArgumentException when an identifier is null
-   * @throws ResourceNotFoundException when the batch or Participant is not found, or no template
-   *     is in effect
-   * @throws ConflictException when the batch is a draft or closed, or the Participant is cancelled
+   * @throws ResourceNotFoundException when the agreement or Participant is not found, or no
+   *     template is in effect
+   * @throws ConflictException when the agreement is a draft, the session belongs to another
+   *     agreement, or the Participant is cancelled
    * @throws DependencyUnavailableException when the PDF converter cannot be reached
    */
   public ExaminationFormDocumentResponse execute(
-      UUID organizationId, UUID batchId, UUID participantId, UserPrincipal principal) {
+      UUID organizationId,
+      UUID agreementId,
+      UUID participantId,
+      UUID sessionId,
+      UserPrincipal principal) {
     access.requirePrint(principal);
-    if (organizationId == null || batchId == null || participantId == null)
-      throw new IllegalArgumentException("Organization, batch and Participant IDs are required");
-    var source = loader.load(organizationId, batchId, participantId);
+    if (organizationId == null || agreementId == null || participantId == null)
+      throw new IllegalArgumentException(
+          "Organization, agreement and Participant IDs are required");
+    var source = loader.load(organizationId, agreementId, participantId, sessionId);
     var rendered =
         renderer.render(
-            PeriodicFormBlankContract.DOCUMENT_TYPE, PeriodicFormBlankModel.from(source).toValues());
+            PeriodicFormBlankContract.DOCUMENT_TYPE,
+            PeriodicFormBlankModel.from(source).toValues());
     audit.record(
         principal.userId(),
         "RENDER_EXAMINATION_FORM",
-        "HEALTH_EXAMINATION_BATCH_PARTICIPANT",
+        "HEALTH_EXAMINATION_PARTICIPANT",
         participantId,
         null,
         Map.of(
             "organizationId",
             organizationId,
-            "batchId",
-            batchId,
+            "agreementId",
+            agreementId,
             "templateVersionId",
             rendered.templateVersionId(),
             "templateVersionNo",
             rendered.templateVersionNo()));
     log.info(
-        "Examination form rendered: organizationId={}, batchId={}, participantId={}, templateVersionId={}",
+        "Examination form rendered: organizationId={}, agreementId={}, participantId={}, templateVersionId={}",
         organizationId,
-        batchId,
+        agreementId,
         participantId,
         rendered.templateVersionId());
     return new ExaminationFormDocumentResponse(

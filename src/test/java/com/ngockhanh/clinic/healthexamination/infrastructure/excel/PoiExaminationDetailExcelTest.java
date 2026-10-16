@@ -29,16 +29,19 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 
-/** Examination detail workbook V1: what the writer produces and what the reader accepts. */
+/** Examination detail workbook V2: what the writer produces and what the reader accepts. */
 class PoiExaminationDetailExcelTest {
-  private static final UUID BATCH_ID = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
+  private static final UUID AGREEMENT_ID = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
   private static final UUID SERVICE_A = UUID.fromString("00000000-0000-0000-0000-00000000000a");
   private static final UUID SERVICE_B = UUID.fromString("00000000-0000-0000-0000-00000000000b");
   private static final UUID P1 = UUID.fromString("00000000-0000-0000-0000-000000000011");
   private static final UUID P2 = UUID.fromString("00000000-0000-0000-0000-000000000022");
   private static final int A = ExaminationDetailExcelColumns.FIRST_SERVICE_COLUMN;
   private static final int B = A + 1;
-  private static final int DATE = ExaminationDetailExcelColumns.ACTUAL_DATE_COLUMN;
+  private static final int NEXT =
+      ExaminationDetailExcelColumns.FIXED_KEYS.indexOf("next_session_date");
+  private static final int LAST =
+      ExaminationDetailExcelColumns.FIXED_KEYS.indexOf("last_attended_date");
   private static final int FIRST = ExaminationDetailExcelColumns.FIRST_DATA_ROW;
 
   private final ParticipantImportProperties fileLimits =
@@ -70,7 +73,7 @@ class PoiExaminationDetailExcelTest {
 
   private static ExaminationDetailExportData data(ExaminationDetailRow... rows) {
     return new ExaminationDetailExportData(
-        BATCH_ID,
+        AGREEMENT_ID,
         "B1",
         Instant.parse("2026-10-07T00:00:00Z"),
         List.of(
@@ -133,8 +136,9 @@ class PoiExaminationDetailExcelTest {
       assertThat(sheet.getRow(FIRST).getCell(1).getStringCellValue()).isEqualTo("4");
       assertThat(sheet.getRow(FIRST).getCell(A).getStringCellValue()).isEqualTo("X");
       assertThat(sheet.getRow(FIRST).getCell(B).getStringCellValue()).isEmpty();
-      assertThat(sheet.getRow(FIRST).getCell(DATE).getStringCellValue()).isEqualTo("2026-10-05");
-      assertThat(sheet.getRow(FIRST + 1).getCell(DATE).getStringCellValue()).isEmpty();
+      assertThat(sheet.getRow(FIRST).getCell(NEXT).getStringCellValue()).isEqualTo("2026-10-04");
+      assertThat(sheet.getRow(FIRST).getCell(LAST).getStringCellValue()).isEqualTo("2026-10-05");
+      assertThat(sheet.getRow(FIRST + 1).getCell(LAST).getStringCellValue()).isEmpty();
       assertThat(sheet.getLastRowNum()).isEqualTo(FIRST + 1);
       assertThat(sheet.getPaneInformation()).isNotNull();
     }
@@ -146,20 +150,20 @@ class PoiExaminationDetailExcelTest {
       for (Sheet sheet : workbook)
         for (Row row : sheet)
           for (Cell cell : row)
-            assertThat(cell.getCellType()).as(sheet.getSheetName() + "!" + cell.getAddress())
+            assertThat(cell.getCellType())
+                .as(sheet.getSheetName() + "!" + cell.getAddress())
                 .isIn(CellType.STRING, CellType.BLANK);
     }
   }
 
   @Test
-  void onlyTheActualDateAndServiceCellsAreUnlockedAndTheSheetIsProtected() throws IOException {
+  void onlyTheServiceCellsAreUnlockedAndTheSheetIsProtected() throws IOException {
     try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(export()))) {
       XSSFSheet sheet = workbook.getSheet("ChiTietKham");
       assertThat(sheet.getProtect()).isTrue();
       Row data = sheet.getRow(FIRST);
-      for (int column = 0; column < DATE; column++)
+      for (int column = 0; column < A; column++)
         assertThat(data.getCell(column).getCellStyle().getLocked()).as("column " + column).isTrue();
-      assertThat(data.getCell(DATE).getCellStyle().getLocked()).isFalse();
       assertThat(data.getCell(A).getCellStyle().getLocked()).isFalse();
       assertThat(data.getCell(B).getCellStyle().getLocked()).isFalse();
     }
@@ -181,20 +185,23 @@ class PoiExaminationDetailExcelTest {
   void writesTheMaskedIdentificationAsGivenAndNoContactOrNoteColumns() throws IOException {
     try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(export()))) {
       XSSFSheet sheet = workbook.getSheet("ChiTietKham");
-      int identification = ExaminationDetailExcelColumns.FIXED_KEYS.indexOf("identification_number");
-      assertThat(sheet.getRow(FIRST).getCell(identification).getStringCellValue()).isEqualTo("*****6789");
+      int identification =
+          ExaminationDetailExcelColumns.FIXED_KEYS.indexOf("identification_number");
+      assertThat(sheet.getRow(FIRST).getCell(identification).getStringCellValue())
+          .isEqualTo("*****6789");
       for (Cell key : sheet.getRow(1))
         assertThat(key.getStringCellValue()).doesNotContain("phone", "email", "note");
     }
   }
 
   @Test
-  void theGuideSheetCarriesTheTemplateVersionBatchAndExportTime() throws IOException {
+  void theGuideSheetCarriesTheTemplateVersionAgreementAndExportTime() throws IOException {
     try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(export()))) {
       Sheet guide = workbook.getSheet("HuongDan");
       assertThat(guide.getRow(0).getCell(0).getStringCellValue()).isEqualTo("templateVersion");
-      assertThat(guide.getRow(0).getCell(1).getStringCellValue()).isEqualTo("1");
-      assertThat(guide.getRow(1).getCell(1).getStringCellValue()).isEqualTo(BATCH_ID.toString());
+      assertThat(guide.getRow(0).getCell(1).getStringCellValue()).isEqualTo("2");
+      assertThat(guide.getRow(1).getCell(1).getStringCellValue())
+          .isEqualTo(AGREEMENT_ID.toString());
       assertThat(guide.getRow(2).getCell(1).getStringCellValue()).isEqualTo("2026-10-07T00:00:00Z");
     }
   }
@@ -205,19 +212,17 @@ class PoiExaminationDetailExcelTest {
   void readsBackWhatTheWriterExported() {
     ExaminationDetailWorkbook read = reader.read(export());
 
-    assertThat(read.templateVersion()).isEqualTo(1);
+    assertThat(read.templateVersion()).isEqualTo(2);
     assertThat(read.declaredServiceIds()).containsExactlyInAnyOrder(SERVICE_A, SERVICE_B);
     assertThat(read.rows()).hasSize(2);
     ExaminationDetailImportRow first = read.rows().get(0);
     assertThat(first.rowNumber()).isEqualTo(3);
     assertThat(first.participantId()).isEqualTo(P1);
     assertThat(first.rowVersion()).isEqualTo(4);
-    assertThat(first.actualExaminationDate()).isEqualTo(LocalDate.of(2026, 10, 5));
     assertThat(first.performedServiceIds()).containsExactly(SERVICE_A);
     ExaminationDetailImportRow second = read.rows().get(1);
     assertThat(second.rowNumber()).isEqualTo(4);
     assertThat(second.rowVersion()).isEqualTo(7);
-    assertThat(second.actualExaminationDate()).isNull();
     assertThat(second.performedServiceIds()).isEmpty();
   }
 
@@ -260,25 +265,22 @@ class PoiExaminationDetailExcelTest {
   }
 
   @Test
-  void rejectsNumericOrMalformedActualDates() {
-    assertRejected(
-        editedSheet(sheet -> sheet.getRow(FIRST).getCell(DATE).setCellValue(46300d)),
-        "Row 3",
-        "actual_examination_date");
-    assertRejected(
-        editedSheet(sheet -> set(sheet, FIRST, DATE, "2026-13-45")),
-        "Row 3",
-        "actual_examination_date");
-    assertRejected(
-        editedSheet(sheet -> set(sheet, FIRST, DATE, "05/10/2026")),
-        "Row 3",
-        "yyyy-MM-dd");
+  void theInformationColumnsAreIgnoredWhateverTheyHold() {
+    byte[] file =
+        editedSheet(
+            sheet -> {
+              set(sheet, FIRST, NEXT, "not a date");
+              set(sheet, FIRST, LAST, "2099-01-01");
+            });
+
+    assertThat(reader.read(file).rows()).isEqualTo(reader.read(export()).rows());
   }
 
   @Test
   void rejectsMissingOrInvalidIdentifiersAndVersions() {
     assertRejected(editedSheet(sheet -> set(sheet, FIRST, 0, "")), "Row 3", "participant_id");
-    assertRejected(editedSheet(sheet -> set(sheet, FIRST, 0, "not-a-uuid")), "Row 3", "participant_id");
+    assertRejected(
+        editedSheet(sheet -> set(sheet, FIRST, 0, "not-a-uuid")), "Row 3", "participant_id");
     assertRejected(editedSheet(sheet -> set(sheet, FIRST, 1, "")), "Row 3", "row_version");
     assertRejected(editedSheet(sheet -> set(sheet, FIRST, 1, "-1")), "Row 3", "row_version");
     assertRejected(editedSheet(sheet -> set(sheet, FIRST, 1, "abc")), "Row 3", "row_version");
@@ -308,10 +310,8 @@ class PoiExaminationDetailExcelTest {
 
   @Test
   void rejectsMissingSheetsMergedCellsAndForeignSheetsWithData() {
-    assertRejected(
-        edited(export(), workbook -> workbook.removeSheetAt(1)), "HuongDan");
-    assertRejected(
-        edited(export(), workbook -> workbook.removeSheetAt(0)), "ChiTietKham");
+    assertRejected(edited(export(), workbook -> workbook.removeSheetAt(1)), "HuongDan");
+    assertRejected(edited(export(), workbook -> workbook.removeSheetAt(0)), "ChiTietKham");
     assertRejected(
         editedSheet(sheet -> sheet.addMergedRegion(new CellRangeAddress(FIRST, FIRST, 3, 4))),
         "Merged");
@@ -323,11 +323,15 @@ class PoiExaminationDetailExcelTest {
   @Test
   void rejectsAnOlderOrUnreadableTemplateVersion() {
     assertRejected(
-        edited(export(), workbook -> set(workbook.getSheet("HuongDan"), 0, 1, "2")), "older template");
+        edited(export(), workbook -> set(workbook.getSheet("HuongDan"), 0, 1, "1")),
+        "older template");
     assertRejected(
         edited(export(), workbook -> set(workbook.getSheet("HuongDan"), 0, 1, "x")), "not valid");
     assertRejected(
-        edited(export(), workbook -> workbook.getSheet("HuongDan").removeRow(workbook.getSheet("HuongDan").getRow(0))),
+        edited(
+            export(),
+            workbook ->
+                workbook.getSheet("HuongDan").removeRow(workbook.getSheet("HuongDan").getRow(0))),
         "template information");
   }
 
@@ -361,22 +365,19 @@ class PoiExaminationDetailExcelTest {
               "Nguyen Van Person " + i,
               null,
               i,
-              columns.get(i % 30).batchServiceId()));
+              columns.get(i % 30).agreementServiceId()));
     byte[] file =
         writer.write(
             new ExaminationDetailExportData(
-                BATCH_ID, "B1", Instant.parse("2026-10-07T00:00:00Z"), columns, rows));
+                AGREEMENT_ID, "B1", Instant.parse("2026-10-07T00:00:00Z"), columns, rows));
     assertThat(reader.read(file).rows()).hasSize(10_000);
   }
 
   @Test
   void refusesToExportMoreRowsThanTheImportAccepts() {
-    var tight =
-        new PoiExaminationDetailExcelWriter(new ExaminationDetailImportProperties(1, 100));
+    var tight = new PoiExaminationDetailExcelWriter(new ExaminationDetailImportProperties(1, 100));
     assertThatThrownBy(
-            () ->
-                tight.write(
-                    data(row(P1, "Person One", null, 1), row(P2, "Person Two", null, 2))))
+            () -> tight.write(data(row(P1, "Person One", null, 1), row(P2, "Person Two", null, 2))))
         .isInstanceOfSatisfying(
             ApplicationException.class,
             e -> assertThat(e.type()).isEqualTo(ApplicationException.Type.INVALID_INPUT))

@@ -14,7 +14,7 @@ import java.util.UUID;
  */
 public record ServiceReconciliationReceipt(
     UUID importJobId,
-    UUID batchId,
+    UUID agreementId,
     int totalRows,
     int updatedParticipants,
     int unchangedParticipants,
@@ -22,7 +22,7 @@ public record ServiceReconciliationReceipt(
     Instant completedAt) {
   public ServiceReconciliationReceipt {
     if (importJobId == null
-        || batchId == null
+        || agreementId == null
         || completedAt == null
         || totalRows < 0
         || updatedParticipants < 0

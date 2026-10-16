@@ -11,7 +11,7 @@ import com.ngockhanh.clinic.accesscontrol.infrastructure.configuration.SecurityC
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper.UserLoginMyBatisMapper;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import com.ngockhanh.clinic.healthexamination.ParticipantFixtures;
-import com.ngockhanh.clinic.healthexamination.api.controller.BatchParticipantController;
+import com.ngockhanh.clinic.healthexamination.api.controller.AgreementParticipantController;
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantImportTemplateResponse;
 import com.ngockhanh.clinic.healthexamination.application.usecase.*;
 import com.ngockhanh.clinic.shared.infrastructure.time.ClockConfiguration;
@@ -42,7 +42,7 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
  * filters.
  */
 @WebMvcTest(
-    controllers = BatchParticipantController.class,
+    controllers = AgreementParticipantController.class,
     excludeAutoConfiguration = UserDetailsServiceAutoConfiguration.class)
 @Import({
   SecurityConfiguration.class,
@@ -55,7 +55,7 @@ class ParticipantSecurityWebMvcTest {
   private static final String BASE =
       "/api/v1/organizations/"
           + UUID.randomUUID()
-          + "/health-examination-batches/"
+          + "/agreements/"
           + UUID.randomUUID()
           + "/participants";
   private static final String ITEM = BASE + "/" + UUID.randomUUID();
@@ -63,7 +63,7 @@ class ParticipantSecurityWebMvcTest {
       """
       {"fullName":"Synthetic Person","dateOfBirth":"1990-05-12","sex":"MALE",
        "identificationNumber":"012345678901","departmentName":"Accounting",
-       "positionName":"Staff","batchDayId":"01990000-0000-7000-8000-000000000003","rowVersion":0}
+       "positionName":"Staff","legacyDayId":"01990000-0000-7000-8000-000000000003","rowVersion":0}
       """;
   private static final String ORIGIN = "https://app.test";
   private static final String COOKIE = "__Host-NKC_SESSION";
@@ -72,7 +72,7 @@ class ParticipantSecurityWebMvcTest {
   @TestConfiguration
   static class StoredEndpointPermissions {
     private static final String ROSTER =
-        "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants";
+        "/api/v1/organizations/{organizationId}/agreements/{agreementId}/participants";
 
     @Bean
     UserLoginMyBatisMapper endpointPermissionMapper() {
@@ -92,7 +92,11 @@ class ParticipantSecurityWebMvcTest {
     }
 
     private static PermissionRecord endpoint(String method, String path, String code) {
-      return PermissionRecord.builder().code(code).httpMethod(method).endpoint(ROSTER + path).build();
+      return PermissionRecord.builder()
+          .code(code)
+          .httpMethod(method)
+          .endpoint(ROSTER + path)
+          .build();
     }
   }
 

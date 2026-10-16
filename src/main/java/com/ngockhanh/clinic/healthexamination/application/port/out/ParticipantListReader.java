@@ -8,10 +8,10 @@ import java.util.UUID;
 /** Read port of the Participant list; it reads projections and never restores aggregates. */
 public interface ParticipantListReader {
   /**
-   * Reads one page of the Participants of a batch.
+   * Reads one page of the Participants of an agreement.
    *
-   * @return the page, or empty when the batch does not belong to the organization or is deleted
+   * @return the page, or empty when the agreement does not belong to the organization or is deleted
    */
   Optional<ParticipantPage> readPage(
-      UUID organizationId, UUID batchId, ParticipantListCriteria criteria);
+      UUID organizationId, UUID agreementId, ParticipantListCriteria criteria);
 }

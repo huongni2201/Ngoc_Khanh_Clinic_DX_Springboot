@@ -11,8 +11,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Gives a background print job the values of the blank periodic examination form of many
- * Participants of one batch. The job context carries the organization and the batch; the personal
- * data are read here, when the job runs, never stored in the job.
+ * Participants of one agreement. The job context carries the organization, the agreement and
+ * optionally the session; the personal data are read here, when the job runs, never stored in the
+ * job.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,8 +21,17 @@ public class ExaminationFormValuesSource implements DocumentValuesSource {
   /** Context key of the organization identifier. */
   public static final String ORGANIZATION_ID = "organizationId";
 
-  /** Context key of the batch identifier. */
-  public static final String BATCH_ID = "batchId";
+  /** Context key of the agreement identifier. */
+  public static final String AGREEMENT_ID = "agreementId";
+
+  /** Context key of the optional session whose date the forms show. */
+  public static final String SESSION_ID = "sessionId";
+
+  /**
+   * Context key jobs queued before agreements existed carry instead of {@link #AGREEMENT_ID}; the
+   * identifier is the same agreement, so such a job still renders.
+   */
+  static final String LEGACY_AGREEMENT_ID = "batchId";
 
   private final ExaminationFormSourceLoader loader;
 
@@ -31,22 +41,34 @@ public class ExaminationFormValuesSource implements DocumentValuesSource {
   }
 
   /**
-   * @throws com.ngockhanh.clinic.shared.exception.ResourceNotFoundException when the batch or
-   *     organization no longer exists
-   * @throws com.ngockhanh.clinic.shared.exception.ConflictException when the batch no longer allows
-   *     printing
+   * @throws com.ngockhanh.clinic.shared.exception.ResourceNotFoundException when the agreement,
+   *     organization or session no longer exists
+   * @throws com.ngockhanh.clinic.shared.exception.ConflictException when the agreement no longer
+   *     allows printing
    */
   @Override
   public Loaded load(Map<String, String> context, List<UUID> ids) {
+    String agreement =
+        context.containsKey(AGREEMENT_ID)
+            ? context.get(AGREEMENT_ID)
+            : context.get(LEGACY_AGREEMENT_ID);
+    String session = context.get(SESSION_ID);
     var forms =
         loader.loadMany(
             UUID.fromString(context.get(ORGANIZATION_ID)),
-            UUID.fromString(context.get(BATCH_ID)),
+            UUID.fromString(agreement),
+            session == null ? null : UUID.fromString(session),
             ids);
     return new Loaded(
         forms.forms().stream()
-            .map(form -> new Item(form.participantId(), PeriodicFormBlankModel.from(form.source()).toValues()))
+            .map(
+                form ->
+                    new Item(
+                        form.participantId(),
+                        PeriodicFormBlankModel.from(form.source()).toValues()))
             .toList(),
-        forms.left().stream().map(left -> new Skipped(left.participantId(), left.reason())).toList());
+        forms.left().stream()
+            .map(left -> new Skipped(left.participantId(), left.reason()))
+            .toList());
   }
 }

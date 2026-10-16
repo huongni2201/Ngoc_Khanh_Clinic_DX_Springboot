@@ -28,9 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 class PoiParticipantExcelTest {
-  private static final UUID BATCH_ID = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
-  private static final List<LocalDate> DAYS =
-      List.of(LocalDate.of(2026, 10, 4), LocalDate.of(2026, 10, 5));
+  private static final UUID AGREEMENT_ID = UUID.fromString("00000000-0000-0000-0000-0000000000b1");
 
   private final ParticipantImportProperties limits =
       new ParticipantImportProperties(null, null, null, null, null, null);
@@ -38,7 +36,7 @@ class PoiParticipantExcelTest {
   private final PoiParticipantExcelReader reader = new PoiParticipantExcelReader(limits);
 
   private byte[] template() {
-    return writer.write(new ParticipantTemplateData(BATCH_ID, 7L, DAYS));
+    return writer.write(new ParticipantTemplateData(AGREEMENT_ID, 7L));
   }
 
   private byte[] filled(Consumer<Sheet> fill) {
@@ -64,7 +62,7 @@ class PoiParticipantExcelTest {
 
   /**
    * Columns: STT, name, birth, sex, CCCD, issue date/place, ethnicity, phone, email, address,
-   * workplace, department, position, examination date, note.
+   * workplace, department, position, note.
    */
   private static void validRow(Sheet sheet, int row, String identification) {
     text(
@@ -84,7 +82,6 @@ class PoiParticipantExcelTest {
         null,
         "Ke toan",
         "Nhan vien",
-        "2026-10-04",
         null);
   }
 
@@ -96,7 +93,7 @@ class PoiParticipantExcelTest {
   }
 
   @Test
-  void templateCarriesMetadataHeadersDatesAndDropdowns() throws IOException {
+  void templateCarriesMetadataHeadersAndDropdowns() throws IOException {
     try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(template()))) {
       assertThat(workbook.getSheetName(0)).isEqualTo("Participants");
       assertThat(workbook.getSheetName(1)).isEqualTo("Instructions");
@@ -108,20 +105,18 @@ class PoiParticipantExcelTest {
       assertThat(participants.getRow(0).getCell(0).getStringCellValue()).isEqualTo("STT");
       assertThat(participants.getRow(0).getCell(2).getStringCellValue()).isEqualTo("Ngày Sinh");
       assertThat(participants.getRow(0).getCell(3).getStringCellValue()).isEqualTo("Giới Tính");
-      assertThat(participants.getRow(0).getLastCellNum()).isEqualTo((short) 16);
+      assertThat(participants.getRow(0).getLastCellNum()).isEqualTo((short) 15);
       var headers = new java.util.ArrayList<String>();
       participants.getRow(0).forEach(cell -> headers.add(cell.getStringCellValue()));
       assertThat(headers)
           .contains("Ngày Cấp CCCD", "Nơi Cấp CCCD", "Dân Tộc", "Chỗ Ở", "Nơi Làm Việc", "Ghi Chú")
           .doesNotContain("Mã Người Khám");
-      assertThat(participants.getDataValidations()).hasSizeGreaterThanOrEqualTo(2);
+      assertThat(participants.getDataValidations()).hasSize(1);
       Sheet instructions = workbook.getSheet("Instructions");
       assertThat(instructions.getRow(1).getCell(1).getStringCellValue())
-          .isEqualTo(BATCH_ID.toString());
+          .isEqualTo(AGREEMENT_ID.toString());
       assertThat(instructions.getRow(2).getCell(1).getStringCellValue()).isEqualTo("7");
-      assertThat(instructions.getRow(14).getCell(0).getStringCellValue()).isEqualTo("2026-10-04");
-      assertThat(instructions.getRow(15).getCell(0).getStringCellValue()).isEqualTo("2026-10-05");
-      assertThat(workbook.getName("ExaminationDates")).isNotNull();
+      assertThat(workbook.getName("ExaminationDates")).isNull();
     }
   }
 
@@ -142,8 +137,8 @@ class PoiParticipantExcelTest {
     ParticipantWorkbook parsed = reader.read(bytes);
 
     assertThat(parsed.templateVersion()).isEqualTo(ParticipantWorkbook.TEMPLATE_VERSION);
-    assertThat(parsed.templateBatchId()).isEqualTo(BATCH_ID);
-    assertThat(parsed.templateBatchVersion()).isEqualTo(7L);
+    assertThat(parsed.templateAgreementId()).isEqualTo(AGREEMENT_ID);
+    assertThat(parsed.templateAgreementVersion()).isEqualTo(7L);
     assertThat(parsed.rows()).extracting(ParticipantImportRow::rowNumber).containsExactly(2, 5);
     ParticipantImportRow first = parsed.rows().get(0);
     assertThat(first.identificationNumber()).isEqualTo("0012345678");
@@ -152,7 +147,6 @@ class PoiParticipantExcelTest {
     assertThat(first.ethnicity()).isNull();
     assertThat(first.note()).isNull();
     assertThat(first.dateOfBirth()).isEqualTo(LocalDate.of(1990, 1, 31));
-    assertThat(first.examinationDate()).isEqualTo(LocalDate.of(2026, 10, 4));
     assertThat(first.fullName()).isEqualTo("Nguyen Van A");
   }
 
@@ -180,7 +174,6 @@ class PoiParticipantExcelTest {
                       "Cong ty ABC",
                       "Ke toan",
                       "Truong phong",
-                      "2026-10-05",
                       "Di ung phan");
                 }));
 
@@ -220,7 +213,7 @@ class PoiParticipantExcelTest {
             filled(
                 sheet -> {
                   validRow(sheet, 1, "123");
-                  sheet.getRow(1).createCell(15).setCellValue(note);
+                  sheet.getRow(1).createCell(14).setCellValue(note);
                 }));
 
     assertThat(parsed.rows().getFirst().note()).isEqualTo(note);
@@ -235,7 +228,7 @@ class PoiParticipantExcelTest {
         filled(
             sheet -> {
               validRow(sheet, 1, "123");
-              sheet.getRow(1).createCell(15).setCellValue("n".repeat(2001));
+              sheet.getRow(1).createCell(14).setCellValue("n".repeat(2001));
             });
 
     assertThatThrownBy(() -> largerBudget.read(bytes))
@@ -317,8 +310,8 @@ class PoiParticipantExcelTest {
   void theOldParticipantCodeHeaderIsNotPartOfTheTemplateAnymore() {
     assertThat(
             rejection(
-                filled(sheet -> sheet.getRow(0).createCell(16).setCellValue("Mã Người Khám"))))
-        .isEqualTo("The header at column 17 is not part of the template");
+                filled(sheet -> sheet.getRow(0).createCell(15).setCellValue("Mã Người Khám"))))
+        .isEqualTo("The header at column 16 is not part of the template");
   }
 
   @Test
@@ -366,10 +359,10 @@ class PoiParticipantExcelTest {
             filled(
                 sheet -> {
                   validRow(sheet, 1, "123");
-                  sheet.getRow(1).getCell(14).setCellValue("2026-02-30");
+                  sheet.getRow(1).getCell(2).setCellValue("1990-02-30");
                 }));
     assertThat(impossible)
-        .isEqualTo("Row 2: examination_date must be a text date in yyyy-MM-dd format");
+        .isEqualTo("Row 2: date_of_birth must be a text date in yyyy-MM-dd format");
   }
 
   @Test

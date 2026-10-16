@@ -1,2 +1,2 @@
-@org.springframework.modulith.NamedInterface("batch-history")
+@org.springframework.modulith.NamedInterface("agreement-history")
 package com.ngockhanh.clinic.integration.application.query;

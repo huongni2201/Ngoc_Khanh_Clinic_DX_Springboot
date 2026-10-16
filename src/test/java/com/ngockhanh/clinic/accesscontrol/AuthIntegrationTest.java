@@ -49,6 +49,7 @@ class AuthIntegrationTest {
   private static final String COOKIE = "NKC_SESSION";
   private static final String ORIGIN = "http://localhost:3000";
   private static final String PASSWORD = "Mật khẩu-01";
+
   /** Staff and role administration routes (V004, V005) belong to the Administrator only. */
   private static final Set<String> ADMINISTRATION_PERMISSIONS =
       Set.of(
@@ -185,7 +186,7 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(41);
+    assertThat(endpoints).hasSize(53);
     Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());

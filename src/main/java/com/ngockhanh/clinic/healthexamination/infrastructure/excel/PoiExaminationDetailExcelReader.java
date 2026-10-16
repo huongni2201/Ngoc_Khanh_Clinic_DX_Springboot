@@ -10,9 +10,6 @@ import com.ngockhanh.clinic.healthexamination.infrastructure.configuration.Parti
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -31,21 +27,19 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads the examination detail Excel contract V1 with Apache POI.
+ * Reads the examination detail Excel contract V2 with Apache POI.
  *
  * <p>The package is checked first by the shared {@link OoxmlPackageGuard}. Cells are then read
- * strictly by type: a service cell is {@code X}, {@code x} or blank and nothing else, and the actual
- * examination date is an ISO text date, so formulas, numbers and Excel dates are rejected instead of
- * being corrected. The informational columns are never read. Nothing is evaluated, no cached
- * formula value is used and no file or cell content is logged. The first problem, in a fixed order,
- * is reported with the real worksheet row number and the field name but never the rejected value.
- * The reader never touches the database, so it cannot tell whether the declared services belong to
- * a batch; that comparison belongs to the caller.
+ * strictly by type: a service cell is {@code X}, {@code x} or blank and nothing else, so formulas,
+ * numbers and Excel dates are rejected instead of being corrected. The informational columns are
+ * never read. Nothing is evaluated, no cached formula value is used and no file or cell content is
+ * logged. The first problem, in a fixed order, is reported with the real worksheet row number and
+ * the field name but never the rejected value. The reader never touches the database, so it cannot
+ * tell whether the declared services belong to an agreement; that comparison belongs to the caller.
  */
 @Slf4j
 @Component
 public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelReader {
-  private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
   private static final int MAX_LABEL_CHARS = 80;
   private static final String LAYOUT_MISMATCH = "The file layout is not valid; export it again";
 
@@ -77,13 +71,17 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
 
   private ExaminationDetailWorkbook parse(XSSFWorkbook workbook) {
     Sheet detail = workbook.getSheet(DETAIL_SHEET);
-    if (detail == null) throw invalid("The " + DETAIL_SHEET + " sheet is missing; export the file again");
+    if (detail == null)
+      throw invalid("The " + DETAIL_SHEET + " sheet is missing; export the file again");
     Sheet guide = workbook.getSheet(GUIDE_SHEET);
-    if (guide == null) throw invalid("The " + GUIDE_SHEET + " sheet is missing; export the file again");
+    if (guide == null)
+      throw invalid("The " + GUIDE_SHEET + " sheet is missing; export the file again");
     for (int index = 0; index < workbook.getNumberOfSheets(); index++) {
       Sheet other = workbook.getSheetAt(index);
       String name = other.getSheetName();
-      if (!name.equals(DETAIL_SHEET) && !name.equals(GUIDE_SHEET) && other.getPhysicalNumberOfRows() > 0)
+      if (!name.equals(DETAIL_SHEET)
+          && !name.equals(GUIDE_SHEET)
+          && other.getPhysicalNumberOfRows() > 0)
         throw invalid("The workbook has an unexpected sheet with data");
     }
     if (detail.getNumMergedRegions() > 0)
@@ -113,7 +111,11 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
       Integer first = firstRowOfParticipant.putIfAbsent(parsed.participantId(), excelRow);
       if (first != null)
         throw invalid(
-            "Row " + excelRow + ": participant appears more than once (first at row " + first + ")");
+            "Row "
+                + excelRow
+                + ": participant appears more than once (first at row "
+                + first
+                + ")");
       rows.add(parsed);
     }
     if (rows.isEmpty()) throw invalid("The workbook has no data rows");
@@ -178,7 +180,8 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
       if (cell.getCellType() == CellType.BLANK) continue;
       if (cell.getCellType() == CellType.STRING && cell.getStringCellValue().isBlank()) continue;
       if (cell.getColumnIndex() >= lastColumn)
-        throw invalid("Row " + (row.getRowNum() + 1) + ": there is a value outside the file columns");
+        throw invalid(
+            "Row " + (row.getRowNum() + 1) + ": there is a value outside the file columns");
       blank = false;
     }
     return blank;
@@ -188,21 +191,30 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
       Row row, int excelRow, List<UUID> serviceIds, Row labelRow) {
     UUID participantId = participantId(row, excelRow);
     long rowVersion = rowVersion(row, excelRow);
-    LocalDate actualDate = actualDate(row, excelRow);
     Set<UUID> performed = new LinkedHashSet<>();
     for (int index = 0; index < serviceIds.size(); index++) {
       int column = FIRST_SERVICE_COLUMN + index;
       Cell cell = row.getCell(column, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
       if (cell == null) continue;
       if (cell.getCellType() != CellType.STRING)
-        throw invalid("Row " + excelRow + ": column \"" + label(labelRow, column) + "\" accepts only X or blank");
+        throw invalid(
+            "Row "
+                + excelRow
+                + ": column \""
+                + label(labelRow, column)
+                + "\" accepts only X or blank");
       String value = cell.getStringCellValue().trim();
       if (value.isEmpty()) continue;
       if (!value.equalsIgnoreCase(PERFORMED_MARK))
-        throw invalid("Row " + excelRow + ": column \"" + label(labelRow, column) + "\" accepts only X or blank");
+        throw invalid(
+            "Row "
+                + excelRow
+                + ": column \""
+                + label(labelRow, column)
+                + "\" accepts only X or blank");
       performed.add(serviceIds.get(index));
     }
-    return new ExaminationDetailImportRow(excelRow, participantId, rowVersion, actualDate, performed);
+    return new ExaminationDetailImportRow(excelRow, participantId, rowVersion, performed);
   }
 
   private UUID participantId(Row row, int excelRow) {
@@ -238,19 +250,9 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
     return version;
   }
 
-  private LocalDate actualDate(Row row, int excelRow) {
-    String text = text(row, ACTUAL_DATE_COLUMN, ACTUAL_EXAMINATION_DATE, excelRow);
-    if (text == null) return null;
-    try {
-      if (ISO_DATE.matcher(text).matches()) return LocalDate.parse(text, DateTimeFormatter.ISO_LOCAL_DATE);
-    } catch (DateTimeParseException invalidDate) {
-      // reported below with the field name only
-    }
-    throw invalid(
-        "Row " + excelRow + ": " + ACTUAL_EXAMINATION_DATE + " must be a text date in yyyy-MM-dd format");
-  }
-
-  /** Returns the trimmed text of a text cell, or null when it is empty; other types are rejected. */
+  /**
+   * Returns the trimmed text of a text cell, or null when it is empty; other types are rejected.
+   */
   private String text(Row row, int column, String field, int excelRow) {
     Cell cell = row.getCell(column, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
     if (cell == null) return null;
@@ -265,8 +267,12 @@ public class PoiExaminationDetailExcelReader implements ExaminationDetailExcelRe
 
   /** Display label of a service column for error messages; never a value of the data rows. */
   private static String label(Row labelRow, int column) {
-    Cell cell = labelRow == null ? null : labelRow.getCell(column, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-    String label = cell == null || cell.getCellType() != CellType.STRING ? "" : cell.getStringCellValue();
+    Cell cell =
+        labelRow == null
+            ? null
+            : labelRow.getCell(column, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+    String label =
+        cell == null || cell.getCellType() != CellType.STRING ? "" : cell.getStringCellValue();
     label = label.replaceAll("\\p{Cntrl}", " ").trim();
     if (label.isEmpty()) return "#" + (column + 1);
     return label.length() > MAX_LABEL_CHARS ? label.substring(0, MAX_LABEL_CHARS) : label;

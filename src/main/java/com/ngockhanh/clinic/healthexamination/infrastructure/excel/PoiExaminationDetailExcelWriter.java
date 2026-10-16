@@ -12,6 +12,7 @@ import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,32 +30,34 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 
 /**
- * Renders the examination detail workbook V1 with Apache POI. The same file is the export and the
+ * Renders the examination detail workbook V2 with Apache POI. The same file is the export and the
  * template of the import.
  *
  * <p>The {@code ChiTietKham} sheet has Vietnamese labels in row 1, hidden machine keys in row 2 and
  * one row per active Participant from row 3. Hidden columns A and B carry the Participant
- * identifier and row version; the identification number is written exactly as given, so the
- * caller must hand over the masked value, and no phone, email or attendance note is written. Every cell is plain text so no value is converted by Excel. Only the
- * actual examination date and the service cells are unlocked, the services have an {@code X}
- * dropdown, and the sheet is protected without a password to help the user; the backend validates
- * everything it reads again. The {@code HuongDan} sheet holds the template version, the batch
- * identifier, the export time and Vietnamese guidance. No formula, macro or external link is
- * written.
+ * identifier and row version; the identification number is written exactly as given, so the caller
+ * must hand over the masked value, and no phone, email or attendance note is written. Every cell is
+ * plain text so no value is converted by Excel. Only the service cells are unlocked, the services
+ * have an {@code X} dropdown, and the sheet is protected without a password to help the user; the
+ * backend validates everything it reads again. The {@code HuongDan} sheet holds the template
+ * version, the agreement identifier, the export time and Vietnamese guidance. No formula, macro or
+ * external link is written.
  */
 @Component
 public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWriter {
-  private static final int[] FIXED_COLUMN_WIDTH_CHARS = {38, 10, 6, 16, 28, 14, 10, 18, 24, 24, 18, 18};
+  private static final int[] FIXED_COLUMN_WIDTH_CHARS = {
+    38, 10, 6, 16, 28, 14, 10, 18, 24, 24, 18, 18
+  };
   private static final int SERVICE_COLUMN_WIDTH_CHARS = 18;
 
   private static final String[] GUIDANCE = {
-    "Mỗi dòng của sheet ChiTietKham là một người khám đang hoạt động của đợt khám.",
-    "Chỉ chỉnh các ô \"Ngày khám thực tế\" và các cột hạng mục; các ô khác bị khóa và chỉ để đọc.",
+    "Mỗi dòng của sheet ChiTietKham là một người khám đang hoạt động của thỏa thuận.",
+    "Chỉ chỉnh các cột hạng mục; các ô khác bị khóa và chỉ để đọc.",
     "Đánh dấu X vào hạng mục đã thực hiện. Để trống nếu chưa thực hiện.",
     "File là trạng thái đối soát mới của từng người có trong file: ô trống nghĩa là chưa thực hiện.",
     "Người khám không có trong file được giữ nguyên.",
-    "Ngày khám thực tế nhập dạng văn bản yyyy-MM-dd. Để trống để giữ ngày đã ghi hoặc dùng ngày khám dự kiến (chỉ khi ngày dự kiến không nằm trong tương lai).",
-    "Không thêm, xóa hay đổi thứ tự cột và không sửa dòng khóa ẩn. Nếu đợt khám thay đổi, hãy xuất lại file.",
+    "Ngày khám được ghi ở lịch khám (đến / không đến), không ghi ở file này; hai cột ngày chỉ để tham khảo.",
+    "Không thêm, xóa hay đổi thứ tự cột và không sửa dòng khóa ẩn. Nếu thỏa thuận thay đổi, hãy xuất lại file.",
     "Có bất kỳ dòng lỗi nào thì toàn bộ file bị từ chối và không có gì được lưu.",
   };
 
@@ -67,15 +70,15 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
   /**
    * Renders the workbook.
    *
-   * @throws ApplicationException of type {@code INVALID_INPUT} when the batch has more rows than
-   *     the import accepts, because the file could not be imported again
+   * @throws ApplicationException of type {@code INVALID_INPUT} when the agreement has more rows
+   *     than the import accepts, because the file could not be imported again
    */
   @Override
   public byte[] write(ExaminationDetailExportData data) {
     if (data.rows().size() > limits.maxRows())
       throw new ApplicationException(
           ApplicationException.Type.INVALID_INPUT,
-          "The batch has "
+          "The agreement has "
               + data.rows().size()
               + " participants, more than the "
               + limits.maxRows()
@@ -125,7 +128,7 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
       int column = FIRST_SERVICE_COLUMN + index;
       ExaminationServiceColumn service = services.get(index);
       put(labels, column, service.label() == null ? "" : service.label(), header);
-      put(keys, column, serviceKey(service.batchServiceId()), header);
+      put(keys, column, serviceKey(service.agreementServiceId()), header);
       sheet.setColumnWidth(column, SERVICE_COLUMN_WIDTH_CHARS * 256);
     }
     keys.setZeroHeight(true);
@@ -136,7 +139,7 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
     int sequence = 1;
     for (ExaminationDetailRow row : data.rows()) {
       Row excelRow = sheet.createRow(rowIndex++);
-      Set<UUID> performed = new HashSet<>(row.performedBatchServiceIds());
+      Set<UUID> performed = new HashSet<>(row.performedAgreementServiceIds());
       put(excelRow, FIXED_KEYS.indexOf(PARTICIPANT_ID), row.id().toString(), text);
       put(excelRow, FIXED_KEYS.indexOf(ROW_VERSION), Long.toString(row.rowVersion()), text);
       put(excelRow, FIXED_KEYS.indexOf(SEQ), Integer.toString(sequence++), text);
@@ -147,14 +150,11 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
       put(excelRow, FIXED_KEYS.indexOf(IDENTIFICATION_NUMBER), row.identificationNumber(), text);
       put(excelRow, FIXED_KEYS.indexOf(DEPARTMENT_NAME), row.departmentName(), text);
       put(excelRow, FIXED_KEYS.indexOf(POSITION_NAME), row.positionName(), text);
-      put(excelRow, FIXED_KEYS.indexOf(EXAMINATION_DATE), row.examinationDate().toString(), text);
-      put(
-          excelRow,
-          ACTUAL_DATE_COLUMN,
-          row.actualExaminationDate() == null ? "" : row.actualExaminationDate().toString(),
-          input);
+      put(excelRow, FIXED_KEYS.indexOf(NEXT_SESSION_DATE), dateText(row.nextSessionDate()), text);
+      put(excelRow, FIXED_KEYS.indexOf(LAST_ATTENDED_DATE), dateText(row.lastAttendedDate()), text);
       for (int index = 0; index < services.size(); index++) {
-        String mark = performed.contains(services.get(index).batchServiceId()) ? PERFORMED_MARK : "";
+        String mark =
+            performed.contains(services.get(index).agreementServiceId()) ? PERFORMED_MARK : "";
         put(excelRow, FIRST_SERVICE_COLUMN + index, mark, input);
       }
     }
@@ -166,7 +166,10 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
           helper.createValidation(
               helper.createExplicitListConstraint(new String[] {PERFORMED_MARK}),
               new CellRangeAddressList(
-                  FIRST_DATA_ROW, FIRST_DATA_ROW + data.rows().size() - 1, FIRST_SERVICE_COLUMN, lastColumn));
+                  FIRST_DATA_ROW,
+                  FIRST_DATA_ROW + data.rows().size() - 1,
+                  FIRST_SERVICE_COLUMN,
+                  lastColumn));
       validation.setShowErrorBox(true);
       validation.setSuppressDropDownArrow(true);
       sheet.addValidationData(validation);
@@ -186,7 +189,7 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
         META_TEMPLATE_VERSION,
         Integer.toString(ExaminationDetailWorkbook.TEMPLATE_VERSION),
         text);
-    metadata(sheet, 1, META_BATCH_ID, data.batchId().toString(), text);
+    metadata(sheet, 1, META_AGREEMENT_ID, data.agreementId().toString(), text);
     metadata(sheet, 2, META_EXPORTED_AT, data.exportedAt().toString(), text);
 
     put(sheet.createRow(4), 0, "Hướng dẫn nhập chi tiết khám", header);
@@ -194,7 +197,8 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
       put(sheet.createRow(5 + line), 0, GUIDANCE[line], text);
   }
 
-  private static void metadata(Sheet sheet, int rowIndex, String key, String value, CellStyle text) {
+  private static void metadata(
+      Sheet sheet, int rowIndex, String key, String value, CellStyle text) {
     Row row = sheet.createRow(rowIndex);
     put(row, 0, key, text);
     put(row, 1, value, text);
@@ -208,5 +212,9 @@ public class PoiExaminationDetailExcelWriter implements ExaminationDetailExcelWr
 
   private static String blankIfNull(String value) {
     return value == null ? "" : value;
+  }
+
+  private static String dateText(LocalDate date) {
+    return date == null ? "" : date.toString();
   }
 }

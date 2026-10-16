@@ -16,7 +16,7 @@ public interface DocumentValuesSource {
   /**
    * Loads the values of the records a job asked for.
    *
-   * @param context identifiers the job was created with (for example organization and batch)
+   * @param context identifiers the job was created with (for example organization and agreement)
    * @param ids record identifiers, at most one chunk
    * @return the records that can be printed, in the order of {@code ids}, and the ones left out
    */

@@ -32,8 +32,8 @@ public record PeriodicFormBlankModel(
     String participantExaminationDate,
     String organizationName,
     String organizationAddress,
-    String batchCode,
-    String batchName,
+    String agreementCode,
+    String agreementName,
     String printedDate) {
   /** Printed where the roster has no value. */
   public static final String MISSING = "…………………………";
@@ -69,8 +69,8 @@ public record PeriodicFormBlankModel(
         date(source.examinationDate()),
         text(source.organizationName()),
         text(source.organizationAddress()),
-        text(source.batchCode()),
-        text(source.batchName()),
+        text(source.agreementCode()),
+        text(source.agreementName()),
         source.printedDate() == null ? "" : DATE.format(source.printedDate()));
   }
 
@@ -98,8 +98,8 @@ public record PeriodicFormBlankModel(
     values.put("participant.examinationDate", participantExaminationDate);
     values.put("organization.name", organizationName);
     values.put("organization.address", organizationAddress);
-    values.put("batch.code", batchCode);
-    values.put("batch.name", batchName);
+    values.put("batch.code", agreementCode);
+    values.put("batch.name", agreementName);
     values.put("printedDate", printedDate);
     return values;
   }

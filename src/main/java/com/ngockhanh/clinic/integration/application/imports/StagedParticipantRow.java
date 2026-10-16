@@ -18,8 +18,7 @@ public record StagedParticipantRow(
     String workplace,
     String departmentName,
     String positionName,
-    String note,
-    LocalDate examinationDate) {
+    String note) {
   public StagedParticipantRow {
     if (rowNumber < 1) throw new IllegalArgumentException("Row number must be positive");
   }

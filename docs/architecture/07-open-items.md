@@ -8,13 +8,13 @@ remaining work, not accepted permissions, schema changes or deployed features.
 
 `EndpointPermissions` reads the 25 business endpoint mappings stored by V002 at
 startup under [ADR-0015](../adr/0015-endpoint-permission-rbac.md). The former route
-gaps are closed: Organization DELETE uses `ORGANIZATION_DELETE`, Batch DELETE uses
-`HEALTH_EXAMINATION_BATCH_DELETE`, and catalog service lookup uses
+gaps are closed: Organization DELETE uses `ORGANIZATION_DELETE`, Agreement DELETE uses
+`HEALTH_EXAMINATION_AGREEMENT_DELETE`, and catalog service lookup uses
 `SERVICE_CATALOG_VIEW`. All are granted to CLINIC_MANAGER. Local TEST and
 ADMINISTRATOR accounts receive all permissions from the local seed and use the
 same HTTP checks; no role bypasses unmapped endpoints.
 
-Organization/Batch writes currently accept an actor UUID; their reads and catalog
+Organization/Agreement writes currently accept an actor UUID; their reads and catalog
 reads do not receive a principal. HTTP rules protect mapped requests, but direct
 application callers lack equivalent permission checks. Participant and examination
 detail policies already check their principals. The owning business modules must
@@ -36,7 +36,7 @@ refresh on sign-in; automatic revocation on grant change is still missing.
 The session mechanism and per-endpoint rules exist. Login rate limiting,
 logout-all/automatic revocation and production Origin/CSRF review remain open in
 [ADR-0014](../adr/0014-session-cookie-redis-login.md#go-live-blockers).
-Equivalent authorization for direct Organization/Batch/catalog application callers
+Equivalent authorization for direct Organization/Agreement/catalog application callers
 also remains unfinished; the former HTTP route gaps are closed.
 
 ## Official document issuance

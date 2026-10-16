@@ -3,6 +3,7 @@ package com.ngockhanh.clinic.healthexamination.application.usecase;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.IMPORT;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.READ;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.staff;
+import static com.ngockhanh.clinic.healthexamination.RosterFixtures.CLOCK;
 import static com.ngockhanh.clinic.healthexamination.RosterFixtures.NOW;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,9 +16,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.ngockhanh.clinic.healthexamination.application.command.CancelParticipantCommand;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
@@ -36,23 +36,27 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
   }
 
   private final CancelParticipantUseCase useCase =
-      new CancelParticipantUseCase(access, support, participants);
+      new CancelParticipantUseCase(access, support, participants, assignments, CLOCK);
 
-  private void cancel(HealthExaminationBatchParticipant p, Long version) {
+  private void cancel(HealthExaminationParticipant p, Long version) {
     useCase.execute(
-        organizationId, batchId, p.getId().value(), new CancelParticipantCommand(version), manager);
+        organizationId,
+        agreementId,
+        p.getId().value(),
+        new CancelParticipantCommand(version),
+        manager);
   }
 
   @Test
   void deniesCallersWithoutManageBeforeTouchingAnyPort() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var p = stored(0);
     for (var principal : List.of(staff(), staff(READ), staff(IMPORT)))
       assertThatThrownBy(
               () ->
                   useCase.execute(
                       organizationId,
-                      batchId,
+                      agreementId,
                       p.getId().value(),
                       new CancelParticipantCommand(0L),
                       principal))
@@ -60,12 +64,12 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
               ApplicationException.class,
               denied ->
                   assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
-    verifyNoInteractions(batches, organizations, participants, audit);
+    verifyNoInteractions(agreements, organizations, participants, audit);
   }
 
   @Test
   void cancelsWithoutDeletingAndAuditsTheStatusChangeOnly() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var p = stored(4);
     givenStored(p);
 
@@ -73,12 +77,14 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
     assertThat(p.getRosterStatus()).isEqualTo(RosterStatus.CANCELLED);
     verify(participants).save(p, 4L);
+    verify(assignments)
+        .cancelExpectedOfParticipant(eq(p.getId()), eq(AggregateId.of(manager.userId())), any());
     var after = ArgumentCaptor.forClass(Object.class);
     verify(audit)
         .record(
             eq(manager.userId()),
-            eq("CANCEL_BATCH_PARTICIPANT"),
-            eq("HEALTH_EXAMINATION_BATCH_PARTICIPANT"),
+            eq("CANCEL_PARTICIPANT"),
+            eq("HEALTH_EXAMINATION_PARTICIPANT"),
             eq(p.getId().value()),
             any(),
             after.capture());
@@ -89,17 +95,21 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
   @Test
   void blocksCancellationAfterPreparationOrAttendanceAndWhenAlreadyCancelled() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var prepared =
-        stored(1, progress(new AggregateId(UUID.randomUUID()), RosterStatus.ACTIVE, NOW, null));
-    var attended = stored(1, progress(null, RosterStatus.ACTIVE, null, AttendanceStatus.ATTENDED));
-    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null, null));
-    for (var p : List.of(prepared, attended)) {
-      givenStored(p);
-      assertThatThrownBy(() -> cancel(p, 1L))
-          .isInstanceOf(ConflictException.class)
-          .hasMessage("Participant cannot be cancelled after preparation or attendance");
-    }
+        stored(1, progress(new AggregateId(UUID.randomUUID()), RosterStatus.ACTIVE, NOW));
+    var attended = stored(1);
+    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null));
+    givenStored(prepared);
+    assertThatThrownBy(() -> cancel(prepared, 1L))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage("Participant cannot be cancelled after preparation or attendance");
+    givenStored(attended);
+    when(assignments.hasAttended(attended.getId())).thenReturn(true);
+    assertThatThrownBy(() -> cancel(attended, 1L))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage("Participant cannot be cancelled after attendance");
+    verify(assignments, never()).cancelExpectedOfParticipant(any(), any(), any());
     givenStored(cancelled);
     assertThatThrownBy(() -> cancel(cancelled, 1L))
         .isInstanceOf(ConflictException.class)
@@ -110,7 +120,7 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
   @Test
   void rejectsAStaleVersion() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var p = stored(4);
     givenStored(p);
     assertThatThrownBy(() -> cancel(p, 3L)).isInstanceOf(ConcurrentUpdateException.class);
@@ -120,7 +130,7 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
 
   @Test
   void rejectsAMissingOrNegativeVersion() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var p = stored(0);
     givenStored(p);
     for (Long version : new Long[] {null, -1L})
@@ -128,29 +138,30 @@ class CancelParticipantUseCaseTest extends ManualParticipantUseCaseTestBase {
   }
 
   @Test
-  void rejectsBatchesThatDoNotAcceptChangesAndInactiveOrganizations() {
-    givenOpenBatch(); // the fixture needs a batch (and its days) before a Participant can be built
+  void rejectsAgreementsThatDoNotAcceptChangesAndInactiveOrganizations() {
+    givenOpenAgreement(); // the fixture needs an agreement (and its days) before a Participant can
+    // be built
     var p = stored(0);
-    for (var status : List.of(BatchStatus.FINALIZED, BatchStatus.CLOSED)) {
-      givenBatch(status, null, true);
+    for (var status : List.of(AgreementStatus.ENDED)) {
+      givenAgreement(status, null, true);
       givenStored(p);
       assertThatThrownBy(() -> cancel(p, 0L))
           .isInstanceOf(ConflictException.class)
-          .hasMessage("Batch does not accept Participant changes");
+          .hasMessage("Agreement does not accept Participant changes");
     }
-    givenBatch(BatchStatus.DRAFT, null, false);
+    givenAgreement(AgreementStatus.DRAFT, null, false);
     assertThatThrownBy(() -> cancel(p, 0L)).isInstanceOf(ConflictException.class);
     verify(participants, never()).save(any(), anyLong());
   }
 
   @Test
-  void reportsAnUnknownBatchOrParticipantAsNotFound() {
-    givenOpenBatch();
+  void reportsAnUnknownAgreementOrParticipantAsNotFound() {
+    givenOpenAgreement();
     var p = stored(0);
-    when(participants.findInBatch(any(), any())).thenReturn(Optional.empty());
+    when(participants.findInAgreement(any(), any())).thenReturn(Optional.empty());
     assertThatThrownBy(() -> cancel(p, 0L)).isInstanceOf(ResourceNotFoundException.class);
 
-    when(batches.findDetails(organizationId, batchId, true)).thenReturn(Optional.empty());
+    when(agreements.findDetails(organizationId, agreementId, true)).thenReturn(Optional.empty());
     assertThatThrownBy(() -> cancel(p, 0L)).isInstanceOf(ResourceNotFoundException.class);
   }
 }

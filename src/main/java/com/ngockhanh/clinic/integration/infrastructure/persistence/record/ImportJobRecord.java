@@ -9,7 +9,7 @@ import lombok.Builder;
 public record ImportJobRecord(
     UUID id,
     String importType,
-    UUID batchId,
+    UUID agreementId,
     String configuration,
     UUID sourceFileId,
     String status,

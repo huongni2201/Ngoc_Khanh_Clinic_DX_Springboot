@@ -28,7 +28,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Component;
 
 /**
- * Reads the Excel import contract V1 with Apache POI.
+ * Reads the Excel import contract V2 with Apache POI.
  *
  * <p>The package is checked first without reading any cell: size, the OOXML signature, the entry
  * count and extracted size budgets, and the absence of macros and external links. Cells are then
@@ -44,16 +44,8 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
   private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
   private static final int MAX_HEADER_COLUMNS = 64;
   private static final Set<String> REQUIRED =
-      Set.of(
-          FULL_NAME,
-          DATE_OF_BIRTH,
-          SEX,
-          IDENTIFICATION_NUMBER,
-          DEPARTMENT_NAME,
-          POSITION_NAME,
-          EXAMINATION_DATE);
-  private static final Set<String> DATE_COLUMNS =
-      Set.of(DATE_OF_BIRTH, IDENTIFICATION_ISSUE_DATE, EXAMINATION_DATE);
+      Set.of(FULL_NAME, DATE_OF_BIRTH, SEX, IDENTIFICATION_NUMBER, DEPARTMENT_NAME, POSITION_NAME);
+  private static final Set<String> DATE_COLUMNS = Set.of(DATE_OF_BIRTH, IDENTIFICATION_ISSUE_DATE);
   private static final Set<String> UNTRIMMED = Set.of(IDENTIFICATION_NUMBER);
 
   private final ParticipantImportProperties limits;
@@ -97,8 +89,8 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
       throw invalid("Merged cells are not allowed in the Participants sheet");
 
     int templateVersion = integer(metadata(instructions, 0, META_TEMPLATE_VERSION));
-    UUID batchId = uuid(metadata(instructions, 1, META_BATCH_ID));
-    long batchRowVersion = longValue(metadata(instructions, 2, META_BATCH_ROW_VERSION));
+    UUID agreementId = uuid(metadata(instructions, 1, META_AGREEMENT_ID));
+    long agreementRowVersion = longValue(metadata(instructions, 2, META_AGREEMENT_ROW_VERSION));
 
     Map<String, Integer> columns = headerColumns(participants);
     List<ParticipantImportRow> rows = new ArrayList<>();
@@ -112,7 +104,7 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
       rows.add(readRow(row, excelRow, columns));
     }
     if (rows.isEmpty()) throw invalid("The workbook has no data rows");
-    return new ParticipantWorkbook(templateVersion, batchId, batchRowVersion, rows);
+    return new ParticipantWorkbook(templateVersion, agreementId, agreementRowVersion, rows);
   }
 
   private Map<String, Integer> headerColumns(Sheet sheet) {
@@ -183,8 +175,7 @@ public class PoiParticipantExcelReader implements ParticipantExcelReader {
         text.get(WORKPLACE),
         text.get(DEPARTMENT_NAME),
         text.get(POSITION_NAME),
-        text.get(NOTE),
-        date(text.get(EXAMINATION_DATE), EXAMINATION_DATE, excelRow));
+        text.get(NOTE));
   }
 
   /**

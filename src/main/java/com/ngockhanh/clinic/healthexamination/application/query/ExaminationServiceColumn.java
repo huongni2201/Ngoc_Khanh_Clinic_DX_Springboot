@@ -5,7 +5,8 @@ import java.util.UUID;
 /**
  * One service column of the examination detail workbook.
  *
- * @param batchServiceId batch service the column records; it is the machine key of the column
+ * @param agreementServiceId agreement service the column records; it is the machine key of the
+ *     column
  * @param label display name of the catalog service, never used to match columns on import
  */
-public record ExaminationServiceColumn(UUID batchServiceId, String label) {}
+public record ExaminationServiceColumn(UUID agreementServiceId, String label) {}

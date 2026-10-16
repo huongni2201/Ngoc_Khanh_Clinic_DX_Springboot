@@ -1,6 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.api.controller;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,7 +33,7 @@ class ExaminationFormControllerTest {
   private final RenderParticipantExaminationFormUseCase useCase =
       mock(RenderParticipantExaminationFormUseCase.class);
   private final UUID organizationId = UUID.randomUUID();
-  private final UUID batchId = UUID.randomUUID();
+  private final UUID agreementId = UUID.randomUUID();
   private final UUID participantId = UUID.randomUUID();
   private UserPrincipal principal;
   private MockMvc mvc;
@@ -57,8 +58,8 @@ class ExaminationFormControllerTest {
   private String url() {
     return "/api/v1/organizations/"
         + organizationId
-        + "/health-examination-batches/"
-        + batchId
+        + "/agreements/"
+        + agreementId
         + "/participants/"
         + participantId
         + "/examination-form";
@@ -66,7 +67,8 @@ class ExaminationFormControllerTest {
 
   @Test
   void returnsThePdfInlineAndNeverCachesIt() throws Exception {
-    when(useCase.execute(eq(organizationId), eq(batchId), eq(participantId), eq(principal)))
+    when(useCase.execute(
+            eq(organizationId), eq(agreementId), eq(participantId), isNull(), eq(principal)))
         .thenReturn(
             new ExaminationFormDocumentResponse(
                 new byte[] {'%', 'P', 'D', 'F'}, "phieu-kham-NV-001.pdf"));
@@ -82,9 +84,11 @@ class ExaminationFormControllerTest {
 
   @Test
   void mapsFailuresToTheirStatuses() throws Exception {
-    when(useCase.execute(eq(organizationId), eq(batchId), eq(participantId), eq(principal)))
+    when(useCase.execute(
+            eq(organizationId), eq(agreementId), eq(participantId), isNull(), eq(principal)))
         .thenThrow(new ResourceNotFoundException("Participant"))
-        .thenThrow(new ConflictException("The batch status does not allow printing examination forms"))
+        .thenThrow(
+            new ConflictException("The agreement status does not allow printing examination forms"))
         .thenThrow(new DependencyUnavailableException("converter down", null))
         .thenThrow(
             new ApplicationException(ApplicationException.Type.ACCESS_DENIED, "not authorized"));
@@ -93,5 +97,16 @@ class ExaminationFormControllerTest {
     mvc.perform(get(url())).andExpect(status().isConflict());
     mvc.perform(get(url())).andExpect(status().isServiceUnavailable());
     mvc.perform(get(url())).andExpect(status().isForbidden());
+  }
+
+  @Test
+  void passesTheOptionalSessionToTheUseCase() throws Exception {
+    UUID sessionId = UUID.randomUUID();
+    when(useCase.execute(
+            eq(organizationId), eq(agreementId), eq(participantId), eq(sessionId), eq(principal)))
+        .thenReturn(new ExaminationFormDocumentResponse(new byte[] {1}, "phieu-kham-NV-001.pdf"));
+
+    mvc.perform(get(url()).param("sessionId", sessionId.toString())).andExpect(status().isOk());
+    mvc.perform(get(url()).param("sessionId", "not-a-uuid")).andExpect(status().isBadRequest());
   }
 }

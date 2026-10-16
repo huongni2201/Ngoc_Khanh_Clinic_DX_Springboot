@@ -16,9 +16,9 @@ Chưa có: upload/publish mẫu, đánh dấu (bookmark) hay đệm trang để 
 
 | Route | Permission | Ghi chú |
 |---|---|---|
-| `POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs` | `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` | Header `Idempotency-Key` (UUID) bắt buộc; body chọn người theo danh sách hoặc theo ngày khám (xem bên dưới) |
+| `POST /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/examination-form-print-jobs` | `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` | Header `Idempotency-Key` (UUID) bắt buộc; body chọn người theo danh sách hoặc theo lịch khám (xem bên dưới) |
 | `GET /api/v1/document-render-jobs/{jobId}` | `DOCUMENT_RENDER_JOB_READ` | Trạng thái và tiến độ |
-| `GET /api/v1/document-render-jobs/{jobId}/parts/{partNo}` | `DOCUMENT_RENDER_JOB_DOWNLOAD` | `application/pdf`, `attachment; filename="phieu-kham-<mã đợt>-phan-<n>.pdf"`, `Cache-Control: no-store` |
+| `GET /api/v1/document-render-jobs/{jobId}/parts/{partNo}` | `DOCUMENT_RENDER_JOB_DOWNLOAD` | `application/pdf`, `attachment; filename="phieu-kham-<mã thỏa thuận>-phan-<n>.pdf"`, `Cache-Control: no-store` |
 
 V002 gán cả ba permission cho CLINIC_MANAGER, NURSE, RECEPTIONIST (một endpoint một permission, [ADR-0015](../adr/0015-endpoint-permission-rbac.md)).
 Tài khoản phải là STAFF; mọi route trả `Cache-Control: no-store`.
@@ -31,36 +31,36 @@ Hai cách chọn người in, phân biệt bằng `scope`:
 
 | `scope` | Trường dùng | Ý nghĩa |
 |---|---|---|
-| `IDS` (mặc định) | `participantIds` | In đúng các người được liệt kê. 1–5000 phần tử không null trong body; sau khi kiểm tra, job nhận tối đa **1000** người (`nkc.document.jobs.max-records`), không trùng id. Thứ tự trong body là thứ tự in |
-| `BATCH_DAY` | `batchDayId`, `includeAttended`, `sort` | In theo **ngày khám**: backend tự chọn người **ngay lúc tạo job** nên người được thêm, dời hay hủy sau đó không làm đổi job. Không được gửi kèm `participantIds`; `IDS` không được gửi kèm `batchDayId` |
+| `IDS` (mặc định) | `participantIds`, `sessionId` (tùy chọn) | In đúng các người được liệt kê. 1–5000 phần tử không null trong body; sau khi kiểm tra, job nhận tối đa **1000** người (`nkc.document.jobs.max-records`), không trùng id. Thứ tự trong body là thứ tự in. `sessionId` chỉ quyết định ngày in trên phiếu |
+| `SESSION` | `sessionId`, `includeAttended`, `sort` | In theo **lịch khám**: backend tự chọn người **ngay lúc tạo job** nên người được thêm, dời hay hủy sau đó không làm đổi job. Không được gửi kèm `participantIds` |
 
 ```jsonc
-// theo ngày khám
-{ "scope": "BATCH_DAY", "batchDayId": "…", "includeAttended": false, "sort": "DEPARTMENT" }
+// theo lịch khám
+{ "scope": "SESSION", "sessionId": "…", "includeAttended": false, "sort": "DEPARTMENT" }
 // theo danh sách
 { "scope": "IDS", "participantIds": ["…", "…"] }
 ```
 
-Quy tắc chọn người của `BATCH_DAY`:
+Quy tắc chọn người của `SESSION`:
 
-- Chỉ người `ACTIVE` của đúng ngày đó. Người đã hủy và người `ABSENT` **không bao giờ** được in.
-- Mặc định chỉ người `UNCONFIRMED` (chưa khám). `includeAttended: true` thêm người `ATTENDED` để in lại.
+- Chỉ người `ACTIVE` của thỏa thuận đang được phân vào lịch khám đó. Người đã hủy, người `NO_SHOW`, `MOVED` và `CANCELLED` **không bao giờ** được in.
+- Mặc định chỉ người còn chờ (`ASSIGNED`). `includeAttended: true` thêm người `ATTENDED` để in lại.
 - `sort`: `DEPARTMENT` (mặc định: phòng ban → thứ tự dòng trong file import → mã người khám), `CODE` (mã người khám), `IMPORT_ORDER` (thứ tự dòng trong file import → mã).
-- Ngày không thuộc đợt → 404. Ngày không còn ai để in → 409. Quá 1000 người → 400.
-- Tên file tải về có thêm ngày khám: `phieu-kham-<mã đợt>-<yyyyMMdd>-phan-<n>.pdf`.
-- Nếu retry cùng `Idempotency-Key` mà giữa hai lần gọi danh sách của ngày đã đổi (có người được thêm hoặc đã khám), backend trả 409 vì nội dung job khác; tạo lại với key mới.
-- Lúc tạo chỉ kiểm tra quyền, Organization/Batch và trạng thái batch (READY/FINALIZED). Danh sách Participant được đọc lúc xử lý, nên người không còn hợp lệ được **bỏ qua có ghi lý do** thay vì làm hỏng cả job.
-- Job chỉ lưu id và ngữ cảnh (organizationId, batchId, tên file), không lưu dữ liệu cá nhân.
+- Lịch khám không tồn tại hoặc không dùng được cho thỏa thuận → 404. Lịch không còn ai để in → 409. Quá 1000 người → 400.
+- Tên file tải về có thêm ngày của lịch: `phieu-kham-<mã thỏa thuận>-<yyyyMMdd>-phan-<n>.pdf`. Ngày trên phiếu là ngày của lịch khám.
+- Nếu retry cùng `Idempotency-Key` mà giữa hai lần gọi danh sách của lịch đã đổi (có người được thêm hoặc đã khám), backend trả 409 vì nội dung job khác; tạo lại với key mới.
+- Lúc tạo chỉ kiểm tra quyền, Organization/Agreement và trạng thái thỏa thuận (ACTIVE/ENDED). Danh sách Participant được đọc lúc xử lý, nên người không còn hợp lệ được **bỏ qua có ghi lý do** thay vì làm hỏng cả job.
+- Job chỉ lưu id và ngữ cảnh (organizationId, agreementId, sessionId nếu có, tên file), không lưu dữ liệu cá nhân.
 - Cùng `Idempotency-Key` + cùng nội dung của cùng tài khoản trả lại đúng job cũ (vẫn 202); cùng key khác nội dung → 409.
 - Audit `CREATE_EXAMINATION_FORM_PRINT_JOB` chỉ ghi khi job mới được tạo, không ghi khi phát lại.
 
 | Mã | Khi nào |
 |---|---|
 | 202 | đã xếp hàng |
-| 400 | thiếu/sai header hoặc body, danh sách rỗng, trùng id, quá 1000 người, `BATCH_DAY` thiếu `batchDayId` hoặc kèm `participantIds`, `IDS` kèm `batchDayId` |
+| 400 | thiếu/sai header hoặc body, danh sách rỗng, trùng id, quá 1000 người, `SESSION` thiếu `sessionId` hoặc kèm `participantIds` |
 | 403 | thiếu permission hoặc không phải STAFF |
-| 404 | Organization/Batch không khớp hoặc batch đã xóa mềm; ngày khám không thuộc đợt (`BATCH_DAY`) |
-| 409 | batch chưa READY/FINALIZED; ngày khám không còn ai để in (`BATCH_DAY`); `Idempotency-Key` đã dùng cho nội dung khác; tài khoản đang có 3 job chờ/chạy |
+| 404 | Organization/Agreement không khớp hoặc thỏa thuận đã xóa mềm; lịch khám không tồn tại (`SESSION`) |
+| 409 | thỏa thuận chưa ACTIVE/ENDED; lịch khám không còn ai để in (`SESSION`); lịch thuộc thỏa thuận khác; `Idempotency-Key` đã dùng cho nội dung khác; tài khoản đang có 3 job chờ/chạy |
 | 503 | chưa cấu hình thư mục lưu trữ `nkc.document.storage.local-root` |
 
 ## Xem job (GET)
@@ -83,7 +83,7 @@ Chỉ **người tạo** job xem được; người khác nhận 404 như job kh
 
 - `status`: `QUEUED` → `RUNNING` → `SUCCEEDED` | `FAILED`; sau 24 giờ `EXPIRED`.
 - `processedCount` tính cả người đã in lẫn người bị bỏ qua; lưu mỗi 25 người.
-- `skipped[].reason`: `NOT_FOUND` (không thuộc batch), `CANCELLED` (Participant không còn ACTIVE), `TOO_LONG` (phiếu tràn số trang của mẫu), `RENDER_FAILED` (kết xuất người đó lỗi). Chỉ có id và lý do, không có tên.
+- `skipped[].reason`: `NOT_FOUND` (không thuộc thỏa thuận), `CANCELLED` (Participant không còn ACTIVE), `TOO_LONG` (phiếu tràn số trang của mẫu), `RENDER_FAILED` (kết xuất người đó lỗi). Chỉ có id và lý do, không có tên.
 - `parts`: mỗi phần tối đa 200 người (`part-size`), ghép bằng Gotenberg `/forms/pdfengines/merge` theo đúng thứ tự yêu cầu; phần chỉ có một người không qua bước ghép.
 - Job `SUCCEEDED` luôn có ít nhất một phần. Nếu mọi người đều bị bỏ qua, job `FAILED` với `NOTHING_TO_PRINT`.
 
@@ -96,7 +96,7 @@ Chỉ **người tạo** job xem được; người khác nhận 404 như job kh
 | `TEMPLATE_UNAVAILABLE` | file mẫu không đọc/điền được |
 | `RENDERER_UNAVAILABLE` | Gotenberg không phản hồi (đã thử lại tối đa 3 lần) |
 | `STORAGE_FAILED` | không ghi được file đầu ra |
-| `SOURCE_NOT_FOUND` / `SOURCE_NOT_PRINTABLE` | batch bị xóa hoặc không còn READY/FINALIZED sau khi job được tạo |
+| `SOURCE_NOT_FOUND` / `SOURCE_NOT_PRINTABLE` | thỏa thuận bị xóa hoặc không còn ACTIVE/ENDED sau khi job được tạo |
 | `NOTHING_TO_PRINT` | không còn ai in được |
 | `ATTEMPTS_EXHAUSTED` | worker chết/treo quá 3 lần nhận job |
 | `INTERNAL_ERROR` | lỗi không dự kiến (xem log) |

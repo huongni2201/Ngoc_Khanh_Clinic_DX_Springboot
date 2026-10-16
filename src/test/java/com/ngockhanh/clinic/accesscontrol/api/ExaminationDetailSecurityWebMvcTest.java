@@ -39,9 +39,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Security chain of the eight examination detail and report routes, with their permissions as
  * stored in {@code public.permissions}: each needs a staff session holding exactly its own
- * permission, and the permissions of the Participant roster, of another
- * detail route or of a patient account never open a route. The routes are served by a stub
- * controller so that only the filter chain is exercised.
+ * permission, and the permissions of the Participant roster, of another detail route or of a
+ * patient account never open a route. The routes are served by a stub controller so that only the
+ * filter chain is exercised.
  */
 @WebMvcTest(
     controllers = {AuthController.class, ExaminationDetailSecurityWebMvcTest.StubEndpoints.class},
@@ -67,11 +67,8 @@ class ExaminationDetailSecurityWebMvcTest {
   private static final String REPORT_READ = "HEALTH_EXAMINATION_REPORT_READ";
   private static final String REPORT_EXPORT = "HEALTH_EXAMINATION_REPORT_EXPORT";
   private static final String PARTICIPANT_MANAGE = "HEALTH_EXAMINATION_PARTICIPANT_MANAGE";
-  private static final String BATCH =
-      "/api/v1/organizations/"
-          + UUID.randomUUID()
-          + "/health-examination-batches/"
-          + UUID.randomUUID();
+  private static final String AGREEMENT =
+      "/api/v1/organizations/" + UUID.randomUUID() + "/agreements/" + UUID.randomUUID();
 
   @Autowired MockMvc mvc;
   @MockitoBean LoginUseCase login;
@@ -81,7 +78,7 @@ class ExaminationDetailSecurityWebMvcTest {
   @RestController
   static class StubEndpoints {
     private static final String BASE =
-        "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}";
+        "/api/v1/organizations/{organizationId}/agreements/{agreementId}";
 
     @GetMapping({
       BASE + "/examination-details",
@@ -111,7 +108,7 @@ class ExaminationDetailSecurityWebMvcTest {
   /** {@code path} is the route template; {@code {participantId}} is filled in for a request. */
   private record Route(String name, String method, String path, String permission) {
     MockHttpServletRequestBuilder request() {
-      String url = BATCH + path.replace("{participantId}", PARTICIPANT);
+      String url = AGREEMENT + path.replace("{participantId}", PARTICIPANT);
       return switch (method) {
         case "POST" -> post(url);
         case "PUT" -> put(url);
@@ -127,10 +124,7 @@ class ExaminationDetailSecurityWebMvcTest {
           new Route("export", "GET", "/examination-details/export", SERVICE_EXPORT),
           new Route("import", "POST", "/examination-details/imports", SERVICE_RECONCILE),
           new Route(
-              "template",
-              "GET",
-              "/examination-details/import-template",
-              SERVICE_TEMPLATE_DOWNLOAD),
+              "template", "GET", "/examination-details/import-template", SERVICE_TEMPLATE_DOWNLOAD),
           new Route("record", "PUT", "/examination-details/{participantId}", SERVICE_RECORD),
           new Route("report", "GET", "/reports/payment-summary", REPORT_READ),
           new Route("docx", "GET", "/reports/payment-summary/docx", REPORT_EXPORT));
@@ -231,7 +225,7 @@ class ExaminationDetailSecurityWebMvcTest {
   void recordWithAnUnknownOriginIsForbiddenEvenWithThePermission() throws Exception {
     when(authenticate.execute("recorder")).thenReturn(principal("STAFF", List.of(SERVICE_RECORD)));
     mvc.perform(
-            put(BATCH + "/examination-details/" + PARTICIPANT)
+            put(AGREEMENT + "/examination-details/" + PARTICIPANT)
                 .header("Origin", "https://evil.test")
                 .cookie(new Cookie(COOKIE, "recorder")))
         .andExpect(status().isForbidden());
@@ -242,7 +236,7 @@ class ExaminationDetailSecurityWebMvcTest {
     when(authenticate.execute("reconciler"))
         .thenReturn(principal("STAFF", List.of(SERVICE_RECONCILE)));
     mvc.perform(
-            post(BATCH + "/examination-details/imports")
+            post(AGREEMENT + "/examination-details/imports")
                 .header("Origin", "https://evil.test")
                 .cookie(new Cookie(COOKIE, "reconciler")))
         .andExpect(status().isForbidden());

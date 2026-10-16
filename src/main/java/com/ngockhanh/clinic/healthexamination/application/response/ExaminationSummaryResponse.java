@@ -2,12 +2,15 @@ package com.ngockhanh.clinic.healthexamination.application.response;
 
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationSummary;
 
-/** Counters of the active Participants of a batch; cancelled Participants are never counted. */
+/**
+ * Counters of the active Participants of an agreement; cancelled Participants are never counted.
+ */
 public record ExaminationSummaryResponse(
     long registered,
     long unconfirmed,
     long attended,
-    long absent,
+    long noShow,
+    long unscheduled,
     long reconciled,
     long pendingReconciliation) {
   public static ExaminationSummaryResponse from(ExaminationSummary summary) {
@@ -15,7 +18,8 @@ public record ExaminationSummaryResponse(
         summary.registered(),
         summary.unconfirmed(),
         summary.attended(),
-        summary.absent(),
+        summary.noShow(),
+        summary.unscheduled(),
         summary.reconciled(),
         summary.pendingReconciliation());
   }

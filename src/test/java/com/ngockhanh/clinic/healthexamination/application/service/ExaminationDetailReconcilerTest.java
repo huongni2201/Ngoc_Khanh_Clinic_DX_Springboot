@@ -3,23 +3,19 @@ package com.ngockhanh.clinic.healthexamination.application.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.ngockhanh.clinic.healthexamination.BatchFixtures;
+import com.ngockhanh.clinic.healthexamination.AgreementFixtures;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailImportRow;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailReconciler.Result;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Progress;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;
-import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchDay;
-import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
-import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchService;
-import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationAgreement;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.Progress;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.Roster;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationAgreementService;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationParticipantService;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ReconciliationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
-import com.ngockhanh.clinic.healthexamination.domain.valueobject.ExaminationSite;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.Money;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
@@ -36,50 +32,43 @@ import org.junit.jupiter.api.Test;
 class ExaminationDetailReconcilerTest {
   private static final Instant EARLIER = Instant.parse("2026-10-04T01:00:00Z");
   private static final Instant NOW = Instant.parse("2026-10-06T01:00:00Z");
-  private static final LocalDate PLANNED = BatchFixtures.FIRST_DAY;
 
   private final ExaminationDetailReconciler reconciler = new ExaminationDetailReconciler();
   private final UUID organizationId = UUID.randomUUID();
-  private final UUID batchId = UUID.randomUUID();
+  private final UUID agreementId = UUID.randomUUID();
   private final AggregateId actor = AggregateId.of(UUID.randomUUID());
-  private HealthExaminationBatch batch;
+  private HealthExaminationAgreement agreement;
   private AggregateId serviceA;
   private AggregateId serviceB;
   private final AggregateId participantId = AggregateId.of(UUID.randomUUID());
 
   @BeforeEach
-  void aBatchOfTwoActiveServices() {
-    batch =
-        BatchFixtures.draftBatch(organizationId, batchId, 0, UUID.randomUUID(), UUID.randomUUID());
-    serviceA = batch.services().get(0).id();
-    serviceB = batch.services().get(1).id();
+  void anAgreementOfTwoActiveServices() {
+    agreement =
+        AgreementFixtures.draftAgreement(
+            organizationId, agreementId, 0, UUID.randomUUID(), UUID.randomUUID());
+    serviceA = agreement.services().get(0).id();
+    serviceB = agreement.services().get(1).id();
   }
 
-  private static Progress progress(
-      AttendanceStatus attendance, LocalDate actualDate, ReconciliationStatus reconciliation) {
-    boolean attended = attendance == AttendanceStatus.ATTENDED;
+  private static Progress progress(ReconciliationStatus reconciliation) {
     boolean reconciled = reconciliation == ReconciliationStatus.RECONCILED;
     AggregateId earlier = AggregateId.of(UUID.randomUUID());
     return new Progress(
         null,
         RosterStatus.ACTIVE,
-        attendance,
-        actualDate,
-        attended ? earlier : null,
-        attended ? EARLIER : null,
-        null,
         reconciliation,
         reconciled ? earlier : null,
         reconciled ? EARLIER : null,
         null);
   }
 
-  private HealthExaminationBatchParticipant participant(
-      Progress progress, List<HealthExaminationBatchParticipantService> services) {
-    return HealthExaminationBatchParticipant.restore(
+  private HealthExaminationParticipant participant(
+      Progress progress, List<HealthExaminationParticipantService> services) {
+    return HealthExaminationParticipant.restore(
         participantId,
-        AggregateId.of(batchId),
-        batch.days().get(0).id() == null ? null : AggregateId.of(batch.days().get(0).id()),
+        AggregateId.of(organizationId),
+        AggregateId.of(agreementId),
         new Roster(
             "NV-1",
             "Synthetic Person",
@@ -99,15 +88,14 @@ class ExaminationDetailReconcilerTest {
         services);
   }
 
-  private HealthExaminationBatchParticipant fresh() {
-    return participant(
-        progress(AttendanceStatus.UNCONFIRMED, null, ReconciliationStatus.PENDING), List.of());
+  private HealthExaminationParticipant fresh() {
+    return participant(progress(ReconciliationStatus.PENDING), List.of());
   }
 
-  private HealthExaminationBatchParticipantService stored(AggregateId service, boolean performed) {
-    return new HealthExaminationBatchParticipantService(
+  private HealthExaminationParticipantService stored(AggregateId service, boolean performed) {
+    return new HealthExaminationParticipantService(
         AggregateId.of(UUID.randomUUID()),
-        AggregateId.of(batchId),
+        AggregateId.of(agreementId),
         participantId,
         service,
         performed,
@@ -120,26 +108,50 @@ class ExaminationDetailReconcilerTest {
         0);
   }
 
-  private static ExaminationDetailEntry row(LocalDate actualDate, AggregateId... ticked) {
+  private static ExaminationDetailEntry row(AggregateId... ticked) {
     Set<UUID> ids = new java.util.HashSet<>();
     for (AggregateId id : ticked) ids.add(id.value());
-    return new ExaminationDetailImportRow(2, UUID.randomUUID(), 3, actualDate, ids).toEntry();
+    return new ExaminationDetailImportRow(2, UUID.randomUUID(), 3, ids).toEntry();
   }
 
-  private Result apply(HealthExaminationBatchParticipant p, ExaminationDetailEntry row) {
-    return reconciler.apply(p, batch, row, actor, NOW, PLANNED);
+  private Result apply(HealthExaminationParticipant p, ExaminationDetailEntry row) {
+    return reconciler.apply(p, agreement, row, actor, NOW);
+  }
+
+  private HealthExaminationAgreement agreementWith(HealthExaminationAgreementService line) {
+    return HealthExaminationAgreement.restoreConfiguration(
+        AggregateId.of(agreementId),
+        AggregateId.of(organizationId),
+        "B1",
+        "Campaign",
+        AgreementFixtures.FIRST_DAY,
+        AgreementFixtures.SECOND_DAY,
+        List.of(line),
+        AgreementStatus.DRAFT,
+        0,
+        null);
+  }
+
+  private HealthExaminationAgreementService retiredLine() {
+    return new HealthExaminationAgreementService(
+        AggregateId.of(UUID.randomUUID()),
+        AggregateId.of(UUID.randomUUID()),
+        AggregateId.of(agreementId),
+        Money.vnd("200"),
+        Money.vnd("100"),
+        1,
+        false,
+        0);
   }
 
   @Test
-  void aMarkedServiceAttendsTheParticipantOnThePlannedDateAndSnapshotsTheNegotiatedPrice() {
+  void aMarkedServiceReconcilesTheParticipantAndSnapshotsTheNegotiatedPrice() {
     var p = fresh();
 
-    assertThat(apply(p, row(null, serviceA))).isEqualTo(Result.UPDATED);
+    assertThat(apply(p, row(serviceA))).isEqualTo(Result.UPDATED);
 
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.ATTENDED);
-    assertThat(p.getActualExaminationDate()).isEqualTo(PLANNED);
     assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.RECONCILED);
-    assertThat(p.performedBatchServiceIds()).containsExactly(serviceA);
+    assertThat(p.performedAgreementServiceIds()).containsExactly(serviceA);
     var service = p.services().get(0);
     assertThat(service.unitPriceSnapshot().amount()).isEqualByComparingTo("100");
     assertThat(service.recordedBy()).isEqualTo(actor);
@@ -148,79 +160,38 @@ class ExaminationDetailReconcilerTest {
   }
 
   @Test
-  void theActualDateOfTheFileWinsOverThePlannedDate() {
+  void aBlankRowForAParticipantWithNoServiceRowsWritesNothing() {
     var p = fresh();
 
-    apply(p, row(BatchFixtures.SECOND_DAY, serviceA));
+    assertThat(apply(p, row())).isEqualTo(Result.UNCHANGED);
 
-    assertThat(p.getActualExaminationDate()).isEqualTo(BatchFixtures.SECOND_DAY);
-  }
-
-  @Test
-  void anAlreadyAttendedParticipantKeepsItsRecordedDateWhenTheFileHasNone() {
-    var recorded = BatchFixtures.SECOND_DAY;
-    var p =
-        participant(
-            progress(AttendanceStatus.ATTENDED, recorded, ReconciliationStatus.PENDING), List.of());
-
-    apply(p, row(null, serviceA));
-
-    assertThat(p.getActualExaminationDate()).isEqualTo(recorded);
-  }
-
-  @Test
-  void anAbsentParticipantWithAMarkedServiceBecomesAttended() {
-    var p =
-        participant(
-            progress(AttendanceStatus.ABSENT, null, ReconciliationStatus.PENDING), List.of());
-
-    apply(p, row(null, serviceB));
-
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.ATTENDED);
-    assertThat(p.getActualExaminationDate()).isEqualTo(PLANNED);
-  }
-
-  @Test
-  void aBlankRowForAParticipantWithNoServiceRowsWritesNothingAndKeepsAttendance() {
-    var p = fresh();
-
-    assertThat(apply(p, row(null))).isEqualTo(Result.UNCHANGED);
-    assertThat(apply(p, row(BatchFixtures.SECOND_DAY))).isEqualTo(Result.UNCHANGED);
-
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
     assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.PENDING);
     assertThat(p.services()).isEmpty();
   }
 
   @Test
-  void anUncheckedServiceIsKeptAsNotPerformedAndAttendanceIsKept() {
-    var p =
-        participant(
-            progress(AttendanceStatus.ATTENDED, PLANNED, ReconciliationStatus.RECONCILED),
-            List.of(stored(serviceA, true)));
+  void anUncheckedServiceIsKeptAsNotPerformed() {
+    var p = participant(progress(ReconciliationStatus.RECONCILED), List.of(stored(serviceA, true)));
     var original = p.services().get(0);
 
-    assertThat(apply(p, row(null))).isEqualTo(Result.UPDATED);
+    assertThat(apply(p, row())).isEqualTo(Result.UPDATED);
 
     assertThat(p.services()).hasSize(1);
     var kept = p.services().get(0);
     assertThat(kept.id()).isEqualTo(original.id());
     assertThat(kept.performed()).isFalse();
     assertThat(kept.unitPriceSnapshot().amount()).isEqualByComparingTo("70");
-    assertThat(p.performedBatchServiceIds()).isEmpty();
-    assertThat(p.reconciledBatchServiceIds()).containsExactly(serviceA);
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.ATTENDED);
+    assertThat(p.performedAgreementServiceIds()).isEmpty();
+    assertThat(p.reconciledAgreementServiceIds()).containsExactly(serviceA);
   }
 
   @Test
   void aServiceTickedAgainKeepsItsOriginalPriceSnapshot() {
     var p =
-        participant(
-            progress(AttendanceStatus.ATTENDED, PLANNED, ReconciliationStatus.RECONCILED),
-            List.of(stored(serviceA, false)));
+        participant(progress(ReconciliationStatus.RECONCILED), List.of(stored(serviceA, false)));
     var original = p.services().get(0);
 
-    assertThat(apply(p, row(null, serviceA))).isEqualTo(Result.UPDATED);
+    assertThat(apply(p, row(serviceA))).isEqualTo(Result.UPDATED);
 
     assertThat(p.services()).hasSize(1);
     assertThat(p.services().get(0).id()).isEqualTo(original.id());
@@ -231,90 +202,46 @@ class ExaminationDetailReconcilerTest {
   @Test
   void aRowThatMatchesTheStoredStateWritesNothing() {
     var p = fresh();
-    assertThat(apply(p, row(null, serviceA, serviceB))).isEqualTo(Result.UPDATED);
+    assertThat(apply(p, row(serviceA, serviceB))).isEqualTo(Result.UPDATED);
 
-    assertThat(apply(p, row(null, serviceA, serviceB))).isEqualTo(Result.UNCHANGED);
-    assertThat(apply(p, row(PLANNED, serviceA, serviceB))).isEqualTo(Result.UNCHANGED);
+    assertThat(apply(p, row(serviceA, serviceB))).isEqualTo(Result.UNCHANGED);
   }
 
   @Test
   void aNewServiceOnAReconciledParticipantAddsARowAndKeepsTheOthers() {
     var p = fresh();
-    apply(p, row(null, serviceA));
+    apply(p, row(serviceA));
 
-    assertThat(apply(p, row(null, serviceA, serviceB))).isEqualTo(Result.UPDATED);
+    assertThat(apply(p, row(serviceA, serviceB))).isEqualTo(Result.UPDATED);
 
-    assertThat(p.performedBatchServiceIds()).containsExactlyInAnyOrder(serviceA, serviceB);
+    assertThat(p.performedAgreementServiceIds()).containsExactlyInAnyOrder(serviceA, serviceB);
     assertThat(p.services()).hasSize(2);
   }
 
   @Test
-  void aNewlyMarkedInactiveServiceIsAConflictAndLeavesTheParticipantUntouched() {
-    var inactive =
-        new HealthExaminationBatchService(
-            AggregateId.of(UUID.randomUUID()),
-            AggregateId.of(UUID.randomUUID()),
-            AggregateId.of(batchId),
-            Money.vnd("200"),
-            Money.vnd("100"),
-            1,
-            false,
-            0);
-    var withInactive =
-        HealthExaminationBatch.restoreConfiguration(
-            AggregateId.of(batchId),
-            AggregateId.of(organizationId),
-            "B1",
-            "Campaign",
-            new ExaminationSite(ExaminationSiteType.CLINIC, "Address"),
-            List.of(new HealthExaminationBatchDay(UUID.randomUUID(), PLANNED)),
-            List.of(inactive),
-            BatchStatus.DRAFT,
-            0,
-            null);
+  void aNewlyMarkedRetiredServiceIsAConflictAndLeavesTheParticipantUntouched() {
+    var retired = retiredLine();
+    var withRetired = agreementWith(retired);
     var p = fresh();
 
-    assertThatThrownBy(
-            () -> reconciler.apply(p, withInactive, row(null, inactive.id()), actor, NOW, PLANNED))
+    assertThatThrownBy(() -> reconciler.apply(p, withRetired, row(retired.id()), actor, NOW))
         .isInstanceOf(ConflictException.class)
         .hasMessageContaining("no longer offered");
 
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+    assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.PENDING);
     assertThat(p.services()).isEmpty();
   }
 
   @Test
-  void aMarkedServiceStaysPerformedEvenAfterItWasDeactivated() {
-    var inactive =
-        new HealthExaminationBatchService(
-            AggregateId.of(UUID.randomUUID()),
-            AggregateId.of(UUID.randomUUID()),
-            AggregateId.of(batchId),
-            Money.vnd("200"),
-            Money.vnd("100"),
-            1,
-            false,
-            0);
-    var withInactive =
-        HealthExaminationBatch.restoreConfiguration(
-            AggregateId.of(batchId),
-            AggregateId.of(organizationId),
-            "B1",
-            "Campaign",
-            new ExaminationSite(ExaminationSiteType.CLINIC, "Address"),
-            List.of(new HealthExaminationBatchDay(UUID.randomUUID(), PLANNED)),
-            List.of(inactive),
-            BatchStatus.DRAFT,
-            0,
-            null);
+  void aMarkedServiceStaysPerformedEvenAfterItWasRetired() {
+    var retired = retiredLine();
+    var withRetired = agreementWith(retired);
     var p =
-        participant(
-            progress(AttendanceStatus.ATTENDED, PLANNED, ReconciliationStatus.RECONCILED),
-            List.of(stored(inactive.id(), true)));
+        participant(progress(ReconciliationStatus.RECONCILED), List.of(stored(retired.id(), true)));
 
-    assertThat(reconciler.apply(p, withInactive, row(null, inactive.id()), actor, NOW, PLANNED))
+    assertThat(reconciler.apply(p, withRetired, row(retired.id()), actor, NOW))
         .isEqualTo(Result.UNCHANGED);
-    assertThat(p.performedBatchServiceIds()).containsExactly(inactive.id());
+    assertThat(p.performedAgreementServiceIds()).containsExactly(retired.id());
     assertThat(new ArrayList<>(p.services())).hasSize(1);
   }
 }

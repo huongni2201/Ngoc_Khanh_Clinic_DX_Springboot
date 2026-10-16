@@ -23,12 +23,20 @@ class PersistenceRecordContractTest {
       Pattern.compile(
           "^    ([a-z_]+) (uuid|varchar(?:\\(\\d+\\))?|text|boolean|bigint|integer|smallint|numeric\\([\\d,]+\\)|date|timestamptz\\(3\\)|jsonb|bytea|inet)(.*)$",
           Pattern.MULTILINE);
+
   /** One {@code ALTER TABLE public.x ...;} statement of a migration after V003. */
   private static final Pattern ALTER_TABLE =
       Pattern.compile("ALTER TABLE public\\.([a-z_]+)\\s(.*?);", Pattern.DOTALL);
 
   private static final Pattern ADDED_COLUMN =
-      Pattern.compile("^\\s+ADD COLUMN (.*?),?$", Pattern.MULTILINE);
+      Pattern.compile("ADD COLUMN (.+?)(?:,\\s*$|$)", Pattern.MULTILINE);
+
+  /** In file order: a created table, an altered table or a dropped table. */
+  private static final Pattern STATEMENT =
+      Pattern.compile(
+          "(CREATE TABLE public\\.([a-z_]+) \\((.*?)^\\);)|(?:ALTER TABLE public\\.([a-z_]+)\\s(.*?);)|(?:DROP TABLE (?:IF EXISTS )?public\\.([a-z_]+)[^;]*;)",
+          Pattern.DOTALL | Pattern.MULTILINE);
+
   private static final String OWNERS =
       """
       departments catalog DepartmentRecord
@@ -87,10 +95,11 @@ class PersistenceRecordContractTest {
       role_permissions accesscontrol RolePermissionRecord
       audit_events audit AuditEventRecord
       organizations healthexamination OrganizationRecord
-      health_examination_batches healthexamination HealthExaminationBatchRecord
-      health_examination_batch_days healthexamination HealthExaminationBatchDayRecord
-      health_examination_batch_services healthexamination HealthExaminationBatchServiceRecord
-      health_examination_batch_participants healthexamination HealthExaminationBatchParticipantRecord
+      health_examination_agreements healthexamination HealthExaminationAgreementRecord
+      health_examination_agreement_services healthexamination HealthExaminationAgreementServiceRecord
+      health_examination_participants healthexamination HealthExaminationParticipantRecord
+      health_examination_sessions healthexamination HealthExaminationSessionRecord
+      health_examination_session_assignments healthexamination HealthExaminationSessionAssignmentRecord
       health_examination_participant_services healthexamination HealthExaminationParticipantServiceRecord
       health_examination_records healthexamination HealthExaminationRecordRecord
       health_examination_record_snapshots healthexamination HealthExaminationRecordSnapshotRecord
@@ -155,8 +164,10 @@ class PersistenceRecordContractTest {
   }
 
   /**
-   * V001 owns every table. A later migration may only extend a table with {@code ADD COLUMN} lines,
-   * one column per line, which follow the V001 columns in file order; a record carries them last.
+   * V001 owns the base tables. A later migration may create a table, rename a table or a column,
+   * drop a column, drop a table, or extend a table with {@code ADD COLUMN} lines, one column per
+   * line, which follow the earlier columns in file order; a record carries them last. The
+   * statements are applied in file order.
    */
   private static void appendColumnsAddedByLaterMigrations(HashMap<String, String> tables)
       throws Exception {
@@ -170,15 +181,45 @@ class PersistenceRecordContractTest {
       for (Path file : later) {
         // Comments may contain semicolons; they are not part of a statement.
         String sql = Files.readString(file).replaceAll("(?m)--.*$", "");
-        for (var alter : ALTER_TABLE.matcher(sql).results().toList()) {
-          String table = alter.group(1);
-          for (var added : ADDED_COLUMN.matcher(alter.group(2)).results().toList()) {
-            assertThat(tables).as("%s adds a column to an unknown table", file).containsKey(table);
-            tables.put(table, tables.get(table) + "\n    " + added.group(1) + "\n");
+        var statements = STATEMENT.matcher(sql);
+        while (statements.find()) {
+          if (statements.group(1) != null) {
+            tables.put(statements.group(2), statements.group(3));
+          } else if (statements.group(4) != null) {
+            applyAlter(tables, file, statements.group(4), statements.group(5));
+          } else {
+            tables.remove(statements.group(6));
           }
         }
       }
     }
+  }
+
+  private static void applyAlter(
+      HashMap<String, String> tables, Path file, String table, String body) {
+    assertThat(tables).as("%s alters an unknown table", file).containsKey(table);
+    var rename = Pattern.compile("^RENAME TO ([a-z_]+)$").matcher(body.strip());
+    if (rename.matches()) {
+      tables.put(rename.group(1), tables.remove(table));
+      return;
+    }
+    var renamedColumn =
+        Pattern.compile("^RENAME COLUMN ([a-z_]+) TO ([a-z_]+)$").matcher(body.strip());
+    if (renamedColumn.matches()) {
+      tables.put(
+          table,
+          tables
+              .get(table)
+              .replaceFirst(
+                  "(?m)^    " + renamedColumn.group(1) + " ",
+                  "    " + renamedColumn.group(2) + " "));
+      return;
+    }
+    for (var dropped : Pattern.compile("DROP COLUMN ([a-z_]+)").matcher(body).results().toList())
+      tables.put(
+          table, tables.get(table).replaceFirst("(?m)^    " + dropped.group(1) + " .*\\R?", ""));
+    for (var added : ADDED_COLUMN.matcher(body).results().toList())
+      tables.put(table, tables.get(table) + "\n    " + added.group(1) + "\n");
   }
 
   private static String snakeCase(String name) {

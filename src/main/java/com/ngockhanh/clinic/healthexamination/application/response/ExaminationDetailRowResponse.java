@@ -8,10 +8,10 @@ import lombok.Builder;
 
 /**
  * One Participant row of the examination detail matrix. It omits the complete identification
- * number, phone, email and attendance note; the identification number is masked.
+ * number, phone and email; the identification number is masked.
  *
- * @param performedBatchServiceIds batch services recorded as performed; the columns of the matrix
- *     are the batch services of the batch detail
+ * @param performedAgreementServiceIds agreement services recorded as performed; the columns of the
+ *     matrix are the agreement services of the agreement detail
  */
 @Builder
 public record ExaminationDetailRowResponse(
@@ -21,11 +21,11 @@ public record ExaminationDetailRowResponse(
     String identificationNumberMasked,
     String departmentName,
     String positionName,
-    LocalDate examinationDate,
+    LocalDate nextSessionDate,
     String attendanceStatus,
-    LocalDate actualExaminationDate,
+    LocalDate lastAttendedDate,
     String reconciliationStatus,
-    List<UUID> performedBatchServiceIds,
+    List<UUID> performedAgreementServiceIds,
     long rowVersion) {
   public static ExaminationDetailRowResponse from(ExaminationDetailRow row) {
     return ExaminationDetailRowResponse.builder()
@@ -35,11 +35,11 @@ public record ExaminationDetailRowResponse(
         .identificationNumberMasked(ParticipantSummaryResponse.mask(row.identificationNumber()))
         .departmentName(row.departmentName())
         .positionName(row.positionName())
-        .examinationDate(row.examinationDate())
+        .nextSessionDate(row.nextSessionDate())
         .attendanceStatus(row.attendanceStatus())
-        .actualExaminationDate(row.actualExaminationDate())
+        .lastAttendedDate(row.lastAttendedDate())
         .reconciliationStatus(row.reconciliationStatus())
-        .performedBatchServiceIds(row.performedBatchServiceIds())
+        .performedAgreementServiceIds(row.performedAgreementServiceIds())
         .rowVersion(row.rowVersion())
         .build();
   }

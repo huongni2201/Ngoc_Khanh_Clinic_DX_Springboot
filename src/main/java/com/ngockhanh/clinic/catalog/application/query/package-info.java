@@ -1,2 +1,2 @@
-@org.springframework.modulith.NamedInterface("batch-services")
+@org.springframework.modulith.NamedInterface("agreement-services")
 package com.ngockhanh.clinic.catalog.application.query;

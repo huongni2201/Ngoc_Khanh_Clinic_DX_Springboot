@@ -1,10 +1,11 @@
 package com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view;
 
-/** SQL projection of the counters of the active Participants of one batch. */
+/** SQL projection of the counters of the active Participants of one agreement. */
 public record ExaminationCountView(
     long registered,
     long unconfirmed,
     long attended,
-    long absent,
+    long noShow,
+    long unscheduled,
     long reconciled,
     long pendingReconciliation) {}

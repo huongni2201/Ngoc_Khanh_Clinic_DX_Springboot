@@ -95,7 +95,8 @@ public class OrganizationController {
             .sortBy(request.getSortBy())
             .build();
 
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), listOrganizationUseCase.execute(command)));
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), listOrganizationUseCase.execute(command)));
   }
 
   /**
@@ -109,7 +110,8 @@ public class OrganizationController {
 
     log.info("Get organization request: organizationId={}", organizationId);
 
-    return ResponseEntity.ok(ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
+    return ResponseEntity.ok(
+        ApiResponse.success(HttpStatus.OK.value(), getOrganizationUseCase.execute(organizationId)));
   }
 
   /**
@@ -140,14 +142,15 @@ public class OrganizationController {
             .rowVersion(request.rowVersion())
             .build();
 
-    OrganizationResponse response = updateOrganizationUseCase.execute(organizationId, command, principal.userId());
+    OrganizationResponse response =
+        updateOrganizationUseCase.execute(organizationId, command, principal.userId());
 
     return ResponseEntity.ok(
         ApiResponse.success(HttpStatus.OK.value(), "Organization updated", response));
   }
 
   /**
-   * Deactivates an organization. The row and its batch history are kept.
+   * Deactivates an organization. The row and its agreement history are kept.
    *
    * @param organizationId organization identifier
    * @param request carries the expected row version

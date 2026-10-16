@@ -21,15 +21,15 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Lists the Participants of one health examination batch with the batch services each one
+ * Lists the Participants of one health examination agreement with the agreement services each one
  * performed, with filters, allowlisted sorting and one-based pagination.
  *
- * <p>The caller must hold the service read permission, checked before the batch is looked up so the
- * endpoint reveals nothing to callers without it. A deleted batch or one of another organization is
- * reported as not found; an inactive organization or a batch in any lifecycle state can still be
- * read. Only active Participants are listed unless the roster status filter says otherwise. The
- * count and the page are read in one repeatable-read transaction so they agree with each other.
- * Nothing is written or audited.
+ * <p>The caller must hold the service read permission, checked before the agreement is looked up so
+ * the endpoint reveals nothing to callers without it. A deleted agreement or one of another
+ * organization is reported as not found; an inactive organization or an agreement in any lifecycle
+ * state can still be read. Only active Participants are listed unless the roster status filter says
+ * otherwise. The count and the page are read in one repeatable-read transaction so they agree with
+ * each other. Nothing is written or audited.
  */
 @Slf4j
 @Service
@@ -38,9 +38,10 @@ public class ListExaminationDetailsUseCase {
   static final int MAX_SEARCH_KEY_LENGTH = 200;
   private static final String DEFAULT_ROSTER_STATUS = "ACTIVE";
   private static final Set<String> SORT_KEYS =
-      Set.of("id", "participantCode", "fullName", "examinationDate");
+      Set.of("id", "participantCode", "fullName", "nextSessionDate");
   private static final Set<String> ROSTER_STATUSES = Set.of("ACTIVE", "CANCELLED");
-  private static final Set<String> ATTENDANCE_STATUSES = Set.of("UNCONFIRMED", "ATTENDED", "ABSENT");
+  private static final Set<String> ATTENDANCE_STATUSES =
+      Set.of("UNCONFIRMED", "ATTENDED", "NO_SHOW");
   private static final Set<String> RECONCILIATION_STATUSES = Set.of("PENDING", "RECONCILED");
 
   private final ExaminationDetailAccessPolicy access;
@@ -50,23 +51,24 @@ public class ListExaminationDetailsUseCase {
    * Returns one page of the examination detail matrix.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
    * @param query raw list input; {@code null} fields fall back to defaults
    * @param principal authenticated staff account
    * @return the requested page; items are empty when the page is past the last page
    * @throws ApplicationException of type {@code ACCESS_DENIED} without the service read permission
    * @throws IllegalArgumentException when an argument is null or a value is out of bounds
-   * @throws ResourceNotFoundException when the batch is not found in the organization
+   * @throws ResourceNotFoundException when the agreement is not found in the organization
    */
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   public PageResponse<ExaminationDetailRowResponse> execute(
       UUID organizationId,
-      UUID batchId,
+      UUID agreementId,
       ExaminationDetailListQuery query,
       UserPrincipal principal) {
     access.requireServiceRead(principal);
-    if (organizationId == null || batchId == null || query == null)
-      throw new IllegalArgumentException("Organization ID, batch ID and list query are required");
+    if (organizationId == null || agreementId == null || query == null)
+      throw new IllegalArgumentException(
+          "Organization ID, agreement ID and list query are required");
     int page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
     int size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
     if (page < PaginationConstants.DEFAULT_PAGE_NUMBER)
@@ -99,14 +101,14 @@ public class ListExaminationDetailsUseCase {
             .build();
     var result =
         reader
-            .readPage(organizationId, batchId, criteria)
-            .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+            .readPage(organizationId, agreementId, criteria)
+            .orElseThrow(() -> new ResourceNotFoundException("Health examination agreement"));
     List<ExaminationDetailRowResponse> items =
         result.items().stream().map(ExaminationDetailRowResponse::from).toList();
     log.info(
-        "Examination details listed: organizationId={}, batchId={}, page={}, size={}, returned={}, total={}",
+        "Examination details listed: organizationId={}, agreementId={}, page={}, size={}, returned={}, total={}",
         organizationId,
-        batchId,
+        agreementId,
         page,
         size,
         items.size(),

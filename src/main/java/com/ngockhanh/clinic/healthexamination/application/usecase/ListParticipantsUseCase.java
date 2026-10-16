@@ -22,15 +22,17 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Lists the Participants of one health examination batch with filters, allowlisted sorting and
+ * Lists the Participants of one health examination agreement with filters, allowlisted sorting and
  * one-based pagination.
  *
- * <p>The caller must hold the Participant read permission, checked before the batch is looked up so
- * the endpoint reveals nothing to callers without it. The batch is read by organization and batch
- * together; a deleted batch or one of another organization is reported as not found, while an
- * inactive organization or a batch in any lifecycle state can still be read. Roster rows of every
- * status are listed unless a filter says otherwise. The count and the page are read in one
- * repeatable-read transaction so they agree with each other. Nothing is written or audited.
+ * <p>The caller must hold the Participant read permission, checked before the agreement is looked
+ * up so the endpoint reveals nothing to callers without it. The agreement is read by organization
+ * and agreement together; a deleted agreement or one of another organization is reported as not
+ * found, while an inactive organization or an agreement in any lifecycle state can still be read.
+ * Roster rows of every status are listed unless a filter says otherwise. Attendance is derived from
+ * the session assignments; the schedule filters are {@code sessionId} and {@code unscheduledFor}.
+ * The count and the page are read in one repeatable-read transaction so they agree with each other.
+ * Nothing is written or audited.
  */
 @Slf4j
 @Service
@@ -38,9 +40,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class ListParticipantsUseCase {
   static final int MAX_SEARCH_KEY_LENGTH = 200;
   private static final Set<String> SORT_KEYS =
-      Set.of("id", "fullName", "participantCode", "examinationDate", "createdAt");
+      Set.of("id", "fullName", "participantCode", "nextSessionDate", "createdAt");
   private static final Set<String> ROSTER_STATUSES = Set.of("ACTIVE", "CANCELLED");
-  private static final Set<String> ATTENDANCE_STATUSES = Set.of("UNCONFIRMED", "ATTENDED", "ABSENT");
+  private static final Set<String> ATTENDANCE_STATUSES =
+      Set.of("UNCONFIRMED", "ATTENDED", "NO_SHOW");
+  private static final Set<String> UNSCHEDULED_FOR = Set.of("ANY", "SAMPLING", "EXAMINATION");
   private static final Set<String> RECONCILIATION_STATUSES = Set.of("PENDING", "RECONCILED");
 
   private final ParticipantAccessPolicy access;
@@ -50,20 +54,21 @@ public class ListParticipantsUseCase {
    * Returns one page of Participants.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
    * @param query raw list input; {@code null} fields fall back to defaults
    * @param principal authenticated staff account
    * @return the requested page; items are empty when the page is past the last page
    * @throws ApplicationException of type {@code ACCESS_DENIED} without the read permission
    * @throws IllegalArgumentException when an argument is null or a value is out of bounds
-   * @throws ResourceNotFoundException when the batch is not found in the organization
+   * @throws ResourceNotFoundException when the agreement is not found in the organization
    */
   @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
   public PageResponse<ParticipantSummaryResponse> execute(
-      UUID organizationId, UUID batchId, ParticipantListQuery query, UserPrincipal principal) {
+      UUID organizationId, UUID agreementId, ParticipantListQuery query, UserPrincipal principal) {
     access.requireRead(principal);
-    if (organizationId == null || batchId == null || query == null)
-      throw new IllegalArgumentException("Organization ID, batch ID and list query are required");
+    if (organizationId == null || agreementId == null || query == null)
+      throw new IllegalArgumentException(
+          "Organization ID, agreement ID and list query are required");
     int page = query.page() == null ? PaginationConstants.DEFAULT_PAGE_NUMBER : query.page();
     int size = query.size() == null ? PaginationConstants.DEFAULT_PAGE_SIZE : query.size();
     if (page < PaginationConstants.DEFAULT_PAGE_NUMBER)
@@ -77,7 +82,8 @@ public class ListParticipantsUseCase {
     String sortKey = blankToDefault(query.sortKey(), PaginationConstants.DEFAULT_SORTED_KEY);
     if (!SORT_KEYS.contains(sortKey)) throw new IllegalArgumentException("Sort key is not allowed");
     String sortBy =
-        blankToDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY).toUpperCase(Locale.ROOT);
+        blankToDefault(query.sortBy(), PaginationConstants.DEFAULT_SORTED_BY)
+            .toUpperCase(Locale.ROOT);
     if (!sortBy.equals("ASC") && !sortBy.equals("DESC"))
       throw new IllegalArgumentException("Sort direction must be ASC or DESC");
     String identification = blankToNull(query.identificationNumber());
@@ -89,7 +95,8 @@ public class ListParticipantsUseCase {
             .limit(size)
             .searchPattern(likePattern(searchKey))
             .identificationNumber(identification)
-            .batchDayId(query.batchDayId())
+            .sessionId(query.sessionId())
+            .unscheduledFor(allowed(query.unscheduledFor(), UNSCHEDULED_FOR))
             .rosterStatus(allowed(query.rosterStatus(), ROSTER_STATUSES))
             .attendanceStatus(allowed(query.attendanceStatus(), ATTENDANCE_STATUSES))
             .reconciliationStatus(allowed(query.reconciliationStatus(), RECONCILIATION_STATUSES))
@@ -98,14 +105,14 @@ public class ListParticipantsUseCase {
             .build();
     var result =
         reader
-            .readPage(organizationId, batchId, criteria)
-            .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+            .readPage(organizationId, agreementId, criteria)
+            .orElseThrow(() -> new ResourceNotFoundException("Health examination agreement"));
     List<ParticipantSummaryResponse> items =
         result.items().stream().map(ParticipantSummaryResponse::from).toList();
     log.info(
-        "Participants listed: organizationId={}, batchId={}, page={}, size={}, returned={}, total={}",
+        "Participants listed: organizationId={}, agreementId={}, page={}, size={}, returned={}, total={}",
         organizationId,
-        batchId,
+        agreementId,
         page,
         size,
         items.size(),
@@ -123,7 +130,8 @@ public class ListParticipantsUseCase {
   private static String allowed(String value, Set<String> allowlist) {
     String candidate = blankToNull(value);
     if (candidate == null) return null;
-    if (!allowlist.contains(candidate)) throw new IllegalArgumentException("Filter value is not allowed");
+    if (!allowlist.contains(candidate))
+      throw new IllegalArgumentException("Filter value is not allowed");
     return candidate;
   }
 
@@ -139,7 +147,11 @@ public class ListParticipantsUseCase {
   private static String likePattern(String searchKey) {
     if (searchKey.isEmpty()) return null;
     String escaped =
-        searchKey.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        searchKey
+            .toLowerCase(Locale.ROOT)
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_");
     return "%" + escaped + "%";
   }
 }

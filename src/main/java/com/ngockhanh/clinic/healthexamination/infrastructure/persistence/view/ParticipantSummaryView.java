@@ -4,12 +4,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** SQL projection of one Participant list row joined with its examination day. */
+/**
+ * SQL projection of one Participant list row with what its session assignments say: the derived
+ * attendance, the number of sessions the Participant is in, the next expected session date and the
+ * last attended session date.
+ */
 public record ParticipantSummaryView(
     UUID id,
-    UUID batchId,
-    UUID batchDayId,
-    LocalDate examinationDate,
+    UUID agreementId,
     String participantCode,
     String fullName,
     LocalDate dateOfBirth,
@@ -20,6 +22,8 @@ public record ParticipantSummaryView(
     String rosterStatus,
     String attendanceStatus,
     String reconciliationStatus,
-    LocalDate actualExaminationDate,
+    long liveAssignmentCount,
+    LocalDate nextSessionDate,
+    LocalDate lastAttendedDate,
     Instant preparedAt,
     long rowVersion) {}

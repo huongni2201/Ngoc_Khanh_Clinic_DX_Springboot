@@ -14,7 +14,7 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 | billing | invoices, invoice_lines, payments, refunds, service_authorizations |
 | prescription | prescriptions, prescription_versions, prescription_items |
 | appointment | appointments |
-| healthexamination | organizations, health_examination_batches/days/services/participants, health_examination_participant_services, health_examination_records/snapshots/versions/version_items |
+| healthexamination | organizations, health_examination_agreements/agreement_services/participants/sessions/session_assignments, health_examination_participant_services, health_examination_records/snapshots/versions/version_items |
 | document | files, templates, template_versions, service_template_mappings, issued_representations |
 | integration | import_jobs, import_rows, system_connections, external_code_mappings, health_data_submissions, idempotency_keys, outbox_events |
 | portal | result_releases, document_releases |
@@ -41,12 +41,12 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 - Bulk printing: `document::rendering` also publishes `RenderJobs` (enqueue/lookup by requester),
   `DocumentValuesSource` (the owning module supplies record values for a job; `healthexamination`
   implements `ExaminationFormValuesSource`) and `RenderSession`. The generic job tables, worker,
-  merge and storage live in `document`; `healthexamination` only validates the batch and enqueues.
+  merge and storage live in `document`; `healthexamination` only validates the agreement and enqueues.
 
 `integration::participant-imports` publishes the single-step roster import contract
 (`ParticipantImportStore`: idempotency reservation, a VALIDATED job with its rows,
 then confirmation) and service-reconciliation import storage.
-`integration::batch-history` publishes batch-history queries.
+`integration::agreement-history` publishes agreement-history queries. `catalog::agreement-services` publishes the service lookup used by agreements.
 Integration owns the import tables. The Excel reader and template writer
 (Apache POI) live in `healthexamination` infrastructure, so POI never reaches
 domain or application code. Foreign keys

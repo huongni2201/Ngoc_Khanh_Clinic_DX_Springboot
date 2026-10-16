@@ -44,7 +44,7 @@ public final class ParticipantFixtures {
         .build();
   }
 
-  public static ParticipantImportRow row(int rowNumber, String identification, LocalDate day) {
+  public static ParticipantImportRow row(int rowNumber, String identification) {
     return new ParticipantImportRow(
         rowNumber,
         "Synthetic Person " + rowNumber,
@@ -60,16 +60,13 @@ public final class ParticipantFixtures {
         null,
         "Department",
         "Position",
-        null,
-        day);
+        null);
   }
 
   public static ParticipantSummary summary(String identification) {
     return ParticipantSummary.builder()
         .id(UUID.randomUUID())
-        .batchId(UUID.randomUUID())
-        .batchDayId(UUID.randomUUID())
-        .examinationDate(LocalDate.of(2026, 10, 4))
+        .agreementId(UUID.randomUUID())
         .fullName("Synthetic Person")
         .dateOfBirth(LocalDate.of(1990, 1, 31))
         .sex("MALE")
@@ -79,6 +76,7 @@ public final class ParticipantFixtures {
         .rosterStatus("ACTIVE")
         .attendanceStatus("UNCONFIRMED")
         .reconciliationStatus("PENDING")
+        .liveAssignmentCount(0)
         .rowVersion(0)
         .build();
   }

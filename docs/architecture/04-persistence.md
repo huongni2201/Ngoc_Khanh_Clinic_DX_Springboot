@@ -21,6 +21,7 @@ amendment (V004–V009, and the removal of `account_roles`) into them:
 | `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
+| `V007__agreement_session_assignment.sql` | [ADR-0019](../adr/0019-agreement-session-assignment.md): renames batches to agreements (and `batch_code`, `batch_id` columns, permission codes and routes), adds validity dates, `health_examination_sessions` and `health_examination_session_assignments`, moves Participant day and attendance into sessions and assignments (best-effort backfill), adds `organization_id` to participants, makes a service line unique while active, and grants twelve new permissions to CLINIC_MANAGER |
 | `V004__staff_member_management_permissions.sql` | Additive, after the baseline: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
@@ -64,7 +65,7 @@ Domain objects and API responses never expose persistence records or views.
 - Diagnostics: result series, result versions and lab result items.
 - Billing: invoices, invoice lines, payments, refunds and service authorizations.
 - Prescription: logical prescriptions, versions and version items.
-- Health examination: organizations, batches/days/services/participants,
+- Health examination: organizations, agreements/services/participants/sessions/assignments,
   reconciled participant services, records, administrative snapshots and versions.
 - Document: files, templates/versions, service mappings and issued representations.
 - Integration: generic import staging, connections, mappings, submissions,
@@ -104,13 +105,13 @@ Application use cases own transactions, audit and supported cross-module contrac
 Mutable updates use `WHERE id = #{id} AND row_version = #{expectedVersion}` and
 `SET row_version = row_version + 1`; zero affected rows is a concurrency conflict.
 The clean-slate schema has no row-version increment trigger. A database lock does not replace client expected-version checks. Serialize concurrent schedule/roster mutations on
-the same batch consistency boundary.
+the same agreement consistency boundary. Sessions are locked in identifier order when assignments move between them.
 
 ## Historical state
 
-Batch services retain reference and negotiated prices. Performed participant
-services retain their recorded price; normal batch price changes do not reprice
-historical rows. Explicit authorized retroactive repricing is a separate use case.
+Agreement services retain reference and negotiated prices. Performed participant
+services retain their recorded price; the services of an agreement are fixed once it is active, so
+historical rows are not repriced. Explicit authorized retroactive repricing is a separate use case.
 
 Administrative record snapshots and clinical versions are separate, typed rows.
 Issued/final content and issued representations are immutable, protected by the

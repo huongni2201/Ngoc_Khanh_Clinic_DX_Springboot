@@ -8,7 +8,7 @@ import lombok.Builder;
 @Builder
 public record HealthExaminationRecordRecord(
     UUID id,
-    UUID batchParticipantId,
+    UUID participantId,
     UUID encounterId,
     String mrn,
     String status,

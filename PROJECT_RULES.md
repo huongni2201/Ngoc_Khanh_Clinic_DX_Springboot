@@ -166,7 +166,8 @@ edited files have new checksums and the removed versions are missing; recreate l
 existing deployed histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment). Later changes are new
 migrations after V003; current: V004 (staff member and role endpoint permissions), V005 (role and role permission
-administration), V006 (accounts by role index).
+administration), V006 (accounts by role index), V007 (agreement, session and assignment model,
+[ADR-0019](docs/adr/0019-agreement-session-assignment.md)).
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
 
@@ -177,8 +178,9 @@ and [patient identity](docs/architecture/03-domain-and-workflows.md#patient-iden
 
 ## 14. Health Examination Rules
 
-Follow [Organization/Batch](docs/architecture/03-domain-and-workflows.md#organization-and-batch),
-[Batch Participant](docs/architecture/03-domain-and-workflows.md#batch-participant)
+Follow [Organization/Agreement](docs/architecture/03-domain-and-workflows.md#organization-and-agreement),
+[Participant](docs/architecture/03-domain-and-workflows.md#participant),
+[Session and assignment](docs/architecture/03-domain-and-workflows.md#session-and-assignment)
 and [record history](docs/architecture/03-domain-and-workflows.md#record-history-and-other-contexts).
 [Participant Excel import and list](docs/architecture/03-domain-and-workflows.md#participant-excel-import-and-list)
 (restored 2026-10-06 as one add-only, all-or-nothing endpoint; the removed multi-step

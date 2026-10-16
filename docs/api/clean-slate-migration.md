@@ -1,6 +1,6 @@
 # Current API inventory and migration compatibility
 
-Updated 2026-10-13 from current controllers and accepted contracts. A controller
+Updated 2026-10-16 from current controllers and accepted contracts. A controller
 mapping does not guarantee authorization: production also requires a matching
 `EndpointPermissions` rule and the applicable application policy.
 
@@ -8,7 +8,7 @@ mapping does not guarantee authorization: production also requires a matching
 
 All paths below start with `/api/v1`. `O` means
 `/organizations/{organizationId}` and `B` means
-`O/health-examination-batches/{batchId}`.
+`O/agreements/{agreementId}`, and `S` means `O/sessions/{sessionId}`.
 
 | Module | Mapped routes | Contract |
 |---|---|---|
@@ -16,8 +16,10 @@ All paths below start with `/api/v1`. `O` means
 | accesscontrol | `GET/POST /staff-members`, `GET /roles` | [Staff members and roles](staff-members.md); POST creates the staff member and its STAFF account, permissions `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` (+ `USER_ROLE_ASSIGN`), `ROLE_VIEW` |
 | accesscontrol | `GET/POST /admin/roles`, `PUT /admin/roles/{roleId}`, `GET/PUT /admin/roles/{roleId}/permissions`, `GET /admin/permissions` | [Roles and permissions](roles-and-permissions.md); permissions `ROLE_MANAGE`, `ROLE_CREATE`, `ROLE_UPDATE`, `ROLE_PERMISSION_VIEW`, `ROLE_PERMISSION_ASSIGN`, `PERMISSION_VIEW` |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
-| healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
-| healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B`, `POST B/start` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion`; start moves DRAFT to READY (`HEALTH_EXAMINATION_BATCH_START`) |
+| healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-agreements.md#organization); DELETE handler deactivates with expected `rowVersion` |
+| healthexamination | `GET/POST O/agreements`, `GET/PUT/DELETE B`, `POST B/activate`, `POST B/end` | [Agreement contract](organizations-and-agreements.md#health-examination-agreement); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion`; activate moves DRAFT to ACTIVE (`HEALTH_EXAMINATION_AGREEMENT_ACTIVATE`), end moves ACTIVE to ENDED; services change only while DRAFT (through PUT) and are fixed once ACTIVE |
+| healthexamination | `GET/POST O/sessions`, `GET/PUT S`, `POST S/cancel` | [Session contract](sessions-and-assignments.md#session) |
+| healthexamination | `GET/POST S/assignments`, `POST S/assignments/move`, `POST S/assignments/{assignmentId}/move`, `POST S/assignments/{assignmentId}/cancel`, `POST S/assignments/{assignmentId}/attendance` | [Assignment contract](sessions-and-assignments.md#assignment) |
 | healthexamination | `GET B/participants`, `GET B/participants/import-template`, `POST B/participants/imports` | [Participant import and list](participant-import-and-list.md) |
 | healthexamination | `POST B/participants`, `GET/PUT/DELETE B/participants/{participantId}`, `POST B/participants/{participantId}/reactivate` | [Participant manual changes](participant-manual-crud.md) |
 | healthexamination | `GET B/examination-details`, `GET B/examination-details/summary`, `GET B/examination-details/export`, `POST B/examination-details/imports` | [Examination details](examination-details-and-report.md) |
@@ -28,10 +30,10 @@ All paths below start with `/api/v1`. `O` means
 
 V002 stores a method/route/permission mapping for 32 business operations, including
 `PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
-job download) and `HEALTH_EXAMINATION_BATCH_START`; V004 binds the three staff member/role routes
-and V005 the six role administration routes (41 in total), under
+job download) and `HEALTH_EXAMINATION_BATCH_START` (renamed `HEALTH_EXAMINATION_AGREEMENT_ACTIVATE` by V007); V004 binds the three staff member/role routes
+and V005 the six role administration routes. V007 renames the batch permissions and routes to agreements, binds the end and add-services routes and adds twelve agreement, session and assignment permissions, and V008 drops the two agreement service change permissions (53 bound routes in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
-`HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
+`HEALTH_EXAMINATION_AGREEMENT_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST role uses
 the same checks, with all permissions granted by the local seed.
 [Open authorization items](../architecture/07-open-items.md#endpoint-authorization)
@@ -43,17 +45,17 @@ Organization uses UUID `id` and optional unique `taxCode`; it has no `code`,
 `organizationType` or `contactPosition`. General phone is optional. See
 [Organization identity](../adr/0016-organization-tax-code-identity.md).
 
-Batch requests carry dates, site and services, with `rowVersion` for updates.
-The backend generates `batchCode` as `KSK-<year>-<running number>` and preserves
+Agreement requests carry the optional validity period and the services, with `rowVersion` for updates; dates and sites belong to sessions ([ADR-0019](../adr/0019-agreement-session-assignment.md)).
+The backend generates `agreementCode` as `KSK-<year>-<running number>` and preserves
 it on update. Participant codes are also generated and immutable through roster
 editing. Participant detail and import support the optional personal fields
 documented in their linked contracts.
 
 REST JSON responses use `ApiResponse` and the documented pagination/error shape
 in [PROJECT_RULES](../../PROJECT_RULES.md#envelope-errors-and-pagination).
-Downloads return file bytes; authorized Organization/Batch DELETE requests return 204.
+Downloads return file bytes; authorized Organization/Agreement DELETE requests return 204.
 
-No current handlers expose batch finalization/closing (only DRAFT to READY), visit preparation,
+The batch routes `/health-examination-batches/{batchId}/...` and the `*_BATCH_*` permission codes no longer exist; clients use the agreement routes and codes above. No current handlers expose visit preparation,
 official record issuance, clinical ordering/results, billing payments, prescription
 issuance, portal releases or document-template management
 (only the starter template is seeded; there is no upload/publish API). Their schema/domain

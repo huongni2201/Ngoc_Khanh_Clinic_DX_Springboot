@@ -10,13 +10,14 @@ import com.ngockhanh.clinic.healthexamination.application.response.PaymentReport
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailAccessPolicy;
 import com.ngockhanh.clinic.healthexamination.application.service.ExportFileNames;
 import com.ngockhanh.clinic.healthexamination.application.service.PaymentSummaryReportAssembler;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationAgreementRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -30,12 +31,12 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Exports the payment summary of one health examination batch to a Word document.
+ * Exports the payment summary of one health examination agreement to a Word document.
  *
- * <p>The caller must hold the report read permission, checked before the batch is looked up. The
- * document is built from the same report object as the JSON report, so the figures never differ,
- * and holds no personal data of any Participant. It is a working summary, not an issued official
- * document: it is not stored and never versioned. The read and the audit event {@code
+ * <p>The caller must hold the report export permission, checked before the agreement is looked up.
+ * The document is built from the same report object as the JSON report, so the figures never
+ * differ, and holds no personal data of any Participant. It is a working summary, not an issued
+ * official document: it is not stored and never versioned. The read and the audit event {@code
  * EXPORT_PAYMENT_REPORT} share one repeatable-read transaction.
  */
 @Slf4j
@@ -44,7 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExportPaymentSummaryReportUseCase {
   private final ExaminationDetailAccessPolicy access;
   private final OrganizationRepository organizations;
-  private final HealthExaminationBatchRepository batches;
+  private final HealthExaminationAgreementRepository agreements;
   private final ExaminationDetailReader reader;
   private final ServiceCatalogQuery catalog;
   private final PaymentSummaryReportAssembler assembler;
@@ -53,44 +54,57 @@ public class ExportPaymentSummaryReportUseCase {
   private final Clock clock;
 
   /**
-   * Returns the document of the batch.
+   * Returns the document of the agreement.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
+   * @param from first session date of the range, or null for no lower bound
+   * @param to last session date of the range, or null for no upper bound
    * @param principal authenticated staff account
    * @return the DOCX bytes and the download name
-   * @throws ApplicationException of type {@code ACCESS_DENIED} without the report read permission
-   * @throws IllegalArgumentException when an identifier is null
-   * @throws ResourceNotFoundException when the organization or the batch is not found
+   * @throws ApplicationException of type {@code ACCESS_DENIED} without the report export permission
+   * @throws IllegalArgumentException when an identifier is null or the range is reversed
+   * @throws ResourceNotFoundException when the organization or the agreement is not found
    */
   @Transactional(isolation = Isolation.REPEATABLE_READ)
   public PaymentReportDocumentResponse execute(
-      UUID organizationId, UUID batchId, UserPrincipal principal) {
+      UUID organizationId,
+      UUID agreementId,
+      LocalDate from,
+      LocalDate to,
+      UserPrincipal principal) {
     access.requireReportExport(principal);
-    if (organizationId == null || batchId == null)
-      throw new IllegalArgumentException("Organization ID and batch ID are required");
+    if (organizationId == null || agreementId == null)
+      throw new IllegalArgumentException("Organization ID and agreement ID are required");
+    if (from != null && to != null && from.isAfter(to))
+      throw new IllegalArgumentException("The report range starts after it ends");
     var organization =
         organizations
             .findById(AggregateId.of(organizationId))
             .orElseThrow(() -> new ResourceNotFoundException("Organization"));
-    var batch =
-        batches
-            .findDetails(organizationId, batchId, false)
-            .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"))
-            .batch();
+    var agreement =
+        agreements
+            .findDetails(organizationId, agreementId, false)
+            .orElseThrow(() -> new ResourceNotFoundException("Health examination agreement"))
+            .agreement();
     var aggregates =
         reader
-            .readPaymentAggregates(organizationId, batchId)
-            .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+            .readPaymentAggregates(organizationId, agreementId, from, to)
+            .orElseThrow(() -> new ResourceNotFoundException("Health examination agreement"));
     Set<UUID> catalogIds = new HashSet<>();
-    batch.services().forEach(service -> catalogIds.add(service.serviceId().value()));
+    agreement.services().forEach(service -> catalogIds.add(service.serviceId().value()));
     Map<UUID, ServiceCatalogQuery.Service> names = new HashMap<>();
     if (!catalogIds.isEmpty())
       catalog.findByIds(catalogIds).forEach(service -> names.put(service.id(), service));
 
     var report =
         assembler.assemble(
-            batch, aggregates, names, Instant.now(clock).truncatedTo(ChronoUnit.MILLIS));
+            agreement,
+            aggregates,
+            names,
+            from,
+            to,
+            Instant.now(clock).truncatedTo(ChronoUnit.MILLIS));
     byte[] content =
         writer.write(
             new PaymentReportDocument(
@@ -98,31 +112,29 @@ public class ExportPaymentSummaryReportUseCase {
                 organization.name(),
                 organization.taxCode(),
                 organization.address(),
-                batch.startDate(),
-                batch.endDate(),
-                batch.site().type(),
-                batch.site().address()));
+                agreement.validFrom(),
+                agreement.validTo()));
     audit.record(
         principal.userId(),
         "EXPORT_PAYMENT_REPORT",
-        "HEALTH_EXAMINATION_BATCH",
-        batchId,
+        "HEALTH_EXAMINATION_AGREEMENT",
+        agreementId,
         null,
         Map.of(
             "organizationId",
             organizationId,
-            "batchId",
-            batchId,
+            "agreementId",
+            agreementId,
             "provisional",
             report.provisional(),
             "totalAmount",
             report.totalAmount().toPlainString()));
     log.info(
-        "Payment summary exported: organizationId={}, batchId={}, items={}",
+        "Payment summary exported: organizationId={}, agreementId={}, items={}",
         organizationId,
-        batchId,
+        agreementId,
         report.items().size());
     return new PaymentReportDocumentResponse(
-        content, ExportFileNames.of("bao-cao-thanh-toan-", batch.code(), ".docx"));
+        content, ExportFileNames.of("bao-cao-thanh-toan-", agreement.code(), ".docx"));
   }
 }

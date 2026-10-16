@@ -7,12 +7,11 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
-import java.util.UUID;
 import lombok.Builder;
 
 /**
- * Body for editing one Participant. It is a full replacement of the roster fields and the
- * examination day. {@code rowVersion} is the Participant version the client last read.
+ * Body for editing one Participant. It is a full replacement of the roster fields. {@code
+ * rowVersion} is the Participant version the client last read.
  */
 @Builder
 public record UpdateParticipantRequest(
@@ -30,7 +29,6 @@ public record UpdateParticipantRequest(
     @NotBlank @Size(max = 500) String departmentName,
     @NotBlank @Size(max = 500) String positionName,
     @Size(max = 2000) String note,
-    @NotNull UUID batchDayId,
     @NotNull @PositiveOrZero Long rowVersion) {
 
   /** Maps the transport body to the application command. */
@@ -50,7 +48,6 @@ public record UpdateParticipantRequest(
         departmentName,
         positionName,
         note,
-        batchDayId,
         rowVersion);
   }
 }

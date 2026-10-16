@@ -38,8 +38,8 @@ mappers, records or aggregates; use published application contracts instead.
 
 ## Implemented migration scope
 
-Mapped workflows include authentication, Organization/Batch configuration,
-Participant roster/import and examination-detail reconciliation/payment reports;
+Mapped workflows include authentication, Organization/Agreement configuration,
+Participant roster/import, session scheduling and attendance, and examination-detail reconciliation/payment reports;
 see [API inventory](../api/clean-slate-migration.md) for permission gaps.
 Infrastructure represents all 65 schema tables in
 owning modules. Record presence does not claim all clinic workflows or HTTP APIs

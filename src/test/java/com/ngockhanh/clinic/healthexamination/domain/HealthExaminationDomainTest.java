@@ -4,7 +4,7 @@ import static com.ngockhanh.clinic.healthexamination.RosterFixtures.*;
 import static org.assertj.core.api.Assertions.*;
 
 import com.ngockhanh.clinic.healthexamination.domain.aggregate.*;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.*;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.*;
 import com.ngockhanh.clinic.healthexamination.domain.entity.*;
 import com.ngockhanh.clinic.healthexamination.domain.enums.*;
 import com.ngockhanh.clinic.healthexamination.domain.exception.*;
@@ -14,11 +14,11 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 class HealthExaminationDomainTest {
-  private HealthExaminationBatchParticipant participant() {
-    return HealthExaminationBatchParticipant.create(
+  private HealthExaminationParticipant participant() {
+    return HealthExaminationParticipant.create(
         id(10),
+        id(2),
         id(1),
-        id(3),
         new Roster(
             null,
             "Synthetic Person",
@@ -35,46 +35,38 @@ class HealthExaminationDomainTest {
   }
 
   @Test
-  void preparationAttendanceAndReconciliationAreIndependent() {
+  void preparationAndReconciliationAreIndependent() {
     var p = participant();
     assertThat(p.getPatientId()).isNull();
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+    assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.PENDING);
     p.prepare(id(8), NOW);
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
-    p.recordAttendance(AttendanceStatus.ATTENDED, LocalDate.of(2026, 10, 4), id(6), NOW, null);
+    assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.PENDING);
     p.reconcileServices(List.of(), scope(id(11)), id(6), NOW);
     assertThat(p.getReconciliationStatus()).isEqualTo(ReconciliationStatus.RECONCILED);
     assertThat(p.services()).isEmpty();
-    p.moveToDay(id(4));
     assertThat(p.getPatientId()).isEqualTo(id(8));
-    assertThat(p.getActualExaminationDate()).isEqualTo(LocalDate.of(2026, 10, 4));
   }
 
   @Test
-  void rejectsInvalidAttendanceAndPatientRelinking() {
+  void rejectsPatientRelinking() {
     var p = participant();
-    assertThatThrownBy(() -> p.recordAttendance(AttendanceStatus.ATTENDED, null, id(6), NOW, null))
-        .isInstanceOf(IllegalArgumentException.class);
-    assertThatThrownBy(
-            () -> p.recordAttendance(AttendanceStatus.ABSENT, LocalDate.now(), id(6), NOW, null))
-        .isInstanceOf(IllegalArgumentException.class);
     p.prepare(id(8), NOW);
     p.prepare(id(8), NOW.plusSeconds(2));
     assertThat(p.getPreparedAt()).isEqualTo(NOW);
     assertThatThrownBy(() -> p.prepare(id(9), NOW)).isInstanceOf(DomainRuleViolation.class);
   }
 
-  private HealthExaminationBatchParticipantService service() {
-    return new HealthExaminationBatchParticipantService(
+  private HealthExaminationParticipantService service() {
+    return new HealthExaminationParticipantService(
         id(12), id(1), id(10), id(11), true, null, Money.vnd("100"), id(6), NOW, NOW, NOW, 0);
   }
 
   @Test
-  void reconciliationChecksBatchScopeAndRetainsRowsWhenUnchecked() {
+  void reconciliationChecksAgreementScopeAndRetainsRowsWhenUnchecked() {
     var p = participant();
     var s = service();
     assertThatThrownBy(() -> p.reconcileServices(List.of(s), List.of(), id(6), NOW))
-        .isInstanceOf(ServiceOutsideBatchScope.class);
+        .isInstanceOf(ServiceOutsideAgreementScope.class);
     p.reconcileServices(List.of(s), scope(id(11)), id(6), NOW);
     assertThatThrownBy(() -> p.reconcileServices(List.of(), scope(id(11)), id(6), NOW))
         .isInstanceOf(DomainRuleViolation.class);
@@ -102,11 +94,11 @@ class HealthExaminationDomainTest {
     p.reconcileServices(List.of(original), scope(id(11)), id(6), NOW);
     for (int n = 0; n < 3; n++) {
       var replacement =
-          new HealthExaminationBatchParticipantService(
+          new HealthExaminationParticipantService(
               n == 0 ? id(22) : original.id(),
-              original.batchId(),
-              original.batchParticipantId(),
-              original.batchServiceId(),
+              original.agreementId(),
+              original.participantId(),
+              original.agreementServiceId(),
               true,
               n == 2 ? id(23) : original.serviceRequestId(),
               n == 1 ? Money.vnd("200") : original.unitPriceSnapshot(),
@@ -124,7 +116,7 @@ class HealthExaminationDomainTest {
   void newServicesMustSnapshotCurrentNegotiatedPrice() {
     var p = participant();
     var wrong =
-        new HealthExaminationBatchParticipantService(
+        new HealthExaminationParticipantService(
             id(12), id(1), id(10), id(11), true, null, Money.vnd("200"), id(6), NOW, NOW, NOW, 0);
     assertThatThrownBy(() -> p.reconcileServices(List.of(wrong), scope(id(11)), id(6), NOW))
         .isInstanceOf(DomainRuleViolation.class);

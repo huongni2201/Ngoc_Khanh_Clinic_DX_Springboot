@@ -10,7 +10,8 @@ class PeriodicFormBlankModelTest {
 
   @Test
   void formatsTheRosterForPrinting() {
-    var values = PeriodicFormBlankModel.from(PeriodicFormBlankContractTest.sampleSource()).toValues();
+    var values =
+        PeriodicFormBlankModel.from(PeriodicFormBlankContractTest.sampleSource()).toValues();
 
     assertThat(values)
         .containsEntry("participant.code", "KSK-2026-001-0001")
@@ -46,12 +47,25 @@ class PeriodicFormBlankModelTest {
         .isEqualTo("Công ty TNHH ABC");
     var own =
         new ExaminationFormSource(
-            source.participantCode(), source.fullName(), source.dateOfBirth(), source.sex(),
-            source.identificationNumber(), source.identificationIssueDate(),
-            source.identificationIssuePlace(), source.ethnicity(), source.phone(), source.address(),
-            "  Chi nhánh 2  ", source.departmentName(), source.positionName(),
-            source.organizationName(), source.organizationAddress(), source.batchCode(),
-            source.batchName(), source.examinationDate(), source.printedDate());
+            source.participantCode(),
+            source.fullName(),
+            source.dateOfBirth(),
+            source.sex(),
+            source.identificationNumber(),
+            source.identificationIssueDate(),
+            source.identificationIssuePlace(),
+            source.ethnicity(),
+            source.phone(),
+            source.address(),
+            "  Chi nhánh 2  ",
+            source.departmentName(),
+            source.positionName(),
+            source.organizationName(),
+            source.organizationAddress(),
+            source.agreementCode(),
+            source.agreementName(),
+            source.examinationDate(),
+            source.printedDate());
     assertThat(PeriodicFormBlankModel.from(own).participantWorkplace()).isEqualTo("Chi nhánh 2");
   }
 
@@ -60,8 +74,25 @@ class PeriodicFormBlankModelTest {
     var values =
         PeriodicFormBlankModel.from(
                 new ExaminationFormSource(
-                    "P1", "Trần Thị B", LocalDate.of(1985, 5, 5), "UNKNOWN", "079185000456", null,
-                    "  ", null, null, null, null, null, null, null, null, null, null, null, null))
+                    "P1",
+                    "Trần Thị B",
+                    LocalDate.of(1985, 5, 5),
+                    "UNKNOWN",
+                    "079185000456",
+                    null,
+                    "  ",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))
             .toValues();
 
     assertThat(values)
@@ -76,7 +107,7 @@ class PeriodicFormBlankModelTest {
         .containsEntry("participant.positionName", DOTS)
         .containsEntry("participant.age", DOTS)
         .containsEntry("participant.fullName", "Trần Thị B");
-    // Facts about the organization and batch are not form fields: they stay empty.
+    // Facts about the organization and agreement are not form fields: they stay empty.
     assertThat(values)
         .containsEntry("organization.name", "")
         .containsEntry("batch.code", "")
@@ -96,9 +127,24 @@ class PeriodicFormBlankModelTest {
     var source = PeriodicFormBlankContractTest.sampleSource();
     return PeriodicFormBlankModel.from(
             new ExaminationFormSource(
-                source.participantCode(), source.fullName(), LocalDate.parse(birth), source.sex(),
-                source.identificationNumber(), null, null, null, null, null, null, null, null, null,
-                null, null, null, examination == null ? null : LocalDate.parse(examination),
+                source.participantCode(),
+                source.fullName(),
+                LocalDate.parse(birth),
+                source.sex(),
+                source.identificationNumber(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                examination == null ? null : LocalDate.parse(examination),
                 LocalDate.parse(printed)))
         .participantAge();
   }
@@ -107,9 +153,25 @@ class PeriodicFormBlankModelTest {
     var source = PeriodicFormBlankContractTest.sampleSource();
     return PeriodicFormBlankModel.from(
             new ExaminationFormSource(
-                source.participantCode(), source.fullName(), source.dateOfBirth(), sex,
-                source.identificationNumber(), null, null, null, null, null, null, null, null, null,
-                null, null, null, source.examinationDate(), source.printedDate()))
+                source.participantCode(),
+                source.fullName(),
+                source.dateOfBirth(),
+                sex,
+                source.identificationNumber(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                source.examinationDate(),
+                source.printedDate()))
         .participantSex();
   }
 
@@ -118,8 +180,25 @@ class PeriodicFormBlankModelTest {
     var values =
         PeriodicFormBlankModel.from(
                 new ExaminationFormSource(
-                    null, "Trần Thị B", LocalDate.of(1985, 5, 5), "FEMALE", "079185000456", null,
-                    null, null, null, null, null, null, null, null, null, null, null, null, null))
+                    null,
+                    "Trần Thị B",
+                    LocalDate.of(1985, 5, 5),
+                    "FEMALE",
+                    "079185000456",
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null))
             .toValues();
 
     assertThat(values)

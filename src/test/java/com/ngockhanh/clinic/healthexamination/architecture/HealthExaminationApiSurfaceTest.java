@@ -17,8 +17,10 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 class HealthExaminationApiSurfaceTest {
   private static final String MODULE_PACKAGE = "com.ngockhanh.clinic.healthexamination";
 
-  private static final String BATCH =
-      "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}";
+  private static final String AGREEMENT =
+      "/api/v1/organizations/{organizationId}/agreements/{agreementId}";
+
+  private static final String SESSIONS = "/api/v1/organizations/{organizationId}/sessions";
 
   private static final Set<String> ALLOWED_MAPPINGS =
       Set.of(
@@ -27,30 +29,42 @@ class HealthExaminationApiSurfaceTest {
           "POST /api/v1/organizations",
           "PUT /api/v1/organizations/{organizationId}",
           "DELETE /api/v1/organizations/{organizationId}",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}",
-          "POST " + BATCH + "/start",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/import-template",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/imports",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}",
-          "PUT /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}",
-          "DELETE /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}",
-          "GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/examination-form",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/reactivate",
-          "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs",
-          "GET " + BATCH + "/examination-details",
-          "GET " + BATCH + "/examination-details/summary",
-          "GET " + BATCH + "/examination-details/export",
-          "GET " + BATCH + "/examination-details/import-template",
-          "PUT " + BATCH + "/examination-details/{participantId}",
-          "POST " + BATCH + "/examination-details/imports",
-          "GET " + BATCH + "/reports/payment-summary",
-          "GET " + BATCH + "/reports/payment-summary/docx");
+          "GET /api/v1/organizations/{organizationId}/agreements",
+          "POST /api/v1/organizations/{organizationId}/agreements",
+          "GET /api/v1/organizations/{organizationId}/agreements/{agreementId}",
+          "PUT /api/v1/organizations/{organizationId}/agreements/{agreementId}",
+          "DELETE /api/v1/organizations/{organizationId}/agreements/{agreementId}",
+          "POST " + AGREEMENT + "/activate",
+          "POST " + AGREEMENT + "/end",
+          "POST " + SESSIONS,
+          "GET " + SESSIONS,
+          "GET " + SESSIONS + "/{sessionId}",
+          "PUT " + SESSIONS + "/{sessionId}",
+          "POST " + SESSIONS + "/{sessionId}/cancel",
+          "GET " + SESSIONS + "/{sessionId}/assignments",
+          "POST " + SESSIONS + "/{sessionId}/assignments",
+          "POST " + SESSIONS + "/{sessionId}/assignments/move",
+          "POST " + SESSIONS + "/{sessionId}/assignments/{assignmentId}/move",
+          "POST " + SESSIONS + "/{sessionId}/assignments/{assignmentId}/cancel",
+          "POST " + SESSIONS + "/{sessionId}/assignments/{assignmentId}/attendance",
+          "GET /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants",
+          "GET /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/import-template",
+          "POST /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/imports",
+          "POST /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants",
+          "GET /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}",
+          "PUT /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}",
+          "DELETE /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}",
+          "GET /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}/examination-form",
+          "POST /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}/reactivate",
+          "POST /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/examination-form-print-jobs",
+          "GET " + AGREEMENT + "/examination-details",
+          "GET " + AGREEMENT + "/examination-details/summary",
+          "GET " + AGREEMENT + "/examination-details/export",
+          "GET " + AGREEMENT + "/examination-details/import-template",
+          "PUT " + AGREEMENT + "/examination-details/{participantId}",
+          "POST " + AGREEMENT + "/examination-details/imports",
+          "GET " + AGREEMENT + "/reports/payment-summary",
+          "GET " + AGREEMENT + "/reports/payment-summary/docx");
 
   @Test
   void healthExaminationMappingsStayWithinTheApprovedUseCases() {

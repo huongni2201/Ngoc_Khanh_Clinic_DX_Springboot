@@ -20,8 +20,8 @@
  WHERE id = #{id} AND status = 'PROCESSING'
  </update>
  <insert id="insertJob">
- INSERT INTO public.import_jobs (id, import_type, batch_id, configuration, status, created_by, created_at)
- VALUES (#{j.id}, #{j.importType}, #{j.batchId}, CAST(#{j.configuration} AS jsonb), 'VALIDATED', #{j.createdBy}, #{j.createdAt})
+ INSERT INTO public.import_jobs (id, import_type, agreement_id, configuration, status, created_by, created_at)
+ VALUES (#{j.id}, #{j.importType}, #{j.agreementId}, CAST(#{j.configuration} AS jsonb), 'VALIDATED', #{j.createdBy}, #{j.createdAt})
  </insert>
  <insert id="insertRows">
  INSERT INTO public.import_rows (id, job_id, row_number, normalized_payload, created_at) VALUES

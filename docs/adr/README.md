@@ -14,6 +14,7 @@ or complete implementation.
 | [0016](0016-organization-tax-code-identity.md) | Organization tax-code identity | 2026-10-06 |
 | [0017](0017-document-rendering-and-template-lifecycle.md) | Word-template rendering via PDF sidecar and template lifecycle (Proposed) | pending |
 | [0018](0018-it-managed-document-templates.md) | IT maintains document templates; no product editing/upload/publish workflow | 2026-10-13 |
+| [0019](0019-agreement-session-assignment.md) | Agreement, session and assignment replace the batch (Proposed; implemented on the owner's request) | pending |
 
 The Organization decision was renumbered from the duplicate ADR-0014 on
 2026-10-08. Its acceptance date and business decision are unchanged. Retained IDs

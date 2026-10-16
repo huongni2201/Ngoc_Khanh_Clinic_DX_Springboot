@@ -9,6 +9,9 @@ import lombok.Builder;
  *
  * @param searchPattern lower-case contains pattern whose LIKE wildcards were escaped, or null
  * @param identificationNumber exact identification number to match, or null
+ * @param sessionId only Participants in that session (assigned or attended), or null
+ * @param unscheduledFor {@code ANY}, {@code SAMPLING} or {@code EXAMINATION}: only Participants
+ *     with no live assignment of that kind, or null
  * @param sortKey allowlisted sort key
  * @param sortBy {@code ASC} or {@code DESC}
  */
@@ -18,7 +21,8 @@ public record ParticipantListCriteria(
     int limit,
     String searchPattern,
     String identificationNumber,
-    UUID batchDayId,
+    UUID sessionId,
+    String unscheduledFor,
     String rosterStatus,
     String attendanceStatus,
     String reconciliationStatus,

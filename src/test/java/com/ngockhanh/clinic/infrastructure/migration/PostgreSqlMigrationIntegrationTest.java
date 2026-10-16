@@ -36,8 +36,8 @@ class PostgreSqlMigrationIntegrationTest {
     assertColumn(jdbc, "accounts", "refresh_token_hash", "bytea");
     assertColumn(jdbc, "appointments", "doctor_id", "uuid");
     assertColumn(jdbc, "import_jobs", "confirmed_result", "jsonb");
-    assertColumn(jdbc, "health_examination_batch_participants", "identification_number", "text");
-    assertColumn(jdbc, "health_examination_batches", "deleted_at", "timestamp with time zone");
+    assertColumn(jdbc, "health_examination_participants", "identification_number", "text");
+    assertColumn(jdbc, "health_examination_agreements", "deleted_at", "timestamp with time zone");
     assertThat(
             jdbc.queryForObject(
                 "SELECT numeric_precision FROM information_schema.columns WHERE table_schema='public' AND table_name='services' AND column_name='unit_price'",
