@@ -50,7 +50,7 @@ class AuthIntegrationTest {
   private static final String ORIGIN = "http://localhost:3000";
   private static final String PASSWORD = "Mật khẩu-01";
 
-  /** Staff and role administration routes (V004, V005) belong to the Administrator only. */
+  /** Staff and role administration routes (V002) belong to the Administrator only. */
   private static final Set<String> ADMINISTRATION_PERMISSIONS =
       Set.of(
           "STAFF_MEMBER_VIEW",
@@ -193,7 +193,7 @@ class AuthIntegrationTest {
     }
 
     // An account holds one role: business routes belong to the Clinic Manager, staff
-    // and role administration routes (V004, V005) to the Administrator.
+    // and role administration routes (V002) to the Administrator.
     assignRole("CLINIC_MANAGER");
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());

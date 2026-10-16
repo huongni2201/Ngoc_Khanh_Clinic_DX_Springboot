@@ -63,7 +63,7 @@ entry for one Participant). V002 seeds them and grants both to every role that h
 ### Role administration amendment — 2026-10-15
 
 The owner approved role and role permission administration (SRS UC-008, UC-009;
-[the contract](../api/roles-and-permissions.md)). `V005__role_permission_management.sql`:
+[the contract](../api/roles-and-permissions.md)). V002 (folded into the baseline on 2026-10-16, formerly `V005__role_permission_management.sql`):
 
 - binds `ROLE_MANAGE` and `ROLE_PERMISSION_ASSIGN` to their endpoints and adds `ROLE_CREATE`,
   `ROLE_UPDATE`, `PERMISSION_VIEW` and `ROLE_PERMISSION_VIEW`, granted to `ADMINISTRATOR`; these four

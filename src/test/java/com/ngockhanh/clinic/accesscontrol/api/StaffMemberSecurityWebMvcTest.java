@@ -46,7 +46,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 /**
  * Exercises the staff member and role controllers through the production cookie, Origin and
- * permission filters, with the endpoints bound exactly as {@code V004} stores them.
+ * permission filters, with the endpoints bound exactly as {@code V002} stores them.
  */
 @WebMvcTest(
     controllers = {StaffMemberController.class, RoleController.class},

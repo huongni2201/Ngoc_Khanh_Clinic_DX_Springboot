@@ -113,7 +113,7 @@ class PersistenceRecordContractTest {
         Files.readString(Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
     var tables = new HashMap<String, String>();
     TABLE.matcher(sql).results().forEach(match -> tables.put(match.group(1), match.group(2)));
-    assertThat(tables).hasSize(65);
+    assertThat(tables).hasSize(66);
     appendColumnsAddedByLaterMigrations(tables);
     var mapped = new HashSet<String>();
     var expectedPaths = new HashSet<Path>();

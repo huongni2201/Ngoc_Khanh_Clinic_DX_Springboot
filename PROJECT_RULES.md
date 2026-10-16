@@ -158,18 +158,17 @@ documented business-code uniqueness. Justify indexes with real query patterns.
 All schema changes use `src/main/resources/db/migration/V<version>__<description>.sql`.
 Never edit applied shared migrations or use runtime auto-DDL in production.
 Fresh installs apply exactly three migrations: V001 (final schema), V002 (access-control seed) and
-V003 (catalog seed). The owner-authorized consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 fold
-every earlier amendment (former V004–V009) into these files for fresh databases only. The 2026-10-13
-consolidation also removed the `account_roles` table: an account holds exactly one role
-(`accounts.role_id`, required). Flyway rejects a database that applied an earlier history, because the
-edited files have new checksums and the removed versions are missing; recreate local databases, and
-existing deployed histories require conversion under
+V003 (catalog seed). The owner-authorized consolidations of 2026-10-08, 2026-10-11, 2026-10-13 and
+2026-10-16 fold every earlier amendment (former V004–V009) into these files for fresh databases only.
+The 2026-10-13 consolidation removed the `account_roles` table: an account holds exactly one role
+(`accounts.role_id`, required). The 2026-10-16 consolidation folded the staff member and role
+administration permissions, the catalog management fields, indexes and permissions, and the agreement,
+session and assignment model
+([ADR-0019](docs/adr/0019-agreement-session-assignment.md)) into V001–V003. Flyway rejects a database
+that applied an earlier history, because the edited files have new checksums and the removed versions
+are missing; recreate local databases, and existing deployed histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment); never repair checksums
-to bypass validation. Later changes are new migrations after V003; current: V004 (staff member and role
-endpoint permissions), V005 (role and role permission administration), V006 (accounts by role index),
-V007 (catalog management fields/indexes, 30 endpoints and CLINIC_MANAGER grants), V008 (agreement,
-session and assignment model, [ADR-0019](docs/adr/0019-agreement-session-assignment.md)) and V009
-(removal of the agreement service change permissions). V001–V007 stay unchanged.
+to bypass validation. Later changes are new migrations after V003.
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
 

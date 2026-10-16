@@ -29,12 +29,11 @@ All paths below start with `/api/v1`. `O` means
 | healthexamination | `POST B/participants/examination-form-print-jobs` | [Examination form print jobs](examination-form-print-jobs.md); 202, permission `PARTICIPANT_EXAMINATION_FORM_BULK_PRINT` |
 | document | `GET /document-render-jobs/{jobId}`, `GET /document-render-jobs/{jobId}/parts/{partNo}` | [Examination form print jobs](examination-form-print-jobs.md); creator only, permissions `DOCUMENT_RENDER_JOB_READ` and `DOCUMENT_RENDER_JOB_DOWNLOAD` |
 
-V002 stores a method/route/permission mapping for 32 business operations, including
+V002 stores a method/route/permission mapping for 83 operations, including
 `PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
-job download) and `HEALTH_EXAMINATION_BATCH_START` (renamed `HEALTH_EXAMINATION_AGREEMENT_ACTIVATE` by V008); V004 binds the three staff member/role routes
-and V005 the six role administration routes (41 before catalog management). V007 adds
-30 catalog bindings and aligns catalog grants with CLINIC_MANAGER, the actor of UC-110–UC-115.
-V008 renames the batch permissions and routes to agreements, binds the end and add-services routes and adds twelve agreement, session and assignment permissions, and V009 drops the two agreement service change permissions (83 bound routes in total), under
+job download) and `HEALTH_EXAMINATION_AGREEMENT_ACTIVATE`, together with the three staff member/role routes, the six role administration routes, the 30 catalog
+management bindings (CLINIC_MANAGER, the actor of UC-110–UC-115) the agreement end route and the
+session and assignment permissions (83 bound routes in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_AGREEMENT_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST role uses
@@ -80,11 +79,9 @@ The single-step service-reconciliation import is a separate workflow.
 
 ## Database compatibility
 
-Fresh databases apply one final schema initializer V001, data-only seeds
-V002/V003, and additive V004 (staff administration permissions), V005 (role and role
-permission administration), V006 (accounts by role index), V007 (catalog management,
-including Clinic Manager catalog access), V008 (agreement, session and assignment model) and
-V009 (removal of the agreement service change permissions). Earlier migration
+Fresh databases apply one final schema initializer V001 and data-only seeds
+V002/V003; staff administration, role administration, catalog management and the agreement, session
+and assignment model are part of them (consolidation of 2026-10-16). Earlier migration
 histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings
