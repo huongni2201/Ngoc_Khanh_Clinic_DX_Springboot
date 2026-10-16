@@ -57,6 +57,20 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
+  void namesTheFieldWhoseValueIsAlreadyUsed() {
+    var response =
+        handler.fieldConflict(
+            new com.ngockhanh.clinic.shared.exception.FieldConflictException(
+                "name", "Role name already exists"));
+
+    assertThat(response.getStatusCode().value()).isEqualTo(409);
+    assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
+    assertThat(response.getBody().message()).isEqualTo("Duplicate value: name");
+    assertThat(response.getBody().data())
+        .containsExactly(new FieldErrorDetail("name", "Duplicate", "Role name already exists"));
+  }
+
+  @Test
   void successResponseUsesOkResultAndCarriesPageData() {
     PageResponse<String> page =
         PageResponse.<String>builder()

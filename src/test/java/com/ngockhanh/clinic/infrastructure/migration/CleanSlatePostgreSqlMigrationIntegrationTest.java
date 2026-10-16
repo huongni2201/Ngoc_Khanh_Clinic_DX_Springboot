@@ -83,7 +83,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(4);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -91,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003", "004");
+        .containsExactly("001", "002", "003", "004", "005");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -199,7 +199,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
   /**
    * V002 seeds the SRS Permission Matrix 4.4 (ADR-0015) and current endpoint permissions, among
    * them the two examination detail entry permissions (import template download and manual record)
-   * granted to the roles that may reconcile. Every permission is granted to at least one role.
+   * granted to the roles that may reconcile. Every permission is granted to at least one role. V004
+   * and V005 add the staff member and role administration endpoint permissions of ADMINISTRATOR.
    */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
@@ -212,14 +213,14 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(126);
+        .isEqualTo(130);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(140);
+        .isEqualTo(144);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(35);
+        .isEqualTo(41);
     assertThat(
             jdbc.queryForObject(
                 "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'HEALTH_EXAMINATION_BATCH_START'",
@@ -242,6 +243,34 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
     for (String permission :
         List.of("STAFF_MEMBER_VIEW", "ROLE_VIEW", "USER_ACCOUNT_CREATE", "USER_ROLE_ASSIGN"))
       assertThat(rolesGranted(jdbc, permission)).as(permission).containsExactly("ADMINISTRATOR");
+    assertThat(
+            jdbc.queryForList(
+                """
+                SELECT code || ' ' || http_method || ' ' || endpoint FROM public.permissions
+                WHERE module = 'Roles and Permissions' AND endpoint IS NOT NULL
+                """,
+                String.class))
+        .as("V005 binds the role administration endpoints")
+        .containsExactlyInAnyOrder(
+            "ROLE_VIEW GET /api/v1/roles",
+            "ROLE_MANAGE GET /api/v1/admin/roles",
+            "ROLE_CREATE POST /api/v1/admin/roles",
+            "ROLE_UPDATE PUT /api/v1/admin/roles/{roleId}",
+            "PERMISSION_VIEW GET /api/v1/admin/permissions",
+            "ROLE_PERMISSION_VIEW GET /api/v1/admin/roles/{roleId}/permissions",
+            "ROLE_PERMISSION_ASSIGN PUT /api/v1/admin/roles/{roleId}/permissions");
+    for (String permission :
+        List.of("ROLE_CREATE", "ROLE_UPDATE", "PERMISSION_VIEW", "ROLE_PERMISSION_VIEW"))
+      assertThat(rolesGranted(jdbc, permission)).as(permission).containsExactly("ADMINISTRATOR");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT module || ' | ' || use_cases || ' | ' || sensitive FROM public.permissions WHERE code = 'PAYMENT_REFUND'",
+                String.class))
+        .isEqualTo("Invoice and Payment | UC-046 | true");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM public.roles WHERE row_version <> 0", Integer.class))
+        .isZero();
     assertThat(
             jdbc.queryForList(
                 """

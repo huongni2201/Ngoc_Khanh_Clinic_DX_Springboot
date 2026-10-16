@@ -30,8 +30,8 @@ class LocalAccessControlSeedIntegrationTest {
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()));
     // A permission added to an existing database after the repeatable seed already ran.
     jdbc.update(
-        "INSERT INTO public.permissions (code, name, description) VALUES"
-            + " ('LOCAL_LATER_PERMISSION', 'Later', 'Added by a later migration') ON CONFLICT DO NOTHING");
+        "INSERT INTO public.permissions (code, name, description, module) VALUES"
+            + " ('LOCAL_LATER_PERMISSION', 'Later', 'Added by a later migration', 'Local') ON CONFLICT DO NOTHING");
 
     assertThat(flyway.migrate().migrationsExecuted).isZero();
 

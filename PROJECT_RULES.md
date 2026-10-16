@@ -165,7 +165,8 @@ consolidation also removed the `account_roles` table: an account holds exactly o
 edited files have new checksums and the removed versions are missing; recreate local databases, and
 existing deployed histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment). Later changes are new
-migrations after V003; current: V004 (staff member and role endpoint permissions).
+migrations after V003; current: V004 (staff member and role endpoint permissions), V005 (role and role permission
+administration).
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
 
@@ -233,7 +234,8 @@ Reuse `shared.web.ApiResponse`, `PageResponse`, `GlobalExceptionHandler` and
 ```
 
 `code` matches numeric HTTP status; `result` is OK/NG; null message/data are omitted.
-Request validation (400 from Bean Validation) is the one failure that carries
+Request validation (400 from Bean Validation) and `FieldConflictException` (409, a value another
+record already uses; owner-approved 2026-10-15) are the failures that carry
 detail. `message` names the rejected fields, and `data` lists them as
 `{field, code, message}`: `field` is the JSON path, `code` the failed constraint and
 `message` an English technical detail for developers. Clients localise by `field` and
@@ -250,6 +252,7 @@ require an explicit contract change. Failed business commands never return HTTP 
 | Not found | ResourceNotFoundException | 404 |
 | Unsupported method | HttpRequestMethodNotSupportedException | 405 |
 | Identity conflict | DuplicateKeyException | 409 |
+| Value used by another record, named field (owner-approved 2026-10-15) | FieldConflictException; `data` lists `{field, code: "Duplicate", message}` | 409 |
 | Business rule | BusinessRuleException, module DomainException subclasses | 409 |
 | Lost update | ConcurrentUpdateException | 409 |
 | Unusable reference chosen by the caller (owner-approved 2026-10-15) | UnprocessableEntityException | 422 |
