@@ -22,7 +22,7 @@ services:
     volumes:
       - document_data:/var/lib/nkc/documents
     ports:
-      - "8081:8080"
+      - "8888:8080"
 
   postgres:
     image: postgres:18-alpine
@@ -32,7 +32,7 @@ services:
       # Development-only fallback; set POSTGRES_PASSWORD outside local development.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only_change_me}
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5444:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -45,7 +45,7 @@ services:
     image: redis:7.4-alpine
     command: [ "redis-server", "--maxmemory-policy", "noeviction" ]
     ports:
-      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:6399:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -61,7 +61,7 @@ services:
       - "gotenberg"
       - "--api-timeout=120s"
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:3030:3000"
     healthcheck:
       test: ["CMD", "curl", "--silent", "--fail", "http://localhost:3000/health"]
       interval: 10s
