@@ -43,6 +43,23 @@ class RoleTest {
   }
 
   @Test
+  void restoresAStoredRoleLongerThanTheScreensAllowButEditsItWithinTheLimits() {
+    Role stored =
+        Role.restore(UUID.randomUUID(), "NURSE", "N".repeat(150), "d".repeat(800), true, 1L);
+
+    assertThat(stored.name()).hasSize(150);
+    assertThat(stored.description()).hasSize(800);
+    stored.update(" " + "N".repeat(150), "d".repeat(800), false);
+    assertThat(stored.active()).as("details kept as stored are not checked").isFalse();
+    assertThatThrownBy(() -> stored.update("M".repeat(150), "d".repeat(800), true))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> stored.update("N".repeat(150), "e".repeat(800), true))
+        .isInstanceOf(IllegalArgumentException.class);
+    stored.update("Nurse", null, true);
+    assertThat(stored.name()).isEqualTo("Nurse");
+  }
+
+  @Test
   void updatesEverythingButTheCode() {
     Role role = Role.restore(UUID.randomUUID(), "NURSE", "Nurse", "Old", true, 3L);
 
@@ -68,6 +85,17 @@ class RoleTest {
     assertThatCode(() -> administrator.requireRevocable(List.of("AUDIT_LOG_VIEW")))
         .doesNotThrowAnyException();
     assertThatCode(() -> administrator.update("Admin", "Renamed", true)).doesNotThrowAnyException();
+  }
+
+  @Test
+  void thePatientRoleStaysActiveButMayBeRenamed() {
+    Role patient = Role.restore(UUID.randomUUID(), "PATIENT", "Patient", null, true, 0L);
+
+    assertThatThrownBy(() -> patient.update("Patient", null, false))
+        .isInstanceOf(ProtectedRoleException.class);
+    assertThat(patient.active()).isTrue();
+    assertThatCode(() -> patient.update("Bệnh nhân", null, true)).doesNotThrowAnyException();
+    assertThat(patient.isPatient()).isTrue();
   }
 
   @Test

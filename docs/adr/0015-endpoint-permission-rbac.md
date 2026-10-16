@@ -75,7 +75,9 @@ The owner approved role and role permission administration (SRS UC-008, UC-009;
 
 Permissions stay predefined: no endpoint creates one, because a permission only takes effect
 through the endpoint it is bound to. The `ADMINISTRATOR` role cannot be deactivated and keeps the
-role administration permissions, so roles can always be administered again (not in the SRS yet).
+role administration permissions, so roles can always be administered again. The `PATIENT` role
+cannot be deactivated, since every patient portal account holds it, and a new staff role never
+copies its `OWN_*` permissions (not in the SRS yet).
 
 ### Enforcement
 

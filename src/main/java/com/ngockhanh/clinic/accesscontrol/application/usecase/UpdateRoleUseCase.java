@@ -49,7 +49,8 @@ public class UpdateRoleUseCase {
    * @throws IllegalArgumentException when a length or a required value is invalid
    * @throws ResourceNotFoundException when the role does not exist
    * @throws ConcurrentUpdateException when the expected row version is stale
-   * @throws ProtectedRoleException when the {@code ADMINISTRATOR} role would become inactive
+   * @throws ProtectedRoleException when the {@code ADMINISTRATOR} or {@code PATIENT} role would
+   *     become inactive
    * @throws FieldConflictException (HTTP 409) when another role uses the name, ignoring case
    */
   @Transactional

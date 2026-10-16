@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.accesscontrol.domain.aggregate;
 
 import com.ngockhanh.clinic.accesscontrol.domain.exception.ProtectedRoleException;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -12,11 +13,13 @@ import java.util.regex.Pattern;
  * grants no permission (BR-06).
  *
  * <p>The {@code ADMINISTRATOR} role must stay active and keep the permissions that administer
- * roles, so that roles can always be administered again (owner decision 2026-10-15, not in the SRS
- * yet).
+ * roles, so that roles can always be administered again. The {@code PATIENT} role must stay active,
+ * because every patient portal account holds it. It never serves as the source of a staff role.
+ * Owner decisions 2026-10-15, not in the SRS yet.
  */
 public final class Role {
   public static final String ADMINISTRATOR_CODE = "ADMINISTRATOR";
+  public static final String PATIENT_CODE = "PATIENT";
   public static final Integer CODE_MAX_LENGTH = 80;
   public static final Integer NAME_MAX_LENGTH = 100;
   public static final Integer DESCRIPTION_MAX_LENGTH = 500;
@@ -41,7 +44,13 @@ public final class Role {
   private Boolean active;
 
   private Role(
-      UUID id, String code, String name, String description, Boolean active, Long rowVersion) {
+      UUID id,
+      String code,
+      String name,
+      String description,
+      Boolean active,
+      Long rowVersion,
+      Boolean limitLengths) {
     if (id == null) throw new IllegalArgumentException("Role id is required");
     if (code == null || code.length() > CODE_MAX_LENGTH || !CODE_FORMAT.matcher(code).matches())
       throw new IllegalArgumentException("Invalid role code");
@@ -50,7 +59,7 @@ public final class Role {
     this.id = id;
     this.code = code;
     this.rowVersion = rowVersion;
-    applyDetails(name, description, active);
+    applyDetails(name, description, active, limitLengths, limitLengths);
   }
 
   /**
@@ -59,25 +68,34 @@ public final class Role {
    * @throws IllegalArgumentException when the code format, a length or a required value is invalid
    */
   public static Role create(UUID id, String code, String name, String description, Boolean active) {
-    return new Role(id, code, name, description, active, 0L);
-  }
-
-  /** Restores a stored role. */
-  public static Role restore(
-      UUID id, String code, String name, String description, Boolean active, Long rowVersion) {
-    return new Role(id, code, name, description, active, rowVersion);
+    return new Role(id, code, name, description, active, 0L, Boolean.TRUE);
   }
 
   /**
-   * Replaces the name, description and active flag. The code never changes.
+   * Restores a stored role. The name and description lengths are not checked: the columns allow
+   * longer values than the screens accept, and a stored role must stay readable and editable.
+   */
+  public static Role restore(
+      UUID id, String code, String name, String description, Boolean active, Long rowVersion) {
+    return new Role(id, code, name, description, active, rowVersion, Boolean.FALSE);
+  }
+
+  /**
+   * Replaces the name, description and active flag. The code never changes. A name or description
+   * kept as stored is not checked against the length limits, so a stored role longer than the
+   * screens allow can still be activated or deactivated.
    *
-   * @throws IllegalArgumentException when a length or a required value is invalid
-   * @throws ProtectedRoleException when the {@code ADMINISTRATOR} role would become inactive
+   * @throws IllegalArgumentException when a changed value is too long or a required value is
+   *     missing
+   * @throws ProtectedRoleException when the {@code ADMINISTRATOR} or {@code PATIENT} role would
+   *     become inactive
    */
   public void update(String name, String description, Boolean active) {
-    if (isAdministrator() && Boolean.FALSE.equals(active))
-      throw new ProtectedRoleException("The Administrator role cannot be deactivated");
-    applyDetails(name, description, active);
+    if ((isAdministrator() || isPatient()) && Boolean.FALSE.equals(active))
+      throw new ProtectedRoleException("The " + code + " role cannot be deactivated");
+    Boolean nameChanged = !Objects.equals(trimmedOrNull(name), this.name);
+    Boolean descriptionChanged = !Objects.equals(trimmedOrNull(description), this.description);
+    applyDetails(name, description, active, nameChanged, descriptionChanged);
   }
 
   /**
@@ -97,12 +115,30 @@ public final class Role {
     return ADMINISTRATOR_CODE.equals(code);
   }
 
-  private void applyDetails(String name, String description, Boolean active) {
+  /** The role of patient portal accounts; staff roles never take its permissions. */
+  public Boolean isPatient() {
+    return PATIENT_CODE.equals(code);
+  }
+
+  /** Trimmed text, or null when blank, as the role stores it. */
+  private static String trimmedOrNull(String value) {
+    String trimmed = value == null ? "" : value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private void applyDetails(
+      String name,
+      String description,
+      Boolean active,
+      Boolean limitName,
+      Boolean limitDescription) {
     String trimmedName = name == null ? "" : name.trim();
-    if (trimmedName.isEmpty() || trimmedName.length() > NAME_MAX_LENGTH)
+    if (trimmedName.isEmpty()
+        || (Boolean.TRUE.equals(limitName) && trimmedName.length() > NAME_MAX_LENGTH))
       throw new IllegalArgumentException("Invalid role name");
     String trimmedDescription = description == null ? "" : description.trim();
-    if (trimmedDescription.length() > DESCRIPTION_MAX_LENGTH)
+    if (Boolean.TRUE.equals(limitDescription)
+        && trimmedDescription.length() > DESCRIPTION_MAX_LENGTH)
       throw new IllegalArgumentException("Invalid role description");
     if (active == null) throw new IllegalArgumentException("Active flag is required");
     this.name = trimmedName;

@@ -166,7 +166,7 @@ edited files have new checksums and the removed versions are missing; recreate l
 existing deployed histories require conversion under
 [deployment policy](docs/architecture/06-testing-and-operations.md#deployment). Later changes are new
 migrations after V003; current: V004 (staff member and role endpoint permissions), V005 (role and role permission
-administration).
+administration), V006 (accounts by role index).
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
 

@@ -97,33 +97,15 @@
         FROM public.roles r
     </sql>
 
-    <sql id="searchWhere">
-        <where>
-            <if test="pattern != null">
-                r.name ILIKE #{pattern} ESCAPE '\'
-            </if>
-            <if test="active != null">AND r.active = #{active}</if>
-        </where>
-    </sql>
-
     <select id="search" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.RoleListView">
         <include refid="listColumns"/>
-        <include refid="searchWhere"/>
-        ORDER BY
-        <choose>
-            <when test="sortKey == 'name' and sortBy == 'DESC'">r.name DESC, r.id DESC</when>
-            <when test="sortKey == 'name'">r.name ASC, r.id ASC</when>
-            <when test="sortKey == 'code' and sortBy == 'DESC'">r.code DESC</when>
-            <when test="sortKey == 'code'">r.code ASC</when>
-            <when test="sortBy == 'DESC'">r.id DESC</when>
-            <otherwise>r.id ASC</otherwise>
-        </choose>
+        <!-- Binary order: the same in every database collation and in Java String.compareTo. -->
+        ORDER BY r.code COLLATE "C"
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
     <select id="count" resultType="java.lang.Long">
-        SELECT COUNT(*) FROM public.roles r
-        <include refid="searchWhere"/>
+        SELECT COUNT(*) FROM public.roles
     </select>
 
     <select id="findListViewById" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.RoleListView">

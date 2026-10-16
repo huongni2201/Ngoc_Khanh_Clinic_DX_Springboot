@@ -46,16 +46,10 @@ public interface RoleMyBatisMapper {
   Integer copyPermissions(
       @Param("sourceRoleId") UUID sourceRoleId, @Param("targetRoleId") UUID targetRoleId);
 
-  /** One page of roles with usage counts; {@code pattern} is an escaped ILIKE pattern or null. */
-  List<RoleListView> search(
-      @Param("pattern") String pattern,
-      @Param("active") Boolean active,
-      @Param("sortKey") String sortKey,
-      @Param("sortBy") String sortBy,
-      @Param("limit") Integer limit,
-      @Param("offset") Long offset);
+  /** One page of roles of every status with usage counts, ordered by code. */
+  List<RoleListView> search(@Param("limit") Integer limit, @Param("offset") Long offset);
 
-  Long count(@Param("pattern") String pattern, @Param("active") Boolean active);
+  Long count();
 
   /** One role with usage counts, or null. */
   RoleListView findListViewById(@Param("id") UUID id);

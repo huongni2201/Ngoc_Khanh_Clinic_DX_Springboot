@@ -154,23 +154,31 @@ class RoleAdministrationIntegrationTest {
     assertThat(created.userCount()).isZero();
     assertThat(created.description()).isNull();
     assertThat(created.rowVersion()).isZero();
-    var found = list.execute(ListRolesQuery.builder().searchKey("senior").build(), admin);
-    assertThat(found.items()).extracting(RoleSummary::code).containsExactly("SENIOR_RECEPTIONIST");
-    assertThat(
-            list.execute(ListRolesQuery.builder().searchKey("SENIOR_RECEP").build(), admin).items())
-        .as("the search matches the name only, not the code")
-        .isEmpty();
-    var administrators =
-        list.execute(
-            ListRolesQuery.builder().searchKey("ADMINISTRATOR").status("ACTIVE").build(), admin);
-    assertThat(administrators.items())
+    var all = list.execute(ListRolesQuery.builder().size(100).build(), admin);
+    assertThat(all.items())
+        .extracting(RoleSummary::code)
+        .as("every role, in code order")
+        .isSortedAccordingTo(String::compareTo)
+        .contains("SENIOR_RECEPTIONIST", "ADMINISTRATOR");
+    assertThat(all.items())
+        .filteredOn(role -> role.code().equals("ADMINISTRATOR"))
         .singleElement()
         .extracting(RoleSummary::userCount)
         .isEqualTo(1L);
-    assertThat(list.execute(ListRolesQuery.builder().status("INACTIVE").build(), admin).items())
-        .isEmpty();
+    var second = list.execute(ListRolesQuery.builder().page(2).size(2).build(), admin);
+    assertThat(second.items())
+        .extracting(RoleSummary::code)
+        .containsExactlyElementsOf(
+            all.items().subList(2, 4).stream().map(RoleSummary::code).toList());
+    assertThat(second.totalElements()).isEqualTo(all.totalElements());
     assertThat(jdbc.queryForList("SELECT action FROM public.audit_events", String.class))
         .containsExactly("CREATE_ROLE");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT jsonb_array_length(metadata -> 'after' -> 'granted') FROM public.audit_events",
+                Long.class))
+        .as("the audit lists the copied permissions")
+        .isEqualTo(receptionistGrants);
   }
 
   @Test

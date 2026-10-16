@@ -19,17 +19,13 @@ public class MyBatisRoleDirectory implements RoleDirectory {
   private final RolePersistenceConverter converter = new RolePersistenceConverter();
 
   @Override
-  public PageResponse<RoleSummary> search(
-      Integer page, Integer size, String searchKey, Boolean active, String sortKey, String sortBy) {
+  public PageResponse<RoleSummary> search(Integer page, Integer size) {
     Long offset = (page.longValue() - 1) * size;
-    String pattern = likePattern(searchKey);
-    Long total = roles.count(pattern, active);
+    Long total = roles.count();
     List<RoleSummary> items =
         total == 0 || offset >= total
             ? List.of()
-            : roles.search(pattern, active, sortKey, sortBy, size, offset).stream()
-                .map(converter::toSummary)
-                .toList();
+            : roles.search(size, offset).stream().map(converter::toSummary).toList();
     return PageResponse.<RoleSummary>builder()
         .items(items)
         .page(page)
@@ -48,12 +44,5 @@ public class MyBatisRoleDirectory implements RoleDirectory {
   @Override
   public List<PermissionCatalogItem> findPermissionCatalog() {
     return roles.findPermissionCatalog().stream().map(converter::toCatalogItem).toList();
-  }
-
-  /** Builds a contains pattern in which user-typed LIKE wildcards are matched literally. */
-  private static String likePattern(String searchKey) {
-    if (searchKey == null || searchKey.isBlank()) return null;
-    String escaped = searchKey.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
-    return "%" + escaped + "%";
   }
 }

@@ -24,6 +24,12 @@ public record CreateRoleRequest(
     Boolean active) {
   public static final String CODE_PATTERN = "[A-Z][A-Z0-9_]*";
 
+  /** Lengths are checked on the trimmed text, which is what the role stores. */
+  public CreateRoleRequest {
+    name = name == null ? null : name.trim();
+    description = description == null ? null : description.trim();
+  }
+
   public CreateRoleCommand toCommand() {
     return CreateRoleCommand.builder()
         .code(code)

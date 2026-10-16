@@ -76,7 +76,8 @@ The single-step service-reconciliation import is a separate workflow.
 ## Database compatibility
 
 Fresh databases apply one final schema initializer V001, data-only seeds
-V002/V003, and the additive V004 (staff member and role endpoint permissions). Earlier migration
+V002/V003, and the additive V004 (staff member and role endpoint permissions), V005 (role and role
+permission administration) and V006 (accounts by role index). Earlier migration
 histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings

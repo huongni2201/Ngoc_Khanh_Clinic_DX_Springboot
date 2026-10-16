@@ -20,7 +20,7 @@ Every route requires a STAFF account with the listed permission. Sign in again a
 | Method/path | Success | Required STAFF permission |
 |---|---|---|
 | GET `/api/v1/admin/roles` | 200 page of [Role](#role) | `ROLE_MANAGE` (V002, bound by V005) |
-| POST `/api/v1/admin/roles` | 201 [Role](#role) | `ROLE_CREATE` (V005) |
+| POST `/api/v1/admin/roles` | 201 [Role](#role) | `ROLE_CREATE` (V005); also `ROLE_PERMISSION_ASSIGN` with `copyFromRoleId` |
 | PUT `/api/v1/admin/roles/{roleId}` | 200 [Role](#role) | `ROLE_UPDATE` (V005) |
 | GET `/api/v1/admin/permissions` | 200 list of [Permission](#permission) | `PERMISSION_VIEW` (V005) |
 | GET `/api/v1/admin/roles/{roleId}/permissions` | 200 [RolePermissions](#rolepermissions) | `ROLE_PERMISSION_VIEW` (V005) |
@@ -32,9 +32,9 @@ Every route requires a STAFF account with the listed permission. Sign in again a
 
 ## GET /api/v1/admin/roles
 
-Accepts `page`, `size` (max 100), `searchKey` (max 100; contains match on the role `name` only,
-case-insensitive), `status` (`ACTIVE` or `INACTIVE`; omitted lists both), `sortKey` (`id`, `code`,
-`name`) and `sortBy` (`ASC`/`DESC`). `data` is a page of [Role](#role).
+Accepts `page` and `size` (max 100). `data` is a page of [Role](#role) of every status, ordered by
+`code`. Screens read every page and search, filter and sort on the names they display; other query
+parameters are ignored.
 
 ## POST /api/v1/admin/roles
 
@@ -42,18 +42,19 @@ case-insensitive), `status` (`ACTIVE` or `INACTIVE`; omitted lists both), `sortK
 |---|---|
 | `code` | Required, max 80, uppercase letters, digits and underscores starting with a letter (`^[A-Z][A-Z0-9_]*$`). Unique. Never changes |
 | `name` | Required, max 100 after trimming. Unique ignoring case (BR-11) |
-| `description` | Optional, max 500; blank becomes null |
-| `copyFromRoleId` | Optional UUID of an active role whose permissions the new role receives |
+| `description` | Optional, max 500 after trimming; blank becomes null |
+| `copyFromRoleId` | Optional UUID of an active role, other than `PATIENT`, whose permissions the new role receives. Copying grants permissions, so it also requires `ROLE_PERMISSION_ASSIGN` (403 otherwise) |
 | `active` | Optional, default `true` |
 
-Response 201, message `Role created`. Audit `CREATE_ROLE` (code, name, active, copied role code).
+Response 201, message `Role created`. Audit `CREATE_ROLE` (code, name, description, active, copied role code and the
+codes `granted` by the copy).
 
 ## PUT /api/v1/admin/roles/{roleId}
 
 | Field | Rule |
 |---|---|
-| `name` | Required, max 100, unique ignoring case among other roles |
-| `description` | Optional, max 500 |
+| `name` | Required, max 100 after trimming when changed (a stored longer name may be sent back unchanged, up to the 200 of the column), unique ignoring case among other roles |
+| `description` | Optional, max 500 after trimming when changed |
 | `active` | Required; `false` deactivates the role, `true` reactivates it |
 | `rowVersion` | Required, the version last read |
 
@@ -84,14 +85,16 @@ on the same read is a conflict. Response 200, message `Role permissions updated`
 | Status | When |
 |---|---|
 | 400 | Bean Validation failure, with the field list; empty or contradictory permission changes |
+| 403 | Missing permission, including `ROLE_PERMISSION_ASSIGN` when `copyFromRoleId` is sent |
 | 404 | Unknown `roleId` |
 | 409 with `data` | `FieldConflictException`: `[{"field":"code" or "name","code":"Duplicate"}]`, the code or name is used by another role |
-| 409 without `data` | Stale `rowVersion` (`Record was changed by another request`), or a protected Administrator change (`Business rule could not be completed`) |
-| 422 | `copyFromRoleId` is unknown or inactive; the role whose permissions change is inactive; a permission code does not exist |
+| 409 without `data` | Stale `rowVersion` (`Record was changed by another request`), or a protected role change: deactivating `ADMINISTRATOR` or `PATIENT`, or removing a protected Administrator permission (`Business rule could not be completed`) |
+| 422 | `copyFromRoleId` is unknown, inactive or `PATIENT`; the role whose permissions change is inactive; a permission code does not exist |
 
-Protected Administrator change (owner decision 2026-10-15, not in the SRS yet): the `ADMINISTRATOR`
-role cannot be deactivated and never loses `ROLE_MANAGE`, `ROLE_UPDATE`, `PERMISSION_VIEW`,
-`ROLE_PERMISSION_VIEW` or `ROLE_PERMISSION_ASSIGN`.
+Protected roles (owner decisions 2026-10-15, not in the SRS yet): the `ADMINISTRATOR` role cannot
+be deactivated and never loses `ROLE_MANAGE`, `ROLE_UPDATE`, `PERMISSION_VIEW`,
+`ROLE_PERMISSION_VIEW` or `ROLE_PERMISSION_ASSIGN`. The `PATIENT` role, held by every patient
+portal account, cannot be deactivated and is never a `copyFromRoleId` source.
 
 ## Role
 

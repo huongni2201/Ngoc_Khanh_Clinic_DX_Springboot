@@ -23,6 +23,8 @@ import com.ngockhanh.clinic.healthexamination.ParticipantFixtures;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.FieldConflictException;
 import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,6 +37,8 @@ class CreateRoleUseCaseTest {
   private final AuditWriter audit = mock(AuditWriter.class);
   private final CreateRoleUseCase useCase = new CreateRoleUseCase(roles, directory, audit);
   private final UserPrincipal admin = ParticipantFixtures.staff("ROLE_CREATE");
+  private final UserPrincipal copier =
+      ParticipantFixtures.staff("ROLE_CREATE", "ROLE_PERMISSION_ASSIGN");
 
   @Test
   void createsAnActiveRoleByDefaultAndAuditsIt() {
@@ -63,7 +67,7 @@ class CreateRoleUseCaseTest {
             eq("ROLE"),
             eq(stored.getValue().id()),
             isNull(),
-            eq(Map.of("code", "LAB_TECH", "name", "Lab technician", "active", true)));
+            eq(expectedAudit()));
   }
 
   @Test
@@ -72,6 +76,7 @@ class CreateRoleUseCaseTest {
     when(roles.existsByCode(any())).thenReturn(false);
     when(roles.existsByName(any(), any())).thenReturn(false);
     when(roles.findById(source.id())).thenReturn(Optional.of(source));
+    when(roles.findGrantedPermissionCodes(any())).thenReturn(List.of("PATIENT_VIEW"));
     when(directory.findSummary(any())).thenReturn(Optional.of(RoleSummary.builder().build()));
 
     useCase.execute(
@@ -81,22 +86,56 @@ class CreateRoleUseCaseTest {
             .copyFromRoleId(source.id())
             .active(false)
             .build(),
-        admin);
+        copier);
 
     var stored = ArgumentCaptor.forClass(Role.class);
     verify(roles).insert(stored.capture());
     assertThat(stored.getValue().active()).isFalse();
     verify(roles).copyPermissions(source.id(), stored.getValue().id());
+    var after = ArgumentCaptor.forClass(Map.class);
+    verify(audit).record(any(), eq("CREATE_ROLE"), eq("ROLE"), any(), isNull(), after.capture());
+    assertThat(after.getValue())
+        .containsEntry("copiedFromRoleCode", "NURSE")
+        .containsEntry("granted", List.of("PATIENT_VIEW"));
   }
 
   @Test
-  void rejectsAnInactiveOrUnknownSourceRoleWithoutWriting() {
+  void copyingPermissionsAlsoRequiresThePermissionToAssignThem() {
+    assertThatThrownBy(
+            () ->
+                useCase.execute(
+                    CreateRoleCommand.builder()
+                        .code("HEAD_NURSE")
+                        .name("Head nurse")
+                        .copyFromRoleId(UUID.randomUUID())
+                        .build(),
+                    admin))
+        .isInstanceOfSatisfying(
+            ApplicationException.class,
+            denied -> assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
+    verifyNoInteractions(roles, audit);
+  }
+
+  private static Map<String, Object> expectedAudit() {
+    Map<String, Object> after = new HashMap<>();
+    after.put("code", "LAB_TECH");
+    after.put("name", "Lab technician");
+    after.put("description", null);
+    after.put("active", true);
+    after.put("granted", List.of());
+    return after;
+  }
+
+  @Test
+  void rejectsAnInactiveUnknownOrPatientSourceRoleWithoutWriting() {
     Role inactive = Role.restore(UUID.randomUUID(), "NURSE", "Nurse", null, false, 0L);
+    Role patient = Role.restore(UUID.randomUUID(), "PATIENT", "Patient", null, true, 0L);
     when(roles.existsByCode(any())).thenReturn(false);
     when(roles.existsByName(any(), any())).thenReturn(false);
     when(roles.findById(inactive.id())).thenReturn(Optional.of(inactive));
+    when(roles.findById(patient.id())).thenReturn(Optional.of(patient));
 
-    for (UUID source : new UUID[] {inactive.id(), UUID.randomUUID()})
+    for (UUID source : new UUID[] {inactive.id(), patient.id(), UUID.randomUUID()})
       assertThatThrownBy(
               () ->
                   useCase.execute(
@@ -105,7 +144,7 @@ class CreateRoleUseCaseTest {
                           .name("Head nurse")
                           .copyFromRoleId(source)
                           .build(),
-                      admin))
+                      copier))
           .isInstanceOf(UnprocessableEntityException.class);
     verify(roles, never()).insert(any());
     verifyNoInteractions(audit);

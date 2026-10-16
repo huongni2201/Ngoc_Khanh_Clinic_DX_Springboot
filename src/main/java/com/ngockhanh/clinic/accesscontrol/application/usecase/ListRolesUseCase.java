@@ -7,24 +7,21 @@ import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
 import com.ngockhanh.clinic.shared.constants.PaginationConstants;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.web.PageResponse;
-import java.util.Locale;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Lists roles of every status with their usage counts for the Role List screen (SRS UC-008, 1.3.1),
- * using optional search, status filter, allowlisted sorting and one-based pagination.
+ * Lists roles of every status in code order with their usage counts for the Role List screen (SRS
+ * UC-008, 1.3.1), using one-based pagination. Screens search, filter and sort the roles on the
+ * names they display.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ListRolesUseCase {
   public static final String MANAGE_PERMISSION = "ROLE_MANAGE";
-  static final Integer MAX_SEARCH_KEY_LENGTH = 100;
-  private static final Set<String> SORT_KEYS = Set.of("id", "code", "name");
 
   private final RoleDirectory directory;
 
@@ -48,28 +45,7 @@ public class ListRolesUseCase {
     if (size < 1 || size > PaginationConstants.MAX_PAGE_SIZE)
       throw new IllegalArgumentException("Size is out of range");
 
-    String searchKey = query.searchKey() == null ? "" : query.searchKey().trim();
-    if (searchKey.length() > MAX_SEARCH_KEY_LENGTH)
-      throw new IllegalArgumentException("Search key is too long");
-
-    Boolean active = activeFilter(query.status());
-
-    String sortKey =
-        query.sortKey() == null || query.sortKey().isBlank()
-            ? PaginationConstants.DEFAULT_SORTED_KEY
-            : query.sortKey();
-    if (!SORT_KEYS.contains(sortKey)) throw new IllegalArgumentException("Sort key is not allowed");
-
-    String sortBy =
-        query.sortBy() == null || query.sortBy().isBlank()
-            ? PaginationConstants.DEFAULT_SORTED_BY
-            : query.sortBy().trim().toUpperCase(Locale.ROOT);
-    if (!sortBy.equals("ASC") && !sortBy.equals("DESC"))
-      throw new IllegalArgumentException("Sort direction must be ASC or DESC");
-
-    PageResponse<RoleSummary> result =
-        directory.search(
-            page, size, searchKey.isEmpty() ? null : searchKey, active, sortKey, sortBy);
+    PageResponse<RoleSummary> result = directory.search(page, size);
     log.debug(
         "Roles listed: page={}, size={}, returned={}, total={}",
         page,
@@ -77,16 +53,6 @@ public class ListRolesUseCase {
         result.items().size(),
         result.totalElements());
     return result;
-  }
-
-  /** {@code ACTIVE} or {@code INACTIVE}; blank means every status. */
-  private static Boolean activeFilter(String status) {
-    if (status == null || status.isBlank()) return null;
-    return switch (status.trim()) {
-      case "ACTIVE" -> Boolean.TRUE;
-      case "INACTIVE" -> Boolean.FALSE;
-      default -> throw new IllegalArgumentException("Status must be ACTIVE or INACTIVE");
-    };
   }
 
   /**
