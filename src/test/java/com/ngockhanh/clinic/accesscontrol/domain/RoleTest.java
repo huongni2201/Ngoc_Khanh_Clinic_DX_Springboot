@@ -43,6 +43,19 @@ class RoleTest {
   }
 
   @Test
+  void restoresAStoredRoleLongerThanTheScreensAllowButEditsItWithinTheLimits() {
+    Role stored =
+        Role.restore(UUID.randomUUID(), "NURSE", "N".repeat(150), "d".repeat(800), true, 1L);
+
+    assertThat(stored.name()).hasSize(150);
+    assertThat(stored.description()).hasSize(800);
+    assertThatThrownBy(() -> stored.update("N".repeat(150), null, true))
+        .isInstanceOf(IllegalArgumentException.class);
+    stored.update("Nurse", null, true);
+    assertThat(stored.name()).isEqualTo("Nurse");
+  }
+
+  @Test
   void updatesEverythingButTheCode() {
     Role role = Role.restore(UUID.randomUUID(), "NURSE", "Nurse", "Old", true, 3L);
 

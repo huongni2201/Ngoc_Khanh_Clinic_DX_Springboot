@@ -12,18 +12,13 @@ import java.util.UUID;
  */
 public interface RoleDirectory {
   /**
-   * Returns one page of roles of every status, or only active or inactive ones.
+   * Returns one page of roles of every status, ordered by code.
    *
    * @param page one-based page
    * @param size page size
-   * @param searchKey contains match on the role name, or null for all
-   * @param active true for active roles, false for inactive ones, null for both
-   * @param sortKey already allowlisted: {@code id}, {@code code} or {@code name}
-   * @param sortBy {@code ASC} or {@code DESC}
    * @return the page; items are empty past the last page
    */
-  PageResponse<RoleSummary> search(
-      Integer page, Integer size, String searchKey, Boolean active, String sortKey, String sortBy);
+  PageResponse<RoleSummary> search(Integer page, Integer size);
 
   /**
    * Finds one role with its usage counts.

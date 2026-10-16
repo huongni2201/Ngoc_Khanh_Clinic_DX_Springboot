@@ -169,31 +169,40 @@ class RoleAdministrationSecurityWebMvcTest {
     when(create.execute(any(), eq(admin)))
         .thenReturn(RoleSummary.builder().id(ROLE_ID).code("LAB_TECH").build());
 
-    var listed =
-        perform(
-            get("/api/v1/admin/roles?page=2&size=5&searchKey=lab&status=ACTIVE&sortKey=code"),
-            "admin");
+    var listed = perform(get("/api/v1/admin/roles?page=2&size=5"), "admin");
     var created = perform(json(post("/api/v1/admin/roles"), CREATE_BODY), "admin");
 
     assertThat(listed.getStatus()).isEqualTo(200);
     var query = ArgumentCaptor.forClass(ListRolesQuery.class);
     verify(list).execute(query.capture(), eq(admin));
-    assertThat(query.getValue())
-        .isEqualTo(
-            ListRolesQuery.builder()
-                .page(2)
-                .size(5)
-                .searchKey("lab")
-                .status("ACTIVE")
-                .sortKey("code")
-                .sortBy("ASC")
-                .build());
+    assertThat(query.getValue()).isEqualTo(ListRolesQuery.builder().page(2).size(5).build());
     assertThat(created.getStatus()).isEqualTo(201);
     assertThat(created.getContentAsString()).contains("\"code\":\"LAB_TECH\"", "Role created");
     var command = ArgumentCaptor.forClass(CreateRoleCommand.class);
     verify(create).execute(command.capture(), eq(admin));
     assertThat(command.getValue().code()).isEqualTo("LAB_TECH");
     assertThat(command.getValue().active()).isTrue();
+  }
+
+  @Test
+  void checksTheLengthOfTheTrimmedName() throws Exception {
+    UserPrincipal admin = signedIn("admin", "ROLE_CREATE");
+    when(create.execute(any(), eq(admin)))
+        .thenReturn(RoleSummary.builder().id(ROLE_ID).code("N").build());
+    String name = "n".repeat(100);
+
+    var created =
+        perform(
+            json(
+                post("/api/v1/admin/roles"),
+                "{\"code\":\"N\",\"name\":\"  %s  \",\"description\":\" d \"}".formatted(name)),
+            "admin");
+
+    assertThat(created.getStatus()).isEqualTo(201);
+    var command = ArgumentCaptor.forClass(CreateRoleCommand.class);
+    verify(create).execute(command.capture(), eq(admin));
+    assertThat(command.getValue().name()).isEqualTo(name);
+    assertThat(command.getValue().description()).isEqualTo("d");
   }
 
   @Test
@@ -218,8 +227,7 @@ class RoleAdministrationSecurityWebMvcTest {
                     "admin")
                 .getContentAsString())
         .contains("\"field\":\"name\"");
-    assertThat(perform(get("/api/v1/admin/roles?status=DELETED"), "admin").getStatus())
-        .isEqualTo(400);
+    assertThat(perform(get("/api/v1/admin/roles?size=101"), "admin").getStatus()).isEqualTo(400);
     assertThat(
             perform(json(put(ROLE + "/permissions"), "{\"grant\":[\"PAYMENT_VIEW\"]}"), "admin")
                 .getContentAsString())

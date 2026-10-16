@@ -43,9 +43,9 @@ public class RoleAdministrationController {
   private final UpdateRolePermissionsUseCase updateRolePermissionsUseCase;
 
   /**
-   * Lists roles of every status, or only active or inactive ones, with their usage counts.
+   * Lists roles of every status in code order with their usage counts.
    *
-   * @param request search, status filter and pagination parameters
+   * @param request pagination parameters
    * @param principal authenticated staff principal
    * @return the requested page
    */

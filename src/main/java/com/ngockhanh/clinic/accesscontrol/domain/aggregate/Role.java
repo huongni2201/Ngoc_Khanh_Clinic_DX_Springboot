@@ -43,7 +43,13 @@ public final class Role {
   private Boolean active;
 
   private Role(
-      UUID id, String code, String name, String description, Boolean active, Long rowVersion) {
+      UUID id,
+      String code,
+      String name,
+      String description,
+      Boolean active,
+      Long rowVersion,
+      Boolean limitLengths) {
     if (id == null) throw new IllegalArgumentException("Role id is required");
     if (code == null || code.length() > CODE_MAX_LENGTH || !CODE_FORMAT.matcher(code).matches())
       throw new IllegalArgumentException("Invalid role code");
@@ -52,7 +58,7 @@ public final class Role {
     this.id = id;
     this.code = code;
     this.rowVersion = rowVersion;
-    applyDetails(name, description, active);
+    applyDetails(name, description, active, limitLengths);
   }
 
   /**
@@ -61,13 +67,16 @@ public final class Role {
    * @throws IllegalArgumentException when the code format, a length or a required value is invalid
    */
   public static Role create(UUID id, String code, String name, String description, Boolean active) {
-    return new Role(id, code, name, description, active, 0L);
+    return new Role(id, code, name, description, active, 0L, Boolean.TRUE);
   }
 
-  /** Restores a stored role. */
+  /**
+   * Restores a stored role. The name and description lengths are not checked: the columns allow
+   * longer values than the screens accept, and a stored role must stay readable and editable.
+   */
   public static Role restore(
       UUID id, String code, String name, String description, Boolean active, Long rowVersion) {
-    return new Role(id, code, name, description, active, rowVersion);
+    return new Role(id, code, name, description, active, rowVersion, Boolean.FALSE);
   }
 
   /**
@@ -80,7 +89,7 @@ public final class Role {
   public void update(String name, String description, Boolean active) {
     if ((isAdministrator() || isPatient()) && Boolean.FALSE.equals(active))
       throw new ProtectedRoleException("The " + code + " role cannot be deactivated");
-    applyDetails(name, description, active);
+    applyDetails(name, description, active, Boolean.TRUE);
   }
 
   /**
@@ -105,12 +114,13 @@ public final class Role {
     return PATIENT_CODE.equals(code);
   }
 
-  private void applyDetails(String name, String description, Boolean active) {
+  private void applyDetails(String name, String description, Boolean active, Boolean limitLengths) {
     String trimmedName = name == null ? "" : name.trim();
-    if (trimmedName.isEmpty() || trimmedName.length() > NAME_MAX_LENGTH)
+    if (trimmedName.isEmpty()
+        || (Boolean.TRUE.equals(limitLengths) && trimmedName.length() > NAME_MAX_LENGTH))
       throw new IllegalArgumentException("Invalid role name");
     String trimmedDescription = description == null ? "" : description.trim();
-    if (trimmedDescription.length() > DESCRIPTION_MAX_LENGTH)
+    if (Boolean.TRUE.equals(limitLengths) && trimmedDescription.length() > DESCRIPTION_MAX_LENGTH)
       throw new IllegalArgumentException("Invalid role description");
     if (active == null) throw new IllegalArgumentException("Active flag is required");
     this.name = trimmedName;

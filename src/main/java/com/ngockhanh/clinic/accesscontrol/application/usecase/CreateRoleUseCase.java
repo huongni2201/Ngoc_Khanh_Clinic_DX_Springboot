@@ -12,6 +12,7 @@ import com.ngockhanh.clinic.shared.exception.FieldConflictException;
 import com.ngockhanh.clinic.shared.exception.UnprocessableEntityException;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CreateRoleUseCase {
   static final String CREATE_ROLE = "CREATE_ROLE";
   public static final String CREATE_PERMISSION = "ROLE_CREATE";
+  public static final String ASSIGN_PERMISSION = UpdateRolePermissionsUseCase.ASSIGN_PERMISSION;
 
   private final RoleRepository roles;
   private final RoleDirectory directory;
@@ -40,7 +42,8 @@ public class CreateRoleUseCase {
    * @param command role details and the optional source of permissions
    * @param principal authenticated caller, recorded as the audit actor
    * @return the created role with its usage counts
-   * @throws ApplicationException of type {@code ACCESS_DENIED} without {@code ROLE_CREATE}
+   * @throws ApplicationException of type {@code ACCESS_DENIED} without {@code ROLE_CREATE}, or
+   *     without {@code ROLE_PERMISSION_ASSIGN} when permissions are copied: a copy grants them
    * @throws IllegalArgumentException when the code format, a length or a required value is invalid
    * @throws FieldConflictException (HTTP 409) when the code or, ignoring case, the name is used
    * @throws UnprocessableEntityException (HTTP 422) when the source role is unknown, inactive or
@@ -48,8 +51,9 @@ public class CreateRoleUseCase {
    */
   @Transactional
   public RoleSummary execute(CreateRoleCommand command, UserPrincipal principal) {
-    requirePermission(principal);
+    requirePermission(principal, CREATE_PERMISSION);
     if (command == null) throw new IllegalArgumentException("Role command is required");
+    if (command.copyFromRoleId() != null) requirePermission(principal, ASSIGN_PERMISSION);
     Role role =
         Role.create(
             UuidV7Generator.generate(),
@@ -74,28 +78,31 @@ public class CreateRoleUseCase {
 
     roles.insert(role);
     if (source != null) roles.copyPermissions(source.id(), role.id());
+    List<String> granted = source == null ? List.of() : roles.findGrantedPermissionCodes(role.id());
 
     Map<String, Object> after = new HashMap<>();
     after.put("code", role.code());
     after.put("name", role.name());
+    after.put("description", role.description());
     after.put("active", role.active());
     if (source != null) after.put("copiedFromRoleCode", source.code());
+    after.put("granted", granted);
     audit.record(principal.userId(), CREATE_ROLE, "ROLE", role.id(), null, after);
     log.info("Role insert executed; commit pending: roleId={}, code={}", role.id(), role.code());
     return directory.findSummary(role.id()).orElseThrow();
   }
 
   /**
-   * Requires permission to create roles. An actor ID alone proves nothing: the principal must be a
-   * staff account whose roles carry the permission (docs/api/roles-and-permissions.md).
+   * Requires one permission. An actor ID alone proves nothing: the principal must be a staff
+   * account whose roles carry the permission (docs/api/roles-and-permissions.md).
    */
-  private static void requirePermission(UserPrincipal principal) {
+  private static void requirePermission(UserPrincipal principal, String permission) {
     Boolean allowed =
         principal != null
             && principal.userId() != null
             && "STAFF".equals(principal.principalType())
             && principal.roleAssignments().stream()
-                .anyMatch(role -> role.permissions().contains(CREATE_PERMISSION));
+                .anyMatch(role -> role.permissions().contains(permission));
     if (!allowed)
       throw new ApplicationException(
           ApplicationException.Type.ACCESS_DENIED, "You are not authorized to perform this action");

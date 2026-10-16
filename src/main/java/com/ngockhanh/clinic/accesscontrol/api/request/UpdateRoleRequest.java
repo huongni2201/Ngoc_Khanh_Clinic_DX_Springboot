@@ -21,6 +21,11 @@ public record UpdateRoleRequest(
     @Size(max = 500) String description,
     @NotNull Boolean active,
     @NotNull @PositiveOrZero Long rowVersion) {
+  /** Lengths are checked on the trimmed text, which is what the role stores. */
+  public UpdateRoleRequest {
+    name = name == null ? null : name.trim();
+    description = description == null ? null : description.trim();
+  }
 
   public UpdateRoleCommand toCommand() {
     return UpdateRoleCommand.builder()
