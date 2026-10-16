@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.catalog.infrastructure.persistence.mapper.DepartmentMyBatisMapper">
+  <resultMap id="recordMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.record.DepartmentRecord" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="department_type" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+      <arg column="row_version" javaType="_long"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="itemMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.DepartmentItemView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="department_type" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="detailMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.DepartmentDetailView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="department_type" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <sql id="columns">id, code, name, department_type, active, created_at, updated_at, row_version</sql>
+
+  <insert id="insert">
+    INSERT INTO public.departments (id, code, name, department_type, active, row_version, created_at, updated_at)
+    VALUES (#{id}, #{code}, #{name}, #{departmentType}, #{active}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  </insert>
+
+  <update id="update">
+    UPDATE public.departments
+    SET name = #{department.name},
+        department_type = #{department.departmentType},
+        active = #{department.active},
+        updated_at = CURRENT_TIMESTAMP,
+        row_version = row_version + 1
+    WHERE id = #{department.id} AND row_version = #{expectedRowVersion}
+  </update>
+
+  <select id="findByIdForUpdate" resultMap="recordMap">
+    SELECT <include refid="columns"/> FROM public.departments WHERE id = #{id} FOR UPDATE
+  </select>
+
+  <select id="findRecordById" resultMap="recordMap">
+    SELECT <include refid="columns"/> FROM public.departments WHERE id = #{id}
+  </select>
+
+  <select id="findResponseById" resultMap="detailMap">
+    SELECT <include refid="columns"/> FROM public.departments WHERE id = #{id}
+  </select>
+
+  <sql id="searchPredicate">
+    <where>
+      <if test="active != null">AND active = #{active}</if>
+      <if test="departmentType != null and departmentType != ''">AND department_type = #{departmentType}</if>
+      <if test="pattern != null and pattern != ''">
+        AND (code ILIKE #{pattern} ESCAPE '\' OR name ILIKE #{pattern} ESCAPE '\')
+      </if>
+    </where>
+  </sql>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM public.departments <include refid="searchPredicate"/>
+  </select>
+
+  <select id="findPage" resultMap="itemMap">
+    SELECT <include refid="columns"/> FROM public.departments
+    <include refid="searchPredicate"/>
+    ORDER BY
+    <choose>
+      <when test="sortKey == 'code' and sortBy == 'DESC'">code DESC, id DESC</when>
+      <when test="sortKey == 'code'">code ASC, id ASC</when>
+      <when test="sortKey == 'name' and sortBy == 'DESC'">name DESC, id DESC</when>
+      <when test="sortKey == 'name'">name ASC, id ASC</when>
+      <when test="sortBy == 'DESC'">id DESC</when>
+      <otherwise>id ASC</otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="countActiveRooms" resultType="long">
+    SELECT COUNT(*) FROM public.rooms WHERE department_id = #{departmentId} AND active = true
+  </select>
+
+  <select id="countActiveServices" resultType="long">
+    SELECT COUNT(*) FROM public.services WHERE performing_department_id = #{departmentId} AND active = true
+  </select>
+</mapper>

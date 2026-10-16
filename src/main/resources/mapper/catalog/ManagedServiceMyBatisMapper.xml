@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.catalog.infrastructure.persistence.mapper.ManagedServiceMyBatisMapper">
+  <resultMap id="recordMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.record.ServiceRecord" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="service_type" javaType="java.lang.String"/>
+      <arg column="performing_department_id" javaType="java.util.UUID"/>
+      <arg column="specialty_id" javaType="java.util.UUID"/>
+      <arg column="unit_price" javaType="java.math.BigDecimal"/>
+      <arg column="preparation_instruction" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+      <arg column="row_version" javaType="_long"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="itemMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.ManagedServiceItemView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="service_type" javaType="java.lang.String"/>
+      <arg column="performing_department_id" javaType="java.util.UUID"/>
+      <arg column="performing_department_name" javaType="java.lang.String"/>
+      <arg column="specialty_id" javaType="java.util.UUID"/>
+      <arg column="specialty_name" javaType="java.lang.String"/>
+      <arg column="unit_price" javaType="java.math.BigDecimal"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="detailMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.ManagedServiceDetailView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="service_type" javaType="java.lang.String"/>
+      <arg column="performing_department_id" javaType="java.util.UUID"/>
+      <arg column="performing_department_name" javaType="java.lang.String"/>
+      <arg column="specialty_id" javaType="java.util.UUID"/>
+      <arg column="specialty_name" javaType="java.lang.String"/>
+      <arg column="unit_price" javaType="java.math.BigDecimal"/>
+      <arg column="preparation_instruction" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <sql id="rawColumns">
+    id, code, name, service_type, performing_department_id, specialty_id,
+    unit_price, preparation_instruction, active, created_at, updated_at, row_version
+  </sql>
+
+  <insert id="insert">
+    INSERT INTO public.services (
+      id, code, name, service_type, performing_department_id, specialty_id,
+      unit_price, preparation_instruction, active, row_version, created_at, updated_at
+    ) VALUES (
+      #{id}, #{code}, #{name}, #{serviceType}, #{performingDepartmentId}, #{specialtyId},
+      #{unitPrice}, #{preparationInstruction}, #{active}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    )
+  </insert>
+
+  <update id="update">
+    UPDATE public.services
+    SET name = #{service.name},
+        service_type = #{service.serviceType},
+        specialty_id = #{service.specialtyId},
+        unit_price = #{service.unitPrice},
+        preparation_instruction = #{service.preparationInstruction},
+        active = #{service.active},
+        updated_at = CURRENT_TIMESTAMP,
+        row_version = row_version + 1
+    WHERE id = #{service.id} AND row_version = #{expectedRowVersion}
+  </update>
+
+  <select id="findByIdForUpdate" resultMap="recordMap">
+    SELECT <include refid="rawColumns"/> FROM public.services WHERE id = #{id} FOR UPDATE
+  </select>
+
+  <select id="findRecordById" resultMap="recordMap">
+    SELECT <include refid="rawColumns"/> FROM public.services WHERE id = #{id}
+  </select>
+
+  <select id="findResponseById" resultMap="detailMap">
+    SELECT s.id, s.code, s.name, s.service_type, s.performing_department_id,
+           d.name AS performing_department_name, s.specialty_id, sp.name AS specialty_name,
+           s.unit_price, s.preparation_instruction, s.active, s.row_version,
+           s.created_at, s.updated_at
+    FROM public.services s
+    JOIN public.departments d ON s.performing_department_id = d.id
+    LEFT JOIN public.specialties sp ON s.specialty_id = sp.id
+    WHERE s.id = #{id}
+  </select>
+
+  <sql id="searchPredicate">
+    <where>
+      <if test="active != null">AND s.active = #{active}</if>
+      <if test="serviceType != null and serviceType != ''">AND s.service_type = #{serviceType}</if>
+      <if test="performingDepartmentId != null">AND s.performing_department_id = #{performingDepartmentId}</if>
+      <if test="specialtyId != null">AND s.specialty_id = #{specialtyId}</if>
+      <if test="pattern != null and pattern != ''">
+        AND (s.code ILIKE #{pattern} ESCAPE '\' OR s.name ILIKE #{pattern} ESCAPE '\')
+      </if>
+    </where>
+  </sql>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM public.services s <include refid="searchPredicate"/>
+  </select>
+
+  <select id="findPage" resultMap="itemMap">
+    SELECT s.id, s.code, s.name, s.service_type, s.performing_department_id,
+           d.name AS performing_department_name, s.specialty_id, sp.name AS specialty_name,
+           s.unit_price, s.active, s.row_version, s.created_at, s.updated_at
+    FROM public.services s
+    JOIN public.departments d ON s.performing_department_id = d.id
+    LEFT JOIN public.specialties sp ON s.specialty_id = sp.id
+    <include refid="searchPredicate"/>
+    ORDER BY
+    <choose>
+      <when test="sortKey == 'code' and sortBy == 'DESC'">s.code DESC, s.id DESC</when>
+      <when test="sortKey == 'code'">s.code ASC, s.id ASC</when>
+      <when test="sortKey == 'name' and sortBy == 'DESC'">s.name DESC, s.id DESC</when>
+      <when test="sortKey == 'name'">s.name ASC, s.id ASC</when>
+      <when test="sortKey == 'unitPrice' and sortBy == 'DESC'">s.unit_price DESC, s.id DESC</when>
+      <when test="sortKey == 'unitPrice'">s.unit_price ASC, s.id ASC</when>
+      <when test="sortBy == 'DESC'">s.id DESC</when>
+      <otherwise>s.id ASC</otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+</mapper>

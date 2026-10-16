@@ -55,6 +55,12 @@ migration resources cannot survive under `target/classes/db/migration`.
 Databases with any earlier migration history require a separate reviewed conversion procedure.
 Never replace applied checksums or point this baseline at deployed historical data.
 
+Catalog management V007 follows the unchanged V001–V006 baseline. It adds
+versions, timestamps, indexes and 30 endpoint permissions granted to CLINIC_MANAGER
+in one transaction. The local access-control seed and afterMigrate callback
+provide TEST permissions.
+See [catalog deployment](../api/catalog-management.md#5-deployment-and-verification).
+
 Document printing needs a Gotenberg 8 service (`NKC_DOCUMENT_GOTENBERG_URL`, see
 [examination form print](../api/examination-form-print.md#cấu-hình)). Production must run it
 without Internet egress. The starter template is seeded at startup and the application fails
