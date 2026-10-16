@@ -1,5 +1,6 @@
 package com.ngockhanh.clinic.catalog.infrastructure.persistence.record;
 
+import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
 
@@ -13,4 +14,7 @@ public record MedicineRecord(
     String strength,
     String dosageForm,
     String unit,
-    boolean active) {}
+    boolean active,
+    long rowVersion,
+    Instant createdAt,
+    Instant updatedAt) {}

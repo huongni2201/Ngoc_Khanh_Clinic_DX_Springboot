@@ -113,7 +113,7 @@ class StarterTemplateSeedIntegrationTest {
         .containsEntry("render_mode", "MASTER_FORM")
         .containsEntry("paper_size", "A3")
         .containsEntry("orientation", "LANDSCAPE")
-        .containsEntry("pages_per_record", (short) 2)
+        .containsEntry("pages_per_record", 2)
         .containsEntry("contract_version", 1)
         .containsEntry("storage_provider", "CLASSPATH");
     assertThat(row.get("created_by")).isNull();

@@ -35,7 +35,8 @@ class HealthExaminationBatchParticipantMapperTest {
                 "includeAttended", includeAttended,
                 "order", order))
         .getSql()
-        .replaceAll("\\s+", " ");
+        .replaceAll("\\s+", " ")
+        .replaceAll("\\s+([,)])", "$1");
   }
 
   @Test

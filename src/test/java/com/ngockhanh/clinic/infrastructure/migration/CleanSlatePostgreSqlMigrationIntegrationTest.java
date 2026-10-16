@@ -83,7 +83,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -91,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003", "004", "005", "006");
+        .containsExactly("001", "002", "003", "004", "005", "006", "007");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -213,14 +213,14 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(130);
+        .isEqualTo(160);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(144);
+        .isEqualTo(174);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(41);
+        .isEqualTo(71);
     assertThat(
             jdbc.queryForObject(
                 "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'HEALTH_EXAMINATION_BATCH_START'",

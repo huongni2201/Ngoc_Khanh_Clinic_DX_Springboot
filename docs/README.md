@@ -20,6 +20,7 @@ hiện hành; trạng thái triển khai API được ghi riêng với quy tắc
 | In hàng loạt phiếu khám (job nền, nhiều phần PDF) | [Examination form print jobs](api/examination-form-print-jobs.md) |
 | Quyết định kiến trúc đã chấp nhận | [ADR index](adr/README.md) |
 | Phần chưa triển khai hoặc cần chốt | [Open items](architecture/07-open-items.md) |
+| Quản lý 5 danh mục (khoa, phòng, chuyên khoa, dịch vụ, thuốc) | [Catalog Management API](api/catalog-management.md) |
 | Kiểm thử và triển khai | [Operations](architecture/06-testing-and-operations.md) |
 
 ## Cách hiểu trạng thái

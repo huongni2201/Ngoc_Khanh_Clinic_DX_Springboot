@@ -12,7 +12,7 @@ the six optional Participant personal-detail columns, nullable Organization
 account holds exactly one role (`accounts.role_id`, required); the account-role trigger
 allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-Fresh databases apply one schema initializer, two data-only seeds and the additive V004. The
+Fresh databases apply one schema initializer, two data-only seeds and additive V004–V007. The
 owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
 amendment (V004–V009, and the removal of `account_roles`) into them:
 
@@ -22,6 +22,9 @@ amendment (V004–V009, and the removal of `account_roles`) into them:
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
 | `V004__staff_member_management_permissions.sql` | Additive, after the baseline: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
+| `V005__role_permission_management.sql` | Role administration, permission catalogue metadata and endpoint permissions |
+| `V006__accounts_role_index.sql` | Index on account role references |
+| `V007__catalog_management.sql` | Catalog versions/timestamps, canonical-code/dependency indexes, 30 endpoint permissions and CLINIC_MANAGER grants for UC-110–UC-115; fresh installation without legacy conversion |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. The

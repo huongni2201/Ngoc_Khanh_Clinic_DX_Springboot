@@ -1,6 +1,6 @@
 # Current API inventory and migration compatibility
 
-Updated 2026-10-13 from current controllers and accepted contracts. A controller
+Updated 2026-10-14 from current controllers and accepted contracts. A controller
 mapping does not guarantee authorization: production also requires a matching
 `EndpointPermissions` rule and the applicable application policy.
 
@@ -16,6 +16,7 @@ All paths below start with `/api/v1`. `O` means
 | accesscontrol | `GET/POST /staff-members`, `GET /roles` | [Staff members and roles](staff-members.md); POST creates the staff member and its STAFF account, permissions `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` (+ `USER_ROLE_ASSIGN`), `ROLE_VIEW` |
 | accesscontrol | `GET/POST /admin/roles`, `PUT /admin/roles/{roleId}`, `GET/PUT /admin/roles/{roleId}/permissions`, `GET /admin/permissions` | [Roles and permissions](roles-and-permissions.md); permissions `ROLE_MANAGE`, `ROLE_CREATE`, `ROLE_UPDATE`, `ROLE_PERMISSION_VIEW`, `ROLE_PERMISSION_ASSIGN`, `PERMISSION_VIEW` |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
+| catalog | `GET/POST /catalog/management/{resource}`, `GET/PUT/DELETE /catalog/management/{resource}/{id}`, `POST /catalog/management/{resource}/{id}/reactivate` | [Catalog management](catalog-management.md); five static controllers for departments, rooms, specialties, services and medicines; DELETE deactivates with expected rowVersion |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
 | healthexamination | `GET/POST O/health-examination-batches`, `GET/PUT/DELETE B`, `POST B/start` | [Batch contract](organizations-and-batches.md#health-examination-batch); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion`; start moves DRAFT to READY (`HEALTH_EXAMINATION_BATCH_START`) |
 | healthexamination | `GET B/participants`, `GET B/participants/import-template`, `POST B/participants/imports` | [Participant import and list](participant-import-and-list.md) |
@@ -29,7 +30,9 @@ All paths below start with `/api/v1`. `O` means
 V002 stores a method/route/permission mapping for 32 business operations, including
 `PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
 job download) and `HEALTH_EXAMINATION_BATCH_START`; V004 binds the three staff member/role routes
-and V005 the six role administration routes (41 in total), under
+and V005 the six role administration routes (41 before catalog management). V007 adds
+30 catalog bindings (71 total) and aligns catalog grants with CLINIC_MANAGER,
+the actor of UC-110–UC-115, under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST role uses
@@ -76,8 +79,9 @@ The single-step service-reconciliation import is a separate workflow.
 ## Database compatibility
 
 Fresh databases apply one final schema initializer V001, data-only seeds
-V002/V003, and the additive V004 (staff member and role endpoint permissions), V005 (role and role
-permission administration) and V006 (accounts by role index). Earlier migration
+V002/V003, and additive V004 (staff administration permissions), V005 (role and role
+permission administration), V006 (accounts by role index) and V007 (catalog management,
+including Clinic Manager catalog access). Earlier migration
 histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings

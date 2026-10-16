@@ -185,7 +185,7 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(41);
+    assertThat(endpoints).hasSize(71);
     Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());
