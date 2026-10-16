@@ -103,7 +103,7 @@ are absent from later reads and writes; a mismatched organization/agreement pair
 
 ## Authorization limits
 
-V002 grants the mapped Organization permissions to CLINIC_MANAGER and V007 grants the agreement,
+V002 grants the mapped Organization permissions to CLINIC_MANAGER and V008 grants the agreement,
 session and assignment permissions to the same role. The local seed additionally grants every
 permission to TEST; it uses the same endpoint checks. See
 [Open items](../architecture/07-open-items.md#endpoint-authorization) before using a mapped

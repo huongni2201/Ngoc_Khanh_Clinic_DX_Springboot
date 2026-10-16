@@ -12,7 +12,7 @@ the six optional Participant personal-detail columns, nullable Organization
 account holds exactly one role (`accounts.role_id`, required); the account-role trigger
 allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-Fresh databases apply one schema initializer, two data-only seeds and the additive V004. The
+Fresh databases apply one schema initializer, two data-only seeds and additive V004–V009. The
 owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
 amendment (V004–V009, and the removal of `account_roles`) into them:
 
@@ -21,8 +21,12 @@ amendment (V004–V009, and the removal of `account_roles`) into them:
 | `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
 | `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
-| `V007__agreement_session_assignment.sql` | [ADR-0019](../adr/0019-agreement-session-assignment.md): renames batches to agreements (and `batch_code`, `batch_id` columns, permission codes and routes), adds validity dates, `health_examination_sessions` and `health_examination_session_assignments`, moves Participant day and attendance into sessions and assignments (best-effort backfill), adds `organization_id` to participants, makes a service line unique while active, and grants twelve new permissions to CLINIC_MANAGER |
 | `V004__staff_member_management_permissions.sql` | Additive, after the baseline: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
+| `V005__role_permission_management.sql` | Role administration, permission catalogue metadata and endpoint permissions |
+| `V006__accounts_role_index.sql` | Index on account role references |
+| `V007__catalog_management.sql` | Catalog versions/timestamps, canonical-code/dependency indexes, 30 endpoint permissions and CLINIC_MANAGER grants for UC-110–UC-115; fresh installation without legacy conversion |
+| `V008__agreement_session_assignment.sql` | [ADR-0019](../adr/0019-agreement-session-assignment.md): renames batches to agreements (and `batch_code`, `batch_id` columns, permission codes and routes), adds validity dates, `health_examination_sessions` and `health_examination_session_assignments`, moves Participant day and attendance into sessions and assignments (best-effort backfill), adds `organization_id` to participants, makes a service line unique while active, and grants twelve new permissions to CLINIC_MANAGER |
+| `V009__remove_agreement_service_change_permissions.sql` | Removes the two agreement service change permissions (`HEALTH_EXAMINATION_AGREEMENT_SERVICE_CONFIGURE` and `..._DEACTIVATE`) and their grants; services change only while the agreement is a DRAFT |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. The

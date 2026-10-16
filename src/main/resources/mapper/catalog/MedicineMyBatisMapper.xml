@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.catalog.infrastructure.persistence.mapper.MedicineMyBatisMapper">
+  <resultMap id="recordMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.record.MedicineRecord" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="generic_name" javaType="java.lang.String"/>
+      <arg column="brand_name" javaType="java.lang.String"/>
+      <arg column="strength" javaType="java.lang.String"/>
+      <arg column="dosage_form" javaType="java.lang.String"/>
+      <arg column="unit" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="itemMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.MedicineItemView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="generic_name" javaType="java.lang.String"/>
+      <arg column="brand_name" javaType="java.lang.String"/>
+      <arg column="strength" javaType="java.lang.String"/>
+      <arg column="dosage_form" javaType="java.lang.String"/>
+      <arg column="unit" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="detailMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.MedicineDetailView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="generic_name" javaType="java.lang.String"/>
+      <arg column="brand_name" javaType="java.lang.String"/>
+      <arg column="strength" javaType="java.lang.String"/>
+      <arg column="dosage_form" javaType="java.lang.String"/>
+      <arg column="unit" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <sql id="columns">
+    id, code, generic_name, brand_name, strength, dosage_form, unit, active, created_at, updated_at, row_version
+  </sql>
+
+  <insert id="insert">
+    INSERT INTO public.medicines (
+      id, code, generic_name, brand_name, strength, dosage_form, unit, active, row_version, created_at, updated_at
+    ) VALUES (
+      #{id}, #{code}, #{genericName}, #{brandName}, #{strength}, #{dosageForm}, #{unit}, #{active}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    )
+  </insert>
+
+  <update id="update">
+    UPDATE public.medicines
+    SET generic_name = #{medicine.genericName},
+        brand_name = #{medicine.brandName},
+        strength = #{medicine.strength},
+        dosage_form = #{medicine.dosageForm},
+        unit = #{medicine.unit},
+        active = #{medicine.active},
+        updated_at = CURRENT_TIMESTAMP,
+        row_version = row_version + 1
+    WHERE id = #{medicine.id} AND row_version = #{expectedRowVersion}
+  </update>
+
+  <select id="findByIdForUpdate" resultMap="recordMap">
+    SELECT <include refid="columns"/> FROM public.medicines WHERE id = #{id} FOR UPDATE
+  </select>
+
+  <select id="findRecordById" resultMap="recordMap">
+    SELECT <include refid="columns"/> FROM public.medicines WHERE id = #{id}
+  </select>
+
+  <select id="findResponseById" resultMap="detailMap">
+    SELECT <include refid="columns"/> FROM public.medicines WHERE id = #{id}
+  </select>
+
+  <sql id="searchPredicate">
+    <where>
+      <if test="active != null">AND active = #{active}</if>
+      <if test="dosageForm != null and dosageForm != ''">AND dosage_form = #{dosageForm}</if>
+      <if test="pattern != null and pattern != ''">
+        AND (
+          code ILIKE #{pattern} ESCAPE '\'
+          OR generic_name ILIKE #{pattern} ESCAPE '\'
+          OR (brand_name IS NOT NULL AND brand_name ILIKE #{pattern} ESCAPE '\')
+        )
+      </if>
+    </where>
+  </sql>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM public.medicines <include refid="searchPredicate"/>
+  </select>
+
+  <select id="findPage" resultMap="itemMap">
+    SELECT <include refid="columns"/> FROM public.medicines
+    <include refid="searchPredicate"/>
+    ORDER BY
+    <choose>
+      <when test="sortKey == 'code' and sortBy == 'DESC'">code DESC, id DESC</when>
+      <when test="sortKey == 'code'">code ASC, id ASC</when>
+      <when test="sortKey == 'genericName' and sortBy == 'DESC'">generic_name DESC, id DESC</when>
+      <when test="sortKey == 'genericName'">generic_name ASC, id ASC</when>
+      <when test="sortKey == 'brandName' and sortBy == 'DESC'">brand_name DESC NULLS LAST, id DESC</when>
+      <when test="sortKey == 'brandName'">brand_name ASC NULLS LAST, id ASC</when>
+      <when test="sortBy == 'DESC'">id DESC</when>
+      <otherwise>id ASC</otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+</mapper>

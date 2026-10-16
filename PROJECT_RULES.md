@@ -164,10 +164,12 @@ consolidation also removed the `account_roles` table: an account holds exactly o
 (`accounts.role_id`, required). Flyway rejects a database that applied an earlier history, because the
 edited files have new checksums and the removed versions are missing; recreate local databases, and
 existing deployed histories require conversion under
-[deployment policy](docs/architecture/06-testing-and-operations.md#deployment). Later changes are new
-migrations after V003; current: V004 (staff member and role endpoint permissions), V005 (role and role permission
-administration), V006 (accounts by role index), V007 (agreement, session and assignment model,
-[ADR-0019](docs/adr/0019-agreement-session-assignment.md)).
+[deployment policy](docs/architecture/06-testing-and-operations.md#deployment); never repair checksums
+to bypass validation. Later changes are new migrations after V003; current: V004 (staff member and role
+endpoint permissions), V005 (role and role permission administration), V006 (accounts by role index),
+V007 (catalog management fields/indexes, 30 endpoints and CLINIC_MANAGER grants), V008 (agreement,
+session and assignment model, [ADR-0019](docs/adr/0019-agreement-session-assignment.md)) and V009
+(removal of the agreement service change permissions). V001–V007 stay unchanged.
 Include required constraints/indexes. Destructive production data changes require
 explicit review and a considered recovery strategy.
 

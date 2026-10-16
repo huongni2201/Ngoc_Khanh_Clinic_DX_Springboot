@@ -27,6 +27,9 @@ technical code. Spring Modulith verifies the exact inventory and dependencies.
 - `accesscontrol::access` publishes the authenticated principal (`UserPrincipal`).
   Session revocation is not published yet; see [ADR-0014](../adr/0014-session-cookie-redis-login.md).
 - `catalog` publishes service lookup with current unit price through its query contract.
+  Its five management resources use internal read ports and persistence projections;
+  command use cases enforce staff/action permissions, expected versions, parent/dependency
+  guards and transactional audit. See [catalog management](../api/catalog-management.md).
 - `audit::recording` publishes `AuditWriter`. Audit owns its adapters and
   depends on the published shared ID generator, without accesscontrol persistence access.
 - `document::master-health-examination-template` exposes effective template-version

@@ -43,8 +43,7 @@ class HealthExaminationParticipantMapperTest {
                 order))
         .getSql()
         .replaceAll("\\s+", " ")
-        .replace(" )", ")")
-        .replace(" ,", ",");
+        .replaceAll("\\s+([,)])", "$1");
   }
 
   @Test

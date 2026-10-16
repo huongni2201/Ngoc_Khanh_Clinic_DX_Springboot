@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.catalog.infrastructure.persistence.mapper.RoomMyBatisMapper">
+  <resultMap id="recordMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.record.RoomRecord" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="department_id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="room_type" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="itemMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.RoomItemView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="department_id" javaType="java.util.UUID"/>
+      <arg column="department_name" javaType="java.lang.String"/>
+      <arg column="room_type" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <resultMap id="detailMap" type="com.ngockhanh.clinic.catalog.infrastructure.persistence.view.RoomDetailView" autoMapping="false">
+    <constructor>
+      <arg column="id" javaType="java.util.UUID"/>
+      <arg column="code" javaType="java.lang.String"/>
+      <arg column="name" javaType="java.lang.String"/>
+      <arg column="department_id" javaType="java.util.UUID"/>
+      <arg column="department_name" javaType="java.lang.String"/>
+      <arg column="room_type" javaType="java.lang.String"/>
+      <arg column="active" javaType="_boolean"/>
+      <arg column="row_version" javaType="_long"/>
+      <arg column="created_at" javaType="java.time.Instant"/>
+      <arg column="updated_at" javaType="java.time.Instant"/>
+    </constructor>
+  </resultMap>
+  <sql id="rawColumns">id, department_id, code, name, room_type, active, created_at, updated_at, row_version</sql>
+
+  <insert id="insert">
+    INSERT INTO public.rooms (id, department_id, code, name, room_type, active, row_version, created_at, updated_at)
+    VALUES (#{id}, #{departmentId}, #{code}, #{name}, #{roomType}, #{active}, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  </insert>
+
+  <update id="update">
+    UPDATE public.rooms
+    SET name = #{room.name},
+        room_type = #{room.roomType},
+        active = #{room.active},
+        updated_at = CURRENT_TIMESTAMP,
+        row_version = row_version + 1
+    WHERE id = #{room.id} AND row_version = #{expectedRowVersion}
+  </update>
+
+  <select id="findByIdForUpdate" resultMap="recordMap">
+    SELECT <include refid="rawColumns"/> FROM public.rooms WHERE id = #{id} FOR UPDATE
+  </select>
+
+  <select id="findRecordById" resultMap="recordMap">
+    SELECT <include refid="rawColumns"/> FROM public.rooms WHERE id = #{id}
+  </select>
+
+  <select id="findResponseById" resultMap="detailMap">
+    SELECT r.id, r.code, r.name, r.department_id, d.name AS department_name, r.room_type,
+           r.active, r.row_version, r.created_at, r.updated_at
+    FROM public.rooms r
+    JOIN public.departments d ON r.department_id = d.id
+    WHERE r.id = #{id}
+  </select>
+
+  <sql id="searchPredicate">
+    <where>
+      <if test="active != null">AND r.active = #{active}</if>
+      <if test="departmentId != null">AND r.department_id = #{departmentId}</if>
+      <if test="roomType != null and roomType != ''">AND r.room_type = #{roomType}</if>
+      <if test="pattern != null and pattern != ''">
+        AND (r.code ILIKE #{pattern} ESCAPE '\' OR r.name ILIKE #{pattern} ESCAPE '\')
+      </if>
+    </where>
+  </sql>
+
+  <select id="count" resultType="long">
+    SELECT COUNT(*) FROM public.rooms r <include refid="searchPredicate"/>
+  </select>
+
+  <select id="findPage" resultMap="itemMap">
+    SELECT r.id, r.code, r.name, r.department_id, d.name AS department_name, r.room_type,
+           r.active, r.row_version, r.created_at, r.updated_at
+    FROM public.rooms r
+    JOIN public.departments d ON r.department_id = d.id
+    <include refid="searchPredicate"/>
+    ORDER BY
+    <choose>
+      <when test="sortKey == 'code' and sortBy == 'DESC'">r.code DESC, r.id DESC</when>
+      <when test="sortKey == 'code'">r.code ASC, r.id ASC</when>
+      <when test="sortKey == 'name' and sortBy == 'DESC'">r.name DESC, r.id DESC</when>
+      <when test="sortKey == 'name'">r.name ASC, r.id ASC</when>
+      <when test="sortBy == 'DESC'">r.id DESC</when>
+      <otherwise>r.id ASC</otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+</mapper>

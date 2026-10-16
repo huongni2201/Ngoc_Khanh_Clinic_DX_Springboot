@@ -50,14 +50,14 @@ editing the agreement, and attendance lived on the Participant as one value with
 
 ## Migration
 
-`V007__agreement_session_assignment.sql` renames the tables and permission codes
+`V008__agreement_session_assignment.sql` renames the tables and permission codes
 (`BATCH_*` → `AGREEMENT_*`, `START` → `ACTIVATE`, `CLOSE` → `END`) and rewrites the routes
 (`/health-examination-batches/{batchId}` → `/agreements/{agreementId}`). Existing data is
 kept with a best-effort backfill: each batch day becomes a session (days of the same
 organization, date and site share one), each Participant gets one assignment on its planned
 day, `ATTENDED` keeps its recorded date, `ABSENT` becomes `NO_SHOW`, and a cancelled
 Participant becomes `CANCELLED`. Status mapping: `READY` → `ACTIVE`; `FINALIZED` and `CLOSED`
-→ `ENDED`. The plan proposed V004 for this change; V004–V006 were already used, so it is V007.
+→ `ENDED`. The plan proposed V004 for this change; V004–V007 were already used (V007 by catalog management), so it is V008.
 An applied migration is never edited.
 
 ## Consequences

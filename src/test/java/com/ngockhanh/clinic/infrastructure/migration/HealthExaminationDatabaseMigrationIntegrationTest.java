@@ -15,7 +15,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 /**
- * The database rules of the agreement, session and assignment model (migration V007) on a freshly
+ * The database rules of the agreement, session and assignment model (migration V008) on a freshly
  * migrated PostgreSQL: roster identity, price lines, open session slots, live assignments, the
  * agreement scope of a session and the guard on reconciliation.
  */

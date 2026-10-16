@@ -16,6 +16,7 @@ All paths below start with `/api/v1`. `O` means
 | accesscontrol | `GET/POST /staff-members`, `GET /roles` | [Staff members and roles](staff-members.md); POST creates the staff member and its STAFF account, permissions `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` (+ `USER_ROLE_ASSIGN`), `ROLE_VIEW` |
 | accesscontrol | `GET/POST /admin/roles`, `PUT /admin/roles/{roleId}`, `GET/PUT /admin/roles/{roleId}/permissions`, `GET /admin/permissions` | [Roles and permissions](roles-and-permissions.md); permissions `ROLE_MANAGE`, `ROLE_CREATE`, `ROLE_UPDATE`, `ROLE_PERMISSION_VIEW`, `ROLE_PERMISSION_ASSIGN`, `PERMISSION_VIEW` |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
+| catalog | `GET/POST /catalog/management/{resource}`, `GET/PUT/DELETE /catalog/management/{resource}/{id}`, `POST /catalog/management/{resource}/{id}/reactivate` | [Catalog management](catalog-management.md); five static controllers for departments, rooms, specialties, services and medicines; DELETE deactivates with expected rowVersion |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-agreements.md#organization); DELETE handler deactivates with expected `rowVersion` |
 | healthexamination | `GET/POST O/agreements`, `GET/PUT/DELETE B`, `POST B/activate`, `POST B/end` | [Agreement contract](organizations-and-agreements.md#health-examination-agreement); PUT replaces draft configuration; DELETE handler soft-deletes with expected `rowVersion`; activate moves DRAFT to ACTIVE (`HEALTH_EXAMINATION_AGREEMENT_ACTIVATE`), end moves ACTIVE to ENDED; services change only while DRAFT (through PUT) and are fixed once ACTIVE |
 | healthexamination | `GET/POST O/sessions`, `GET/PUT S`, `POST S/cancel` | [Session contract](sessions-and-assignments.md#session) |
@@ -30,8 +31,10 @@ All paths below start with `/api/v1`. `O` means
 
 V002 stores a method/route/permission mapping for 32 business operations, including
 `PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
-job download) and `HEALTH_EXAMINATION_BATCH_START` (renamed `HEALTH_EXAMINATION_AGREEMENT_ACTIVATE` by V007); V004 binds the three staff member/role routes
-and V005 the six role administration routes. V007 renames the batch permissions and routes to agreements, binds the end and add-services routes and adds twelve agreement, session and assignment permissions, and V008 drops the two agreement service change permissions (53 bound routes in total), under
+job download) and `HEALTH_EXAMINATION_BATCH_START` (renamed `HEALTH_EXAMINATION_AGREEMENT_ACTIVATE` by V008); V004 binds the three staff member/role routes
+and V005 the six role administration routes (41 before catalog management). V007 adds
+30 catalog bindings and aligns catalog grants with CLINIC_MANAGER, the actor of UC-110–UC-115.
+V008 renames the batch permissions and routes to agreements, binds the end and add-services routes and adds twelve agreement, session and assignment permissions, and V009 drops the two agreement service change permissions (83 bound routes in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_AGREEMENT_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST role uses
@@ -78,8 +81,10 @@ The single-step service-reconciliation import is a separate workflow.
 ## Database compatibility
 
 Fresh databases apply one final schema initializer V001, data-only seeds
-V002/V003, and the additive V004 (staff member and role endpoint permissions), V005 (role and role
-permission administration) and V006 (accounts by role index). Earlier migration
+V002/V003, and additive V004 (staff administration permissions), V005 (role and role
+permission administration), V006 (accounts by role index), V007 (catalog management,
+including Clinic Manager catalog access), V008 (agreement, session and assignment model) and
+V009 (removal of the agreement service change permissions). Earlier migration
 histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings

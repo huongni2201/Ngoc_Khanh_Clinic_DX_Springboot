@@ -53,7 +53,9 @@ class MyBatisHealthExaminationParticipantRepositoryTest {
     var p = participant();
     var s =
         new HealthExaminationParticipantService(
-            id(11), id(1), id(10), id(12), true, null, Money.vnd("100"), id(6), NOW, NOW, NOW, 0);
+            id(11), id(1), id(10), id(12), false, null, Money.vnd("100"), id(6), NOW, NOW, NOW, 0);
+    // New service rows must first be performed; an existing row may later be unchecked.
+    p.reconcileServices(List.of(s.recordPerformed(true, id(6), NOW)), scope(id(12)), id(6), NOW);
     p.reconcileServices(List.of(s), scope(id(12)), id(6), NOW);
 
     repository.saveWithoutServices(p, 0);

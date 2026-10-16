@@ -13,4 +13,5 @@ public record DepartmentRecord(
     String departmentType,
     boolean active,
     Instant createdAt,
-    Instant updatedAt) {}
+    Instant updatedAt,
+    long rowVersion) {}
