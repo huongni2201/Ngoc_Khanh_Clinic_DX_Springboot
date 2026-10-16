@@ -13,7 +13,7 @@ All paths below start with `/api/v1`. `O` means
 | Module | Mapped routes | Contract |
 |---|---|---|
 | accesscontrol | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` | [Login](login.md) |
-| accesscontrol | `GET/POST /staff-members`, `GET /roles` | [Staff members and roles](staff-members.md); POST creates the staff member and its STAFF account, permissions `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` (+ `USER_ROLE_ASSIGN`), `ROLE_VIEW` |
+| accesscontrol | `GET/POST /staff-members`, `GET /roles`, `PUT /accounts/{accountId}/role` | [Staff members and roles](staff-members.md); POST creates the staff member and its STAFF account, PUT changes the role of a staff account, permissions `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` (+ `USER_ROLE_ASSIGN`), `ROLE_VIEW`, `USER_ROLE_ASSIGN` |
 | accesscontrol | `GET/POST /admin/roles`, `PUT /admin/roles/{roleId}`, `GET/PUT /admin/roles/{roleId}/permissions`, `GET /admin/permissions` | [Roles and permissions](roles-and-permissions.md); permissions `ROLE_MANAGE`, `ROLE_CREATE`, `ROLE_UPDATE`, `ROLE_PERMISSION_VIEW`, `ROLE_PERMISSION_ASSIGN`, `PERMISSION_VIEW` |
 | catalog | `GET /catalog/services` | Active service lookup; pagination, code/name search and allowlisted sorting |
 | healthexamination | `GET/POST /organizations`, `GET/PUT/DELETE O` | [Organization contract](organizations-and-batches.md#organization); DELETE handler deactivates with expected `rowVersion` |
@@ -28,8 +28,8 @@ All paths below start with `/api/v1`. `O` means
 
 V002 stores a method/route/permission mapping for 32 business operations, including
 `PARTICIPANT_EXAMINATION_FORM_PRINT`, the three bulk-print permissions (bulk print, job read,
-job download) and `HEALTH_EXAMINATION_BATCH_START`; V004 binds the three staff member/role routes
-and V005 the six role administration routes (41 in total), under
+job download) and `HEALTH_EXAMINATION_BATCH_START`; V004 binds the three staff member/role routes,
+V005 the six role administration routes and V007 the account role change route (42 in total), under
 [ADR-0015](../adr/0015-endpoint-permission-rbac.md), including `ORGANIZATION_DELETE`,
 `HEALTH_EXAMINATION_BATCH_DELETE` and `SERVICE_CATALOG_VIEW`. Each requires a STAFF
 account with its endpoint permission. The local TEST role uses
@@ -77,7 +77,8 @@ The single-step service-reconciliation import is a separate workflow.
 
 Fresh databases apply one final schema initializer V001, data-only seeds
 V002/V003, and the additive V004 (staff member and role endpoint permissions), V005 (role and role
-permission administration) and V006 (accounts by role index). Earlier migration
+permission administration), V006 (accounts by role index) and V007 (account role change
+endpoint). Earlier migration
 histories cannot use the rewritten baseline as an
 in-place upgrade. See [deployment](../architecture/06-testing-and-operations.md#deployment)
 for conversion requirements. The current baseline also stores endpoint mappings

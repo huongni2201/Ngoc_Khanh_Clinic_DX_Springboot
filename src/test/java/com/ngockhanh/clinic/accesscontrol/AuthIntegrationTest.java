@@ -49,7 +49,10 @@ class AuthIntegrationTest {
   private static final String COOKIE = "NKC_SESSION";
   private static final String ORIGIN = "http://localhost:3000";
   private static final String PASSWORD = "Mật khẩu-01";
-  /** Staff and role administration routes (V004, V005) belong to the Administrator only. */
+
+  /**
+   * Staff, role and account role administration routes (V004, V005, V007) are the Administrator's.
+   */
   private static final Set<String> ADMINISTRATION_PERMISSIONS =
       Set.of(
           "STAFF_MEMBER_VIEW",
@@ -60,7 +63,8 @@ class AuthIntegrationTest {
           "ROLE_UPDATE",
           "PERMISSION_VIEW",
           "ROLE_PERMISSION_VIEW",
-          "ROLE_PERMISSION_ASSIGN");
+          "ROLE_PERMISSION_ASSIGN",
+          "USER_ROLE_ASSIGN");
 
   @Container static final PostgreSQLContainer DB = new PostgreSQLContainer("postgres:18-alpine");
 
@@ -185,7 +189,7 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(41);
+    assertThat(endpoints).hasSize(42);
     Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());

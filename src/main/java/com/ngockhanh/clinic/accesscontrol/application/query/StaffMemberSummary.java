@@ -23,9 +23,14 @@ public record StaffMemberSummary(
     Long rowVersion,
     Account account) {
 
-  /** Account of the staff member and the code of the one role it holds. */
+  /**
+   * Account of the staff member and the code of the one role it holds.
+   *
+   * @param rowVersion account version to send back when changing its role
+   */
   @Builder
-  public record Account(UUID id, String username, String status, String roleCode) {}
+  public record Account(
+      UUID id, String username, String status, String roleCode, Long rowVersion) {}
 
   public static StaffMemberSummary created(StaffMember staffMember, StaffAccount account) {
     return StaffMemberSummary.builder()
@@ -40,7 +45,11 @@ public record StaffMemberSummary(
         .rowVersion(staffMember.rowVersion())
         .account(
             new Account(
-                account.id(), account.username(), account.status().name(), account.role().code()))
+                account.id(),
+                account.username(),
+                account.status().name(),
+                account.role().code(),
+                0L))
         .build();
   }
 }

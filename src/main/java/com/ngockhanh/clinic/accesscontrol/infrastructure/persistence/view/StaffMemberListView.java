@@ -20,4 +20,5 @@ public record StaffMemberListView(
     UUID accountId,
     String username,
     String accountStatus,
-    String roleCode) {}
+    String roleCode,
+    Long accountRowVersion) {}

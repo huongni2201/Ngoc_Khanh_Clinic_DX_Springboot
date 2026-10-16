@@ -8,11 +8,13 @@
         WHERE active = true AND code = #{code}
     </select>
 
-    <select id="findAssignable" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">
-        SELECT id, code, name, description, active, row_version
-        FROM public.roles
-        WHERE active = true AND code &lt;&gt; 'PATIENT'
-        ORDER BY code
+    <!-- Column order matches the AssignableRoleView components. -->
+    <select id="findAssignable" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.AssignableRoleView">
+        SELECT r.id, r.code, r.name, r.description,
+               (SELECT COUNT(*) FROM public.role_permissions rp WHERE rp.role_id = r.id) AS permission_count
+        FROM public.roles r
+        WHERE r.active = true AND r.code &lt;&gt; 'PATIENT'
+        ORDER BY r.code
     </select>
 
     <select id="findById" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord">

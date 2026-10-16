@@ -83,7 +83,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -91,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003", "004", "005", "006");
+        .containsExactly("001", "002", "003", "004", "005", "006", "007");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -199,8 +199,9 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
   /**
    * V002 seeds the SRS Permission Matrix 4.4 (ADR-0015) and current endpoint permissions, among
    * them the two examination detail entry permissions (import template download and manual record)
-   * granted to the roles that may reconcile. Every permission is granted to at least one role. V004
-   * and V005 add the staff member and role administration endpoint permissions of ADMINISTRATOR.
+   * granted to the roles that may reconcile. Every permission is granted to at least one role.
+   * V004, V005 and V007 add the staff member, role and account role administration endpoint
+   * permissions of ADMINISTRATOR.
    */
   private static void assertPermissionMatrixSeed(JdbcTemplate jdbc) {
     assertThat(jdbc.queryForList("SELECT code FROM public.roles", String.class))
@@ -220,7 +221,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(41);
+        .isEqualTo(42);
     assertThat(
             jdbc.queryForObject(
                 "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'HEALTH_EXAMINATION_BATCH_START'",
@@ -250,7 +251,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                 WHERE module = 'Roles and Permissions' AND endpoint IS NOT NULL
                 """,
                 String.class))
-        .as("V005 binds the role administration endpoints")
+        .as("V005 binds the role administration endpoints, V007 the account role change")
         .containsExactlyInAnyOrder(
             "ROLE_VIEW GET /api/v1/roles",
             "ROLE_MANAGE GET /api/v1/admin/roles",
@@ -258,7 +259,8 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "ROLE_UPDATE PUT /api/v1/admin/roles/{roleId}",
             "PERMISSION_VIEW GET /api/v1/admin/permissions",
             "ROLE_PERMISSION_VIEW GET /api/v1/admin/roles/{roleId}/permissions",
-            "ROLE_PERMISSION_ASSIGN PUT /api/v1/admin/roles/{roleId}/permissions");
+            "ROLE_PERMISSION_ASSIGN PUT /api/v1/admin/roles/{roleId}/permissions",
+            "USER_ROLE_ASSIGN PUT /api/v1/accounts/{accountId}/role");
     for (String permission :
         List.of("ROLE_CREATE", "ROLE_UPDATE", "PERMISSION_VIEW", "ROLE_PERMISSION_VIEW"))
       assertThat(rolesGranted(jdbc, permission)).as(permission).containsExactly("ADMINISTRATOR");

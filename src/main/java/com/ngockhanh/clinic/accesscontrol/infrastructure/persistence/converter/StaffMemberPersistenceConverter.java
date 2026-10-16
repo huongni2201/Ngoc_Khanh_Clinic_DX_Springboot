@@ -9,6 +9,7 @@ import com.ngockhanh.clinic.accesscontrol.domain.valueobject.RoleRef;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.AccountRecord;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.StaffMemberRecord;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.AssignableRoleView;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffMemberListView;
 
 /** Maps staff administration domain objects and SQL views without querying. */
@@ -43,8 +44,9 @@ public final class StaffMemberPersistenceConverter {
     return new RoleRef(role.id(), role.code());
   }
 
-  public AssignableRole toAssignableRole(RoleRecord role) {
-    return new AssignableRole(role.id(), role.code(), role.name(), role.description());
+  public AssignableRole toAssignableRole(AssignableRoleView role) {
+    return new AssignableRole(
+        role.id(), role.code(), role.name(), role.description(), role.permissionCount());
   }
 
   public StaffMemberSummary toSummary(StaffMemberListView row) {
@@ -62,7 +64,11 @@ public final class StaffMemberPersistenceConverter {
             row.accountId() == null
                 ? null
                 : new StaffMemberSummary.Account(
-                    row.accountId(), row.username(), row.accountStatus(), row.roleCode()))
+                    row.accountId(),
+                    row.username(),
+                    row.accountStatus(),
+                    row.roleCode(),
+                    row.accountRowVersion()))
         .build();
   }
 }

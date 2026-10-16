@@ -32,7 +32,7 @@ class GlobalExceptionHandlerTest {
     assertError(
         handler.duplicate(new org.springframework.dao.DuplicateKeyException("unique index")), 409);
     assertError(handler.notFound(new ResourceNotFoundException("patient")), 404);
-    ResponseEntity<ApiResponse<Void>> unprocessable =
+    var unprocessable =
         handler.unprocessable(
             new com.ngockhanh.clinic.shared.exception.UnprocessableEntityException(
                 "The role is not available"));
@@ -68,6 +68,40 @@ class GlobalExceptionHandlerTest {
     assertThat(response.getBody().message()).isEqualTo("Duplicate value: name");
     assertThat(response.getBody().data())
         .containsExactly(new FieldErrorDetail("name", "Duplicate", "Role name already exists"));
+  }
+
+  @Test
+  void unprocessableNamesTheRejectedReferenceOnlyWhenGiven() {
+    var named =
+        handler.unprocessable(
+            new com.ngockhanh.clinic.shared.exception.UnprocessableEntityException(
+                "roleCode", "UnavailableRole", "The role is not available"));
+    var plain =
+        handler.unprocessable(
+            new com.ngockhanh.clinic.shared.exception.UnprocessableEntityException(
+                "The source role is not available"));
+
+    assertThat(named.getStatusCode().value()).isEqualTo(422);
+    assertThat(named.getBody().data())
+        .containsExactly(
+            new FieldErrorDetail("roleCode", "UnavailableRole", "The role is not available"));
+    assertThat(plain.getStatusCode().value()).isEqualTo(422);
+    assertThat(plain.getBody().data()).isNull();
+  }
+
+  @Test
+  void fieldConflictCarriesItsOwnReasonCode() {
+    var response =
+        handler.fieldConflict(
+            new com.ngockhanh.clinic.shared.exception.FieldConflictException(
+                "roleCode", "LastAdministrator", "The last Administrator keeps its role"));
+
+    assertThat(response.getStatusCode().value()).isEqualTo(409);
+    assertThat(response.getBody().message()).isEqualTo("Conflicting value: roleCode");
+    assertThat(response.getBody().data())
+        .containsExactly(
+            new FieldErrorDetail(
+                "roleCode", "LastAdministrator", "The last Administrator keeps its role"));
   }
 
   @Test

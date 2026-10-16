@@ -33,7 +33,8 @@
     <!-- Column order matches the StaffMemberListView components. -->
     <select id="search" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.StaffMemberListView">
         SELECT s.id, s.staff_code, s.full_name, s.date_of_birth, s.sex, s.phone, s.email, s.status,
-               s.row_version, a.id AS account_id, a.username, a.status AS account_status, r.code AS role_code
+               s.row_version, a.id AS account_id, a.username, a.status AS account_status, r.code AS role_code,
+               a.row_version AS account_row_version
         <include refid="searchFrom"/>
         ORDER BY
         <choose>

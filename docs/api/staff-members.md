@@ -3,7 +3,7 @@
 Owner-approved contract of 2026-10-13. Owning module: `accesscontrol` (`StaffMemberController`,
 `RoleController`). Responses use
 [the common envelope and pagination](../../PROJECT_RULES.md#envelope-errors-and-pagination).
-Migration `V004` binds the routes to their permissions.
+Migration `V004` binds the routes to their permissions; `V007` binds the role change route.
 
 An Administrator creates a staff member, and the backend creates the staff member's STAFF account
 in the same transaction. This replaces the former UC-005 mockup (an account for an existing staff
@@ -20,6 +20,7 @@ sign in again after `V004`.
 | GET `/api/v1/roles` | 200 list of assignable roles | `ROLE_VIEW` (V004) |
 | GET `/api/v1/staff-members` | 200 page of staff members | `STAFF_MEMBER_VIEW` (V004) |
 | POST `/api/v1/staff-members` | 201 staff member with its account | `USER_ACCOUNT_CREATE` (V002, bound by V004); the use case also requires `USER_ROLE_ASSIGN` |
+| PUT `/api/v1/accounts/{accountId}/role` | 200 [AccountRole](#accountrole) | `USER_ROLE_ASSIGN` (V002, bound by V007) |
 
 `V004` grants `ROLE_VIEW` and `STAFF_MEMBER_VIEW` to `ADMINISTRATOR`, which already holds
 `USER_ACCOUNT_CREATE` and `USER_ROLE_ASSIGN` (V002).
@@ -35,6 +36,7 @@ sign in again after `V004`.
 | `code` | role code, for example `GENERAL_PRACTITIONER` |
 | `name` | English role name |
 | `description` | English description |
+| `permissionCount` | number of permissions the role grants |
 
 ## GET /api/v1/staff-members
 
@@ -81,6 +83,43 @@ Response 201, message `Staff member created`, `data` is a [StaffMember](#staffme
 is never returned and the response is not repeatable: the administrator hands the username and the
 temporary password to the staff member. No SMS or notification is sent.
 
+## PUT /api/v1/accounts/{accountId}/role
+
+Changes the one role of a staff account (SRS UC-010 Change User Role). An account holds exactly one
+role, so the role is replaced, never added or removed.
+
+| Field | Rule |
+|---|---|
+| `roleCode` | Required, max 80: an active role other than `PATIENT`, different from the current role |
+| `rowVersion` | Required, the `account.rowVersion` last read |
+
+The backend, in one transaction:
+
+1. checks the caller holds `USER_ROLE_ASSIGN`;
+2. checks the account is an `ACTIVE` STAFF account (otherwise 422 with
+   `data: [{"field":"accountId","code":"InactiveAccount"}]`) and `rowVersion` is current (409);
+3. checks `roleCode` names an active role other than `PATIENT` (otherwise 422 with
+   `data: [{"field":"roleCode","code":"UnavailableRole"}]`) and differs from the
+   current role (otherwise 400);
+4. when the account holds `ADMINISTRATOR` and the new role is another one, checks under a
+   transaction-scoped lock that another account can still administer the system: an `ACTIVE` STAFF
+   account of an `ACTIVE` staff member holding the active `ADMINISTRATOR` role (otherwise 409 with
+   `data: [{"field":"roleCode","code":"LastAdministrator"}]`);
+5. replaces the role, increments the account `rowVersion` and records the audit event
+   `CHANGE_ACCOUNT_ROLE` (previous and new role code and version).
+
+Response 200, message `Account role changed`. Sessions already open keep their permissions; the user
+receives the new role at the next sign-in. An Administrator may change the role of their own account
+while another Administrator account remains (owner confirmation pending).
+
+## AccountRole
+
+| Field | Meaning |
+|---|---|
+| `accountId` | account UUID |
+| `roleCode` | code of the role the account now holds |
+| `rowVersion` | incremented account version |
+
 ## StaffMember
 
 | Field | Meaning |
@@ -96,16 +135,18 @@ temporary password to the staff member. No SMS or notification is sent.
 | `account.username` | sign-in username |
 | `account.status` | `ACTIVE`, `LOCKED` or `DISABLED` |
 | `account.roleCode` | code of the one role the account holds |
+| `account.rowVersion` | account version, sent back when changing the role |
 
 ## Errors
 
 | Status | When |
 |---|---|
-| 400 | Validation failure with the field list (for example a non-ASCII `initialPassword` or a `fullName` without a Latin letter), or malformed JSON |
+| 400 | Validation failure with the field list (for example a non-ASCII `initialPassword` or a `fullName` without a Latin letter), or malformed JSON; PUT role: the role is the current one |
 | 401 | No valid session |
 | 403 | Not a STAFF account, a permission is missing, or Origin not allowed |
-| 409 | POST: a unique staff code, username or owner collided (for example a row inserted by SQL at the same time); submitting again generates new values |
-| 422 | POST: `roleCode` is unknown, inactive or `PATIENT` |
+| 404 | PUT role: unknown `accountId` |
+| 409 | POST: a unique staff code, username or owner collided (for example a row inserted by SQL at the same time); submitting again generates new values. PUT role: stale `rowVersion` (no `data`), or `LastAdministrator` on `roleCode` |
+| 422 | POST and PUT role: `roleCode` is unknown, inactive or `PATIENT`; PUT role: the account is not an `ACTIVE` STAFF account |
 
-Out of scope: editing, locking or deactivating staff members, password reset, role changes after
-creation, department/room assignment and credential delivery.
+Out of scope: editing, locking or deactivating staff members, password reset, department/room
+assignment and credential delivery.

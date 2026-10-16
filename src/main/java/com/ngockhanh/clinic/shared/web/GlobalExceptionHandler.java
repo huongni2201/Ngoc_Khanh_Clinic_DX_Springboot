@@ -118,26 +118,42 @@ public class GlobalExceptionHandler {
     return error(HttpStatus.CONFLICT, exception.getMessage());
   }
 
-  /** Names the field whose value another record already uses, like a validation error does. */
+  /**
+   * Names the field whose value conflicts with stored data, like a validation error does; the
+   * detail code says why (for example {@code Duplicate}).
+   */
   @ExceptionHandler(FieldConflictException.class)
   ResponseEntity<ApiResponse<List<FieldErrorDetail>>> fieldConflict(
       FieldConflictException exception) {
+    String message =
+        FieldConflictException.DUPLICATE.equals(exception.code())
+            ? "Duplicate value: " + exception.field()
+            : "Conflicting value: " + exception.field();
     return ResponseEntity.status(HttpStatus.CONFLICT)
         .cacheControl(CacheControl.noStore())
         .body(
             ApiResponse.error(
                 HttpStatus.CONFLICT.value(),
-                "Duplicate value: " + exception.field(),
+                message,
                 List.of(
                     new FieldErrorDetail(
-                        exception.field(),
-                        FieldConflictException.DUPLICATE,
-                        exception.getMessage()))));
+                        exception.field(), exception.code(), exception.getMessage()))));
   }
 
+  /** Names the rejected reference and why in {@code data} when the exception carries them. */
   @ExceptionHandler(UnprocessableEntityException.class)
-  ResponseEntity<ApiResponse<Void>> unprocessable(UnprocessableEntityException exception) {
-    return error(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+  ResponseEntity<ApiResponse<List<FieldErrorDetail>>> unprocessable(
+      UnprocessableEntityException exception) {
+    List<FieldErrorDetail> details =
+        exception.field() == null
+            ? null
+            : List.of(
+                new FieldErrorDetail(exception.field(), exception.code(), exception.getMessage()));
+    return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
+        .cacheControl(CacheControl.noStore())
+        .body(
+            ApiResponse.error(
+                HttpStatus.UNPROCESSABLE_CONTENT.value(), exception.getMessage(), details));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

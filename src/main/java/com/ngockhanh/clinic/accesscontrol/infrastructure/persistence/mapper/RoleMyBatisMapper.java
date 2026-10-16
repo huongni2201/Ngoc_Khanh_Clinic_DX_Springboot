@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.mapper;
 
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.PermissionRecord;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.record.RoleRecord;
+import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.AssignableRoleView;
 import com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.view.RoleListView;
 import java.util.Collection;
 import java.util.List;
@@ -15,7 +16,7 @@ public interface RoleMyBatisMapper {
   RoleRecord findActiveByCode(@Param("code") String code);
 
   /** Active roles other than {@code PATIENT}, ordered by code. */
-  List<RoleRecord> findAssignable();
+  List<AssignableRoleView> findAssignable();
 
   /** Role of any status, or null. */
   RoleRecord findById(@Param("id") UUID id);

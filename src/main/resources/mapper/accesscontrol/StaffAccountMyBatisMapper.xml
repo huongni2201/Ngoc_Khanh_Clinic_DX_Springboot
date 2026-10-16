@@ -16,4 +16,34 @@
         WHERE starts_with(username, #{base})
           AND substr(username, char_length(#{base}) + 1) ~ '^[0-9]{1,9}$'
     </select>
+
+    <!-- Column order matches the AccountRoleRow components. -->
+    <select id="findAccountRole" resultType="com.ngockhanh.clinic.accesscontrol.infrastructure.persistence.projection.AccountRoleRow">
+        SELECT a.id, a.account_type, a.status, r.id, r.code, a.row_version
+        FROM public.accounts a
+        JOIN public.roles r ON r.id = a.role_id
+        WHERE a.id = #{accountId}
+    </select>
+
+    <select id="countOtherActiveAdministrators" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        FROM public.accounts a
+        JOIN public.roles r ON r.id = a.role_id
+        JOIN public.staff_members s ON s.id = a.staff_member_id
+        WHERE r.code = 'ADMINISTRATOR'
+          AND r.active = true
+          AND a.account_type = 'STAFF'
+          AND a.status = 'ACTIVE'
+          AND s.status = 'ACTIVE'
+          AND a.id &lt;&gt; #{excludedAccountId}
+    </select>
+
+    <update id="changeRole">
+        UPDATE public.accounts
+        SET role_id = #{roleId}, row_version = row_version + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE id = #{accountId}
+          AND row_version = #{expectedRowVersion}
+          AND account_type = 'STAFF'
+          AND status = 'ACTIVE'
+    </update>
 </mapper>

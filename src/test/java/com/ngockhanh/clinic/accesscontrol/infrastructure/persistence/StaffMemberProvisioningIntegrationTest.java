@@ -177,6 +177,7 @@ class StaffMemberProvisioningIntegrationTest {
     var row = page.items().getFirst();
     assertThat(row.fullName()).isEqualTo("Nguyễn Văn An");
     assertThat(row.account().roleCode()).isEqualTo("GENERAL_PRACTITIONER");
+    assertThat(row.account().rowVersion()).as("the version to send with a role change").isZero();
 
     var byName =
         list.execute(
@@ -189,6 +190,16 @@ class StaffMemberProvisioningIntegrationTest {
         .contains("ADMINISTRATOR", "RECEPTIONIST")
         .doesNotContain("PATIENT")
         .isSorted();
+    Long receptionistGrants =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM public.role_permissions rp JOIN public.roles r ON r.id = rp.role_id"
+                + " WHERE r.code = 'RECEPTIONIST'",
+            Long.class);
+    assertThat(listRoles.execute(admin))
+        .filteredOn(role -> role.code().equals("RECEPTIONIST"))
+        .singleElement()
+        .extracting(role -> role.permissionCount())
+        .isEqualTo(receptionistGrants);
   }
 
   @Test
