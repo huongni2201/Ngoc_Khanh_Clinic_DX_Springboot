@@ -49,7 +49,11 @@ class RoleTest {
 
     assertThat(stored.name()).hasSize(150);
     assertThat(stored.description()).hasSize(800);
-    assertThatThrownBy(() -> stored.update("N".repeat(150), null, true))
+    stored.update(" " + "N".repeat(150), "d".repeat(800), false);
+    assertThat(stored.active()).as("details kept as stored are not checked").isFalse();
+    assertThatThrownBy(() -> stored.update("M".repeat(150), "d".repeat(800), true))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> stored.update("N".repeat(150), "e".repeat(800), true))
         .isInstanceOf(IllegalArgumentException.class);
     stored.update("Nurse", null, true);
     assertThat(stored.name()).isEqualTo("Nurse");

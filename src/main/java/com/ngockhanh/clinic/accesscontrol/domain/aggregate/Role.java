@@ -2,6 +2,7 @@ package com.ngockhanh.clinic.accesscontrol.domain.aggregate;
 
 import com.ngockhanh.clinic.accesscontrol.domain.exception.ProtectedRoleException;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -58,7 +59,7 @@ public final class Role {
     this.id = id;
     this.code = code;
     this.rowVersion = rowVersion;
-    applyDetails(name, description, active, limitLengths);
+    applyDetails(name, description, active, limitLengths, limitLengths);
   }
 
   /**
@@ -80,16 +81,21 @@ public final class Role {
   }
 
   /**
-   * Replaces the name, description and active flag. The code never changes.
+   * Replaces the name, description and active flag. The code never changes. A name or description
+   * kept as stored is not checked against the length limits, so a stored role longer than the
+   * screens allow can still be activated or deactivated.
    *
-   * @throws IllegalArgumentException when a length or a required value is invalid
+   * @throws IllegalArgumentException when a changed value is too long or a required value is
+   *     missing
    * @throws ProtectedRoleException when the {@code ADMINISTRATOR} or {@code PATIENT} role would
    *     become inactive
    */
   public void update(String name, String description, Boolean active) {
     if ((isAdministrator() || isPatient()) && Boolean.FALSE.equals(active))
       throw new ProtectedRoleException("The " + code + " role cannot be deactivated");
-    applyDetails(name, description, active, Boolean.TRUE);
+    Boolean nameChanged = !Objects.equals(trimmedOrNull(name), this.name);
+    Boolean descriptionChanged = !Objects.equals(trimmedOrNull(description), this.description);
+    applyDetails(name, description, active, nameChanged, descriptionChanged);
   }
 
   /**
@@ -114,13 +120,25 @@ public final class Role {
     return PATIENT_CODE.equals(code);
   }
 
-  private void applyDetails(String name, String description, Boolean active, Boolean limitLengths) {
+  /** Trimmed text, or null when blank, as the role stores it. */
+  private static String trimmedOrNull(String value) {
+    String trimmed = value == null ? "" : value.trim();
+    return trimmed.isEmpty() ? null : trimmed;
+  }
+
+  private void applyDetails(
+      String name,
+      String description,
+      Boolean active,
+      Boolean limitName,
+      Boolean limitDescription) {
     String trimmedName = name == null ? "" : name.trim();
     if (trimmedName.isEmpty()
-        || (Boolean.TRUE.equals(limitLengths) && trimmedName.length() > NAME_MAX_LENGTH))
+        || (Boolean.TRUE.equals(limitName) && trimmedName.length() > NAME_MAX_LENGTH))
       throw new IllegalArgumentException("Invalid role name");
     String trimmedDescription = description == null ? "" : description.trim();
-    if (Boolean.TRUE.equals(limitLengths) && trimmedDescription.length() > DESCRIPTION_MAX_LENGTH)
+    if (Boolean.TRUE.equals(limitDescription)
+        && trimmedDescription.length() > DESCRIPTION_MAX_LENGTH)
       throw new IllegalArgumentException("Invalid role description");
     if (active == null) throw new IllegalArgumentException("Active flag is required");
     this.name = trimmedName;

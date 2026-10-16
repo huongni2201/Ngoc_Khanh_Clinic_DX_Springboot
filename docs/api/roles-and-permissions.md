@@ -53,8 +53,8 @@ codes `granted` by the copy).
 
 | Field | Rule |
 |---|---|
-| `name` | Required, max 100 after trimming, unique ignoring case among other roles |
-| `description` | Optional, max 500 after trimming |
+| `name` | Required, max 100 after trimming when changed (a stored longer name may be sent back unchanged, up to the 200 of the column), unique ignoring case among other roles |
+| `description` | Optional, max 500 after trimming when changed |
 | `active` | Required; `false` deactivates the role, `true` reactivates it |
 | `rowVersion` | Required, the version last read |
 
