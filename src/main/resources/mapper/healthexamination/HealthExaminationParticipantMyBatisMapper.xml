@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper">
+    <sql id="columns">
+        id,agreement_id,participant_code,full_name,date_of_birth,sex,identification_number,identification_issue_date,identification_issue_place,ethnicity,phone,email,address,workplace,department_name,position_name,note,patient_id,roster_status,service_reconciliation_status,services_reconciled_by,services_reconciled_at,import_job_id,source_row_number,prepared_at,created_at,updated_at,row_version,organization_id
+    </sql>
+
+    <!--
+      What the session assignments say about one Participant. Attendance is derived, never stored:
+      ATTENDED when any assignment was attended; NO_SHOW when one was missed and none is still
+      expected; otherwise UNCONFIRMED. Include it after the participant table aliased "p".
+    -->
+    <sql id="assignmentSummaryJoin">
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*) FILTER (WHERE a.status IN ('ASSIGNED','ATTENDED')) AS live_count,
+                   COUNT(*) FILTER (WHERE a.status = 'ASSIGNED') AS expected_count,
+                   COUNT(*) FILTER (WHERE a.status = 'ATTENDED') AS attended_count,
+                   COUNT(*) FILTER (WHERE a.status = 'NO_SHOW') AS no_show_count,
+                   MIN(s.session_date) FILTER (WHERE a.status = 'ASSIGNED') AS next_session_date,
+                   MAX(s.session_date) FILTER (WHERE a.status = 'ATTENDED') AS last_attended_date
+            FROM public.health_examination_session_assignments a
+            JOIN public.health_examination_sessions s ON s.id = a.session_id
+            WHERE a.participant_id = p.id
+        ) asg ON true
+    </sql>
+    <sql id="derivedAttendance">
+        CASE WHEN asg.attended_count > 0 THEN 'ATTENDED'
+             WHEN asg.no_show_count > 0 AND asg.expected_count = 0 THEN 'NO_SHOW'
+             ELSE 'UNCONFIRMED' END
+    </sql>
+
+    <select id="findById"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT
+        <include refid="columns"/>
+        FROM public.health_examination_participants WHERE id=#{id}
+    </select>
+    <select id="findInAgreement"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT
+        <include refid="columns"/>
+        FROM public.health_examination_participants WHERE agreement_id=#{agreementId} AND id=#{id}
+    </select>
+    <select id="findManyInAgreementForUpdate"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT
+        <include refid="columns"/>
+        FROM public.health_examination_participants
+        WHERE agreement_id=#{agreementId} AND id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
+        ORDER BY id FOR UPDATE
+    </select>
+    <select id="findManyInAgreement"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantRecord">
+        SELECT
+        <include refid="columns"/>
+        FROM public.health_examination_participants
+        WHERE agreement_id=#{agreementId} AND id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
+        ORDER BY id
+    </select>
+    <select id="findScopes"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ParticipantScopeView">
+        SELECT p.id,p.agreement_id,p.roster_status,a.status AS agreement_status
+        FROM public.health_examination_participants p
+        JOIN public.health_examination_agreements a ON a.id=p.agreement_id AND a.deleted_at IS NULL
+        WHERE p.organization_id=#{organizationId} AND p.id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
+        ORDER BY p.id
+    </select>
+    <select id="identityTakenByOther" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM public.health_examination_participants
+        WHERE agreement_id=#{agreementId} AND identification_number=#{identity}
+        <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>)
+    </select>
+    <select id="findServices"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationParticipantServiceRecord">
+        SELECT
+        id,agreement_id,participant_id,agreement_service_id,is_performed,service_request_id,unit_price_snapshot,recorded_by,recorded_at,created_at,updated_at,row_version
+        FROM public.health_examination_participant_services WHERE participant_id IN
+        <foreach collection="ids" item="id" open="(" close=")" separator=",">#{id}</foreach>
+        ORDER BY id
+    </select>
+    <update id="update">UPDATE public.health_examination_participants SET
+        row_version=row_version+1,updated_at=CURRENT_TIMESTAMP,
+        participant_code=#{p.participantCode},full_name=#{p.fullName},date_of_birth=#{p.dateOfBirth},sex=#{p.sex},
+        identification_number=#{p.identificationNumber},identification_issue_date=#{p.identificationIssueDate},
+        identification_issue_place=#{p.identificationIssuePlace},ethnicity=#{p.ethnicity},phone=#{p.phone},email=#{p.email},
+        address=#{p.address},workplace=#{p.workplace},note=#{p.note},
+        department_name=#{p.departmentName},position_name=#{p.positionName},patient_id=#{p.patientId},prepared_at=#{p.preparedAt},roster_status=#{p.rosterStatus},
+        service_reconciliation_status=#{p.serviceReconciliationStatus},
+        services_reconciled_by=#{p.servicesReconciledBy},services_reconciled_at=#{p.servicesReconciledAt}
+        WHERE id=#{p.id} AND agreement_id=#{p.agreementId} AND row_version=#{expectedVersion}
+        AND EXISTS (SELECT 1 FROM public.health_examination_agreements b WHERE b.id=#{p.agreementId} AND b.deleted_at IS NULL
+        FOR SHARE OF b)
+    </update>
+
+    <insert id="insertServices">
+        INSERT INTO public.health_examination_participant_services
+        (id,agreement_id,participant_id,agreement_service_id,is_performed,service_request_id,
+        unit_price_snapshot,recorded_by,recorded_at,created_at,updated_at,row_version) VALUES
+        <foreach collection="services" item="s" separator=",">
+            (#{s.id},#{s.agreementId},#{s.participantId},#{s.agreementServiceId},#{s.isPerformed},#{s.serviceRequestId},
+            #{s.unitPriceSnapshot},#{s.recordedBy},#{s.recordedAt},#{s.createdAt},#{s.updatedAt},#{s.rowVersion})
+        </foreach>
+    </insert>
+    <update id="updateServices">
+        UPDATE public.health_examination_participant_services s SET
+        row_version=s.row_version+1,updated_at=CURRENT_TIMESTAMP,is_performed=v.performed,service_request_id=v.request_id,recorded_by=v.actor,recorded_at=v.recorded_at
+        FROM (VALUES <foreach collection="services" item="s" separator=",">
+        (CAST(#{s.id} AS uuid),CAST(#{s.agreementId} AS uuid),CAST(#{s.participantId} AS uuid),CAST(#{s.agreementServiceId}
+        AS uuid),CAST(#{s.isPerformed} AS boolean),
+        CAST(#{s.serviceRequestId} AS uuid),CAST(#{s.recordedBy} AS uuid),CAST(#{s.recordedAt} AS
+        timestamptz),CAST(#{s.rowVersion} AS bigint))
+    </foreach>) AS v(id,agreement_id,participant_id,service_id,performed,request_id,actor,recorded_at,version)
+        WHERE s.id=v.id AND s.agreement_id=v.agreement_id AND s.participant_id=v.participant_id AND
+        s.agreement_service_id=v.service_id AND s.row_version=v.version
+    </update>
+
+    <insert id="insertMany">
+        INSERT INTO public.health_examination_participants (<include refid="columns"/>) VALUES
+        <foreach collection="items" item="p" separator=",">
+            (#{p.id},#{p.agreementId},#{p.participantCode},#{p.fullName},#{p.dateOfBirth},#{p.sex},#{p.identificationNumber},
+            #{p.identificationIssueDate},#{p.identificationIssuePlace},#{p.ethnicity},#{p.phone},#{p.email},#{p.address},#{p.workplace},
+            #{p.departmentName},#{p.positionName},#{p.note},#{p.patientId},#{p.rosterStatus},#{p.serviceReconciliationStatus},#{p.servicesReconciledBy},#{p.servicesReconciledAt},
+            #{p.importJobId},#{p.sourceRowNumber},#{p.preparedAt},#{p.createdAt},#{p.updatedAt},#{p.rowVersion},#{p.organizationId})
+        </foreach>
+    </insert>
+    <select id="findExistingIdentities" resultType="java.lang.String">
+        SELECT identification_number FROM public.health_examination_participants
+        WHERE agreement_id=#{agreementId} AND identification_number IN
+        <foreach collection="identities" item="identity" open="(" close=")" separator=",">#{identity}</foreach>
+    </select>
+    <select id="countInAgreement" resultType="long">
+        SELECT COUNT(*) FROM public.health_examination_participants WHERE agreement_id=#{agreementId}
+    </select>
+    <select id="agreementInScope" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM public.health_examination_agreements WHERE id=#{agreementId} AND
+        organization_id=#{organizationId} AND deleted_at IS NULL)
+    </select>
+    <sql id="summaryFilter">
+        p.agreement_id=#{agreementId}
+        <if test="searchPattern != null">AND (LOWER(p.full_name) LIKE #{searchPattern} ESCAPE chr(92) OR
+            LOWER(COALESCE(p.participant_code,'')) LIKE #{searchPattern} ESCAPE chr(92)
+            OR LOWER(p.department_name) LIKE #{searchPattern} ESCAPE chr(92) OR LOWER(p.position_name) LIKE
+            #{searchPattern} ESCAPE chr(92))
+        </if>
+        <if test="identificationNumber != null">AND p.identification_number=#{identificationNumber}</if>
+        <if test="sessionId != null">AND EXISTS (SELECT 1 FROM public.health_examination_session_assignments sa
+            WHERE sa.participant_id=p.id AND sa.session_id=#{sessionId} AND sa.status IN ('ASSIGNED','ATTENDED'))
+        </if>
+        <if test="unscheduledFor == 'ANY'">AND asg.live_count = 0</if>
+        <if test="unscheduledFor == 'SAMPLING'">AND NOT EXISTS (SELECT 1 FROM public.health_examination_session_assignments ua
+            JOIN public.health_examination_sessions us ON us.id=ua.session_id
+            WHERE ua.participant_id=p.id AND ua.status IN ('ASSIGNED','ATTENDED') AND us.activity IN ('ALL','SAMPLING'))
+        </if>
+        <if test="unscheduledFor == 'EXAMINATION'">AND NOT EXISTS (SELECT 1 FROM public.health_examination_session_assignments ua
+            JOIN public.health_examination_sessions us ON us.id=ua.session_id
+            WHERE ua.participant_id=p.id AND ua.status IN ('ASSIGNED','ATTENDED') AND us.activity IN ('ALL','EXAMINATION'))
+        </if>
+        <if test="rosterStatus != null">AND p.roster_status=#{rosterStatus}</if>
+        <if test="attendanceStatus != null">AND (<include refid="derivedAttendance"/>)=#{attendanceStatus}</if>
+        <if test="reconciliationStatus != null">AND p.service_reconciliation_status=#{reconciliationStatus}</if>
+    </sql>
+    <select id="countSummaries" resultType="long">
+        SELECT COUNT(*) FROM public.health_examination_participants p
+        <include refid="assignmentSummaryJoin"/>
+        WHERE
+        <include refid="summaryFilter"/>
+    </select>
+    <select id="findSummaries"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ParticipantSummaryView">
+        SELECT
+        p.id,p.agreement_id,p.participant_code,p.full_name,p.date_of_birth,p.sex,p.identification_number,
+        p.department_name,p.position_name,p.roster_status,
+        (<include refid="derivedAttendance"/>) AS attendance_status,
+        p.service_reconciliation_status AS reconciliation_status,
+        asg.live_count AS live_assignment_count,asg.next_session_date,asg.last_attended_date,
+        p.prepared_at,p.row_version
+        FROM public.health_examination_participants p
+        <include refid="assignmentSummaryJoin"/>
+        WHERE
+        <include refid="summaryFilter"/>
+        ORDER BY
+        <choose>
+            <when test="sortKey == 'fullName' and sortBy == 'DESC'">p.full_name DESC, p.id DESC</when>
+            <when test="sortKey == 'fullName'">p.full_name ASC, p.id ASC</when>
+            <when test="sortKey == 'participantCode' and sortBy == 'DESC'">p.participant_code DESC NULLS LAST, p.id
+                DESC
+            </when>
+            <when test="sortKey == 'participantCode'">p.participant_code ASC NULLS LAST, p.id ASC</when>
+            <when test="sortKey == 'nextSessionDate' and sortBy == 'DESC'">asg.next_session_date DESC NULLS LAST, p.id DESC</when>
+            <when test="sortKey == 'nextSessionDate'">asg.next_session_date ASC NULLS LAST, p.id ASC</when>
+            <when test="sortKey == 'createdAt' and sortBy == 'DESC'">p.created_at DESC, p.id DESC</when>
+            <when test="sortKey == 'createdAt'">p.created_at ASC, p.id ASC</when>
+            <when test="sortBy == 'DESC'">p.id DESC</when>
+            <otherwise>p.id ASC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="findPrintableIdsOfSession" resultType="java.util.UUID">
+        SELECT p.id FROM public.health_examination_participants p
+        JOIN public.health_examination_session_assignments sa ON sa.participant_id=p.id
+        WHERE p.agreement_id=#{agreementId} AND sa.session_id=#{sessionId} AND p.roster_status='ACTIVE'
+        AND sa.status IN ('ASSIGNED'<if test="includeAttended">,'ATTENDED'</if>)
+        ORDER BY
+        <choose>
+            <when test="order == 'CODE'">p.participant_code ASC NULLS LAST, p.id ASC</when>
+            <when test="order == 'IMPORT_ORDER'">p.source_row_number ASC NULLS LAST, p.participant_code ASC NULLS LAST,
+                p.id ASC
+            </when>
+            <otherwise>p.department_name ASC, p.source_row_number ASC NULLS LAST, p.participant_code ASC NULLS LAST,
+                p.id ASC
+            </otherwise>
+        </choose>
+    </select>
+</mapper>

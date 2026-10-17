@@ -1,7 +1,7 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.IMPORT;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.DETAIL_READ;
+import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.IMPORT;
 import static com.ngockhanh.clinic.healthexamination.ParticipantFixtures.staff;
 import static com.ngockhanh.clinic.healthexamination.RosterFixtures.NOW;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
@@ -29,28 +29,30 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
 
   @Test
   void rejectsCallersWithoutTheViewPermissionBeforeReadingData() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var participant = stored(2);
     givenStored(participant);
     for (var principal : List.of(staff(), staff(IMPORT)))
       assertThatThrownBy(
               () ->
-                  useCase.execute(organizationId, batchId, participant.getId().value(), principal))
+                  useCase.execute(
+                      organizationId, agreementId, participant.getId().value(), principal))
           .isInstanceOfSatisfying(
               ApplicationException.class,
               denied ->
                   assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
-    verifyNoInteractions(batches, participants);
+    verifyNoInteractions(agreements, participants);
   }
 
   @Test
   void returnsTheCompleteDetailForAManager() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var participant = stored(2);
     givenStored(participant);
 
     var detail =
-        useCase.execute(organizationId, batchId, participant.getId().value(), staff(DETAIL_READ));
+        useCase.execute(
+            organizationId, agreementId, participant.getId().value(), staff(DETAIL_READ));
 
     assertThat(detail.identificationNumber()).isEqualTo(IDENTIFICATION);
     assertThat(detail.identificationNumberMasked()).isEqualTo("********8901");
@@ -59,50 +61,52 @@ class GetParticipantDetailUseCaseTest extends ManualParticipantUseCaseTestBase {
     assertThat(detail.rowVersion()).isEqualTo(2);
     assertThat(detail.patientLinked()).isFalse();
     assertThat(detail.source()).isEqualTo("MANUAL");
-    assertThat(detail.examinationDate()).isEqualTo(batch.days().get(0).examinationDate());
+    assertThat(detail.assignments()).isEmpty();
+    assertThat(detail.attendanceStatus()).isEqualTo("UNCONFIRMED");
   }
 
   @Test
   void flagsAPatientLinkedParticipantAndStillReturnsACancelledOne() {
-    givenOpenBatch();
-    var linked =
-        stored(1, progress(new AggregateId(UUID.randomUUID()), RosterStatus.ACTIVE, NOW, null));
+    givenOpenAgreement();
+    var linked = stored(1, progress(new AggregateId(UUID.randomUUID()), RosterStatus.ACTIVE, NOW));
     givenStored(linked);
     assertThat(
             useCase
-                .execute(organizationId, batchId, linked.getId().value(), manager)
+                .execute(organizationId, agreementId, linked.getId().value(), manager)
                 .patientLinked())
         .isTrue();
 
-    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null, null));
+    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null));
     givenStored(cancelled);
     assertThat(
             useCase
-                .execute(organizationId, batchId, cancelled.getId().value(), manager)
+                .execute(organizationId, agreementId, cancelled.getId().value(), manager)
                 .rosterStatus())
         .isEqualTo("CANCELLED");
   }
 
   @Test
-  void readsEvenWhenTheBatchNoLongerAcceptsChanges() {
-    givenBatch(BatchStatus.CLOSED, null, true);
+  void readsEvenWhenTheAgreementNoLongerAcceptsChanges() {
+    givenAgreement(AgreementStatus.ENDED, null, true);
     var participant = stored(0);
     givenStored(participant);
-    assertThat(useCase.execute(organizationId, batchId, participant.getId().value(), manager))
+    assertThat(useCase.execute(organizationId, agreementId, participant.getId().value(), manager))
         .isNotNull();
   }
 
   @Test
-  void reportsAnUnknownBatchOrParticipantAsNotFound() {
-    when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
+  void reportsAnUnknownAgreementOrParticipantAsNotFound() {
+    when(agreements.findDetails(organizationId, agreementId, false)).thenReturn(Optional.empty());
+    assertThatThrownBy(
+            () -> useCase.execute(organizationId, agreementId, UUID.randomUUID(), manager))
         .isInstanceOf(ResourceNotFoundException.class);
 
-    givenOpenBatch();
-    when(participants.findInBatch(
+    givenOpenAgreement();
+    when(participants.findInAgreement(
             org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
         .thenReturn(Optional.empty());
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
+    assertThatThrownBy(
+            () -> useCase.execute(organizationId, agreementId, UUID.randomUUID(), manager))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 }

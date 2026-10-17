@@ -6,19 +6,21 @@ In nhiều người một lần (job nền): xem [In hàng loạt](examination-f
 Không triển khai chức năng sửa/upload/publish mẫu trên ứng dụng: IT quản lý thay đổi,
 bên nghiệp vụ/chuyên môn duyệt nội dung theo [ADR-0018](../adr/0018-it-managed-document-templates.md).
 Phiếu có mã vạch Code128 của mã người khám (xem [Mã vạch](#mã-vạch)).
-Đợt khám phải đã **bắt đầu** (`POST …/health-examination-batches/{batchId}/start`, DRAFT → READY) thì mới in được; xem [Batch](organizations-and-batches.md#health-examination-batch).
+Thỏa thuận phải đã **kích hoạt** (`POST …/agreements/{agreementId}/activate`, DRAFT → ACTIVE) hoặc đã kết thúc (ENDED) thì mới in được; xem [Thỏa thuận](organizations-and-agreements.md#health-examination-agreement).
 
 ## Route
 
-`GET /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/examination-form`
+`GET /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}/examination-form`
+
+Tham số tùy chọn `sessionId`: in ngày của lịch khám đó (phải thuộc thỏa thuận hoặc dùng chung). Không có `sessionId` thì ngày khám trên phiếu là ngày của lịch khám sắp tới còn chờ của người đó (`ASSIGNED`), nếu không còn thì lịch đã đến sớm nhất; nếu cả hai đều không có, phiếu in ngày in.
 
 | Mục | Giá trị |
 |---|---|
 | Permission | `PARTICIPANT_EXAMINATION_FORM_PRINT` (V002 gán endpoint này; CLINIC_MANAGER, NURSE, RECEPTIONIST) |
 | 200 | `application/pdf`, `Content-Disposition: inline; filename="phieu-kham-<participantCode>.pdf"`, `Cache-Control: no-store` |
 | 403 | thiếu permission hoặc không phải tài khoản STAFF |
-| 404 | Organization/Batch/Participant không khớp, batch đã xóa mềm, hoặc chưa có phiên bản mẫu hiệu lực |
-| 409 | batch chưa READY/FINALIZED, Participant không còn ACTIVE, hoặc phiếu tràn quá số trang của mẫu (thông báo nêu số trang) |
+| 404 | Organization/Agreement/Participant không khớp, thỏa thuận đã xóa mềm, `sessionId` không tồn tại, hoặc chưa có phiên bản mẫu hiệu lực |
+| 409 | thỏa thuận chưa ACTIVE/ENDED, `sessionId` thuộc thỏa thuận khác, Participant không còn ACTIVE, hoặc phiếu tràn quá số trang của mẫu (thông báo nêu số trang) |
 | 500 | file mẫu đã lưu không đọc/điền được (lỗi hệ thống, không phải lỗi người gọi) |
 | 503 | Gotenberg không phản hồi / trả lỗi (`DependencyUnavailableException`) |
 
@@ -77,4 +79,4 @@ không có đường ra Internet (kế hoạch T13); compose hiện tại không
 
 ## Audit
 
-`RENDER_EXAMINATION_FORM` ghi id Organization/Batch/Participant và phiên bản mẫu; không ghi dữ liệu cá nhân hay nội dung PDF.
+`RENDER_EXAMINATION_FORM` ghi id Organization/Agreement/Participant và phiên bản mẫu; không ghi dữ liệu cá nhân hay nội dung PDF.

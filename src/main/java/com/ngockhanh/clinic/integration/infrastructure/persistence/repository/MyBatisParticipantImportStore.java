@@ -47,7 +47,7 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
 
   @Override
   public ImportReservation reserve(ImportRequestIdentity request) {
-    String scope = SCOPE_PREFIX + request.organizationId() + ":" + request.batchId();
+    String scope = SCOPE_PREFIX + request.organizationId() + ":" + request.agreementId();
     String actorKey = request.actorId().toString();
     String requestKey = request.requestKey().toString();
     UUID id = UuidV7Generator.generate();
@@ -72,7 +72,8 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
       throw new ConflictException("Idempotency key was used for another request");
     if (!"COMPLETED".equals(existing.status()) || existing.resultSummary() == null)
       throw new ConflictException("A request with this idempotency key is still being processed");
-    return new ImportReservation.Replay(toReceipt(json.readValue(existing.resultSummary(), StoredReceipt.class)));
+    return new ImportReservation.Replay(
+        toReceipt(json.readValue(existing.resultSummary(), StoredReceipt.class)));
   }
 
   @Override
@@ -81,14 +82,14 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
     Instant now = Instant.now(clock).truncatedTo(ChronoUnit.MILLIS);
     Map<String, Object> configuration = new LinkedHashMap<>();
     configuration.put("templateVersion", input.templateVersion());
-    configuration.put("expectedBatchVersion", input.expectedBatchVersion());
+    configuration.put("expectedAgreementVersion", input.expectedAgreementVersion());
     configuration.put("rowCount", input.rows().size());
     int jobs =
         mapper.insertJob(
             ImportJobRecord.builder()
                 .id(jobId)
                 .importType(IMPORT_TYPE)
-                .batchId(input.batchId())
+                .agreementId(input.agreementId())
                 .configuration(json.writeValueAsString(configuration))
                 .status("VALIDATED")
                 .createdBy(input.actorId())
@@ -159,14 +160,13 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
     payload.put("departmentName", row.departmentName());
     payload.put("positionName", row.positionName());
     payload.put("note", row.note());
-    payload.put("examinationDate", row.examinationDate().toString());
     return payload;
   }
 
   private static StoredReceipt stored(ImportReceipt receipt) {
     return new StoredReceipt(
         receipt.importJobId(),
-        receipt.batchId(),
+        receipt.agreementId(),
         receipt.totalRows(),
         receipt.createdCount(),
         receipt.completedAt().toString());
@@ -175,7 +175,7 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
   private static ImportReceipt toReceipt(StoredReceipt stored) {
     return new ImportReceipt(
         stored.importJobId(),
-        stored.batchId(),
+        stored.agreementId(),
         stored.totalRows(),
         stored.createdCount(),
         Instant.parse(stored.completedAt()));
@@ -183,5 +183,5 @@ public class MyBatisParticipantImportStore implements ParticipantImportStore {
 
   /** JSONB shape of the receipt; the instant is kept as ISO text so replays are byte-identical. */
   record StoredReceipt(
-      UUID importJobId, UUID batchId, int totalRows, int createdCount, String completedAt) {}
+      UUID importJobId, UUID agreementId, int totalRows, int createdCount, String completedAt) {}
 }

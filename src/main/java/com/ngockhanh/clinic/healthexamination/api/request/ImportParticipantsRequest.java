@@ -10,21 +10,29 @@ import java.util.UUID;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Multipart input of a Participant import: one {@code .xlsx} file, the batch configuration version
- * the file was prepared for and the client's idempotency key. It checks only the structure of the
- * upload; the content is validated by the use case.
+ * Multipart input of a Participant import: one {@code .xlsx} file, the agreement configuration
+ * version the file was prepared for, the client's idempotency key and, optionally, the session the
+ * imported Participants are scheduled into. It checks only the structure of the upload; the content
+ * is validated by the use case.
  */
-public record ImportParticipantsRequest(MultipartFile file, Long rowVersion, UUID idempotencyKey) {
+public record ImportParticipantsRequest(
+    MultipartFile file, Long rowVersion, UUID idempotencyKey, UUID sessionId) {
   public static final String XLSX_CONTENT_TYPE =
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
   private static final Set<String> ACCEPTED_CONTENT_TYPES =
       Set.of(XLSX_CONTENT_TYPE, "application/octet-stream");
 
+  /** An import that schedules nobody. */
+  public ImportParticipantsRequest(MultipartFile file, Long rowVersion, UUID idempotencyKey) {
+    this(file, rowVersion, idempotencyKey, null);
+  }
+
   /**
    * Maps the upload to the application command and reads the workbook bytes.
    *
-   * @throws ApplicationException {@code INVALID_INPUT} when the file is missing, empty or unreadable
+   * @throws ApplicationException {@code INVALID_INPUT} when the file is missing, empty or
+   *     unreadable
    * @throws UnsupportedFileTypeException when the file is not an {@code .xlsx} workbook
    */
   public ImportParticipantsCommand toCommand() {
@@ -41,7 +49,7 @@ public record ImportParticipantsRequest(MultipartFile file, Long rowVersion, UUI
         throw new UnsupportedFileTypeException("Only XLSX workbooks are supported");
     }
     try {
-      return new ImportParticipantsCommand(file.getBytes(), rowVersion, idempotencyKey);
+      return new ImportParticipantsCommand(file.getBytes(), rowVersion, idempotencyKey, sessionId);
     } catch (IOException unreadable) {
       throw new ApplicationException(
           ApplicationException.Type.INVALID_INPUT, "The upload could not be read");

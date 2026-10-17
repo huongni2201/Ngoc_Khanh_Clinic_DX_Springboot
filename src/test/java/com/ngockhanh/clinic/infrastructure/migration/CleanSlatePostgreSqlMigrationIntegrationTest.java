@@ -46,7 +46,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
     }
     assertThat(
             jdbc.queryForList(
-                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_batch_participants' AND column_name IN ('identification_issue_date', 'identification_issue_place', 'ethnicity', 'address', 'workplace', 'note') AND is_nullable = 'YES'",
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_participants' AND column_name IN ('identification_issue_date', 'identification_issue_place', 'ethnicity', 'address', 'workplace', 'note') AND is_nullable = 'YES'",
                 String.class))
         .containsExactlyInAnyOrder(
             "identification_issue_date",
@@ -67,7 +67,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
         .contains("IF v_role_code = 'PATIENT' THEN");
     assertThat(
             jdbc.queryForObject(
-                "SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_batches' AND column_name = 'deleted_at'",
+                "SELECT data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'health_examination_agreements' AND column_name = 'deleted_at'",
                 String.class))
         .isEqualTo("timestamp with time zone");
     assertThat(
@@ -83,7 +83,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             .schemas("public")
             .load();
 
-    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(6);
+    assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
     assertThat(flyway.info().pending()).isEmpty();
     flyway.validate();
     assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -91,7 +91,7 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             jdbc.queryForList(
                 "SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank",
                 String.class))
-        .containsExactly("001", "002", "003", "004", "005", "006", "007");
+        .containsExactly("001", "002", "003");
     assertPermissionMatrixSeed(jdbc);
     assertThat(
             jdbc.queryForObject(
@@ -122,12 +122,12 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
                   AND table_name <> 'flyway_schema_history'
                 """,
                 String.class))
-        .hasSize(65)
+        .hasSize(66)
         .doesNotContain("account_roles")
         .contains(
             "accounts",
             "staff_members",
-            "health_examination_batch_participants",
+            "health_examination_participants",
             "health_examination_participant_services",
             "result_versions",
             "issued_representations",
@@ -213,21 +213,20 @@ class CleanSlatePostgreSqlMigrationIntegrationTest {
             "CLINIC_MANAGER",
             "ADMINISTRATOR");
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.permissions", Integer.class))
-        .isEqualTo(160);
+        .isEqualTo(170);
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.role_permissions", Integer.class))
-        .isEqualTo(174);
+        .isEqualTo(184);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM public.permissions WHERE endpoint IS NOT NULL",
                 Integer.class))
-        .isEqualTo(71);
+        .isEqualTo(83);
     assertThat(
             jdbc.queryForObject(
-                "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'HEALTH_EXAMINATION_BATCH_START'",
+                "SELECT http_method || ' ' || endpoint FROM public.permissions WHERE code = 'HEALTH_EXAMINATION_AGREEMENT_ACTIVATE'",
                 String.class))
-        .isEqualTo(
-            "POST /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/start");
-    assertThat(rolesGranted(jdbc, "HEALTH_EXAMINATION_BATCH_START"))
+        .isEqualTo("POST /api/v1/organizations/{organizationId}/agreements/{agreementId}/activate");
+    assertThat(rolesGranted(jdbc, "HEALTH_EXAMINATION_AGREEMENT_ACTIVATE"))
         .containsExactly("CLINIC_MANAGER");
     assertThat(
             jdbc.queryForList(

@@ -29,7 +29,7 @@ API surface coverage verifies that all removed Excel import routes remain absent
 The single-step Participant import, template and list remain covered; only the old
 multi-step preview/confirm/cancel workflow is removed. Participant service
 reconciliation and historical provenance retain their own tests.
-Batch coverage includes atomic days/services, reference snapshots and stale versions.
+Agreement coverage includes atomic services, reference snapshots, services fixed once active and stale versions. Session and assignment coverage includes the open-slot and live-assignment unique indexes, the scope trigger, move and attendance rules (unit, mapper and Testcontainers tests).
 API requests require explicit mutable versions.
 
 ## Build output
@@ -44,9 +44,9 @@ not permission to weaken tests or retain obsolete runtime adapters.
 Use Java 25 and PostgreSQL 18. The owner-requested consolidation on 2026-10-08
 establishes the baseline for fresh databases: V001 creates the final schema,
 V002 seeds access-control roles/permissions/grants, and V003 seeds the catalog.
-The 2026-10-11 and 2026-10-13 consolidations fold every later amendment (former V004–V009) and the
-removal of `account_roles` into those three files; V002 also carries the print, bulk-print and
-batch-start endpoint permissions.
+The 2026-10-11, 2026-10-13 and 2026-10-16 consolidations fold every later amendment (former V004–V009) and the
+removal of `account_roles` into those three files; V002 also carries the print, bulk-print, staff member,
+role administration, catalog management, agreement, session and assignment endpoint permissions.
 See [persistence baseline](04-persistence.md#current-baseline) for their responsibilities.
 A database created before these edits cannot be reused: Flyway reports changed checksums and missing
 versions, so recreate it (for the Compose database, `docker compose down -v`).
@@ -55,9 +55,8 @@ migration resources cannot survive under `target/classes/db/migration`.
 Databases with any earlier migration history require a separate reviewed conversion procedure.
 Never replace applied checksums or point this baseline at deployed historical data.
 
-Catalog management V007 follows the unchanged V001–V006 baseline. It adds
-versions, timestamps, indexes and 30 endpoint permissions granted to CLINIC_MANAGER
-in one transaction. The local access-control seed and afterMigrate callback
+Catalog management lives in the baseline: V001 carries its versions, timestamps and indexes, and V002 the
+30 endpoint permissions granted to CLINIC_MANAGER. The local access-control seed and afterMigrate callback
 provide TEST permissions.
 See [catalog deployment](../api/catalog-management.md#5-deployment-and-verification).
 

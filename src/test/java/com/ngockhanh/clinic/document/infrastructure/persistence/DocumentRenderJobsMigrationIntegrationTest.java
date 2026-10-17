@@ -16,7 +16,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-/** V001 holds the background print job tables and V002 binds three permissions to three endpoints. */
+/**
+ * V001 holds the background print job tables and V002 binds three permissions to three endpoints.
+ */
 @Testcontainers(disabledWithoutDocker = true)
 class DocumentRenderJobsMigrationIntegrationTest {
   @Container
@@ -58,7 +60,8 @@ class DocumentRenderJobsMigrationIntegrationTest {
         key,
         "{"
             + String.join(
-                ",", IntStream.range(0, idCount).mapToObj(i -> UUID.randomUUID().toString()).toList())
+                ",",
+                IntStream.range(0, idCount).mapToObj(i -> UUID.randomUUID().toString()).toList())
             + "}",
         status,
         total);
@@ -82,7 +85,7 @@ class DocumentRenderJobsMigrationIntegrationTest {
             "DOCUMENT_RENDER_JOB_DOWNLOAD GET /api/v1/document-render-jobs/{jobId}/parts/{partNo}",
             "DOCUMENT_RENDER_JOB_READ GET /api/v1/document-render-jobs/{jobId}",
             "PARTICIPANT_EXAMINATION_FORM_BULK_PRINT POST"
-                + " /api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs");
+                + " /api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/examination-form-print-jobs");
     for (String permission :
         List.of(
             "PARTICIPANT_EXAMINATION_FORM_BULK_PRINT",
@@ -122,7 +125,9 @@ class DocumentRenderJobsMigrationIntegrationTest {
     UUID id = queued();
 
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.document_render_jobs SET status='RUNNING' WHERE id = ?", id))
+            () ->
+                jdbc.update(
+                    "UPDATE public.document_render_jobs SET status='RUNNING' WHERE id = ?", id))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("ck_document_render_jobs_lease");
     assertThatThrownBy(
@@ -144,11 +149,15 @@ class DocumentRenderJobsMigrationIntegrationTest {
     UUID id = queued();
 
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.document_render_jobs SET processed_count = 2 WHERE id = ?", id))
+            () ->
+                jdbc.update(
+                    "UPDATE public.document_render_jobs SET processed_count = 2 WHERE id = ?", id))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("ck_document_render_jobs_progress");
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.document_render_jobs SET status='SUCCEEDED' WHERE id = ?", id))
+            () ->
+                jdbc.update(
+                    "UPDATE public.document_render_jobs SET status='SUCCEEDED' WHERE id = ?", id))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("ck_document_render_jobs_finished");
     jdbc.update(

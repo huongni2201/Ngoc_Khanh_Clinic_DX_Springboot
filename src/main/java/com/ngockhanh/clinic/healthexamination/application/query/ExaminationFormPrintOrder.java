@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.query;
 
-/** Print order of the Participants of an examination day. */
+/** Print order of the Participants of a session. */
 public enum ExaminationFormPrintOrder {
   /** Department, then the row order of the import file, then the Participant code. */
   DEPARTMENT,

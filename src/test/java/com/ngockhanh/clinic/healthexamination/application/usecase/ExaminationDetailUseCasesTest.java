@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.usecase;
 
-import static com.ngockhanh.clinic.healthexamination.BatchFixtures.*;
+import static com.ngockhanh.clinic.healthexamination.AgreementFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,10 +32,9 @@ import com.ngockhanh.clinic.healthexamination.application.query.PaymentReportDoc
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailAccessPolicy;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailImportCommitter;
 import com.ngockhanh.clinic.healthexamination.application.service.PaymentSummaryReportAssembler;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationAgreement;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationAgreementRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.integration.application.imports.ServiceReconciliationReceipt;
@@ -73,8 +72,8 @@ class ExaminationDetailUseCasesTest {
 
   private final ExaminationDetailAccessPolicy access = new ExaminationDetailAccessPolicy();
   private final OrganizationRepository organizations = mock(OrganizationRepository.class);
-  private final HealthExaminationBatchRepository batches =
-      mock(HealthExaminationBatchRepository.class);
+  private final HealthExaminationAgreementRepository agreements =
+      mock(HealthExaminationAgreementRepository.class);
   private final ExaminationDetailReader reader = mock(ExaminationDetailReader.class);
   private final ServiceCatalogQuery catalog = mock(ServiceCatalogQuery.class);
   private final AuditWriter audit = mock(AuditWriter.class);
@@ -85,15 +84,15 @@ class ExaminationDetailUseCasesTest {
       mock(ExaminationDetailImportCommitter.class);
 
   private final UUID organizationId = UUID.randomUUID();
-  private final UUID batchId = UUID.randomUUID();
+  private final UUID agreementId = UUID.randomUUID();
   private final UUID catalogId = UUID.randomUUID();
-  private HealthExaminationBatch batch;
+  private HealthExaminationAgreement agreement;
 
   @BeforeEach
-  void aDraftBatchWithOneCatalogService() {
-    batch = draftBatch(organizationId, batchId, 3, catalogId);
-    when(batches.findDetails(organizationId, batchId, false))
-        .thenReturn(Optional.of(details(batch)));
+  void aDraftAgreementWithOneCatalogService() {
+    agreement = draftAgreement(organizationId, agreementId, 3, catalogId);
+    when(agreements.findDetails(organizationId, agreementId, false))
+        .thenReturn(Optional.of(details(agreement)));
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(organization(organizationId)));
     when(catalog.findByIds(any()))
@@ -191,7 +190,7 @@ class ExaminationDetailUseCasesTest {
   @Test
   void listDefaultsToTheActiveRosterAndMasksTheIdentificationNumber() {
     UUID participantId = UUID.randomUUID();
-    when(reader.readPage(eq(organizationId), eq(batchId), any()))
+    when(reader.readPage(eq(organizationId), eq(agreementId), any()))
         .thenReturn(
             Optional.of(
                 new ExaminationDetailPage(List.of(detailRow(participantId, "012345678901")), 41)));
@@ -200,7 +199,7 @@ class ExaminationDetailUseCasesTest {
         list()
             .execute(
                 organizationId,
-                batchId,
+                agreementId,
                 ExaminationDetailListQuery.builder()
                     .page(2)
                     .size(20)
@@ -209,7 +208,7 @@ class ExaminationDetailUseCasesTest {
                 staff(READ));
 
     var criteria = ArgumentCaptor.forClass(ExaminationDetailCriteria.class);
-    verify(reader).readPage(eq(organizationId), eq(batchId), criteria.capture());
+    verify(reader).readPage(eq(organizationId), eq(agreementId), criteria.capture());
     assertThat(criteria.getValue().offset()).isEqualTo(20);
     assertThat(criteria.getValue().limit()).isEqualTo(20);
     assertThat(criteria.getValue().rosterStatus()).isEqualTo("ACTIVE");
@@ -229,7 +228,7 @@ class ExaminationDetailUseCasesTest {
     list()
         .execute(
             organizationId,
-            batchId,
+            agreementId,
             ExaminationDetailListQuery.builder()
                 .attendanceStatus("ATTENDED")
                 .reconciliationStatus("PENDING")
@@ -262,20 +261,20 @@ class ExaminationDetailUseCasesTest {
             ExaminationDetailListQuery.builder().size(0).build(),
             ExaminationDetailListQuery.builder().size(10_000).build(),
             ExaminationDetailListQuery.builder().searchKey("x".repeat(500)).build()))
-      assertThatThrownBy(() -> use.execute(organizationId, batchId, bad, staff(READ)))
+      assertThatThrownBy(() -> use.execute(organizationId, agreementId, bad, staff(READ)))
           .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(reader);
   }
 
   @Test
-  void listChecksThePermissionFirstAndReportsAnUnknownBatch() {
+  void listChecksThePermissionFirstAndReportsAnUnknownAgreement() {
     var query = ExaminationDetailListQuery.builder().build();
-    assertThatThrownBy(() -> list().execute(organizationId, batchId, query, staff(REPORT)))
+    assertThatThrownBy(() -> list().execute(organizationId, agreementId, query, staff(REPORT)))
         .isInstanceOf(ApplicationException.class);
     verifyNoInteractions(reader);
 
     when(reader.readPage(any(), any(), any())).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> list().execute(organizationId, batchId, query, staff(READ)))
+    assertThatThrownBy(() -> list().execute(organizationId, agreementId, query, staff(READ)))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 
@@ -283,18 +282,18 @@ class ExaminationDetailUseCasesTest {
 
   @Test
   void summaryReturnsTheCountersAndRequiresThePermission() {
-    when(reader.summarize(organizationId, batchId))
-        .thenReturn(Optional.of(new ExaminationSummary(10, 4, 5, 1, 2, 3)));
+    when(reader.summarize(organizationId, agreementId))
+        .thenReturn(Optional.of(new ExaminationSummary(10, 4, 5, 1, 2, 3, 3)));
     var use = new GetExaminationSummaryUseCase(access, reader);
 
-    var summary = use.execute(organizationId, batchId, staff(SUMMARY));
+    var summary = use.execute(organizationId, agreementId, staff(SUMMARY));
 
     assertThat(summary.registered()).isEqualTo(10);
     assertThat(summary.pendingReconciliation()).isEqualTo(3);
-    assertThatThrownBy(() -> use.execute(organizationId, batchId, staff(RECONCILE)))
+    assertThatThrownBy(() -> use.execute(organizationId, agreementId, staff(RECONCILE)))
         .isInstanceOf(ApplicationException.class);
-    when(reader.summarize(organizationId, batchId)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> use.execute(organizationId, batchId, staff(SUMMARY)))
+    when(reader.summarize(organizationId, agreementId)).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> use.execute(organizationId, agreementId, staff(SUMMARY)))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 
@@ -302,46 +301,46 @@ class ExaminationDetailUseCasesTest {
 
   private ExportExaminationDetailsUseCase exporter() {
     return new ExportExaminationDetailsUseCase(
-        access, organizations, batches, reader, catalog, excelWriter, audit, CLOCK);
+        access, organizations, agreements, reader, catalog, excelWriter, audit, CLOCK);
   }
 
   @Test
   void exportMasksTheIdentificationNumberNamesTheColumnsAndAuditsTheExport() {
     UUID participantId = UUID.randomUUID();
-    when(reader.readAllActive(organizationId, batchId))
+    when(reader.readAllActive(organizationId, agreementId))
         .thenReturn(Optional.of(List.of(detailRow(participantId, "012345678901"))));
     when(excelWriter.write(any())).thenReturn(new byte[] {1, 2, 3});
     var principal = staff(EXPORT);
 
-    var file = exporter().execute(organizationId, batchId, principal);
+    var file = exporter().execute(organizationId, agreementId, principal);
 
     assertThat(file.content()).containsExactly(1, 2, 3);
     assertThat(file.fileName()).isEqualTo("chi-tiet-kham-B1.xlsx");
     var data = ArgumentCaptor.forClass(ExaminationDetailExportData.class);
     verify(excelWriter).write(data.capture());
-    assertThat(data.getValue().batchId()).isEqualTo(batchId);
+    assertThat(data.getValue().agreementId()).isEqualTo(agreementId);
     assertThat(data.getValue().exportedAt()).isEqualTo(Instant.parse("2026-10-07T01:02:03.456Z"));
     assertThat(data.getValue().services()).hasSize(1);
-    assertThat(data.getValue().services().get(0).batchServiceId())
-        .isEqualTo(batch.services().get(0).id().value());
+    assertThat(data.getValue().services().get(0).agreementServiceId())
+        .isEqualTo(agreement.services().get(0).id().value());
     assertThat(data.getValue().services().get(0).label()).isEqualTo("Khám nội");
     assertThat(data.getValue().rows().get(0).identificationNumber()).doesNotContain("012345678901");
     verify(audit)
         .record(
             eq(principal.userId()),
             eq("EXPORT_EXAMINATION_DETAILS"),
-            eq("HEALTH_EXAMINATION_BATCH"),
-            eq(batchId),
+            eq("HEALTH_EXAMINATION_AGREEMENT"),
+            eq(agreementId),
             eq(null),
             any());
   }
 
   @Test
-  void exportWithoutThePermissionOrForAnUnknownBatchWritesNothing() {
-    assertThatThrownBy(() -> exporter().execute(organizationId, batchId, staff(REPORT)))
+  void exportWithoutThePermissionOrForAnUnknownAgreementWritesNothing() {
+    assertThatThrownBy(() -> exporter().execute(organizationId, agreementId, staff(REPORT)))
         .isInstanceOf(ApplicationException.class);
-    when(reader.readAllActive(organizationId, batchId)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> exporter().execute(organizationId, batchId, staff(EXPORT)))
+    when(reader.readAllActive(organizationId, agreementId)).thenReturn(Optional.empty());
+    assertThatThrownBy(() -> exporter().execute(organizationId, agreementId, staff(EXPORT)))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(excelWriter, audit);
   }
@@ -350,19 +349,19 @@ class ExaminationDetailUseCasesTest {
 
   private GetExaminationDetailImportTemplateUseCase templateDownloader() {
     return new GetExaminationDetailImportTemplateUseCase(
-        access, organizations, batches, reader, catalog, excelWriter, audit, CLOCK);
+        access, organizations, agreements, reader, catalog, excelWriter, audit, CLOCK);
   }
 
   @Test
   void templateIsTheExportWorkbookUnderATemplateNameAndItsOwnAuditEvent() {
     UUID participantId = UUID.randomUUID();
-    when(reader.readAllActive(organizationId, batchId))
+    when(reader.readAllActive(organizationId, agreementId))
         .thenReturn(Optional.of(List.of(detailRow(participantId, "012345678901"))));
     when(excelWriter.write(any())).thenReturn(new byte[] {1, 2, 3});
     var principal = staff(TEMPLATE);
 
-    var file = templateDownloader().execute(organizationId, batchId, principal);
-    var exported = exporter().execute(organizationId, batchId, staff(EXPORT));
+    var file = templateDownloader().execute(organizationId, agreementId, principal);
+    var exported = exporter().execute(organizationId, agreementId, staff(EXPORT));
 
     assertThat(file.fileName()).isEqualTo("mau-nhap-chi-tiet-kham-B1.xlsx");
     assertThat(file.content()).containsExactly(exported.content());
@@ -375,19 +374,22 @@ class ExaminationDetailUseCasesTest {
         .record(
             eq(principal.userId()),
             eq("DOWNLOAD_EXAMINATION_DETAIL_TEMPLATE"),
-            eq("HEALTH_EXAMINATION_BATCH"),
-            eq(batchId),
+            eq("HEALTH_EXAMINATION_AGREEMENT"),
+            eq(agreementId),
             eq(null),
-            eq(Map.of("organizationId", organizationId, "batchId", batchId, "rowCount", 1)));
+            eq(
+                Map.of(
+                    "organizationId", organizationId, "agreementId", agreementId, "rowCount", 1)));
   }
 
   @Test
-  void templateWithoutItsPermissionOrForAnUnknownBatchWritesNothing() {
+  void templateWithoutItsPermissionOrForAnUnknownAgreementWritesNothing() {
     for (var denied : List.of(staff(EXPORT), staff(RECONCILE), staff()))
-      assertThatThrownBy(() -> templateDownloader().execute(organizationId, batchId, denied))
+      assertThatThrownBy(() -> templateDownloader().execute(organizationId, agreementId, denied))
           .isInstanceOf(ApplicationException.class);
-    when(reader.readAllActive(organizationId, batchId)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> templateDownloader().execute(organizationId, batchId, staff(TEMPLATE)))
+    when(reader.readAllActive(organizationId, agreementId)).thenReturn(Optional.empty());
+    assertThatThrownBy(
+            () -> templateDownloader().execute(organizationId, agreementId, staff(TEMPLATE)))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(excelWriter, audit);
   }
@@ -401,19 +403,19 @@ class ExaminationDetailUseCasesTest {
   @Test
   void importParsesTheFileAndHandsTheRowsAndAFingerprintToTheCommitter() {
     UUID participantId = UUID.randomUUID();
-    UUID serviceId = batch.services().get(0).id().value();
+    UUID serviceId = agreement.services().get(0).id().value();
     var parsed =
         new ExaminationDetailWorkbook(
             1,
             Set.of(serviceId),
             List.of(
                 new com.ngockhanh.clinic.healthexamination.application.query
-                    .ExaminationDetailImportRow(3, participantId, 5, null, Set.of(serviceId))));
+                    .ExaminationDetailImportRow(3, participantId, 5, Set.of(serviceId))));
     when(excelReader.read(any())).thenReturn(parsed);
     UUID jobId = UUID.randomUUID();
     var receipt =
         new ServiceReconciliationReceipt(
-            jobId, batchId, 1, 1, 0, 1, Instant.parse("2026-10-07T00:00:00Z"));
+            jobId, agreementId, 1, 1, 0, 1, Instant.parse("2026-10-07T00:00:00Z"));
     when(committer.commit(any()))
         .thenReturn(new ExaminationDetailImportCommitter.Outcome(receipt, false));
     UUID key = UUID.randomUUID();
@@ -423,7 +425,7 @@ class ExaminationDetailUseCasesTest {
         importer()
             .execute(
                 organizationId,
-                batchId,
+                agreementId,
                 new ImportExaminationDetailsCommand(new byte[] {1, 2}, key),
                 principal);
 
@@ -432,7 +434,7 @@ class ExaminationDetailUseCasesTest {
     var request = ArgumentCaptor.forClass(ExaminationDetailImportCommitter.Request.class);
     verify(committer).commit(request.capture());
     assertThat(request.getValue().organizationId()).isEqualTo(organizationId);
-    assertThat(request.getValue().batchId()).isEqualTo(batchId);
+    assertThat(request.getValue().agreementId()).isEqualTo(agreementId);
     assertThat(request.getValue().idempotencyKey()).isEqualTo(key);
     assertThat(request.getValue().actorId()).isEqualTo(principal.userId());
     assertThat(request.getValue().declaredServiceIds()).containsExactly(serviceId);
@@ -447,7 +449,7 @@ class ExaminationDetailUseCasesTest {
         .thenReturn(
             new ExaminationDetailImportCommitter.Outcome(
                 new ServiceReconciliationReceipt(
-                    UUID.randomUUID(), batchId, 0, 0, 0, 0, Instant.EPOCH),
+                    UUID.randomUUID(), agreementId, 0, 0, 0, 0, Instant.EPOCH),
                 false));
     UUID key = UUID.randomUUID();
     var principal = staff(RECONCILE);
@@ -455,19 +457,19 @@ class ExaminationDetailUseCasesTest {
     importer()
         .execute(
             organizationId,
-            batchId,
+            agreementId,
             new ImportExaminationDetailsCommand(new byte[] {1}, key),
             principal);
     importer()
         .execute(
             organizationId,
-            batchId,
+            agreementId,
             new ImportExaminationDetailsCommand(new byte[] {1}, key),
             principal);
     importer()
         .execute(
             organizationId,
-            batchId,
+            agreementId,
             new ImportExaminationDetailsCommand(new byte[] {2}, key),
             principal);
 
@@ -486,7 +488,7 @@ class ExaminationDetailUseCasesTest {
                 importer()
                     .execute(
                         organizationId,
-                        batchId,
+                        agreementId,
                         new ImportExaminationDetailsCommand(new byte[] {1}, key),
                         staff(READ)))
         .isInstanceOf(ApplicationException.class);
@@ -496,7 +498,7 @@ class ExaminationDetailUseCasesTest {
                 importer()
                     .execute(
                         organizationId,
-                        batchId,
+                        agreementId,
                         new ImportExaminationDetailsCommand(new byte[0], key),
                         reconciler))
         .isInstanceOf(IllegalArgumentException.class);
@@ -505,7 +507,7 @@ class ExaminationDetailUseCasesTest {
                 importer()
                     .execute(
                         organizationId,
-                        batchId,
+                        agreementId,
                         new ImportExaminationDetailsCommand(new byte[] {1}, null),
                         reconciler))
         .isInstanceOf(IllegalArgumentException.class);
@@ -514,7 +516,7 @@ class ExaminationDetailUseCasesTest {
                 importer()
                     .execute(
                         null,
-                        batchId,
+                        agreementId,
                         new ImportExaminationDetailsCommand(new byte[] {1}, key),
                         reconciler))
         .isInstanceOf(IllegalArgumentException.class);
@@ -525,35 +527,35 @@ class ExaminationDetailUseCasesTest {
 
   private PaymentAggregates aggregates() {
     return new PaymentAggregates(
-        new PaymentAggregates.ParticipantCounts(5, 3, 2),
+        new PaymentAggregates.ParticipantCounts(5, 3, 2, 2, 3),
         List.of(
             new PaymentAggregates.PerformedService(
-                batch.services().get(0).id().value(), new BigDecimal("100"), 3)));
+                agreement.services().get(0).id().value(), new BigDecimal("100"), 3)));
   }
 
   @Test
   void theReportAndTheWordDocumentShareOneSetOfFigures() {
-    when(reader.readPaymentAggregates(organizationId, batchId))
+    when(reader.readPaymentAggregates(organizationId, agreementId, null, null))
         .thenReturn(Optional.of(aggregates()));
     when(wordWriter.write(any())).thenReturn(new byte[] {7});
     var assembler = new PaymentSummaryReportAssembler();
     var principal = staff(REPORT, REPORT_EXPORT);
 
     var report =
-        new GetPaymentSummaryReportUseCase(access, batches, reader, catalog, assembler, CLOCK)
-            .execute(organizationId, batchId, principal);
+        new GetPaymentSummaryReportUseCase(access, agreements, reader, catalog, assembler, CLOCK)
+            .execute(organizationId, agreementId, null, null, principal);
     var file =
         new ExportPaymentSummaryReportUseCase(
                 access,
                 organizations,
-                batches,
+                agreements,
                 reader,
                 catalog,
                 assembler,
                 wordWriter,
                 audit,
                 CLOCK)
-            .execute(organizationId, batchId, principal);
+            .execute(organizationId, agreementId, null, null, principal);
 
     assertThat(report.totalAmount()).isEqualByComparingTo("300");
     assertThat(report.provisional()).isTrue();
@@ -563,52 +565,62 @@ class ExaminationDetailUseCasesTest {
     verify(wordWriter).write(document.capture());
     assertThat(document.getValue().report()).isEqualTo(report);
     assertThat(document.getValue().organizationName()).isEqualTo("Clinic Partner");
-    assertThat(document.getValue().startDate()).isEqualTo(FIRST_DAY);
-    assertThat(document.getValue().siteType()).isEqualTo(ExaminationSiteType.CLINIC);
+    assertThat(document.getValue().validFrom()).isEqualTo(FIRST_DAY);
+    assertThat(document.getValue().validTo()).isEqualTo(SECOND_DAY);
     verify(audit)
         .record(
             eq(principal.userId()),
             eq("EXPORT_PAYMENT_REPORT"),
-            eq("HEALTH_EXAMINATION_BATCH"),
-            eq(batchId),
+            eq("HEALTH_EXAMINATION_AGREEMENT"),
+            eq(agreementId),
             eq(null),
             any());
   }
 
   @Test
-  void aFinalizedBatchReportIsNotProvisional() {
-    batch = batch(organizationId, batchId, BatchStatus.FINALIZED, 3, null, catalogId);
-    when(batches.findDetails(organizationId, batchId, false))
-        .thenReturn(Optional.of(details(batch)));
-    when(reader.readPaymentAggregates(organizationId, batchId))
+  void anEndedAgreementReportIsNotProvisional() {
+    agreement = agreement(organizationId, agreementId, AgreementStatus.ENDED, 3, null, catalogId);
+    when(agreements.findDetails(organizationId, agreementId, false))
+        .thenReturn(Optional.of(details(agreement)));
+    when(reader.readPaymentAggregates(organizationId, agreementId, null, null))
         .thenReturn(Optional.of(aggregates()));
 
     var report =
         new GetPaymentSummaryReportUseCase(
-                access, batches, reader, catalog, new PaymentSummaryReportAssembler(), CLOCK)
-            .execute(organizationId, batchId, staff(REPORT));
+                access, agreements, reader, catalog, new PaymentSummaryReportAssembler(), CLOCK)
+            .execute(organizationId, agreementId, null, null, staff(REPORT));
 
     assertThat(report.provisional()).isFalse();
-    assertThat(report.batchStatus()).isEqualTo("FINALIZED");
+    assertThat(report.agreementStatus()).isEqualTo("ENDED");
   }
 
   @Test
-  void reportUseCasesNeedThePermissionAndAKnownBatch() {
+  void reportUseCasesNeedThePermissionAndAKnownAgreement() {
     var assembler = new PaymentSummaryReportAssembler();
     var get =
-        new GetPaymentSummaryReportUseCase(access, batches, reader, catalog, assembler, CLOCK);
+        new GetPaymentSummaryReportUseCase(access, agreements, reader, catalog, assembler, CLOCK);
     var export =
         new ExportPaymentSummaryReportUseCase(
-            access, organizations, batches, reader, catalog, assembler, wordWriter, audit, CLOCK);
-    assertThatThrownBy(() -> get.execute(organizationId, batchId, staff(READ)))
+            access,
+            organizations,
+            agreements,
+            reader,
+            catalog,
+            assembler,
+            wordWriter,
+            audit,
+            CLOCK);
+    assertThatThrownBy(() -> get.execute(organizationId, agreementId, null, null, staff(READ)))
         .isInstanceOf(ApplicationException.class);
-    assertThatThrownBy(() -> export.execute(organizationId, batchId, staff(READ)))
+    assertThatThrownBy(() -> export.execute(organizationId, agreementId, null, null, staff(READ)))
         .isInstanceOf(ApplicationException.class);
 
-    when(reader.readPaymentAggregates(organizationId, batchId)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> get.execute(organizationId, batchId, staff(REPORT)))
+    when(reader.readPaymentAggregates(organizationId, agreementId, null, null))
+        .thenReturn(Optional.empty());
+    assertThatThrownBy(() -> get.execute(organizationId, agreementId, null, null, staff(REPORT)))
         .isInstanceOf(ResourceNotFoundException.class);
-    assertThatThrownBy(() -> export.execute(organizationId, batchId, staff(REPORT_EXPORT)))
+    assertThatThrownBy(
+            () -> export.execute(organizationId, agreementId, null, null, staff(REPORT_EXPORT)))
         .isInstanceOf(ResourceNotFoundException.class);
     verify(wordWriter, never()).write(any());
     verifyNoInteractions(audit);

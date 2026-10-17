@@ -17,15 +17,15 @@ import com.ngockhanh.clinic.document.application.rendering.DocumentRenderer;
 import com.ngockhanh.clinic.document.application.rendering.RenderedDocument;
 import com.ngockhanh.clinic.healthexamination.application.contract.PeriodicFormBlankContract;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormSourceLoader;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
+import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.time.Clock;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +37,12 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
   private final DocumentRenderer renderer = mock(DocumentRenderer.class);
   private final ExaminationFormSourceLoader loader =
       new ExaminationFormSourceLoader(
-          support, organizations, participants, Clock.fixed(NOW, ZoneOffset.UTC));
+          support,
+          organizations,
+          participants,
+          sessions,
+          assignments,
+          Clock.fixed(NOW, ZoneOffset.UTC));
   private final RenderParticipantExaminationFormUseCase useCase =
       new RenderParticipantExaminationFormUseCase(access, loader, renderer, audit);
   private final UUID versionId = UUID.randomUUID();
@@ -53,30 +58,32 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
 
   @Test
   void rejectsCallersWithoutThePrintPermissionBeforeReadingAnything() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var participant = stored(0);
     givenStored(participant);
 
     for (var principal : List.of(staff(), staff(IMPORT)))
       assertThatThrownBy(
               () ->
-                  useCase.execute(organizationId, batchId, participant.getId().value(), principal))
+                  useCase.execute(
+                      organizationId, agreementId, participant.getId().value(), null, principal))
           .isInstanceOfSatisfying(
               ApplicationException.class,
               denied ->
                   assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
 
-    verifyNoInteractions(batches, participants, renderer, audit);
+    verifyNoInteractions(agreements, participants, renderer, audit);
   }
 
   @Test
   void rendersTheFormFromTheRosterAndAuditsWithoutPersonalData() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var participant = stored(0);
     givenStored(participant);
     givenRenderedPdf();
 
-    var form = useCase.execute(organizationId, batchId, participant.getId().value(), manager);
+    var form =
+        useCase.execute(organizationId, agreementId, participant.getId().value(), null, manager);
 
     assertThat(form.content()).containsExactly(7, 8);
     assertThat(form.fileName()).isEqualTo("phieu-kham-NV-001.pdf");
@@ -95,9 +102,7 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
         .containsEntry("participant.positionName", "Staff")
         .containsEntry("participant.address", "…………………………")
         .containsEntry("organization.name", "Clinic Partner")
-        .containsEntry(
-            "participant.examinationDate",
-            batch.days().get(0).examinationDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+        .containsEntry("participant.examinationDate", "…………………………")
         .containsEntry("printedDate", "04/10/2026");
 
     ArgumentCaptor<Object> after = ArgumentCaptor.forClass(Object.class);
@@ -105,7 +110,7 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
         .record(
             eq(manager.userId()),
             eq("RENDER_EXAMINATION_FORM"),
-            eq("HEALTH_EXAMINATION_BATCH_PARTICIPANT"),
+            eq("HEALTH_EXAMINATION_PARTICIPANT"),
             eq(participant.getId().value()),
             isNull(),
             after.capture());
@@ -113,29 +118,32 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
         .isEqualTo(
             Map.of(
                 "organizationId", organizationId,
-                "batchId", batchId,
+                "agreementId", agreementId,
                 "templateVersionId", versionId,
                 "templateVersionNo", 3));
-    assertThat(after.getValue().toString()).doesNotContain(IDENTIFICATION).doesNotContain(FULL_NAME);
+    assertThat(after.getValue().toString())
+        .doesNotContain(IDENTIFICATION)
+        .doesNotContain(FULL_NAME);
   }
 
   @Test
-  void printsForReadyAndFinalizedBatchesOnly() {
+  void printsForActiveAndEndedAgreementsOnly() {
     givenRenderedPdf();
-    for (var status : BatchStatus.values()) {
-      givenBatch(status, null, true);
+    for (var status : AgreementStatus.values()) {
+      givenAgreement(status, null, true);
       var participant = stored(0);
       givenStored(participant);
-      boolean printable = status == BatchStatus.READY || status == BatchStatus.FINALIZED;
+      boolean printable = status == AgreementStatus.ACTIVE || status == AgreementStatus.ENDED;
       if (printable)
         assertThat(
-                useCase.execute(organizationId, batchId, participant.getId().value(), manager))
+                useCase.execute(
+                    organizationId, agreementId, participant.getId().value(), null, manager))
             .isNotNull();
       else
         assertThatThrownBy(
                 () ->
                     useCase.execute(
-                        organizationId, batchId, participant.getId().value(), manager))
+                        organizationId, agreementId, participant.getId().value(), null, manager))
             .as(status.name())
             .isInstanceOf(ConflictException.class);
     }
@@ -143,40 +151,79 @@ class RenderParticipantExaminationFormUseCaseTest extends ManualParticipantUseCa
 
   @Test
   void aCancelledParticipantHasNoForm() {
-    givenOpenBatch();
-    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null, null));
+    givenOpenAgreement();
+    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null));
     givenStored(cancelled);
 
     assertThatThrownBy(
-            () -> useCase.execute(organizationId, batchId, cancelled.getId().value(), manager))
+            () ->
+                useCase.execute(
+                    organizationId, agreementId, cancelled.getId().value(), null, manager))
         .isInstanceOf(ConflictException.class);
     verifyNoInteractions(renderer, audit);
   }
 
   @Test
-  void reportsAnUnknownBatchOrParticipantAsNotFound() {
-    when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
+  void reportsAnUnknownAgreementOrParticipantAsNotFound() {
+    when(agreements.findDetails(organizationId, agreementId, false)).thenReturn(Optional.empty());
+    assertThatThrownBy(
+            () -> useCase.execute(organizationId, agreementId, UUID.randomUUID(), null, manager))
         .isInstanceOf(ResourceNotFoundException.class);
 
-    givenOpenBatch();
-    when(participants.findInBatch(any(), any())).thenReturn(Optional.empty());
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, UUID.randomUUID(), manager))
+    givenOpenAgreement();
+    when(participants.findInAgreement(any(), any())).thenReturn(Optional.empty());
+    assertThatThrownBy(
+            () -> useCase.execute(organizationId, agreementId, UUID.randomUUID(), null, manager))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(renderer, audit);
   }
 
   @Test
   void aConverterOutageIsReportedAndNothingIsAudited() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var participant = stored(0);
     givenStored(participant);
     when(renderer.render(any(), any())).thenThrow(new DependencyUnavailableException("down", null));
 
     assertThatThrownBy(
-            () -> useCase.execute(organizationId, batchId, participant.getId().value(), manager))
+            () ->
+                useCase.execute(
+                    organizationId, agreementId, participant.getId().value(), null, manager))
         .isInstanceOf(DependencyUnavailableException.class);
     verifyNoInteractions(audit);
   }
 
+  @Test
+  void theFormShowsTheDateOfTheNamedSessionOrTheNextExpectedOne() {
+    givenOpenAgreement();
+    var participant = stored(0);
+    givenStored(participant);
+    givenRenderedPdf();
+    var sessionId = UUID.randomUUID();
+    var session =
+        com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationSession.open(
+            AggregateId.of(sessionId),
+            AggregateId.of(organizationId),
+            AggregateId.of(agreementId),
+            java.time.LocalDate.of(2026, 10, 20),
+            com.ngockhanh.clinic.healthexamination.domain.enums.SessionActivity.ALL,
+            new com.ngockhanh.clinic.healthexamination.domain.valueobject.ExaminationSite(
+                com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType.CLINIC,
+                null));
+    when(sessions.findById(organizationId, sessionId, false)).thenReturn(Optional.of(session));
+
+    useCase.execute(organizationId, agreementId, participant.getId().value(), sessionId, manager);
+    when(assignments.findExaminationDates(any(), any()))
+        .thenReturn(Map.of(participant.getId(), java.time.LocalDate.of(2026, 10, 22)));
+    useCase.execute(organizationId, agreementId, participant.getId().value(), null, manager);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<String, String>> values = ArgumentCaptor.forClass(Map.class);
+    verify(renderer, org.mockito.Mockito.times(2))
+        .render(eq(PeriodicFormBlankContract.DOCUMENT_TYPE), values.capture());
+    assertThat(values.getAllValues().get(0))
+        .containsEntry("participant.examinationDate", "20/10/2026");
+    assertThat(values.getAllValues().get(1))
+        .containsEntry("participant.examinationDate", "22/10/2026");
+  }
 }

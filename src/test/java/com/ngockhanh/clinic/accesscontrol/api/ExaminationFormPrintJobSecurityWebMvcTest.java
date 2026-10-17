@@ -52,7 +52,7 @@ class ExaminationFormPrintJobSecurityWebMvcTest {
   private static final String URL =
       "/api/v1/organizations/"
           + UUID.randomUUID()
-          + "/health-examination-batches/"
+          + "/agreements/"
           + UUID.randomUUID()
           + "/participants/examination-form-print-jobs";
   private static final String BODY = "{\"participantIds\":[\"" + UUID.randomUUID() + "\"]}";
@@ -72,7 +72,7 @@ class ExaminationFormPrintJobSecurityWebMvcTest {
                       .code(BULK_PRINT)
                       .httpMethod("POST")
                       .endpoint(
-                          "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/examination-form-print-jobs")
+                          "/api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/examination-form-print-jobs")
                       .build()));
       return mapper;
     }

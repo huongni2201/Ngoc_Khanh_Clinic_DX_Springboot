@@ -33,18 +33,17 @@ class CatalogManagementMigrationIntegrationTest {
   @BeforeEach
   void resetTestDatabase() {
     flyway(null, "classpath:db/migration").clean();
-    flyway("6", "classpath:db/migration").migrate();
     jdbc = new JdbcTemplate(
         new DriverManagerDataSource(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword()));
   }
 
   @Test
-  void freshSchemaHasSequentialVersionsAndKeepsSeededServicePrices() {
-    var prices = jdbc.queryForList("SELECT id,unit_price FROM services ORDER BY id");
-    assertThat(flyway(null, "classpath:db/migration").migrate().migrationsExecuted).isEqualTo(1);
+  void freshSchemaHasSequentialVersionsAndSeedsServicePrices() {
+    assertThat(flyway(null, "classpath:db/migration").migrate().migrationsExecuted).isEqualTo(3);
     assertThat(jdbc.queryForList("SELECT version FROM flyway_schema_history WHERE version IS NOT NULL ORDER BY installed_rank", String.class))
-        .containsExactly("001", "002", "003", "004", "005", "006", "007");
-    assertThat(jdbc.queryForList("SELECT id,unit_price FROM services ORDER BY id")).isEqualTo(prices);
+        .containsExactly("001", "002", "003");
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM services WHERE unit_price IS NULL OR row_version <> 0", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM services", Integer.class)).isPositive();
     assertThat(flyway(null, "classpath:db/migration").migrate().migrationsExecuted).isZero();
   }
 
@@ -90,16 +89,16 @@ class CatalogManagementMigrationIntegrationTest {
   }
 
   @Test
-  void endpointConflictRollsBackCatalogSchemaAndPermissions() {
+  void endpointConflictRollsBackThePermissionSeed() {
+    flyway("1", "classpath:db/migration").migrate();
     jdbc.update("INSERT INTO permissions(code,name,description,http_method,endpoint,module) VALUES ('CONFLICT_TEST','Conflict','Synthetic','GET','/api/v1/catalog/management/departments','Clinic Master Data')");
     assertThatThrownBy(() -> flyway(null, "classpath:db/migration").migrate())
         .hasStackTraceContaining("uq_permissions_http_method_endpoint");
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM information_schema.columns WHERE table_schema='public' AND table_name='departments' AND column_name='row_version'", Integer.class)).isZero();
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname='uq_departments_code_canonical'", Integer.class)).isZero();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions WHERE code LIKE 'CATALOG_%'", Integer.class)).isZero();
-    assertThat(jdbc.queryForObject("SELECT max(version::int) FROM flyway_schema_history WHERE success AND version IS NOT NULL", Integer.class)).isEqualTo(6);
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM roles", Integer.class)).isZero();
+    assertThat(jdbc.queryForObject("SELECT max(version::int) FROM flyway_schema_history WHERE success AND version IS NOT NULL", Integer.class)).isEqualTo(1);
     jdbc.update("DELETE FROM permissions WHERE code='CONFLICT_TEST'");
-    assertThat(flyway(null, "classpath:db/migration").migrate().migrationsExecuted).isEqualTo(1);
+    assertThat(flyway(null, "classpath:db/migration").migrate().migrationsExecuted).isEqualTo(2);
   }
 
   @Test

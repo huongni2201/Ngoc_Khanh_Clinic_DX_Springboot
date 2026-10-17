@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.SessionAssignmentMyBatisMapper">
+    <sql id="columns">id,organization_id,participant_id,session_id,status,replaced_by_assignment_id,attended_at,note,recorded_by,recorded_at,created_at,updated_at,row_version</sql>
+
+    <select id="findById"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationSessionAssignmentRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_session_assignments
+        WHERE id=#{id} AND session_id=#{sessionId} AND organization_id=#{organizationId} <if test="lock">FOR UPDATE</if>
+    </select>
+    <select id="findLiveParticipantIds" resultType="java.util.UUID">
+        SELECT participant_id FROM public.health_examination_session_assignments
+        WHERE session_id=#{sessionId} AND status IN ('ASSIGNED','ATTENDED') AND participant_id IN
+        <foreach collection="participantIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+    </select>
+    <insert id="insertMany">
+        INSERT INTO public.health_examination_session_assignments (<include refid="columns"/>) VALUES
+        <foreach collection="items" item="a" separator=",">
+            (#{a.id},#{a.organizationId},#{a.participantId},#{a.sessionId},#{a.status},#{a.replacedByAssignmentId},#{a.attendedAt},
+            #{a.note},#{a.recordedBy},#{a.recordedAt},#{a.createdAt},#{a.updatedAt},#{a.rowVersion})
+        </foreach>
+    </insert>
+    <update id="update">
+        UPDATE public.health_examination_session_assignments
+        SET status=#{a.status},replaced_by_assignment_id=#{a.replacedByAssignmentId},attended_at=#{a.attendedAt},note=#{a.note},
+            recorded_by=#{a.recordedBy},recorded_at=#{a.recordedAt},updated_at=#{a.updatedAt},row_version=row_version+1
+        WHERE id=#{a.id} AND organization_id=#{a.organizationId} AND row_version=#{expectedRowVersion}
+    </update>
+    <select id="findByStatusForUpdate"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationSessionAssignmentRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_session_assignments
+        WHERE organization_id=#{organizationId} AND session_id=#{sessionId} AND status=#{status}
+        ORDER BY id FOR UPDATE
+    </select>
+    <select id="countLive" resultType="long">
+        SELECT COUNT(*) FROM public.health_examination_session_assignments
+        WHERE session_id=#{sessionId} AND status IN ('ASSIGNED','ATTENDED')
+    </select>
+    <select id="hasAttended" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM public.health_examination_session_assignments
+        WHERE participant_id=#{participantId} AND status='ATTENDED')
+    </select>
+    <update id="cancelExpectedOfParticipant">
+        UPDATE public.health_examination_session_assignments
+        SET status='CANCELLED',recorded_by=#{actor},recorded_at=#{at},updated_at=#{at},row_version=row_version+1
+        WHERE participant_id=#{participantId} AND status='ASSIGNED'
+    </update>
+
+    <sql id="rowFilter">
+        a.organization_id=#{organizationId} AND a.session_id=#{sessionId}
+        <if test="status != null">AND a.status=#{status}</if>
+        <if test="pattern != null">AND (LOWER(p.full_name) LIKE #{pattern} ESCAPE chr(92) OR
+            LOWER(COALESCE(p.participant_code,'')) LIKE #{pattern} ESCAPE chr(92)
+            OR LOWER(p.department_name) LIKE #{pattern} ESCAPE chr(92))
+        </if>
+    </sql>
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM public.health_examination_session_assignments a
+        JOIN public.health_examination_participants p ON p.id=a.participant_id
+        WHERE <include refid="rowFilter"/>
+    </select>
+    <select id="findPage"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.AssignmentRowView">
+        SELECT a.id AS assignment_id,a.status,a.attended_at,a.note,a.row_version AS assignment_row_version,
+               p.id AS participant_id,p.agreement_id,p.participant_code,p.full_name,p.date_of_birth,p.sex,
+               p.identification_number,p.department_name,p.position_name,p.roster_status
+        FROM public.health_examination_session_assignments a
+        JOIN public.health_examination_participants p ON p.id=a.participant_id
+        WHERE <include refid="rowFilter"/>
+        ORDER BY
+        <choose>
+            <when test="sortKey == 'fullName' and sortBy == 'DESC'">p.full_name DESC, a.id ASC</when>
+            <when test="sortKey == 'fullName'">p.full_name ASC, a.id ASC</when>
+            <when test="sortKey == 'participantCode' and sortBy == 'DESC'">p.participant_code DESC NULLS LAST, a.id ASC</when>
+            <when test="sortKey == 'participantCode'">p.participant_code ASC NULLS LAST, a.id ASC</when>
+            <when test="sortKey == 'departmentName' and sortBy == 'DESC'">p.department_name DESC, a.id ASC</when>
+            <when test="sortKey == 'departmentName'">p.department_name ASC, a.id ASC</when>
+            <when test="sortKey == 'status' and sortBy == 'DESC'">a.status DESC, a.id ASC</when>
+            <when test="sortKey == 'status'">a.status ASC, a.id ASC</when>
+            <when test="sortBy == 'DESC'">a.id DESC</when>
+            <otherwise>a.id ASC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    <select id="findExaminationDates"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDateView">
+        SELECT a.participant_id,
+               COALESCE(MIN(s.session_date) FILTER (WHERE a.status='ASSIGNED'),
+                        MIN(s.session_date) FILTER (WHERE a.status='ATTENDED')) AS examination_date
+        FROM public.health_examination_session_assignments a
+        JOIN public.health_examination_sessions s ON s.id=a.session_id
+        WHERE a.organization_id=#{organizationId} AND a.participant_id IN
+        <foreach collection="participantIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
+        GROUP BY a.participant_id
+        HAVING COUNT(*) FILTER (WHERE a.status IN ('ASSIGNED','ATTENDED')) > 0
+    </select>
+    <select id="findByParticipant"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ParticipantAssignmentView">
+        SELECT a.id AS assignment_id,a.session_id,s.session_date,s.activity,s.site_type,s.site_address,s.status AS session_status,
+               a.status,a.replaced_by_assignment_id,a.attended_at,a.note,a.row_version
+        FROM public.health_examination_session_assignments a
+        JOIN public.health_examination_sessions s ON s.id=a.session_id
+        WHERE a.organization_id=#{organizationId} AND a.participant_id=#{participantId}
+        ORDER BY s.session_date DESC, a.created_at DESC, a.id ASC
+    </select>
+</mapper>

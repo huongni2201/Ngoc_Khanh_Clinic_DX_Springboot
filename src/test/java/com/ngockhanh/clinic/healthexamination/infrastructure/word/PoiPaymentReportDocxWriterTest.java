@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.ngockhanh.clinic.healthexamination.application.query.PaymentReportDocument;
 import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummaryReportResponse;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -29,7 +28,7 @@ class PoiPaymentReportDocxWriterTest {
   private static PaymentSummaryReportResponse.Item item(String name, String price, long count) {
     BigDecimal unit = new BigDecimal(price);
     return PaymentSummaryReportResponse.Item.builder()
-        .batchServiceId(UUID.randomUUID())
+        .agreementServiceId(UUID.randomUUID())
         .serviceCode("C-" + name)
         .serviceName(name)
         .displayOrder(1)
@@ -42,14 +41,18 @@ class PoiPaymentReportDocxWriterTest {
   private static PaymentReportDocument document(boolean provisional, String total) {
     var report =
         PaymentSummaryReportResponse.builder()
-            .batchId(UUID.randomUUID())
-            .batchCode("DK-01")
-            .batchName("Khám định kỳ 2026")
-            .batchStatus(provisional ? "READY" : "FINALIZED")
+            .agreementId(UUID.randomUUID())
+            .agreementCode("DK-01")
+            .agreementName("Khám định kỳ 2026")
+            .agreementStatus(provisional ? "ACTIVE" : "ENDED")
             .provisional(provisional)
             .registeredCount(120)
             .attendedCount(100)
             .reconciledCount(90)
+            .sessionCount(4)
+            .visitCount(105)
+            .rangeFrom(LocalDate.of(2026, 10, 4))
+            .rangeTo(LocalDate.of(2026, 10, 4))
             .items(
                 List.of(
                     item("Khám nội", "150000", 100),
@@ -64,9 +67,7 @@ class PoiPaymentReportDocxWriterTest {
         "0101234567",
         "9 Phố Mẫu",
         LocalDate.of(2026, 10, 4),
-        LocalDate.of(2026, 10, 5),
-        ExaminationSiteType.ORGANIZATION_SITE,
-        "2 Đường Khám");
+        LocalDate.of(2026, 10, 5));
   }
 
   private static List<String> texts(XWPFDocument doc) {
@@ -100,9 +101,10 @@ class PoiPaymentReportDocxWriterTest {
               "Độc lập – Tự do – Hạnh phúc",
               "Đơn vị: Công ty ABC",
               "Mã số thuế: 0101234567",
-              "Đợt khám: Khám định kỳ 2026 (DK-01)",
-              "Thời gian: 04/10/2026 – 05/10/2026",
-              "Địa điểm: 2 Đường Khám",
+              "Thỏa thuận: Khám định kỳ 2026 (DK-01)",
+              "Hiệu lực: 04/10/2026 – 05/10/2026",
+              "Kỳ báo cáo: 04/10/2026",
+              "Lịch khám: 4 buổi – 105 lượt đến",
               "Số người: đăng ký 120 – đã khám 100 – đã đối soát 90",
               "Khám nội",
               "Xét nghiệm máu",
@@ -150,7 +152,7 @@ class PoiPaymentReportDocxWriterTest {
   }
 
   @Test
-  void omitsProvisionalMarkOnceTheBatchIsFinalized() throws IOException {
+  void omitsProvisionalMarkOnceTheAgreementIsFinalized() throws IOException {
     try (XWPFDocument doc = reopen(writer.write(document(false, "1005000")))) {
       assertThat(texts(doc)).doesNotContain("(TẠM TÍNH)");
       assertThat(texts(doc))
@@ -164,7 +166,7 @@ class PoiPaymentReportDocxWriterTest {
     var base = document(false, "0").report();
     var unknown =
         PaymentSummaryReportResponse.Item.builder()
-            .batchServiceId(UUID.randomUUID())
+            .agreementServiceId(UUID.randomUUID())
             .displayOrder(1)
             .unitPrice(BigDecimal.TEN)
             .examinedCount(0)
@@ -172,10 +174,10 @@ class PoiPaymentReportDocxWriterTest {
             .build();
     var report =
         PaymentSummaryReportResponse.builder()
-            .batchId(base.batchId())
-            .batchCode(base.batchCode())
-            .batchName(base.batchName())
-            .batchStatus(base.batchStatus())
+            .agreementId(base.agreementId())
+            .agreementCode(base.agreementCode())
+            .agreementName(base.agreementName())
+            .agreementStatus(base.agreementStatus())
             .provisional(false)
             .items(List.of(unknown))
             .totalAmount(BigDecimal.ZERO)
@@ -183,19 +185,12 @@ class PoiPaymentReportDocxWriterTest {
             .build();
     var document =
         new PaymentReportDocument(
-            report,
-            "Công ty ABC",
-            null,
-            null,
-            LocalDate.of(2026, 10, 4),
-            null,
-            ExaminationSiteType.CLINIC,
-            null);
+            report, "Công ty ABC", null, null, LocalDate.of(2026, 10, 4), null);
 
     try (XWPFDocument doc = reopen(bare.write(document))) {
       List<String> text = texts(doc);
       assertThat(text).contains(PoiPaymentReportDocxWriter.UNKNOWN_SERVICE);
-      assertThat(text).contains("Ngày 08 tháng 10 năm 2026", "Thời gian: 04/10/2026");
+      assertThat(text).contains("Ngày 08 tháng 10 năm 2026", "Hiệu lực: từ 04/10/2026");
       assertThat(text).noneMatch(t -> t.startsWith("Mã số thuế") || t.startsWith("Địa chỉ"));
       assertThat(text).anyMatch(t -> t.equals("Bằng chữ: Không đồng chẵn"));
     }

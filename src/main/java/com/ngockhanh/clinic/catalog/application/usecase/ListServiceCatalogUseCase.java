@@ -18,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Lists the active services of the clinic catalog with optional search, allowlisted sorting and
  * one-based pagination.
  *
- * <p>Only active services are listed: they are the only ones a batch can newly select. Input is
- * validated here so every supported caller gets the same bounds. The count and the page are read
+ * <p>Only active services are listed: they are the only ones an agreement can newly select. Input
+ * is validated here so every supported caller gets the same bounds. The count and the page are read
  * in one repeatable-read transaction so they agree with each other. The read changes nothing and
  * records no audit event.
  */

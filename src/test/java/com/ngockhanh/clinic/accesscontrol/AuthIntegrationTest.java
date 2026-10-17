@@ -49,7 +49,8 @@ class AuthIntegrationTest {
   private static final String COOKIE = "NKC_SESSION";
   private static final String ORIGIN = "http://localhost:3000";
   private static final String PASSWORD = "Mật khẩu-01";
-  /** Staff and role administration routes (V004, V005) belong to the Administrator only. */
+
+  /** Staff and role administration routes (V002) belong to the Administrator only. */
   private static final Set<String> ADMINISTRATION_PERMISSIONS =
       Set.of(
           "STAFF_MEMBER_VIEW",
@@ -185,14 +186,14 @@ class AuthIntegrationTest {
   @Test
   void staffEndpointsRequireThePermissionCapturedAtSignIn() throws Exception {
     var endpoints = permissions.findEndpointPermissions();
-    assertThat(endpoints).hasSize(71);
+    assertThat(endpoints).hasSize(83);
     Cookie withoutPermission = sessionCookie(login(username, PASSWORD).andExpect(status().isOk()));
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());
     }
 
     // An account holds one role: business routes belong to the Clinic Manager, staff
-    // and role administration routes (V004, V005) to the Administrator.
+    // and role administration routes (V002) to the Administrator.
     assignRole("CLINIC_MANAGER");
     for (PermissionRecord endpoint : endpoints) {
       call(endpoint, withoutPermission).andExpect(status().isForbidden());

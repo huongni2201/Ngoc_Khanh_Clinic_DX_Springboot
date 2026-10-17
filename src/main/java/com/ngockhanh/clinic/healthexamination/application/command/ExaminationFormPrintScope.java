@@ -4,6 +4,6 @@ package com.ngockhanh.clinic.healthexamination.application.command;
 public enum ExaminationFormPrintScope {
   /** The Participants named by the caller, in the caller's order. */
   IDS,
-  /** Every Participant of one examination day, chosen by the backend when the job is created. */
-  BATCH_DAY
+  /** Every expected Participant of one session, chosen by the backend when the job is created. */
+  SESSION
 }

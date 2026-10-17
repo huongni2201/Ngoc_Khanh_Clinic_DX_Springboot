@@ -8,9 +8,9 @@ import java.util.UUID;
 
 /**
  * SHA-256 fingerprint of everything that defines an examination detail import request: the
- * organization, the batch, the parser version and the digest of the workbook bytes. The encoding is
- * length-prefixed and fixed-width, so different requests never share an encoding. The file name and
- * any cell content are not part of it.
+ * organization, the agreement, the parser version and the digest of the workbook bytes. The
+ * encoding is length-prefixed and fixed-width, so different requests never share an encoding. The
+ * file name and any cell content are not part of it.
  */
 public final class ExaminationDetailImportFingerprint {
   private static final byte[] LABEL =
@@ -23,7 +23,8 @@ public final class ExaminationDetailImportFingerprint {
    *
    * @param parserVersion version of the Excel contract the workbook is read with
    */
-  public static byte[] of(UUID organizationId, UUID batchId, int parserVersion, byte[] workbook) {
+  public static byte[] of(
+      UUID organizationId, UUID agreementId, int parserVersion, byte[] workbook) {
     byte[] workbookDigest = sha256().digest(workbook);
     ByteBuffer encoded =
         ByteBuffer.allocate(Integer.BYTES + LABEL.length + 16 + 16 + Integer.BYTES + 32);
@@ -31,7 +32,9 @@ public final class ExaminationDetailImportFingerprint {
     encoded
         .putLong(organizationId.getMostSignificantBits())
         .putLong(organizationId.getLeastSignificantBits());
-    encoded.putLong(batchId.getMostSignificantBits()).putLong(batchId.getLeastSignificantBits());
+    encoded
+        .putLong(agreementId.getMostSignificantBits())
+        .putLong(agreementId.getLeastSignificantBits());
     encoded.putInt(parserVersion).put(workbookDigest);
     return sha256().digest(encoded.array());
   }

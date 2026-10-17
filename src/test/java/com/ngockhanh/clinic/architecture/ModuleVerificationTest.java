@@ -90,8 +90,10 @@ class ModuleVerificationTest {
                 .toList())
         .containsExactlyInAnyOrder(
             "Organization",
-            "HealthExaminationBatch",
-            "HealthExaminationBatchParticipant",
+            "HealthExaminationAgreement",
+            "HealthExaminationParticipant",
+            "HealthExaminationSession",
+            "SessionAssignment",
             "HealthExaminationRecord");
     assertThat(
             applicationClasses.stream()
@@ -104,8 +106,10 @@ class ModuleVerificationTest {
                 .toList())
         .containsExactlyInAnyOrder(
             "OrganizationRepository",
-            "HealthExaminationBatchRepository",
-            "HealthExaminationBatchParticipantRepository");
+            "HealthExaminationAgreementRepository",
+            "HealthExaminationParticipantRepository",
+            "HealthExaminationSessionRepository",
+            "SessionAssignmentRepository");
   }
 
   @Test

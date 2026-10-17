@@ -8,7 +8,10 @@ import java.util.UUID;
  * Read contract of one Participant row of the examination detail matrix and its Excel export. The
  * identification number is complete here and is masked wherever it leaves the application.
  *
- * @param performedBatchServiceIds batch services recorded as performed, in identifier order
+ * @param nextSessionDate date of the earliest session the Participant is still expected at, or null
+ * @param attendanceStatus attendance derived from the session assignments
+ * @param lastAttendedDate date of the latest session the Participant attended, or null
+ * @param performedAgreementServiceIds agreement services recorded as performed, in identifier order
  */
 public record ExaminationDetailRow(
     UUID id,
@@ -19,13 +22,13 @@ public record ExaminationDetailRow(
     String identificationNumber,
     String departmentName,
     String positionName,
-    LocalDate examinationDate,
+    LocalDate nextSessionDate,
     String attendanceStatus,
-    LocalDate actualExaminationDate,
+    LocalDate lastAttendedDate,
     String reconciliationStatus,
-    List<UUID> performedBatchServiceIds,
+    List<UUID> performedAgreementServiceIds,
     long rowVersion) {
   public ExaminationDetailRow {
-    performedBatchServiceIds = List.copyOf(performedBatchServiceIds);
+    performedAgreementServiceIds = List.copyOf(performedAgreementServiceIds);
   }
 }

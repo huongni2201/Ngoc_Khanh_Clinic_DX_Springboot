@@ -4,7 +4,7 @@ package com.ngockhanh.clinic.healthexamination.application.response;
  * The generated examination detail workbook. The bytes are copied on construction and on read.
  *
  * @param content XLSX bytes
- * @param fileName download name; only the filtered batch code, never personal data
+ * @param fileName download name; only the filtered agreement code, never personal data
  */
 public record ExaminationDetailExportResponse(byte[] content, String fileName) {
   public ExaminationDetailExportResponse {

@@ -8,11 +8,12 @@ hiện hành; trạng thái triển khai API được ghi riêng với quy tắc
 | Nhu cầu | Tài liệu |
 |---|---|
 | Quy tắc kỹ thuật và nguồn chuẩn | [PROJECT_RULES](../PROJECT_RULES.md), [AGENTS](../AGENTS.md) |
-| Thuật ngữ Organization, Batch, Participant | [CONTEXT](../CONTEXT.md) |
+| Thuật ngữ Organization, Agreement, Session, Participant | [CONTEXT](../CONTEXT.md) |
 | Kiến trúc, module và luồng nghiệp vụ | [Architecture](architecture/README.md) |
 | API đang có và tương thích client/database | [API inventory](api/clean-slate-migration.md) |
 | Đăng nhập, cookie, Redis và cấu hình | [Login](api/login.md) |
-| Đơn vị và đợt khám | [Organization/Batch API](api/organizations-and-batches.md) |
+| Đơn vị và thỏa thuận | [Organization/Agreement API](api/organizations-and-agreements.md) |
+| Lịch khám và phân lịch | [Session/Assignment API](api/sessions-and-assignments.md) |
 | Danh sách người khám và nhập roster Excel | [Participant import/list](api/participant-import-and-list.md) |
 | Thêm, sửa, hủy và kích hoạt lại người khám | [Participant manual changes](api/participant-manual-crud.md) |
 | Đối soát dịch vụ Excel và báo cáo thanh toán Word | [Examination details/report](api/examination-details-and-report.md) |

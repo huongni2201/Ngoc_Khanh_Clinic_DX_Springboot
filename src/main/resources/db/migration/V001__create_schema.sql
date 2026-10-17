@@ -39,8 +39,10 @@ CREATE TABLE public.departments (
     active boolean NOT NULL DEFAULT true,
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    row_version bigint NOT NULL DEFAULT 0,
     CONSTRAINT ck_departments_type
-        CHECK (department_type IN ('CLINICAL', 'DIAGNOSTIC', 'ADMINISTRATIVE'))
+        CHECK (department_type IN ('CLINICAL', 'DIAGNOSTIC', 'ADMINISTRATIVE')),
+    CONSTRAINT ck_departments_catalog_version CHECK (row_version >= 0)
 );
 
 CREATE TABLE public.rooms (
@@ -49,14 +51,22 @@ CREATE TABLE public.rooms (
     code varchar(50) NOT NULL UNIQUE,
     name varchar(200) NOT NULL,
     room_type varchar(50) NOT NULL,
-    active boolean NOT NULL DEFAULT true
+    active boolean NOT NULL DEFAULT true,
+    row_version bigint NOT NULL DEFAULT 0,
+    created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_rooms_catalog_version CHECK (row_version >= 0)
 );
 
 CREATE TABLE public.specialties (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     code varchar(50) NOT NULL UNIQUE,
     name varchar(200) NOT NULL,
-    active boolean NOT NULL DEFAULT true
+    active boolean NOT NULL DEFAULT true,
+    row_version bigint NOT NULL DEFAULT 0,
+    created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_specialties_catalog_version CHECK (row_version >= 0)
 );
 
 CREATE TABLE public.services (
@@ -78,7 +88,8 @@ CREATE TABLE public.services (
         CHECK (unit_price <> 'NaN'::numeric
            AND unit_price <> 'Infinity'::numeric
            AND unit_price <> '-Infinity'::numeric
-           AND unit_price >= 0)
+           AND unit_price >= 0),
+    CONSTRAINT ck_services_catalog_version CHECK (row_version >= 0)
 );
 
 CREATE TABLE public.medicines (
@@ -89,7 +100,11 @@ CREATE TABLE public.medicines (
     strength varchar(100) NOT NULL,
     dosage_form varchar(100) NOT NULL,
     unit varchar(50) NOT NULL,
-    active boolean NOT NULL DEFAULT true
+    active boolean NOT NULL DEFAULT true,
+    row_version bigint NOT NULL DEFAULT 0,
+    created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_medicines_catalog_version CHECK (row_version >= 0)
 );
 
 CREATE TABLE public.lab_tests (
@@ -168,9 +183,14 @@ CREATE TABLE public.roles (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     code varchar(80) NOT NULL UNIQUE,
     name varchar(200) NOT NULL,
-    description text NOT NULL,
-    active boolean NOT NULL DEFAULT true
+    description text NULL,
+    active boolean NOT NULL DEFAULT true,
+    row_version bigint NOT NULL DEFAULT 0,
+    CONSTRAINT ck_roles_code_format CHECK (code ~ '^[A-Z][A-Z0-9_]*$')
 );
+
+-- Role names are unique ignoring case (BR-11).
+CREATE UNIQUE INDEX uq_roles_name_lower ON public.roles (lower(name));
 
 CREATE TABLE public.permissions (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -179,6 +199,10 @@ CREATE TABLE public.permissions (
     description text NOT NULL,
     http_method varchar(10) NULL,
     endpoint varchar(300) NULL,
+    -- Catalogue shown on the Role Permissions screen: module group, related use cases, "(sensitive)" label.
+    module varchar(80) NOT NULL,
+    use_cases varchar(200) NULL,
+    sensitive boolean NOT NULL DEFAULT false,
     CONSTRAINT ck_permissions_endpoint_pair CHECK ((http_method IS NULL) = (endpoint IS NULL)),
     CONSTRAINT ck_permissions_http_method CHECK (http_method IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')),
     CONSTRAINT uq_permissions_http_method_endpoint UNIQUE (http_method, endpoint)
@@ -788,37 +812,29 @@ CREATE TABLE public.organizations (
     CONSTRAINT ck_organizations_status CHECK (status IN ('ACTIVE', 'INACTIVE'))
 );
 
-    CREATE TABLE public.health_examination_batches (
+CREATE TABLE public.health_examination_agreements (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE RESTRICT,
-    batch_code varchar(50) NOT NULL UNIQUE,
+    agreement_code varchar(50) NOT NULL,
     name varchar(300) NOT NULL,
-    examination_site_type varchar(30) NOT NULL,
-    examination_site_address text NOT NULL,
     status varchar(20) NOT NULL,
     created_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     row_version bigint NOT NULL DEFAULT 0,
     deleted_at timestamptz(3) NULL,
-    CONSTRAINT ck_health_exam_batches_site_type CHECK (examination_site_type IN ('CLINIC', 'ORGANIZATION_SITE')),
-    CONSTRAINT ck_health_exam_batches_status CHECK (status IN ('DRAFT', 'READY', 'FINALIZED', 'CLOSED')),
-    CONSTRAINT health_examination_batches_name_present_chk CHECK (name ~ '\S'),
-    CONSTRAINT health_examination_batches_org_site_address_chk
-        CHECK (examination_site_type <> 'ORGANIZATION_SITE' OR examination_site_address ~ '\S')
+    valid_from date NULL,
+    valid_to date NULL,
+    CONSTRAINT uq_health_exam_agreements_code UNIQUE (agreement_code),
+    CONSTRAINT ck_health_exam_agreements_name CHECK (name ~ '\S'),
+    CONSTRAINT ck_health_exam_agreements_status CHECK (status IN ('DRAFT', 'ACTIVE', 'ENDED')),
+    CONSTRAINT ck_health_exam_agreements_validity CHECK (valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to),
+    CONSTRAINT uq_health_exam_agreements_org_scope UNIQUE (organization_id, id)
 );
 
-CREATE TABLE public.health_examination_batch_days (
+CREATE TABLE public.health_examination_agreement_services (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
-    batch_id uuid NOT NULL REFERENCES public.health_examination_batches(id) ON DELETE RESTRICT,
-    examination_date date NOT NULL,
-    CONSTRAINT uq_health_exam_batch_days_date UNIQUE (batch_id, examination_date),
-    CONSTRAINT uq_health_exam_batch_days_scope UNIQUE (batch_id, id)
-);
-
-CREATE TABLE public.health_examination_batch_services (
-    id uuid PRIMARY KEY DEFAULT uuidv7(),
-    batch_id uuid NOT NULL REFERENCES public.health_examination_batches(id) ON DELETE RESTRICT,
+    agreement_id uuid NOT NULL REFERENCES public.health_examination_agreements(id) ON DELETE RESTRICT,
     service_id uuid NOT NULL REFERENCES public.services(id) ON DELETE RESTRICT,
     reference_price_snapshot numeric(14,2) NOT NULL,
     negotiated_price numeric(14,2) NOT NULL,
@@ -827,29 +843,66 @@ CREATE TABLE public.health_examination_batch_services (
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     row_version bigint NOT NULL DEFAULT 0,
-    CONSTRAINT uq_health_exam_batch_services_service UNIQUE (batch_id, service_id),
-    CONSTRAINT uq_health_exam_batch_services_order UNIQUE (batch_id, display_order),
-    CONSTRAINT uq_health_exam_batch_services_scope UNIQUE (batch_id, id),
-    CONSTRAINT ck_health_exam_batch_services_reference_price CHECK (
+    CONSTRAINT uq_health_exam_agreement_services_order UNIQUE (agreement_id, display_order),
+    CONSTRAINT uq_health_exam_agreement_services_scope UNIQUE (agreement_id, id),
+    CONSTRAINT ck_health_exam_agreement_services_reference_price CHECK (
         reference_price_snapshot <> 'NaN'::numeric
         AND reference_price_snapshot <> 'Infinity'::numeric
         AND reference_price_snapshot <> '-Infinity'::numeric
         AND reference_price_snapshot >= 0
     ),
-    CONSTRAINT ck_health_exam_batch_services_negotiated_price CHECK (
+    CONSTRAINT ck_health_exam_agreement_services_negotiated_price CHECK (
         negotiated_price <> 'NaN'::numeric
         AND negotiated_price <> 'Infinity'::numeric
         AND negotiated_price <> '-Infinity'::numeric
         AND negotiated_price >= 0
     ),
-    CONSTRAINT ck_health_exam_batch_services_order CHECK (display_order > 0)
+    CONSTRAINT ck_health_exam_agreement_services_order CHECK (display_order > 0)
 );
 
--- import_job_id FK is added after public.import_jobs is created.
-CREATE TABLE public.health_examination_batch_participants (
+-- A price change retires the line and adds a new one, so a service may appear again once inactive.
+CREATE UNIQUE INDEX ux_health_exam_agreement_services_active
+    ON public.health_examination_agreement_services(agreement_id, service_id)
+    WHERE active;
+
+-- A session is one examination day at one site. It may belong to a single agreement or stay shared.
+CREATE TABLE public.health_examination_sessions (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
-    batch_id uuid NOT NULL REFERENCES public.health_examination_batches(id) ON DELETE RESTRICT,
-    batch_day_id uuid NOT NULL,
+    organization_id uuid NOT NULL REFERENCES public.organizations(id) ON DELETE RESTRICT,
+    agreement_id uuid NULL,
+    session_date date NOT NULL,
+    activity varchar(20) NOT NULL,
+    site_type varchar(30) NOT NULL,
+    site_address text NOT NULL DEFAULT '',
+    status varchar(20) NOT NULL DEFAULT 'OPEN',
+    created_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+    created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    row_version bigint NOT NULL DEFAULT 0,
+    CONSTRAINT uq_health_exam_sessions_org_scope UNIQUE (organization_id, id),
+    CONSTRAINT fk_health_exam_sessions_agreement
+        FOREIGN KEY (organization_id, agreement_id)
+        REFERENCES public.health_examination_agreements(organization_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT ck_health_exam_sessions_activity CHECK (activity IN ('ALL', 'SAMPLING', 'EXAMINATION')),
+    CONSTRAINT ck_health_exam_sessions_site_type CHECK (site_type IN ('CLINIC', 'ORGANIZATION_SITE')),
+    CONSTRAINT ck_health_exam_sessions_status CHECK (status IN ('OPEN', 'CANCELLED')),
+    CONSTRAINT ck_health_exam_sessions_site_address CHECK (site_type <> 'ORGANIZATION_SITE' OR site_address ~ '\S')
+);
+
+-- One open session per organization, date, site and activity; the crew decides how many people go in it.
+CREATE UNIQUE INDEX ux_health_exam_sessions_open_slot
+    ON public.health_examination_sessions(organization_id, session_date, site_type, site_address, activity)
+    WHERE status = 'OPEN';
+CREATE INDEX ix_health_exam_sessions_organization_date
+    ON public.health_examination_sessions(organization_id, session_date DESC, id);
+CREATE INDEX ix_health_exam_sessions_agreement
+    ON public.health_examination_sessions(agreement_id) WHERE agreement_id IS NOT NULL;
+
+-- import_job_id FK is added after public.import_jobs is created.
+CREATE TABLE public.health_examination_participants (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    agreement_id uuid NOT NULL REFERENCES public.health_examination_agreements(id) ON DELETE RESTRICT,
     participant_code text NULL,
     full_name varchar(200) NOT NULL,
     date_of_birth date NOT NULL,
@@ -867,11 +920,6 @@ CREATE TABLE public.health_examination_batch_participants (
     note text NULL,
     patient_id uuid NULL REFERENCES public.patients(id) ON DELETE RESTRICT,
     roster_status varchar(20) NOT NULL DEFAULT 'ACTIVE',
-    attendance_status varchar(20) NOT NULL DEFAULT 'UNCONFIRMED',
-    actual_examination_date date NULL,
-    attendance_recorded_by uuid NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
-    attendance_recorded_at timestamptz(3) NULL,
-    attendance_note text NULL,
     service_reconciliation_status varchar(20) NOT NULL DEFAULT 'PENDING',
     services_reconciled_by uuid NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
     services_reconciled_at timestamptz(3) NULL,
@@ -881,43 +929,71 @@ CREATE TABLE public.health_examination_batch_participants (
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     row_version bigint NOT NULL DEFAULT 0,
-    CONSTRAINT uq_health_exam_batch_participants_identification UNIQUE (batch_id, identification_number),
-    CONSTRAINT uq_health_exam_batch_participants_scope UNIQUE (batch_id, id),
-    CONSTRAINT fk_health_exam_batch_participants_day
-        FOREIGN KEY (batch_id, batch_day_id)
-        REFERENCES public.health_examination_batch_days(batch_id, id)
+    organization_id uuid NOT NULL,
+    CONSTRAINT uq_health_exam_participants_identification UNIQUE (agreement_id, identification_number),
+    CONSTRAINT uq_health_exam_participants_scope UNIQUE (agreement_id, id),
+    CONSTRAINT uq_health_exam_participants_org_scope UNIQUE (organization_id, id),
+    CONSTRAINT fk_health_exam_participants_agreement_org
+        FOREIGN KEY (organization_id, agreement_id)
+        REFERENCES public.health_examination_agreements(organization_id, id)
         ON DELETE RESTRICT,
-    CONSTRAINT ck_health_exam_batch_participants_identification CHECK (btrim(identification_number) <> ''),
-    CONSTRAINT ck_health_exam_batch_participants_roster CHECK (roster_status IN ('ACTIVE', 'CANCELLED')),
-    CONSTRAINT ck_health_exam_batch_participants_attendance CHECK (attendance_status IN ('UNCONFIRMED', 'ATTENDED', 'ABSENT')),
-    CONSTRAINT ck_health_exam_batch_participants_reconciliation CHECK (service_reconciliation_status IN ('PENDING', 'RECONCILED')),
-    CONSTRAINT ck_health_exam_batch_participants_attendance_date CHECK (
-        (attendance_status = 'ATTENDED' AND actual_examination_date IS NOT NULL)
-        OR
-        (attendance_status IN ('UNCONFIRMED', 'ABSENT') AND actual_examination_date IS NULL)
-    ),
-    CONSTRAINT ck_health_exam_batch_participants_attendance_actor CHECK (
-        (attendance_recorded_by IS NULL AND attendance_recorded_at IS NULL)
-        OR
-        (attendance_recorded_by IS NOT NULL AND attendance_recorded_at IS NOT NULL)
-    ),
-    CONSTRAINT ck_health_exam_batch_participants_reconciled_actor CHECK (
+    CONSTRAINT ck_health_exam_participants_identification CHECK (btrim(identification_number) <> ''),
+    CONSTRAINT ck_health_exam_participants_roster CHECK (roster_status IN ('ACTIVE', 'CANCELLED')),
+    CONSTRAINT ck_health_exam_participants_reconciliation CHECK (service_reconciliation_status IN ('PENDING', 'RECONCILED')),
+    CONSTRAINT ck_health_exam_participants_reconciled_actor CHECK (
         service_reconciliation_status <> 'RECONCILED'
         OR (services_reconciled_by IS NOT NULL AND services_reconciled_at IS NOT NULL)
     ),
-    CONSTRAINT ck_health_exam_batch_participants_import_source CHECK (
+    CONSTRAINT ck_health_exam_participants_import_source CHECK (
         (import_job_id IS NULL AND source_row_number IS NULL)
         OR
         (import_job_id IS NOT NULL AND source_row_number IS NOT NULL AND source_row_number > 0)
     ),
-    CONSTRAINT ck_health_exam_batch_participants_prepared CHECK (prepared_at IS NULL OR patient_id IS NOT NULL)
+    CONSTRAINT ck_health_exam_participants_prepared CHECK (prepared_at IS NULL OR patient_id IS NOT NULL)
 );
+
+-- A Participant is scheduled through any number of session assignments; attendance lives here.
+CREATE TABLE public.health_examination_session_assignments (
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
+    organization_id uuid NOT NULL,
+    participant_id uuid NOT NULL,
+    session_id uuid NOT NULL,
+    status varchar(20) NOT NULL DEFAULT 'ASSIGNED',
+    replaced_by_assignment_id uuid NULL REFERENCES public.health_examination_session_assignments(id) ON DELETE RESTRICT,
+    attended_at timestamptz(3) NULL,
+    note text NULL,
+    recorded_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
+    recorded_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    row_version bigint NOT NULL DEFAULT 0,
+    CONSTRAINT fk_health_exam_assignments_participant
+        FOREIGN KEY (organization_id, participant_id)
+        REFERENCES public.health_examination_participants(organization_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_health_exam_assignments_session
+        FOREIGN KEY (organization_id, session_id)
+        REFERENCES public.health_examination_sessions(organization_id, id)
+        ON DELETE RESTRICT,
+    CONSTRAINT ck_health_exam_assignments_status CHECK (status IN ('ASSIGNED', 'ATTENDED', 'NO_SHOW', 'MOVED', 'CANCELLED')),
+    CONSTRAINT ck_health_exam_assignments_attended CHECK ((status = 'ATTENDED') = (attended_at IS NOT NULL)),
+    CONSTRAINT ck_health_exam_assignments_moved CHECK ((status = 'MOVED') = (replaced_by_assignment_id IS NOT NULL))
+);
+
+-- A Participant is in a session at most once while the assignment is live.
+CREATE UNIQUE INDEX ux_health_exam_assignments_live
+    ON public.health_examination_session_assignments(participant_id, session_id)
+    WHERE status IN ('ASSIGNED', 'ATTENDED');
+CREATE INDEX ix_health_exam_assignments_session_status
+    ON public.health_examination_session_assignments(session_id, status);
+CREATE INDEX ix_health_exam_assignments_participant_status
+    ON public.health_examination_session_assignments(participant_id, status);
 
 CREATE TABLE public.health_examination_participant_services (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
-    batch_id uuid NOT NULL,
-    batch_participant_id uuid NOT NULL,
-    batch_service_id uuid NOT NULL,
+    agreement_id uuid NOT NULL,
+    participant_id uuid NOT NULL,
+    agreement_service_id uuid NOT NULL,
     is_performed boolean NOT NULL,
     service_request_id uuid NULL REFERENCES public.service_requests(id) ON DELETE RESTRICT,
     unit_price_snapshot numeric(14,2) NOT NULL,
@@ -926,14 +1002,14 @@ CREATE TABLE public.health_examination_participant_services (
     created_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     row_version bigint NOT NULL DEFAULT 0,
-    CONSTRAINT uq_health_exam_participant_services UNIQUE (batch_participant_id, batch_service_id),
+    CONSTRAINT uq_health_exam_participant_services UNIQUE (participant_id, agreement_service_id),
     CONSTRAINT fk_health_exam_participant_services_participant
-        FOREIGN KEY (batch_id, batch_participant_id)
-        REFERENCES public.health_examination_batch_participants(batch_id, id)
+        FOREIGN KEY (agreement_id, participant_id)
+        REFERENCES public.health_examination_participants(agreement_id, id)
         ON DELETE RESTRICT,
     CONSTRAINT fk_health_exam_participant_services_service
-        FOREIGN KEY (batch_id, batch_service_id)
-        REFERENCES public.health_examination_batch_services(batch_id, id)
+        FOREIGN KEY (agreement_id, agreement_service_id)
+        REFERENCES public.health_examination_agreement_services(agreement_id, id)
         ON DELETE RESTRICT,
     CONSTRAINT ck_health_exam_participant_services_price CHECK (
         unit_price_snapshot <> 'NaN'::numeric
@@ -949,7 +1025,7 @@ CREATE UNIQUE INDEX ux_health_exam_participant_services_request
 
 CREATE TABLE public.health_examination_records (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
-    batch_participant_id uuid NULL REFERENCES public.health_examination_batch_participants(id) ON DELETE RESTRICT,
+    participant_id uuid NULL REFERENCES public.health_examination_participants(id) ON DELETE RESTRICT,
     encounter_id uuid NOT NULL UNIQUE REFERENCES public.encounters(id) ON DELETE RESTRICT,
     mrn varchar(100) NOT NULL UNIQUE,
     status varchar(20) NOT NULL,
@@ -970,8 +1046,8 @@ CREATE TABLE public.health_examination_records (
 );
 
 CREATE UNIQUE INDEX ux_health_exam_records_active_participant
-    ON public.health_examination_records(batch_participant_id)
-    WHERE batch_participant_id IS NOT NULL AND status <> 'CANCELLED';
+    ON public.health_examination_records(participant_id)
+    WHERE participant_id IS NOT NULL AND status <> 'CANCELLED';
 
 CREATE TABLE public.health_examination_record_snapshots (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -1224,7 +1300,7 @@ CREATE TABLE public.document_render_jobs (
     document_type varchar(100) NOT NULL,
     requested_by uuid NOT NULL REFERENCES public.accounts(id) ON DELETE RESTRICT,
     idempotency_key uuid NOT NULL,
-    -- Free-form identifiers the owning module needs to load the records (organization, batch ...).
+    -- Free-form identifiers the owning module needs to load the records (organization, agreement ...).
     context jsonb NOT NULL,
     source_ids uuid[] NOT NULL,
     status varchar(20) NOT NULL,
@@ -1285,7 +1361,7 @@ CREATE TABLE public.document_render_job_outputs (
 CREATE TABLE public.import_jobs (
     id uuid PRIMARY KEY DEFAULT uuidv7(),
     import_type varchar(50) NOT NULL,
-    batch_id uuid NULL REFERENCES public.health_examination_batches(id) ON DELETE RESTRICT,
+    agreement_id uuid NULL REFERENCES public.health_examination_agreements(id) ON DELETE RESTRICT,
     configuration jsonb NOT NULL,
     source_file_id uuid NULL REFERENCES public.files(id) ON DELETE RESTRICT,
     status varchar(20) NOT NULL,
@@ -1299,7 +1375,7 @@ CREATE TABLE public.import_jobs (
     row_version bigint NOT NULL DEFAULT 0,
     CONSTRAINT ck_import_jobs_type CHECK (import_type IN ('ORGANIZATION_PARTICIPANT', 'HEALTH_EXAMINATION_RESULT', 'HEALTH_EXAMINATION_SERVICE_RECONCILIATION')),
     CONSTRAINT ck_import_jobs_status CHECK (status IN ('VALIDATED', 'CONFIRMED', 'CANCELLED', 'EXPIRED')),
-    CONSTRAINT ck_import_jobs_batch CHECK (batch_id IS NOT NULL),
+    CONSTRAINT ck_import_jobs_agreement CHECK (agreement_id IS NOT NULL),
     CONSTRAINT ck_import_jobs_confirmed CHECK (
         (status = 'CONFIRMED' AND confirmed_by IS NOT NULL AND confirmed_at IS NOT NULL AND confirmed_result IS NOT NULL)
         OR
@@ -1420,8 +1496,8 @@ CREATE TABLE public.outbox_events (
     )
 );
 
-ALTER TABLE public.health_examination_batch_participants
-    ADD CONSTRAINT fk_health_exam_batch_participants_import_job
+ALTER TABLE public.health_examination_participants
+    ADD CONSTRAINT fk_health_exam_participants_import_job
     FOREIGN KEY (import_job_id)
     REFERENCES public.import_jobs(id)
     ON DELETE RESTRICT;
@@ -1599,12 +1675,10 @@ CREATE INDEX ix_prescription_items_version ON public.prescription_items(prescrip
 CREATE INDEX ix_appointments_patient_time ON public.appointments(patient_id, scheduled_start DESC);
 CREATE INDEX ix_appointments_doctor_time ON public.appointments(doctor_id, scheduled_start);
 
-CREATE INDEX ix_health_exam_batches_organization ON public.health_examination_batches(organization_id, created_at DESC);
-CREATE INDEX ix_health_exam_batch_participants_day ON public.health_examination_batch_participants(batch_id, batch_day_id);
-CREATE INDEX ix_health_exam_batch_participants_reconciliation ON public.health_examination_batch_participants(batch_id, service_reconciliation_status);
-CREATE INDEX ix_health_exam_batch_participants_attendance ON public.health_examination_batch_participants(batch_id, attendance_status);
-CREATE INDEX ix_health_exam_batch_participants_patient ON public.health_examination_batch_participants(patient_id) WHERE patient_id IS NOT NULL;
-CREATE INDEX ix_health_exam_participant_services_performed ON public.health_examination_participant_services(batch_id, batch_participant_id, is_performed);
+CREATE INDEX ix_health_exam_agreements_organization ON public.health_examination_agreements(organization_id, created_at DESC);
+CREATE INDEX ix_health_exam_participants_reconciliation ON public.health_examination_participants(agreement_id, service_reconciliation_status);
+CREATE INDEX ix_health_exam_participants_patient ON public.health_examination_participants(patient_id) WHERE patient_id IS NOT NULL;
+CREATE INDEX ix_health_exam_participant_services_performed ON public.health_examination_participant_services(agreement_id, participant_id, is_performed);
 CREATE INDEX ix_health_exam_record_versions_record_status ON public.health_examination_record_versions(health_examination_record_id, status);
 CREATE INDEX ix_health_exam_record_version_items_version ON public.health_examination_record_version_items(record_version_id);
 
@@ -1613,8 +1687,24 @@ CREATE INDEX ix_document_service_template_mappings_effective ON public.service_t
 CREATE INDEX ix_document_issued_rep_template ON public.issued_representations(template_version_id, issued_at DESC);
 
 CREATE INDEX ix_import_jobs_type_status ON public.import_jobs(import_type, status);
-CREATE INDEX ix_import_jobs_batch_created ON public.import_jobs(batch_id, created_at DESC);
+CREATE INDEX ix_import_jobs_agreement_created ON public.import_jobs(agreement_id, created_at DESC);
 CREATE INDEX ix_import_rows_job ON public.import_rows(job_id, row_number);
+
+-- Accounts by role: the Role List counts the accounts holding each role, and the index serves the foreign
+-- key check when a role row changes.
+CREATE INDEX ix_accounts_role_id ON public.accounts (role_id);
+
+-- Catalog management: no two codes differ only by case or surrounding spaces.
+CREATE UNIQUE INDEX uq_departments_code_canonical ON public.departments (upper(btrim(code)));
+CREATE UNIQUE INDEX uq_rooms_code_canonical ON public.rooms (upper(btrim(code)));
+CREATE UNIQUE INDEX uq_specialties_code_canonical ON public.specialties (upper(btrim(code)));
+CREATE UNIQUE INDEX uq_services_code_canonical ON public.services (upper(btrim(code)));
+CREATE UNIQUE INDEX uq_medicines_code_canonical ON public.medicines (upper(btrim(code)));
+
+-- Parent dependency checks and list filters.
+CREATE INDEX idx_rooms_department_active ON public.rooms (department_id, active);
+CREATE INDEX idx_services_performing_dept_active ON public.services (performing_department_id, active);
+CREATE INDEX idx_services_specialty_active ON public.services (specialty_id, active) WHERE specialty_id IS NOT NULL;
 CREATE INDEX ix_external_code_mappings_external ON public.external_code_mappings(connection_id, mapping_type, external_code);
 CREATE INDEX ix_health_data_submissions_patient ON public.health_data_submissions(patient_id, created_at DESC);
 CREATE INDEX ix_health_data_submissions_status ON public.health_data_submissions(status, created_at);
@@ -2233,24 +2323,24 @@ BEFORE INSERT OR UPDATE OR DELETE ON public.prescription_items
 FOR EACH ROW EXECUTE FUNCTION public.trg_protect_official_prescription_children();
 
 -- 17.7 Health Examination import/source/scope validation.
-CREATE OR REPLACE FUNCTION public.trg_validate_batch_participant()
+CREATE OR REPLACE FUNCTION public.trg_validate_health_exam_participant()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_job_type text;
-    v_job_batch uuid;
+    v_job_agreement uuid;
     v_job_status text;
 BEGIN
     IF NEW.import_job_id IS NOT NULL THEN
-        SELECT import_type, batch_id, status INTO v_job_type, v_job_batch, v_job_status
+        SELECT import_type, agreement_id, status INTO v_job_type, v_job_agreement, v_job_status
         FROM public.import_jobs
         WHERE id = NEW.import_job_id;
 
         IF v_job_type IS DISTINCT FROM 'ORGANIZATION_PARTICIPANT'
-           OR v_job_batch IS DISTINCT FROM NEW.batch_id
+           OR v_job_agreement IS DISTINCT FROM NEW.agreement_id
            OR v_job_status NOT IN ('VALIDATED', 'CONFIRMED') THEN
-            RAISE EXCEPTION 'BatchParticipant import_job_id must reference ORGANIZATION_PARTICIPANT job in the same Batch'
+            RAISE EXCEPTION 'Participant import_job_id must reference ORGANIZATION_PARTICIPANT job in the same Agreement'
                 USING ERRCODE = '23514';
         END IF;
     END IF;
@@ -2260,11 +2350,11 @@ BEGIN
         SELECT 1
         FROM public.health_examination_records r
         JOIN public.encounters e ON e.id = r.encounter_id
-        WHERE r.batch_participant_id = NEW.id
+        WHERE r.participant_id = NEW.id
           AND r.status <> 'CANCELLED'
           AND e.patient_id <> NEW.patient_id
     ) THEN
-        RAISE EXCEPTION 'BatchParticipant patient_id would break existing HealthExaminationRecord ownership'
+        RAISE EXCEPTION 'Participant patient_id would break existing HealthExaminationRecord ownership'
             USING ERRCODE = '23514';
     END IF;
 
@@ -2272,9 +2362,41 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER trg_health_exam_batch_participants_validate
-BEFORE INSERT OR UPDATE ON public.health_examination_batch_participants
-FOR EACH ROW EXECUTE FUNCTION public.trg_validate_batch_participant();
+CREATE TRIGGER trg_health_exam_participants_validate
+BEFORE INSERT OR UPDATE ON public.health_examination_participants
+FOR EACH ROW EXECUTE FUNCTION public.trg_validate_health_exam_participant();
+
+-- A session that belongs to one agreement only schedules Participants of that agreement.
+CREATE OR REPLACE FUNCTION public.trg_validate_session_assignment_scope()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_session_agreement uuid;
+    v_participant_agreement uuid;
+BEGIN
+    SELECT agreement_id INTO v_session_agreement
+    FROM public.health_examination_sessions
+    WHERE id = NEW.session_id;
+
+    IF v_session_agreement IS NOT NULL THEN
+        SELECT agreement_id INTO v_participant_agreement
+        FROM public.health_examination_participants
+        WHERE id = NEW.participant_id;
+
+        IF v_participant_agreement IS DISTINCT FROM v_session_agreement THEN
+            RAISE EXCEPTION 'Session belongs to another Agreement than the Participant'
+                USING ERRCODE = '23514';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_health_exam_assignments_validate_scope
+BEFORE INSERT OR UPDATE OF participant_id, session_id ON public.health_examination_session_assignments
+FOR EACH ROW EXECUTE FUNCTION public.trg_validate_session_assignment_scope();
 
 CREATE OR REPLACE FUNCTION public.trg_validate_health_exam_record_scope()
 RETURNS trigger
@@ -2284,20 +2406,20 @@ DECLARE
     v_participant_patient uuid;
     v_encounter_patient uuid;
 BEGIN
-    IF NEW.batch_participant_id IS NULL THEN
+    IF NEW.participant_id IS NULL THEN
         RETURN NEW;
     END IF;
 
     SELECT patient_id INTO v_participant_patient
-    FROM public.health_examination_batch_participants
-    WHERE id = NEW.batch_participant_id;
+    FROM public.health_examination_participants
+    WHERE id = NEW.participant_id;
 
     SELECT patient_id INTO v_encounter_patient
     FROM public.encounters
     WHERE id = NEW.encounter_id;
 
     IF v_participant_patient IS NULL OR v_encounter_patient IS NULL OR v_participant_patient <> v_encounter_patient THEN
-        RAISE EXCEPTION 'Corporate HealthExaminationRecord must use the BatchParticipant Patient/Encounter'
+        RAISE EXCEPTION 'Corporate HealthExaminationRecord must use the Participant Patient/Encounter'
             USING ERRCODE = '23514';
     END IF;
 
@@ -2306,7 +2428,7 @@ END;
 $$;
 
 CREATE TRIGGER trg_health_exam_records_validate_scope
-BEFORE INSERT OR UPDATE OF batch_participant_id, encounter_id ON public.health_examination_records
+BEFORE INSERT OR UPDATE OF participant_id, encounter_id ON public.health_examination_records
 FOR EACH ROW EXECUTE FUNCTION public.trg_validate_health_exam_record_scope();
 
 CREATE OR REPLACE FUNCTION public.trg_validate_participant_service_scope()
@@ -2314,7 +2436,7 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_batch_service_id uuid;
+    v_agreement_service_id uuid;
     v_catalog_service_id uuid;
     v_participant_patient uuid;
     v_request_service uuid;
@@ -2322,11 +2444,11 @@ DECLARE
     v_request_patient uuid;
 BEGIN
     SELECT bs.service_id INTO v_catalog_service_id
-    FROM public.health_examination_batch_services bs
-    WHERE bs.batch_id = NEW.batch_id AND bs.id = NEW.batch_service_id;
+    FROM public.health_examination_agreement_services bs
+    WHERE bs.agreement_id = NEW.agreement_id AND bs.id = NEW.agreement_service_id;
 
     IF v_catalog_service_id IS NULL THEN
-        RAISE EXCEPTION 'BatchService does not belong to ParticipantService batch' USING ERRCODE = '23514';
+        RAISE EXCEPTION 'AgreementService does not belong to ParticipantService agreement' USING ERRCODE = '23514';
     END IF;
 
     IF NEW.service_request_id IS NULL THEN
@@ -2334,11 +2456,11 @@ BEGIN
     END IF;
 
     SELECT be.patient_id INTO v_participant_patient
-    FROM public.health_examination_batch_participants be
-    WHERE be.batch_id = NEW.batch_id AND be.id = NEW.batch_participant_id;
+    FROM public.health_examination_participants be
+    WHERE be.agreement_id = NEW.agreement_id AND be.id = NEW.participant_id;
 
     IF v_participant_patient IS NULL THEN
-        RAISE EXCEPTION 'Cannot link ServiceRequest before BatchParticipant has a prepared Patient'
+        RAISE EXCEPTION 'Cannot link ServiceRequest before Participant has a prepared Patient'
             USING ERRCODE = '23514';
     END IF;
 
@@ -2359,7 +2481,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM public.health_examination_records r
-        WHERE r.batch_participant_id = NEW.batch_participant_id
+        WHERE r.participant_id = NEW.participant_id
           AND r.encounter_id = v_request_encounter
           AND r.status <> 'CANCELLED'
     ) THEN
@@ -2432,7 +2554,7 @@ DECLARE
     v_result_service uuid;
     v_result_status text;
 BEGIN
-    SELECT rv.health_examination_record_id, r.encounter_id, r.batch_participant_id
+    SELECT rv.health_examination_record_id, r.encounter_id, r.participant_id
     INTO v_record_id, v_record_encounter, v_record_participant
     FROM public.health_examination_record_versions rv
     JOIN public.health_examination_records r ON r.id = rv.health_examination_record_id
@@ -2445,9 +2567,9 @@ BEGIN
 
         SELECT bs.service_id INTO v_item_service
         FROM public.health_examination_participant_services es
-        JOIN public.health_examination_batch_services bs ON bs.id = es.batch_service_id
+        JOIN public.health_examination_agreement_services bs ON bs.id = es.agreement_service_id
         WHERE es.id = NEW.participant_service_id
-          AND es.batch_participant_id = v_record_participant
+          AND es.participant_id = v_record_participant
           AND es.is_performed = true;
 
         IF v_item_service IS NULL OR v_item_service <> NEW.service_id THEN
@@ -2535,13 +2657,13 @@ BEGIN
                 USING ERRCODE = '23514';
         END IF;
 
-        SELECT batch_participant_id INTO v_participant_id
+        SELECT participant_id INTO v_participant_id
         FROM public.health_examination_records
         WHERE id = NEW.health_examination_record_id;
 
         IF v_participant_id IS NOT NULL THEN
             SELECT service_reconciliation_status INTO v_reconciliation
-            FROM public.health_examination_batch_participants
+            FROM public.health_examination_participants
             WHERE id = v_participant_id;
 
             IF v_reconciliation IS DISTINCT FROM 'RECONCILED' THEN
@@ -2552,7 +2674,7 @@ BEGIN
             IF EXISTS (
                 SELECT 1
                 FROM public.health_examination_participant_services es
-                WHERE es.batch_participant_id = v_participant_id
+                WHERE es.participant_id = v_participant_id
                   AND es.is_performed = true
                   AND NOT EXISTS (
                       SELECT 1
@@ -3136,11 +3258,12 @@ FOR EACH ROW EXECUTE FUNCTION public.trg_reject_audit_mutation();
 -- ============================================================================
 -- 1) Permissions/roles for each use case are enforced by Spring Security and the
 --    application layer; database FKs cannot prove that ordered_by is a DOCTOR.
--- 2) Batch creation must insert at least one BatchDay in the same transaction.
+-- 2) An Agreement is scheduled through Sessions and Assignments; the application creates a Session
+--    before it assigns Participants to it.
 -- 3) Optimistic locking must always update row_version = row_version + 1 with an
 --    expectedVersion predicate. No trigger in this file increments row_version.
 -- 4) Import validation is all-or-nothing before ImportJob/ImportRow staging.
--- 5) Reconciliation must lock BatchParticipant, update ParticipantService rows,
+-- 5) Reconciliation must lock the Participant, update ParticipantService rows,
 --    transition reconciliation state, and write audit atomically.
 -- 6) Refund/provider/outbox/notification UNKNOWN outcomes require provider-side
 --    idempotency/reconciliation; the DB only stores the durable state/fencing.

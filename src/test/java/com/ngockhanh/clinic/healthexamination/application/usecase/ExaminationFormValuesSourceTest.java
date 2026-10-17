@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 import com.ngockhanh.clinic.document.application.contract.DocumentValuesSource;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormSourceLoader;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationFormValuesSource;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
@@ -27,7 +27,12 @@ import org.junit.jupiter.api.Test;
 class ExaminationFormValuesSourceTest extends ManualParticipantUseCaseTestBase {
   private final ExaminationFormSourceLoader loader =
       new ExaminationFormSourceLoader(
-          support, organizations, participants, Clock.fixed(NOW, ZoneOffset.UTC));
+          support,
+          organizations,
+          participants,
+          sessions,
+          assignments,
+          Clock.fixed(NOW, ZoneOffset.UTC));
   private final ExaminationFormValuesSource source = new ExaminationFormValuesSource(loader);
 
   ExaminationFormValuesSourceTest() {
@@ -37,20 +42,20 @@ class ExaminationFormValuesSourceTest extends ManualParticipantUseCaseTestBase {
   private Map<String, String> context() {
     return Map.of(
         ExaminationFormValuesSource.ORGANIZATION_ID, organizationId.toString(),
-        ExaminationFormValuesSource.BATCH_ID, batchId.toString());
+        ExaminationFormValuesSource.AGREEMENT_ID, agreementId.toString());
   }
 
   @Test
   void loadsActiveParticipantsInTheRequestedOrderAndLeavesOutTheOthers() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var first = stored(0);
-    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null, null));
+    var cancelled = stored(1, progress(null, RosterStatus.CANCELLED, null));
     var second = stored(0);
     var missing = UUID.randomUUID();
-    when(participants.findManyInBatch(any(), any())).thenReturn(List.of(second, first, cancelled));
+    when(participants.findManyInAgreement(any(), any()))
+        .thenReturn(List.of(second, first, cancelled));
     var ids =
-        List.of(
-            second.getId().value(), missing, cancelled.getId().value(), first.getId().value());
+        List.of(second.getId().value(), missing, cancelled.getId().value(), first.getId().value());
 
     var loaded = source.load(context(), ids);
 
@@ -71,20 +76,20 @@ class ExaminationFormValuesSourceTest extends ManualParticipantUseCaseTestBase {
 
   @Test
   void readsWithoutLockingAnyRow() {
-    givenOpenBatch();
+    givenOpenAgreement();
     var participant = stored(0);
-    when(participants.findManyInBatch(any(), any())).thenReturn(List.of(participant));
+    when(participants.findManyInAgreement(any(), any())).thenReturn(List.of(participant));
 
     source.load(context(), List.of(participant.getId().value()));
 
-    verify(participants, never()).findManyInBatchForUpdate(any(), any());
+    verify(participants, never()).findManyInAgreementForUpdate(any(), any());
   }
 
   @Test
-  void aBatchThatIsNoLongerPrintableStopsTheJobInsteadOfSkippingEveryone() {
-    for (var status : BatchStatus.values()) {
-      if (status == BatchStatus.READY || status == BatchStatus.FINALIZED) continue;
-      givenBatch(status, null, true);
+  void anAgreementThatIsNoLongerPrintableStopsTheJobInsteadOfSkippingEveryone() {
+    for (var status : AgreementStatus.values()) {
+      if (status == AgreementStatus.ACTIVE || status == AgreementStatus.ENDED) continue;
+      givenAgreement(status, null, true);
       assertThatThrownBy(() -> source.load(context(), List.of(UUID.randomUUID())))
           .as(status.name())
           .isInstanceOf(ConflictException.class);
@@ -92,15 +97,14 @@ class ExaminationFormValuesSourceTest extends ManualParticipantUseCaseTestBase {
   }
 
   @Test
-  void aBatchOrOrganizationThatIsGoneStopsTheJob() {
-    when(batches.findDetails(organizationId, batchId, false)).thenReturn(Optional.empty());
+  void anAgreementOrOrganizationThatIsGoneStopsTheJob() {
+    when(agreements.findDetails(organizationId, agreementId, false)).thenReturn(Optional.empty());
     assertThatThrownBy(() -> source.load(context(), List.of(UUID.randomUUID())))
         .isInstanceOf(ResourceNotFoundException.class);
 
-    givenOpenBatch();
+    givenOpenAgreement();
     when(organizations.findById(any())).thenReturn(Optional.empty());
     assertThatThrownBy(() -> source.load(context(), List.of(UUID.randomUUID())))
         .isInstanceOf(ResourceNotFoundException.class);
   }
-
 }

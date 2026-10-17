@@ -9,9 +9,9 @@ import lombok.Builder;
 @Builder
 public record HealthExaminationParticipantServiceRecord(
     UUID id,
-    UUID batchId,
-    UUID batchParticipantId,
-    UUID batchServiceId,
+    UUID agreementId,
+    UUID participantId,
+    UUID agreementServiceId,
     boolean isPerformed,
     UUID serviceRequestId,
     BigDecimal unitPriceSnapshot,

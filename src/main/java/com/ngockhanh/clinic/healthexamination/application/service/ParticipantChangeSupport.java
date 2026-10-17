@@ -1,14 +1,16 @@
 package com.ngockhanh.clinic.healthexamination.application.service;
 
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;
+import com.ngockhanh.clinic.healthexamination.application.response.ParticipantDetailResponse;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationAgreement;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.Roster;
 import com.ngockhanh.clinic.healthexamination.domain.enums.OrganizationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolation;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationAgreementRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.SessionAssignmentRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
@@ -26,78 +28,67 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * Steps shared by the manual Participant use cases: resolving and locking the batch, checking that
- * the roster may still change, resolving the examination day, building the roster and writing the
- * audit event. It holds no state and starts no transaction; the calling use case owns it.
+ * Steps shared by the manual Participant use cases: resolving and locking the agreement, checking
+ * that the roster may still change, building the roster and writing the audit event. It holds no
+ * state and starts no transaction; the calling use case owns it.
  */
 @Component
 @RequiredArgsConstructor
 public class ParticipantChangeSupport {
-  static final String ENTITY_TYPE = "HEALTH_EXAMINATION_BATCH_PARTICIPANT";
+  static final String ENTITY_TYPE = "HEALTH_EXAMINATION_PARTICIPANT";
 
   /** Business time zone used to decide what "today" is for a date of birth. */
   static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
   private final OrganizationRepository organizations;
-  private final HealthExaminationBatchRepository batches;
-  private final HealthExaminationBatchParticipantRepository participants;
+  private final HealthExaminationAgreementRepository agreements;
+  private final HealthExaminationParticipantRepository participants;
+  private final SessionAssignmentRepository assignments;
   private final AuditWriter audit;
   private final Clock clock;
 
   /**
-   * Loads the batch of an organization without locking it, for a read.
+   * Loads the agreement of an organization without locking it, for a read.
    *
-   * @throws ResourceNotFoundException when the batch does not exist, is deleted or belongs to
+   * @throws ResourceNotFoundException when the agreement does not exist, is deleted or belongs to
    *     another organization
    */
-  public HealthExaminationBatch batchForRead(UUID organizationId, UUID batchId) {
-    return batches
-        .findDetails(organizationId, batchId, false)
+  public HealthExaminationAgreement agreementForRead(UUID organizationId, UUID agreementId) {
+    return agreements
+        .findDetails(organizationId, agreementId, false)
         .orElseThrow(() -> new ResourceNotFoundException("Participant"))
-        .batch();
+        .agreement();
   }
 
   /**
-   * Locks the batch header and checks that the roster may change. The lock order is batch, then
-   * Participant, the same as the Excel import.
+   * Locks the agreement header and checks that the roster may change. The lock order is agreement,
+   * then Participant, the same as the Excel import.
    *
-   * @throws ResourceNotFoundException when the organization or the batch does not exist
-   * @throws ConflictException when the organization is not active or the batch is not a draft or
-   *     ready batch
+   * @throws ResourceNotFoundException when the organization or the agreement does not exist
+   * @throws ConflictException when the organization is not active or the agreement is not a draft
+   *     or active agreement
    */
-  public HealthExaminationBatch lockBatchForChange(UUID organizationId, UUID batchId) {
-    var batch =
-        batches
-            .findDetails(organizationId, batchId, true)
+  public HealthExaminationAgreement lockAgreementForChange(UUID organizationId, UUID agreementId) {
+    var agreement =
+        agreements
+            .findDetails(organizationId, agreementId, true)
             .orElseThrow(() -> new ResourceNotFoundException("Participant"))
-            .batch();
+            .agreement();
     var organization =
         organizations
             .findById(AggregateId.of(organizationId))
             .orElseThrow(() -> new ResourceNotFoundException("Participant"));
-    if (organization.status() != OrganizationStatus.ACTIVE || !batch.acceptsParticipantChanges())
-      throw new ConflictException("Batch does not accept Participant changes");
-    return batch;
+    if (organization.status() != OrganizationStatus.ACTIVE
+        || !agreement.acceptsParticipantChanges())
+      throw new ConflictException("Agreement does not accept Participant changes");
+    return agreement;
   }
 
-  /**
-   * Resolves an examination day of the batch.
-   *
-   * @throws ConflictException when the day does not belong to the batch
-   */
-  public AggregateId requireDay(HealthExaminationBatch batch, UUID batchDayId) {
-    boolean belongs = batch.days().stream().anyMatch(day -> day.id().equals(batchDayId));
-    if (!belongs) throw new ConflictException("Examination day is not a day of this batch");
-    return AggregateId.of(batchDayId);
-  }
-
-  /** Date of an examination day of the batch. */
-  public static LocalDate examinationDate(HealthExaminationBatch batch, AggregateId dayId) {
-    return batch.days().stream()
-        .filter(day -> day.id().equals(dayId.value()))
-        .map(day -> day.examinationDate())
-        .findFirst()
-        .orElseThrow(() -> new IllegalStateException("Participant day is not a day of its batch"));
+  /** Builds the full Participant response with its current schedule history. */
+  public ParticipantDetailResponse detail(
+      UUID organizationId, HealthExaminationParticipant participant) {
+    return ParticipantDetailResponse.from(
+        participant, assignments.findByParticipant(organizationId, participant.getId().value()));
   }
 
   /**
@@ -142,16 +133,17 @@ public class ParticipantChangeSupport {
   }
 
   /**
-   * Generates the participant codes of {@code count} new Participants of the batch: the batch code,
-   * a dash and a running number of at least four digits ({@code ABC01-0001}). The number continues
-   * after every Participant already in the batch, cancelled ones included, so a code is never
-   * reused. The batch must be locked by the caller, which makes the count stable until commit.
+   * Generates the participant codes of {@code count} new Participants of the agreement: the
+   * agreement code, a dash and a running number of at least four digits ({@code ABC01-0001}). The
+   * number continues after every Participant already in the agreement, cancelled ones included, so
+   * a code is never reused. The agreement must be locked by the caller, which makes the count
+   * stable until commit.
    */
-  public List<String> nextParticipantCodes(HealthExaminationBatch batch, int count) {
-    long existing = participants.countInBatch(batch.id());
+  public List<String> nextParticipantCodes(HealthExaminationAgreement agreement, int count) {
+    long existing = participants.countInAgreement(agreement.id());
     List<String> codes = new ArrayList<>(count);
     for (int i = 1; i <= count; i++)
-      codes.add(String.format("%s-%04d", batch.code(), existing + i));
+      codes.add(String.format("%s-%04d", agreement.code(), existing + i));
     return List.copyOf(codes);
   }
 
@@ -166,16 +158,16 @@ public class ParticipantChangeSupport {
   }
 
   /**
-   * Rejects an identification number that another Participant of the batch already holds, whatever
-   * that Participant's roster status.
+   * Rejects an identification number that another Participant of the agreement already holds,
+   * whatever that Participant's roster status.
    *
    * @param excludeId the Participant being edited, or {@code null} when adding
    * @throws ConflictException when the number is taken
    */
   public void requireIdentityFree(
-      AggregateId batchId, IdentificationNumber identity, AggregateId excludeId) {
-    if (participants.identityTakenByOther(batchId, identity, excludeId))
-      throw new ConflictException("Participant identity already exists in this batch");
+      AggregateId agreementId, IdentificationNumber identity, AggregateId excludeId) {
+    if (participants.identityTakenByOther(agreementId, identity, excludeId))
+      throw new ConflictException("Participant identity already exists in this agreement");
   }
 
   /**
@@ -190,9 +182,8 @@ public class ParticipantChangeSupport {
     }
   }
 
-  /** Names of the roster fields and the examination day that differ, never their values. */
-  public static List<String> changedFields(
-      Roster before, AggregateId dayBefore, Roster after, AggregateId dayAfter) {
+  /** Names of the roster fields that differ, never their values. */
+  public static List<String> changedFields(Roster before, Roster after) {
     List<String> changed = new ArrayList<>();
     if (!Objects.equals(before.participantCode(), after.participantCode()))
       changed.add("participantCode");
@@ -214,7 +205,6 @@ public class ParticipantChangeSupport {
       changed.add("departmentName");
     if (!Objects.equals(before.positionName(), after.positionName())) changed.add("positionName");
     if (!Objects.equals(before.note(), after.note())) changed.add("note");
-    if (!Objects.equals(dayBefore, dayAfter)) changed.add("examinationDay");
     return List.copyOf(changed);
   }
 
@@ -226,7 +216,7 @@ public class ParticipantChangeSupport {
       UUID actor,
       String action,
       UUID organizationId,
-      HealthExaminationBatchParticipant participant,
+      HealthExaminationParticipant participant,
       Long versionBefore,
       long versionAfter,
       List<String> changedFields) {
@@ -242,10 +232,10 @@ public class ParticipantChangeSupport {
   }
 
   private static Map<String, Object> snapshot(
-      UUID organizationId, HealthExaminationBatchParticipant participant, long version) {
+      UUID organizationId, HealthExaminationParticipant participant, long version) {
     Map<String, Object> snapshot = new HashMap<>();
     snapshot.put("organizationId", organizationId);
-    snapshot.put("batchId", participant.getBatchId().value());
+    snapshot.put("agreementId", participant.getAgreementId().value());
     snapshot.put("rowVersion", version);
     snapshot.put("source", participant.isManual() ? "MANUAL" : "IMPORT");
     return snapshot;

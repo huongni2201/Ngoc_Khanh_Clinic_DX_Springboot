@@ -1,38 +1,35 @@
 package com.ngockhanh.clinic.healthexamination.application.service;
 
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationBatchParticipantService;
-import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationAgreement;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.entity.HealthExaminationParticipantService;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ReconciliationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.infrastructure.id.UuidV7Generator;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Applies one entry (a row of an examination detail file, or a manual entry for one Participant)
- * to a Participant: the entry is the new reconciliation state of that Participant.
+ * Applies one entry (a row of an examination detail file, or a manual entry for one Participant) to
+ * a Participant: the entry is the new service reconciliation of that Participant.
  *
  * <p>An {@code X} marks a service as performed and a blank marks it as not performed; a row that
- * once existed is kept with {@code performed = false}, never deleted. A row with at least one
- * {@code X} also makes the Participant {@code ATTENDED} on the actual date of the file, else on the
- * date already recorded, else on the planned date. A row without any {@code X} never changes
- * attendance: a Participant that has no service rows yet is left alone, and one that has them gets
- * every service set to not performed. A row that already matches the stored state writes nothing.
- * The domain keeps the invariants; this class only decides what to ask it to do.
+ * once existed is kept with {@code performed = false}, never deleted. Attendance is not touched: it
+ * belongs to the session assignments. A row without any {@code X} leaves a Participant that has no
+ * service rows yet alone, and sets every service of one that has them to not performed. A row that
+ * already matches the stored state writes nothing. The domain keeps the invariants; this class only
+ * decides what to ask it to do.
  */
 public final class ExaminationDetailReconciler {
   /** What the row did to the Participant. */
   public enum Result {
     /** Nothing was written: the row matches the stored state, or there was nothing to record. */
     UNCHANGED,
-    /** Attendance and/or the service rows were changed on the aggregate; it must be saved. */
+    /** The service rows were changed on the aggregate; it must be saved. */
     UPDATED
   }
 
@@ -40,69 +37,52 @@ public final class ExaminationDetailReconciler {
    * Applies the row.
    *
    * @param participant active Participant locked by the caller, already matched to the row
-   * @param batch the batch that owns the Participant, with its service scope
+   * @param agreement the agreement that owns the Participant, with its service scope
    * @param entry what the Participant must become: a file row or a manual entry
    * @param actor account performing the import
    * @param now one instant for the whole import
-   * @param plannedDate planned examination date of the Participant
    * @throws ConflictException when the row newly marks a service that is no longer offered
    */
   public Result apply(
-      HealthExaminationBatchParticipant participant,
-      HealthExaminationBatch batch,
+      HealthExaminationParticipant participant,
+      HealthExaminationAgreement agreement,
       ExaminationDetailEntry entry,
       AggregateId actor,
-      Instant now,
-      LocalDate plannedDate) {
+      Instant now) {
     Set<AggregateId> ticked = new LinkedHashSet<>();
     for (var serviceId : entry.performedServiceIds()) ticked.add(AggregateId.of(serviceId));
-    Set<AggregateId> performedNow = participant.performedBatchServiceIds();
+    Set<AggregateId> performedNow = participant.performedAgreementServiceIds();
 
-    if (ticked.isEmpty() && participant.reconciledBatchServiceIds().isEmpty())
+    if (ticked.isEmpty() && participant.reconciledAgreementServiceIds().isEmpty())
       return Result.UNCHANGED;
-
-    LocalDate attendedOn = null;
-    boolean attendanceChanges = false;
-    if (!ticked.isEmpty()) {
-      boolean attended = participant.getAttendanceStatus() == AttendanceStatus.ATTENDED;
-      attendedOn =
-          entry.actualExaminationDate() != null
-              ? entry.actualExaminationDate()
-              : attended ? participant.getActualExaminationDate() : plannedDate;
-      attendanceChanges = !attended || !attendedOn.equals(participant.getActualExaminationDate());
-    }
     boolean servicesChange =
         !ticked.equals(performedNow)
             || participant.getReconciliationStatus() != ReconciliationStatus.RECONCILED;
-    if (!attendanceChanges && !servicesChange) return Result.UNCHANGED;
+    if (!servicesChange) return Result.UNCHANGED;
 
     for (AggregateId serviceId : ticked) {
       if (performedNow.contains(serviceId)) continue;
-      var batchService = batch.service(serviceId);
-      if (batchService == null || !batchService.active())
+      var agreementService = agreement.service(serviceId);
+      if (agreementService == null || !agreementService.active())
         throw new ConflictException(
-            entry.locator() + ": a marked service is no longer offered in this batch");
+            entry.locator() + ": a marked service is no longer offered in this agreement");
     }
 
-    if (attendanceChanges)
-      participant.recordAttendance(
-          AttendanceStatus.ATTENDED, attendedOn, actor, now, participant.getAttendanceNote());
-
-    List<HealthExaminationBatchParticipantService> reconciled = new ArrayList<>();
+    List<HealthExaminationParticipantService> reconciled = new ArrayList<>();
     for (var existing : participant.services())
       reconciled.add(
-          existing.recordPerformed(ticked.contains(existing.batchServiceId()), actor, now));
+          existing.recordPerformed(ticked.contains(existing.agreementServiceId()), actor, now));
     for (AggregateId serviceId : ticked)
-      if (!participant.reconciledBatchServiceIds().contains(serviceId))
+      if (!participant.reconciledAgreementServiceIds().contains(serviceId))
         reconciled.add(
-            HealthExaminationBatchParticipantService.newPerformed(
+            HealthExaminationParticipantService.newPerformed(
                 AggregateId.of(UuidV7Generator.generate()),
-                participant.getBatchId(),
+                participant.getAgreementId(),
                 participant.getId(),
-                batch.service(serviceId),
+                agreement.service(serviceId),
                 actor,
                 now));
-    participant.reconcileServices(reconciled, batch.services(), actor, now);
+    participant.reconcileServices(reconciled, agreement.services(), actor, now);
     return Result.UPDATED;
   }
 }

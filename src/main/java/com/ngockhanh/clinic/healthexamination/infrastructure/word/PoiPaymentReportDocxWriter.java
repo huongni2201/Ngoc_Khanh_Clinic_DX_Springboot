@@ -3,7 +3,6 @@ package com.ngockhanh.clinic.healthexamination.infrastructure.word;
 import com.ngockhanh.clinic.healthexamination.application.port.out.PaymentReportDocumentWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.PaymentReportDocument;
 import com.ngockhanh.clinic.healthexamination.application.response.PaymentSummaryReportResponse;
-import com.ngockhanh.clinic.healthexamination.domain.enums.ExaminationSiteType;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -28,14 +27,14 @@ import org.apache.poi.xwpf.usermodel.XWPFTableRow;
 import org.springframework.stereotype.Component;
 
 /**
- * Renders the payment summary of a batch as an A4 portrait Word document with Apache POI.
+ * Renders the payment summary of an agreement as an A4 portrait Word document with Apache POI.
  *
  * <p>Layout: a borderless two-column header (clinic identity on the left, national motto on the
- * right), the title with "(TẠM TÍNH)" while the batch is not finalized, the organization and batch
- * details with the three Participant counts, the items table with a bold total row, the total in
- * words, the calculation note, the place and date line in Asia/Ho_Chi_Minh and two signature
- * blocks. The document holds counts and amounts only; no Participant is named or identified. It is
- * built in memory and never stored.
+ * right), the title with "(TẠM TÍNH)" while the agreement is not finalized, the organization and
+ * agreement details with the three Participant counts, the items table with a bold total row, the
+ * total in words, the calculation note, the place and date line in Asia/Ho_Chi_Minh and two
+ * signature blocks. The document holds counts and amounts only; no Participant is named or
+ * identified. It is built in memory and never stored.
  */
 @Component
 @RequiredArgsConstructor
@@ -135,9 +134,11 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
       labelled(doc, "Mã số thuế: ", document.organizationTaxCode());
     if (notBlank(document.organizationAddress()))
       labelled(doc, "Địa chỉ: ", document.organizationAddress());
-    labelled(doc, "Đợt khám: ", report.batchName() + " (" + report.batchCode() + ")");
-    labelled(doc, "Thời gian: ", period(document.startDate(), document.endDate()));
-    labelled(doc, "Địa điểm: ", place(document.siteType(), document.siteAddress()));
+    labelled(doc, "Thỏa thuận: ", report.agreementName() + " (" + report.agreementCode() + ")");
+    String validity = period(document.validFrom(), document.validTo());
+    if (notBlank(validity)) labelled(doc, "Hiệu lực: ", validity);
+    String range = period(report.rangeFrom(), report.rangeTo());
+    if (notBlank(range)) labelled(doc, "Kỳ báo cáo: ", range);
     labelled(
         doc,
         "Số người: ",
@@ -147,6 +148,8 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
             + report.attendedCount()
             + " – đã đối soát "
             + report.reconciledCount());
+    labelled(
+        doc, "Lịch khám: ", report.sessionCount() + " buổi – " + report.visitCount() + " lượt đến");
     paragraph(doc, ParagraphAlignment.LEFT, 0, 0);
   }
 
@@ -298,13 +301,11 @@ public class PoiPaymentReportDocxWriter implements PaymentReportDocumentWriter {
   }
 
   private static String period(LocalDate start, LocalDate end) {
-    if (start == null) return "";
-    if (end == null || end.equals(start)) return start.format(DATE);
+    if (start == null && end == null) return "";
+    if (end == null) return "từ " + start.format(DATE);
+    if (start == null) return "đến " + end.format(DATE);
+    if (end.equals(start)) return start.format(DATE);
     return start.format(DATE) + " – " + end.format(DATE);
-  }
-
-  private static String place(ExaminationSiteType type, String address) {
-    return type == ExaminationSiteType.CLINIC ? "Tại phòng khám" : address;
   }
 
   private static boolean notBlank(String value) {

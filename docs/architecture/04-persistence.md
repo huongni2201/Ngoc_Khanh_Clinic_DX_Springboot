@@ -5,45 +5,32 @@
 PostgreSQL 18, MyBatis and Flyway remain the persistence stack. The owner-selected
 clean-slate contract follows [the current domain workflows](03-domain-and-workflows.md).
 Fresh databases apply `../../src/main/resources/db/migration/V001__create_schema.sql`
-in one public application schema. V001 creates the final schema with 65 business
-tables, including batch `deleted_at`, the service reconciliation import type,
+in one public application schema. V001 creates the final schema with 66 business
+tables, including agreement `deleted_at`, the service reconciliation import type,
 the six optional Participant personal-detail columns, nullable Organization
 `phone`, the template-version lifecycle and the bulk-print render-job tables. An
 account holds exactly one role (`accounts.role_id`, required); the account-role trigger
 allows `PATIENT` only on patient accounts and requires a STAFF account for every other role.
 
-Fresh databases apply one schema initializer, two data-only seeds and additive V004–V007. The
-owner-requested consolidations of 2026-10-08, 2026-10-11 and 2026-10-13 folded every former
+Fresh databases apply one schema initializer and two data-only seeds. The
+owner-requested consolidations of 2026-10-08, 2026-10-11, 2026-10-13 and 2026-10-16 folded every former
 amendment (V004–V009, and the removal of `account_roles`) into them:
 
 | Migration | Responsibility |
 |---|---|
-| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: the batch table has no `examination_site_name` (a batch site is its type and address only; two CHECK constraints require a non-space batch name and a non-blank organization-site address), template versions have the DRAFT → PUBLISHED \| DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` hold bulk printing |
-| `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, and role grants, including the print, bulk-print and batch-start permissions |
+| `V001__create_schema.sql` | Final tables, constraints, indexes, functions and triggers: agreements (code, validity dates, DRAFT → ACTIVE → ENDED; two CHECK constraints require a non-space name and consistent validity dates), agreement services (one active line per service), sessions and session assignments ([ADR-0019](../adr/0019-agreement-session-assignment.md)), Participants scoped by organization and agreement, catalog management versions, timestamps and canonical-code indexes, role and permission catalogue columns, template versions with the DRAFT → PUBLISHED | DISCARDED lifecycle with page layout and protection triggers, and `document_render_jobs` / `document_render_job_outputs` for bulk printing |
+| `V002__seed_roles_and_permissions.sql` | Roles, permissions with their endpoint bindings, catalogue metadata (`module`, `use_cases`, `sensitive`) and role grants, including the print, bulk-print, staff member, role administration, catalog management, agreement, session and assignment permissions |
 | `V003__seed_paraclinical_service_catalog.sql` | Departments, rooms and paraclinical services with prices |
-| `V004__staff_member_management_permissions.sql` | Additive, after the baseline: `STAFF_MEMBER_VIEW`, `ROLE_VIEW` and the `USER_ACCOUNT_CREATE` endpoint for [staff members](../api/staff-members.md) |
-| `V005__role_permission_management.sql` | Role administration, permission catalogue metadata and endpoint permissions |
-| `V006__accounts_role_index.sql` | Index on account role references |
-| `V007__catalog_management.sql` | Catalog versions/timestamps, canonical-code/dependency indexes, 30 endpoint permissions and CLINIC_MANAGER grants for UC-110–UC-115; fresh installation without legacy conversion |
 
 The catalog inserts final service codes such as `CLS58718` directly, with the
 HIS id and no separator. Seeded services start at `row_version = 0`. The
 two deferred foreign-key declarations in V001 only resolve tables created later
 in the same initializer.
-The batch site-name removal and the batch CHECK constraints are part of V001. Without `examination_site_name`, normal SQL no longer reads or writes stored
-site names. A conversion that drops that column from an existing database may leave the
-old bytes until rows are rewritten; this is not a secure-erasure procedure. Folding the changes
-converts no existing history; a database that applied one still needs the reviewed procedure below.
+An agreement has no examination site or examination days: a session carries the date, site and activity,
+and a Participant is scheduled through session assignments, where attendance is recorded. Folding the
+changes converts no existing history; a database that applied an earlier history still needs the reviewed
+procedure below.
 
-The batch CHECK constraints rewrite no rows. Clinic batches keep an empty address.
-Before a reviewed conversion applies them to a database that may hold older rows, count
-the rows they would reject and correct them first; the conversion fails while any remain:
-
-```sql
-SELECT count(*) FROM public.health_examination_batches
- WHERE name !~ '\S'
-    OR (examination_site_type = 'ORGANIZATION_SITE' AND examination_site_address !~ '\S');
-```
 Local demo data stays in `db/local`.
 
 An environment with any earlier migration history must use a separately reviewed
@@ -67,7 +54,7 @@ Domain objects and API responses never expose persistence records or views.
 - Diagnostics: result series, result versions and lab result items.
 - Billing: invoices, invoice lines, payments, refunds and service authorizations.
 - Prescription: logical prescriptions, versions and version items.
-- Health examination: organizations, batches/days/services/participants,
+- Health examination: organizations, agreements/services/participants/sessions/assignments,
   reconciled participant services, records, administrative snapshots and versions.
 - Document: files, templates/versions, service mappings and issued representations.
 - Integration: generic import staging, connections, mappings, submissions,
@@ -107,13 +94,13 @@ Application use cases own transactions, audit and supported cross-module contrac
 Mutable updates use `WHERE id = #{id} AND row_version = #{expectedVersion}` and
 `SET row_version = row_version + 1`; zero affected rows is a concurrency conflict.
 The clean-slate schema has no row-version increment trigger. A database lock does not replace client expected-version checks. Serialize concurrent schedule/roster mutations on
-the same batch consistency boundary.
+the same agreement consistency boundary. Sessions are locked in identifier order when assignments move between them.
 
 ## Historical state
 
-Batch services retain reference and negotiated prices. Performed participant
-services retain their recorded price; normal batch price changes do not reprice
-historical rows. Explicit authorized retroactive repricing is a separate use case.
+Agreement services retain reference and negotiated prices. Performed participant
+services retain their recorded price; the services of an agreement are fixed once it is active, so
+historical rows are not repriced. Explicit authorized retroactive repricing is a separate use case.
 
 Administrative record snapshots and clinical versions are separate, typed rows.
 Issued/final content and issued representations are immutable, protected by the

@@ -1,6 +1,6 @@
 package com.ngockhanh.clinic.healthexamination.application.service;
 
-import static com.ngockhanh.clinic.healthexamination.BatchFixtures.*;
+import static com.ngockhanh.clinic.healthexamination.AgreementFixtures.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,16 +18,15 @@ import static org.mockito.Mockito.when;
 import com.ngockhanh.clinic.audit.application.port.out.AuditWriter;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailImportRow;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailImportCommitter.Request;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatch;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Progress;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;
-import com.ngockhanh.clinic.healthexamination.domain.enums.AttendanceStatus;
-import com.ngockhanh.clinic.healthexamination.domain.enums.BatchStatus;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationAgreement;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.Progress;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.Roster;
+import com.ngockhanh.clinic.healthexamination.domain.enums.AgreementStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.ReconciliationStatus;
 import com.ngockhanh.clinic.healthexamination.domain.enums.RosterStatus;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationAgreementRepository;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.repository.OrganizationRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
@@ -54,58 +53,56 @@ class ExaminationDetailImportCommitterTest {
   private static final Instant EARLIER = Instant.parse("2026-10-04T01:00:00Z");
 
   private final OrganizationRepository organizations = mock(OrganizationRepository.class);
-  private final HealthExaminationBatchRepository batches =
-      mock(HealthExaminationBatchRepository.class);
-  private final HealthExaminationBatchParticipantRepository participants =
-      mock(HealthExaminationBatchParticipantRepository.class);
+  private final HealthExaminationAgreementRepository agreements =
+      mock(HealthExaminationAgreementRepository.class);
+  private final HealthExaminationParticipantRepository participants =
+      mock(HealthExaminationParticipantRepository.class);
   private final ServiceReconciliationImportStore imports =
       mock(ServiceReconciliationImportStore.class);
   private final AuditWriter audit = mock(AuditWriter.class);
-  // 08:00 on 2026-10-06 in Asia/Ho_Chi_Minh.
   private final Clock clock =
       Clock.fixed(Instant.parse("2026-10-06T01:02:03.456789Z"), ZoneOffset.UTC);
   private final ExaminationDetailImportCommitter committer =
       new ExaminationDetailImportCommitter(
-          organizations, batches, participants, imports, audit, clock);
+          organizations, agreements, participants, imports, audit, clock);
 
   private final UUID organizationId = UUID.randomUUID();
-  private final UUID batchId = UUID.randomUUID();
+  private final UUID agreementId = UUID.randomUUID();
   private final UUID actorId = UUID.randomUUID();
   private final UUID key = UUID.randomUUID();
   private final UUID reservationId = UUID.randomUUID();
   private final UUID jobId = UUID.randomUUID();
-  private HealthExaminationBatch batch;
+  private HealthExaminationAgreement agreement;
   private UUID serviceA;
   private UUID serviceB;
 
   @BeforeEach
-  void anActiveOrganizationAndADraftBatchWithTwoServices() {
-    givenBatch(BatchStatus.DRAFT, true);
+  void anActiveOrganizationAndADraftAgreementWithTwoServices() {
+    givenAgreement(AgreementStatus.DRAFT, true);
     when(imports.reserve(any()))
         .thenReturn(new ServiceReconciliationReservation.New(reservationId));
     when(imports.createValidatedJob(any())).thenReturn(jobId);
   }
 
-  private void givenBatch(BatchStatus status, boolean activeOrganization) {
-    batch = batch(organizationId, batchId, status, 2, null, UUID.randomUUID(), UUID.randomUUID());
-    serviceA = batch.services().get(0).id().value();
-    serviceB = batch.services().get(1).id().value();
-    when(batches.findDetails(organizationId, batchId, true))
-        .thenReturn(Optional.of(details(batch)));
+  private void givenAgreement(AgreementStatus status, boolean activeOrganization) {
+    agreement =
+        agreement(
+            organizationId, agreementId, status, 2, null, UUID.randomUUID(), UUID.randomUUID());
+    serviceA = agreement.services().get(0).id().value();
+    serviceB = agreement.services().get(1).id().value();
+    when(agreements.findDetails(organizationId, agreementId, true))
+        .thenReturn(Optional.of(details(agreement)));
     var organization =
         activeOrganization ? organization(organizationId) : inactiveOrganization(organizationId);
     when(organizations.findById(new AggregateId(organizationId)))
         .thenReturn(Optional.of(organization));
   }
 
-  private HealthExaminationBatchParticipant participant(
-      RosterStatus roster, AttendanceStatus attendance, long version) {
-    boolean attended = attendance == AttendanceStatus.ATTENDED;
-    AggregateId earlier = AggregateId.of(UUID.randomUUID());
-    return HealthExaminationBatchParticipant.restore(
+  private HealthExaminationParticipant participant(RosterStatus roster, long version) {
+    return HealthExaminationParticipant.restore(
         AggregateId.of(UUID.randomUUID()),
-        AggregateId.of(batchId),
-        AggregateId.of(batch.days().get(0).id()),
+        AggregateId.of(organizationId),
+        AggregateId.of(agreementId),
         new Roster(
             "NV",
             "Synthetic Person",
@@ -117,18 +114,7 @@ class ExaminationDetailImportCommitterTest {
             null,
             "Department",
             "Position"),
-        new Progress(
-            null,
-            roster,
-            attendance,
-            attended ? FIRST_DAY : null,
-            attended ? earlier : null,
-            attended ? EARLIER : null,
-            null,
-            ReconciliationStatus.PENDING,
-            null,
-            null,
-            null),
+        new Progress(null, roster, ReconciliationStatus.PENDING, null, null, null),
         null,
         null,
         EARLIER,
@@ -137,36 +123,38 @@ class ExaminationDetailImportCommitterTest {
         List.of());
   }
 
-  private void givenLocked(HealthExaminationBatchParticipant... locked) {
-    when(participants.findManyInBatchForUpdate(eq(AggregateId.of(batchId)), anyCollection()))
+  private void givenLocked(HealthExaminationParticipant... locked) {
+    when(participants.findManyInAgreementForUpdate(
+            eq(AggregateId.of(agreementId)), anyCollection()))
         .thenReturn(List.of(locked));
   }
 
   private ExaminationDetailImportRow row(
-      int number,
-      HealthExaminationBatchParticipant p,
-      long version,
-      LocalDate actual,
-      UUID... ticked) {
-    return new ExaminationDetailImportRow(
-        number, p.getId().value(), version, actual, Set.of(ticked));
+      int number, HealthExaminationParticipant p, long version, UUID... ticked) {
+    return new ExaminationDetailImportRow(number, p.getId().value(), version, Set.of(ticked));
   }
 
   private Request request(List<ExaminationDetailImportRow> rows) {
     return new Request(
-        organizationId, batchId, key, new byte[32], 1, Set.of(serviceA, serviceB), rows, actorId);
+        organizationId,
+        agreementId,
+        key,
+        new byte[32],
+        2,
+        Set.of(serviceA, serviceB),
+        rows,
+        actorId);
   }
 
   @Test
   void reconcilesChangedRowsSavesOnlyThemAndWritesOneAuditEvent() {
-    var changing = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 4);
-    var nothing = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 5);
+    var changing = participant(RosterStatus.ACTIVE, 4);
+    var nothing = participant(RosterStatus.ACTIVE, 5);
     givenLocked(changing, nothing);
 
     var outcome =
         committer.commit(
-            request(
-                List.of(row(3, changing, 4, null, serviceA, serviceB), row(4, nothing, 5, null))));
+            request(List.of(row(3, changing, 4, serviceA, serviceB), row(4, nothing, 5))));
 
     assertThat(outcome.replayed()).isFalse();
     var receipt = outcome.receipt();
@@ -177,15 +165,14 @@ class ExaminationDetailImportCommitterTest {
     assertThat(receipt.performedItems()).isEqualTo(2);
     assertThat(receipt.completedAt()).isEqualTo(Instant.parse("2026-10-06T01:02:03.456Z"));
 
-    assertThat(changing.getAttendanceStatus()).isEqualTo(AttendanceStatus.ATTENDED);
-    assertThat(changing.getActualExaminationDate()).isEqualTo(FIRST_DAY);
-    assertThat(changing.performedBatchServiceIds()).hasSize(2);
-    assertThat(nothing.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+    assertThat(changing.getReconciliationStatus()).isEqualTo(ReconciliationStatus.RECONCILED);
+    assertThat(changing.performedAgreementServiceIds()).hasSize(2);
+    assertThat(nothing.getReconciliationStatus()).isEqualTo(ReconciliationStatus.PENDING);
 
-    var order = inOrder(batches, imports, participants, audit);
-    order.verify(batches).findDetails(organizationId, batchId, true);
+    var order = inOrder(agreements, imports, participants, audit);
+    order.verify(agreements).findDetails(organizationId, agreementId, true);
     order.verify(imports).reserve(any());
-    order.verify(participants).findManyInBatchForUpdate(any(), anyCollection());
+    order.verify(participants).findManyInAgreementForUpdate(any(), anyCollection());
     order.verify(participants).save(changing, 4L);
     order.verify(imports).createValidatedJob(any());
     order.verify(imports).markRowsCommitted(eq(jobId), anyList());
@@ -198,8 +185,8 @@ class ExaminationDetailImportCommitterTest {
         .record(
             eq(actorId),
             eq("IMPORT_EXAMINATION_DETAILS"),
-            eq("HEALTH_EXAMINATION_BATCH"),
-            eq(batchId),
+            eq("HEALTH_EXAMINATION_AGREEMENT"),
+            eq(agreementId),
             eq(null),
             any());
     verify(participants, never()).save(eq(nothing), anyLong());
@@ -208,12 +195,11 @@ class ExaminationDetailImportCommitterTest {
   @Test
   @SuppressWarnings("unchecked")
   void linksOnlyChangedRowsToTheJobAndKeepsPersonalDataOutOfTheAuditPayload() {
-    var changing = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 4);
-    var nothing = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 5);
+    var changing = participant(RosterStatus.ACTIVE, 4);
+    var nothing = participant(RosterStatus.ACTIVE, 5);
     givenLocked(changing, nothing);
 
-    committer.commit(
-        request(List.of(row(3, changing, 4, null, serviceA), row(4, nothing, 5, null))));
+    committer.commit(request(List.of(row(3, changing, 4, serviceA), row(4, nothing, 5))));
 
     ArgumentCaptor<List<com.ngockhanh.clinic.integration.application.imports.CommittedImportRow>>
         committed = ArgumentCaptor.forClass(List.class);
@@ -231,7 +217,7 @@ class ExaminationDetailImportCommitterTest {
   void aReplayReturnsTheStoredReceiptWithoutTouchingAnyParticipantOrTheAudit() {
     var stored =
         new ServiceReconciliationReceipt(
-            jobId, batchId, 2, 1, 1, 2, Instant.parse("2026-10-05T00:00:00Z"));
+            jobId, agreementId, 2, 1, 1, 2, Instant.parse("2026-10-05T00:00:00Z"));
     when(imports.reserve(any())).thenReturn(new ServiceReconciliationReservation.Replay(stored));
 
     var outcome = committer.commit(request(List.of()));
@@ -244,167 +230,106 @@ class ExaminationDetailImportCommitterTest {
 
   @Test
   void aReplayStillWorksAfterTheOrganizationBecameInactive() {
-    givenBatch(BatchStatus.DRAFT, false);
+    givenAgreement(AgreementStatus.DRAFT, false);
     var stored =
         new ServiceReconciliationReceipt(
-            jobId, batchId, 2, 1, 1, 2, Instant.parse("2026-10-05T00:00:00Z"));
+            jobId, agreementId, 2, 1, 1, 2, Instant.parse("2026-10-05T00:00:00Z"));
     when(imports.reserve(any())).thenReturn(new ServiceReconciliationReservation.Replay(stored));
 
     assertThat(committer.commit(request(List.of())).replayed()).isTrue();
   }
 
   @Test
-  void rejectsAFileThatDoesNotDeclareExactlyTheServicesOfTheBatch() {
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
+  void rejectsAFileThatDoesNotDeclareExactlyTheServicesOfTheAgreement() {
+    var p = participant(RosterStatus.ACTIVE, 1);
     var other =
         new Request(
             organizationId,
-            batchId,
+            agreementId,
             key,
             new byte[32],
-            1,
+            2,
             Set.of(serviceA),
-            List.of(row(3, p, 1, null)),
+            List.of(row(3, p, 1)),
             actorId);
 
     assertThatThrownBy(() -> committer.commit(other))
         .isInstanceOfSatisfying(
             ApplicationException.class,
             e -> assertThat(e.type()).isEqualTo(ApplicationException.Type.INVALID_INPUT))
-        .hasMessage("The file does not match this batch; export it again");
+        .hasMessage("The file does not match this agreement; export it again");
     verifyNoInteractions(participants, audit);
     verify(imports, never()).createValidatedJob(any());
   }
 
   @Test
-  void rejectsAnActualDateBeforeTheBatchStartOrAfterToday() {
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
-    for (LocalDate bad : List.of(FIRST_DAY.minusDays(1), LocalDate.of(2026, 10, 7)))
-      assertThatThrownBy(() -> committer.commit(request(List.of(row(5, p, 1, bad, serviceA)))))
-          .isInstanceOf(ApplicationException.class)
-          .hasMessageContaining("Row 5")
-          .hasMessageContaining("actual_examination_date");
-    verifyNoInteractions(participants, audit);
-  }
-
-  @Test
-  void aBlankActualDateCannotFallBackToAPlannedDateThatIsStillInTheFuture() {
-    var early = Clock.fixed(Instant.parse("2026-10-02T03:00:00Z"), ZoneOffset.UTC); // planned 10-04
-    var committerBeforeTheDay =
-        new ExaminationDetailImportCommitter(
-            organizations, batches, participants, imports, audit, early);
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
-    givenLocked(p);
-
-    assertThatThrownBy(
-            () -> committerBeforeTheDay.commit(request(List.of(row(5, p, 1, null, serviceA)))))
-        .isInstanceOf(ApplicationException.class)
-        .hasMessageContaining("Row 5")
-        .hasMessageContaining("planned examination date");
-    verify(participants, never()).save(any(), anyLong());
-    verifyNoInteractions(audit);
-    assertThat(p.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
-  }
-
-  @Test
-  void aBlankActualDateStillFallsBackToAPlannedDateThatIsTodayOrPast() {
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
-    givenLocked(p);
-
-    committer.commit(request(List.of(row(5, p, 1, null, serviceA))));
-
-    assertThat(p.getActualExaminationDate()).isEqualTo(FIRST_DAY);
-  }
-
-  @Test
-  void acceptsTodayInTheBusinessTimeZoneEvenWhenUtcIsStillYesterday() {
-    var lateClock =
-        Clock.fixed(Instant.parse("2026-10-05T18:30:00Z"), ZoneOffset.UTC); // 01:30 on 10-06
-    var late =
-        new ExaminationDetailImportCommitter(
-            organizations, batches, participants, imports, audit, lateClock);
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
-    givenLocked(p);
-
-    var outcome = late.commit(request(List.of(row(3, p, 1, LocalDate.of(2026, 10, 6), serviceA))));
-
-    assertThat(outcome.receipt().updatedParticipants()).isEqualTo(1);
-    assertThat(p.getActualExaminationDate()).isEqualTo(LocalDate.of(2026, 10, 6));
-  }
-
-  @Test
   void aStaleRowVersionRejectsTheWholeFileAndSavesNothing() {
-    var fine = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
-    var stale = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 7);
+    var fine = participant(RosterStatus.ACTIVE, 1);
+    var stale = participant(RosterStatus.ACTIVE, 7);
     givenLocked(fine, stale);
 
     assertThatThrownBy(
             () ->
                 committer.commit(
-                    request(
-                        List.of(
-                            row(3, fine, 1, null, serviceA), row(4, stale, 6, null, serviceA)))))
+                    request(List.of(row(3, fine, 1, serviceA), row(4, stale, 6, serviceA)))))
         .isInstanceOf(ConcurrentUpdateException.class)
         .hasMessageContaining("Row 4");
     verify(participants, never()).save(any(), anyLong());
     verify(imports, never()).createValidatedJob(any());
     verifyNoInteractions(audit);
-    assertThat(fine.getAttendanceStatus()).isEqualTo(AttendanceStatus.UNCONFIRMED);
+    assertThat(fine.getReconciliationStatus()).isEqualTo(ReconciliationStatus.PENDING);
   }
 
   @Test
-  void aParticipantOfAnotherBatchOrACancelledOneIsAConflict() {
-    var cancelled = participant(RosterStatus.CANCELLED, AttendanceStatus.UNCONFIRMED, 1);
-    var foreign = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
+  void aParticipantOfAnotherAgreementOrACancelledOneIsAConflict() {
+    var cancelled = participant(RosterStatus.CANCELLED, 1);
+    var foreign = participant(RosterStatus.ACTIVE, 1);
     givenLocked(cancelled);
 
-    assertThatThrownBy(
-            () -> committer.commit(request(List.of(row(3, cancelled, 1, null, serviceA)))))
+    assertThatThrownBy(() -> committer.commit(request(List.of(row(3, cancelled, 1, serviceA)))))
         .isInstanceOf(ConflictException.class)
         .hasMessage("Row 3: participant is cancelled");
-    assertThatThrownBy(() -> committer.commit(request(List.of(row(4, foreign, 1, null, serviceA)))))
+    assertThatThrownBy(() -> committer.commit(request(List.of(row(4, foreign, 1, serviceA)))))
         .isInstanceOf(ConflictException.class)
-        .hasMessage("Row 4: participant is not in this batch");
+        .hasMessage("Row 4: participant is not in this agreement");
     verify(participants, never()).save(any(), anyLong());
     verifyNoInteractions(audit);
   }
 
   @Test
-  void aBatchThatIsNotDraftOrReadyOrAnInactiveOrganizationIsAConflict() {
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
-    for (BatchStatus status : List.of(BatchStatus.FINALIZED, BatchStatus.CLOSED)) {
-      givenBatch(status, true);
-      assertThatThrownBy(() -> committer.commit(request(List.of(row(3, p, 1, null, serviceA)))))
-          .isInstanceOf(ConflictException.class)
-          .hasMessage("Batch does not accept examination detail changes");
-    }
-    givenBatch(BatchStatus.DRAFT, false);
-    assertThatThrownBy(() -> committer.commit(request(List.of(row(3, p, 1, null, serviceA)))))
+  void anEndedAgreementOrAnInactiveOrganizationIsAConflict() {
+    var p = participant(RosterStatus.ACTIVE, 1);
+    givenAgreement(AgreementStatus.ENDED, true);
+    assertThatThrownBy(() -> committer.commit(request(List.of(row(3, p, 1, serviceA)))))
+        .isInstanceOf(ConflictException.class)
+        .hasMessage("Agreement does not accept examination detail changes");
+    givenAgreement(AgreementStatus.DRAFT, false);
+    assertThatThrownBy(() -> committer.commit(request(List.of(row(3, p, 1, serviceA)))))
         .isInstanceOf(ConflictException.class);
     verifyNoInteractions(participants, audit);
   }
 
   @Test
-  void aReadyBatchAcceptsTheImport() {
-    givenBatch(BatchStatus.READY, true);
-    var p = participant(RosterStatus.ACTIVE, AttendanceStatus.UNCONFIRMED, 1);
+  void anActiveAgreementAcceptsTheImport() {
+    givenAgreement(AgreementStatus.ACTIVE, true);
+    var p = participant(RosterStatus.ACTIVE, 1);
     givenLocked(p);
 
     assertThat(
             committer
-                .commit(request(List.of(row(3, p, 1, null, serviceA))))
+                .commit(request(List.of(row(3, p, 1, serviceA))))
                 .receipt()
                 .updatedParticipants())
         .isEqualTo(1);
   }
 
   @Test
-  void anUnknownOrganizationOrBatchIsNotFound() {
+  void anUnknownOrganizationOrAgreementIsNotFound() {
     when(organizations.findById(new AggregateId(organizationId))).thenReturn(Optional.empty());
     assertThatThrownBy(() -> committer.commit(request(List.of())))
         .isInstanceOf(ResourceNotFoundException.class);
 
-    when(batches.findDetails(organizationId, batchId, true)).thenReturn(Optional.empty());
+    when(agreements.findDetails(organizationId, agreementId, true)).thenReturn(Optional.empty());
     assertThatThrownBy(() -> committer.commit(request(List.of())))
         .isInstanceOf(ResourceNotFoundException.class);
     verifyNoInteractions(participants, audit);

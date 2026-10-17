@@ -3,7 +3,7 @@
 Owner-approved contract of 2026-10-13. Owning module: `accesscontrol` (`StaffMemberController`,
 `RoleController`). Responses use
 [the common envelope and pagination](../../PROJECT_RULES.md#envelope-errors-and-pagination).
-Migration `V004` binds the routes to their permissions.
+The V002 seed binds the routes to their permissions.
 
 An Administrator creates a staff member, and the backend creates the staff member's STAFF account
 in the same transaction. This replaces the former UC-005 mockup (an account for an existing staff
@@ -13,16 +13,16 @@ profile with a typed username): the owner selected generated codes and usernames
 
 Every route requires a STAFF account with the listed permission
 ([ADR-0015](../adr/0015-endpoint-permission-rbac.md)). Permissions are the snapshot taken at sign-in:
-sign in again after `V004`.
+sign in again after a permission change.
 
 | Method/path | Success | Required STAFF permission |
 |---|---|---|
-| GET `/api/v1/roles` | 200 list of assignable roles | `ROLE_VIEW` (V004) |
-| GET `/api/v1/staff-members` | 200 page of staff members | `STAFF_MEMBER_VIEW` (V004) |
-| POST `/api/v1/staff-members` | 201 staff member with its account | `USER_ACCOUNT_CREATE` (V002, bound by V004); the use case also requires `USER_ROLE_ASSIGN` |
+| GET `/api/v1/roles` | 200 list of assignable roles | `ROLE_VIEW` (V002) |
+| GET `/api/v1/staff-members` | 200 page of staff members | `STAFF_MEMBER_VIEW` (V002) |
+| POST `/api/v1/staff-members` | 201 staff member with its account | `USER_ACCOUNT_CREATE` (V002); the use case also requires `USER_ROLE_ASSIGN` |
 
-`V004` grants `ROLE_VIEW` and `STAFF_MEMBER_VIEW` to `ADMINISTRATOR`, which already holds
-`USER_ACCOUNT_CREATE` and `USER_ROLE_ASSIGN` (V002).
+V002 grants `ROLE_VIEW`, `STAFF_MEMBER_VIEW`, `USER_ACCOUNT_CREATE` and `USER_ROLE_ASSIGN` to
+`ADMINISTRATOR`.
 
 ## GET /api/v1/roles
 

@@ -4,15 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.ngockhanh.clinic.accesscontrol.application.query.UserPrincipal;
-import com.ngockhanh.clinic.healthexamination.application.command.BatchConfiguration;
-import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationBatchCommand;
+import com.ngockhanh.clinic.healthexamination.application.command.AgreementConfiguration;
+import com.ngockhanh.clinic.healthexamination.application.command.CreateHealthExaminationAgreementCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.ImportExaminationDetailsCommand;
 import com.ngockhanh.clinic.healthexamination.application.command.RecordExaminationDetailCommand;
-import com.ngockhanh.clinic.healthexamination.application.command.RecordExaminationDetailCommand.Attendance;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailListQuery;
-import com.ngockhanh.clinic.healthexamination.application.response.BatchDetailResponse;
+import com.ngockhanh.clinic.healthexamination.application.response.AgreementDetailResponse;
 import com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailAccessPolicy;
-import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthExaminationBatchUseCase;
+import com.ngockhanh.clinic.healthexamination.application.usecase.CreateHealthExaminationAgreementUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ExportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ExportPaymentSummaryReportUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.GetExaminationDetailImportTemplateUseCase;
@@ -21,9 +20,9 @@ import com.ngockhanh.clinic.healthexamination.application.usecase.GetPaymentSumm
 import com.ngockhanh.clinic.healthexamination.application.usecase.ImportExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.ListExaminationDetailsUseCase;
 import com.ngockhanh.clinic.healthexamination.application.usecase.RecordExaminationDetailUseCase;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant.Roster;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant.Roster;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.IdentificationNumber;
 import com.ngockhanh.clinic.healthexamination.infrastructure.configuration.ExaminationDetailImportProperties;
@@ -62,8 +61,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 /**
  * Runs the examination detail export, the Excel import, the screen queries and the payment report
  * against a real PostgreSQL database (Testcontainers; skipped when Docker is unavailable): the SQL
- * of the read model, the row locks, the idempotency receipt, the import tables and their triggers,
- * the price snapshots, atomic rollback and the Word export of the same figures.
+ * of the read model with attendance derived from the session assignments, the row locks, the
+ * idempotency receipt, the import tables and their triggers, the price snapshots, atomic rollback
+ * and the Word export of the same figures.
  */
 // Close cached connections when this class finishes; its containers are class-scoped.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -85,8 +85,9 @@ class ExaminationDetailIntegrationTest {
         "com.ngockhanh.clinic.integration.infrastructure.persistence.mapper"
       })
   @org.springframework.context.annotation.Import({
-    CreateHealthExaminationBatchUseCase.class,
-    com.ngockhanh.clinic.healthexamination.application.service.BatchCodeGenerator.class,
+    CreateHealthExaminationAgreementUseCase.class,
+    com.ngockhanh.clinic.healthexamination.application.service.AgreementCodeGenerator.class,
+    com.ngockhanh.clinic.healthexamination.application.service.AgreementSupport.class,
     ExaminationDetailAccessPolicy.class,
     com.ngockhanh.clinic.healthexamination.application.service.ExaminationDetailImportCommitter
         .class,
@@ -100,11 +101,11 @@ class ExaminationDetailIntegrationTest {
     GetPaymentSummaryReportUseCase.class,
     ExportPaymentSummaryReportUseCase.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
-        .MyBatisHealthExaminationBatchRepository.class,
+        .MyBatisHealthExaminationAgreementRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisOrganizationRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
-        .MyBatisHealthExaminationBatchParticipantRepository.class,
+        .MyBatisHealthExaminationParticipantRepository.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.persistence.repository
         .MyBatisExaminationDetailReader.class,
     com.ngockhanh.clinic.healthexamination.infrastructure.excel.PoiExaminationDetailExcelWriter
@@ -136,12 +137,12 @@ class ExaminationDetailIntegrationTest {
 
   private static final LocalDate D4 = LocalDate.of(2026, 10, 4);
   private static final LocalDate D8 = LocalDate.of(2026, 10, 8);
-  private static final String ATTENDANCE_SQL =
-      "SELECT attendance_status || '|' || coalesce(actual_examination_date::text,'-') || '|' || service_reconciliation_status FROM public.health_examination_batch_participants WHERE id=?";
+  private static final String STATE_SQL =
+      "SELECT service_reconciliation_status FROM public.health_examination_participants WHERE id=?";
 
   @Autowired JdbcTemplate jdbc;
-  @Autowired CreateHealthExaminationBatchUseCase create;
-  @Autowired HealthExaminationBatchParticipantRepository participants;
+  @Autowired CreateHealthExaminationAgreementUseCase create;
+  @Autowired HealthExaminationParticipantRepository participants;
   @Autowired ListExaminationDetailsUseCase list;
   @Autowired GetExaminationSummaryUseCase summary;
   @Autowired ExportExaminationDetailsUseCase export;
@@ -151,8 +152,8 @@ class ExaminationDetailIntegrationTest {
   @Autowired GetPaymentSummaryReportUseCase report;
   @Autowired ExportPaymentSummaryReportUseCase reportDocx;
 
-  UUID org, actor, serviceA, serviceB, batchId, batchServiceA, batchServiceB;
-  String batchCode;
+  UUID org, actor, serviceA, serviceB, agreementId, agreementServiceA, agreementServiceB;
+  String agreementCode;
   UUID p1, p2, p3;
   UserPrincipal principal;
 
@@ -210,47 +211,45 @@ class ExaminationDetailIntegrationTest {
                             ExaminationDetailAccessPolicy.REPORT_EXPORT_PERMISSION))))
             .build();
 
-    BatchDetailResponse batch =
+    AgreementDetailResponse agreement =
         create.execute(
             org,
-            CreateHealthExaminationBatchCommand.builder()
+            CreateHealthExaminationAgreementCommand.builder()
                 .configuration(
-                    BatchConfiguration.builder()
-                        .batchName("Campaign")
-                        .examinationDates(List.of(D4, D8))
-                        .examinationSiteType("ORGANIZATION_SITE")
-                        .examinationSiteAddress("Address")
+                    AgreementConfiguration.builder()
+                        .agreementName("Campaign")
+                        .validFrom(D4)
+                        .validTo(D8)
                         .services(
                             List.of(
-                                BatchConfiguration.ServicePrice.builder()
+                                AgreementConfiguration.ServicePrice.builder()
                                     .serviceId(serviceA)
                                     .negotiatedPrice(new BigDecimal("100"))
                                     .build(),
-                                BatchConfiguration.ServicePrice.builder()
+                                AgreementConfiguration.ServicePrice.builder()
                                     .serviceId(serviceB)
                                     .negotiatedPrice(new BigDecimal("250.50"))
                                     .build()))
                         .build())
                 .build(),
             actor);
-    batchId = batch.id();
-    batchCode = batch.batchCode();
-    batchServiceA = batch.services().get(0).id();
-    batchServiceB = batch.services().get(1).id();
-    UUID day = batch.days().get(0).id();
-    p1 = insertParticipant("000000000001", "Person One", day);
-    p2 = insertParticipant("000000000002", "Person Two", day);
-    p3 = insertParticipant("000000000003", "Person Three", day);
+    agreementId = agreement.id();
+    agreementCode = agreement.agreementCode();
+    agreementServiceA = agreement.services().get(0).id();
+    agreementServiceB = agreement.services().get(1).id();
+    p1 = insertParticipant("000000000001", "Person One");
+    p2 = insertParticipant("000000000002", "Person Two");
+    p3 = insertParticipant("000000000003", "Person Three");
   }
 
-  private UUID insertParticipant(String identification, String name, UUID day) {
+  private UUID insertParticipant(String identification, String name) {
     UUID id = UUID.randomUUID();
     participants.insertMany(
         List.of(
-            HealthExaminationBatchParticipant.create(
+            HealthExaminationParticipant.create(
                 AggregateId.of(id),
-                AggregateId.of(batchId),
-                AggregateId.of(day),
+                AggregateId.of(org),
+                AggregateId.of(agreementId),
                 new Roster(
                     "NV-" + identification,
                     name,
@@ -270,7 +269,7 @@ class ExaminationDetailIntegrationTest {
   // --- helpers ---
 
   private byte[] exported() {
-    return export.execute(org, batchId, principal).content();
+    return export.execute(org, agreementId, principal).content();
   }
 
   private byte[] edited(byte[] file, Consumer<Sheet> change) {
@@ -291,35 +290,57 @@ class ExaminationDetailIntegrationTest {
     throw new IllegalStateException("participant not exported");
   }
 
+  /** The first service column follows the twelve fixed columns. */
   private static void mark(Sheet sheet, UUID participant, int serviceIndex, String value) {
     sheet.getRow(rowOf(sheet, participant)).getCell(12 + serviceIndex).setCellValue(value);
   }
 
-  private static void actualDate(Sheet sheet, UUID participant, String date) {
-    sheet.getRow(rowOf(sheet, participant)).getCell(11).setCellValue(date);
+  /** An open session of the agreement on the date. */
+  private UUID session(LocalDate date) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO public.health_examination_sessions(id,organization_id,agreement_id,session_date,activity,site_type,site_address,created_by) VALUES (?,?,?,?,'ALL','ORGANIZATION_SITE',?,?)",
+        id,
+        org,
+        agreementId,
+        date,
+        "Address " + id,
+        actor);
+    return id;
+  }
+
+  private void assign(UUID session, UUID participant, String status) {
+    jdbc.update(
+        "INSERT INTO public.health_examination_session_assignments(organization_id,participant_id,session_id,status,attended_at,recorded_by) VALUES (?,?,?,?,CASE WHEN ? = 'ATTENDED' THEN CURRENT_TIMESTAMP END,?)",
+        org,
+        participant,
+        session,
+        status,
+        status,
+        actor);
   }
 
   private com.ngockhanh.clinic.healthexamination.application.response
           .ExaminationDetailImportResponse
       importFile(byte[] file, UUID key) {
     return importer.execute(
-        org, batchId, new ImportExaminationDetailsCommand(file, key), principal);
+        org, agreementId, new ImportExaminationDetailsCommand(file, key), principal);
   }
 
   private String state(UUID participant) {
-    return jdbc.queryForObject(ATTENDANCE_SQL, String.class, participant);
+    return jdbc.queryForObject(STATE_SQL, String.class, participant);
   }
 
   private long version(UUID participant) {
     return jdbc.queryForObject(
-        "SELECT row_version FROM public.health_examination_batch_participants WHERE id=?",
+        "SELECT row_version FROM public.health_examination_participants WHERE id=?",
         Long.class,
         participant);
   }
 
   private int serviceRows(UUID participant, boolean performed) {
     return jdbc.queryForObject(
-        "SELECT count(*) FROM public.health_examination_participant_services WHERE batch_participant_id=? AND is_performed=?",
+        "SELECT count(*) FROM public.health_examination_participant_services WHERE participant_id=? AND is_performed=?",
         Integer.class,
         participant,
         performed);
@@ -335,8 +356,9 @@ class ExaminationDetailIntegrationTest {
   void exportHoldsEveryActiveParticipantWithMaskedIdentificationAndAnAuditEvent()
       throws IOException {
     jdbc.update(
-        "UPDATE public.health_examination_batch_participants SET roster_status='CANCELLED' WHERE id=?",
+        "UPDATE public.health_examination_participants SET roster_status='CANCELLED' WHERE id=?",
         p3);
+    assign(session(D4), p1, "ASSIGNED");
 
     byte[] file = exported();
 
@@ -345,9 +367,13 @@ class ExaminationDetailIntegrationTest {
       assertThat(sheet.getLastRowNum()).isEqualTo(3); // header, keys, two active participants
       assertThat(sheet.getRow(0).getCell(12).getStringCellValue()).isEqualTo("Khám nội");
       assertThat(sheet.getRow(1).getCell(12).getStringCellValue())
-          .isEqualTo("svc:" + batchServiceA);
+          .isEqualTo("svc:" + agreementServiceA);
       for (int r = 2; r <= 3; r++)
         assertThat(sheet.getRow(r).getCell(7).getStringCellValue()).doesNotContain("00000000000");
+      // the next session date is informational, shown for the Participant that is still expected
+      assertThat(sheet.getRow(rowOf(sheet, p1)).getCell(10).getStringCellValue())
+          .isEqualTo(D4.toString());
+      assertThat(sheet.getRow(rowOf(sheet, p2)).getCell(10).getStringCellValue()).isEmpty();
     }
     assertThat(
             count(
@@ -364,7 +390,6 @@ class ExaminationDetailIntegrationTest {
               mark(sheet, p1, 0, "X");
               mark(sheet, p1, 1, "x");
               mark(sheet, p2, 0, "X");
-              actualDate(sheet, p2, "2026-10-05");
             });
     long p3Version = version(p3);
     UUID key = UUID.randomUUID();
@@ -375,23 +400,23 @@ class ExaminationDetailIntegrationTest {
     assertThat(response.updatedParticipants()).isEqualTo(2);
     assertThat(response.unchangedParticipants()).isEqualTo(1);
     assertThat(response.performedItems()).isEqualTo(3);
-    assertThat(state(p1)).isEqualTo("ATTENDED|2026-10-04|RECONCILED");
-    assertThat(state(p2)).isEqualTo("ATTENDED|2026-10-05|RECONCILED");
-    assertThat(state(p3)).isEqualTo("UNCONFIRMED|-|PENDING");
+    assertThat(state(p1)).isEqualTo("RECONCILED");
+    assertThat(state(p2)).isEqualTo("RECONCILED");
+    assertThat(state(p3)).isEqualTo("PENDING");
     assertThat(version(p3)).isEqualTo(p3Version);
     assertThat(version(p1)).isEqualTo(1);
     assertThat(serviceRows(p1, true)).isEqualTo(2);
     assertThat(
             jdbc.queryForList(
-                "SELECT unit_price_snapshot FROM public.health_examination_participant_services WHERE batch_participant_id=? ORDER BY unit_price_snapshot",
+                "SELECT unit_price_snapshot FROM public.health_examination_participant_services WHERE participant_id=? ORDER BY unit_price_snapshot",
                 BigDecimal.class,
                 p1))
         .usingComparatorForType(BigDecimal::compareTo, BigDecimal.class)
         .containsExactly(new BigDecimal("100"), new BigDecimal("250.50"));
     assertThat(
             count(
-                "SELECT count(*) FROM public.import_jobs WHERE import_type='HEALTH_EXAMINATION_SERVICE_RECONCILIATION' AND status='CONFIRMED' AND batch_id=?",
-                batchId))
+                "SELECT count(*) FROM public.import_jobs WHERE import_type='HEALTH_EXAMINATION_SERVICE_RECONCILIATION' AND status='CONFIRMED' AND agreement_id=?",
+                agreementId))
         .isEqualTo(1);
     assertThat(
             count(
@@ -402,11 +427,17 @@ class ExaminationDetailIntegrationTest {
             count(
                 "SELECT count(*) FROM public.audit_events WHERE action='IMPORT_EXAMINATION_DETAILS'"))
         .isEqualTo(1);
+    // reconciling services never writes attendance: nobody is scheduled or marked as attended
+    assertThat(
+            count(
+                "SELECT count(*) FROM public.health_examination_session_assignments WHERE organization_id=?",
+                org))
+        .isZero();
 
     var replay = importFile(file, key);
 
     assertThat(replay.importJobId()).isEqualTo(response.importJobId());
-    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE batch_id=?", batchId))
+    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE agreement_id=?", agreementId))
         .isEqualTo(1);
     assertThat(
             count(
@@ -422,7 +453,7 @@ class ExaminationDetailIntegrationTest {
 
     assertThatThrownBy(() -> importFile(edited(exported(), sheet -> mark(sheet, p2, 0, "X")), key))
         .isInstanceOf(ConflictException.class);
-    assertThat(state(p2)).isEqualTo("UNCONFIRMED|-|PENDING");
+    assertThat(state(p2)).isEqualTo("PENDING");
   }
 
   @Test
@@ -440,10 +471,10 @@ class ExaminationDetailIntegrationTest {
     assertThatThrownBy(() -> importFile(twoRows, UUID.randomUUID()))
         .isInstanceOf(ConcurrentUpdateException.class);
 
-    assertThat(state(p2)).isEqualTo("UNCONFIRMED|-|PENDING");
+    assertThat(state(p2)).isEqualTo("PENDING");
     assertThat(version(p2)).isEqualTo(p2Version);
     assertThat(serviceRows(p2, true)).isZero();
-    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE batch_id=?", batchId))
+    assertThat(count("SELECT count(*) FROM public.import_jobs WHERE agreement_id=?", agreementId))
         .isEqualTo(1);
   }
 
@@ -463,14 +494,14 @@ class ExaminationDetailIntegrationTest {
     assertThat(second.updatedParticipants()).isEqualTo(1);
     assertThat(serviceRows(p1, true)).isEqualTo(1);
     assertThat(serviceRows(p1, false)).isEqualTo(1);
-    assertThat(state(p1)).isEqualTo("ATTENDED|2026-10-04|RECONCILED");
+    assertThat(state(p1)).isEqualTo("RECONCILED");
   }
 
   @Test
-  void aCancelledParticipantOrAFinalizedBatchIsAConflict() {
+  void aCancelledParticipantOrAnEndedAgreementIsAConflict() {
     byte[] file = edited(exported(), sheet -> mark(sheet, p3, 0, "X"));
     jdbc.update(
-        "UPDATE public.health_examination_batch_participants SET roster_status='CANCELLED',row_version=row_version+1 WHERE id=?",
+        "UPDATE public.health_examination_participants SET roster_status='CANCELLED',row_version=row_version+1 WHERE id=?",
         p3);
     assertThatThrownBy(() -> importFile(file, UUID.randomUUID()))
         .isInstanceOf(ConflictException.class)
@@ -478,14 +509,14 @@ class ExaminationDetailIntegrationTest {
 
     byte[] again = edited(exported(), sheet -> mark(sheet, p1, 0, "X"));
     jdbc.update(
-        "UPDATE public.health_examination_batches SET status='FINALIZED' WHERE id=?", batchId);
+        "UPDATE public.health_examination_agreements SET status='ENDED' WHERE id=?", agreementId);
     assertThatThrownBy(() -> importFile(again, UUID.randomUUID()))
         .isInstanceOf(ConflictException.class);
-    assertThat(state(p1)).isEqualTo("UNCONFIRMED|-|PENDING");
+    assertThat(state(p1)).isEqualTo("PENDING");
   }
 
   @Test
-  void aFileFromAnotherBatchIsRejected() {
+  void aFileFromAnotherAgreementIsRejected() {
     byte[] file = exported();
     UUID extra = UUID.randomUUID();
     jdbc.update(
@@ -493,86 +524,121 @@ class ExaminationDetailIntegrationTest {
         extra,
         serviceA);
     jdbc.update(
-        "INSERT INTO public.health_examination_batch_services(batch_id,service_id,reference_price_snapshot,negotiated_price,display_order,active) VALUES (?,?,1,1,3,true)",
-        batchId,
+        "INSERT INTO public.health_examination_agreement_services(agreement_id,service_id,reference_price_snapshot,negotiated_price,display_order,active) VALUES (?,?,1,1,3,true)",
+        agreementId,
         extra);
 
     assertThatThrownBy(() -> importFile(file, UUID.randomUUID()))
-        .hasMessageContaining("does not match this batch");
+        .hasMessageContaining("does not match this agreement");
   }
 
   @Test
-  void listAndSummaryFollowTheStatusFilters() {
+  void listAndSummaryFollowTheDerivedAttendanceAndTheFilters() {
     importFile(edited(exported(), sheet -> mark(sheet, p1, 0, "X")), UUID.randomUUID());
-    jdbc.update(
-        "UPDATE public.health_examination_batch_participants SET attendance_status='ABSENT' WHERE id=?",
-        p2);
-    jdbc.update(
-        "UPDATE public.health_examination_batch_participants SET attendance_status='ATTENDED',actual_examination_date=DATE '2026-10-04',attendance_recorded_by=?,attendance_recorded_at=CURRENT_TIMESTAMP WHERE id=?",
-        actor,
-        p3);
+    UUID s4 = session(D4);
+    assign(s4, p1, "ATTENDED");
+    assign(s4, p2, "NO_SHOW");
+    assign(s4, p3, "ATTENDED");
 
-    var all = list.execute(org, batchId, ExaminationDetailListQuery.builder().build(), principal);
+    var all =
+        list.execute(org, agreementId, ExaminationDetailListQuery.builder().build(), principal);
     var attended =
         list.execute(
             org,
-            batchId,
+            agreementId,
             ExaminationDetailListQuery.builder()
                 .attendanceStatus("ATTENDED")
                 .reconciliationStatus("RECONCILED")
                 .build(),
             principal);
+    var noShow =
+        list.execute(
+            org,
+            agreementId,
+            ExaminationDetailListQuery.builder().attendanceStatus("NO_SHOW").build(),
+            principal);
     var searched =
         list.execute(
-            org, batchId, ExaminationDetailListQuery.builder().searchKey("TWO").build(), principal);
+            org,
+            agreementId,
+            ExaminationDetailListQuery.builder().searchKey("TWO").build(),
+            principal);
     var sorted =
         list.execute(
             org,
-            batchId,
+            agreementId,
             ExaminationDetailListQuery.builder().sortKey("fullName").sortBy("DESC").size(2).build(),
             principal);
 
     assertThat(all.totalElements()).isEqualTo(3);
     assertThat(attended.items()).extracting("id").containsExactly(p1);
-    assertThat(attended.items().get(0).performedBatchServiceIds()).containsExactly(batchServiceA);
+    assertThat(attended.items().get(0).performedAgreementServiceIds())
+        .containsExactly(agreementServiceA);
     assertThat(attended.items().get(0).identificationNumberMasked()).doesNotContain("000000000001");
+    assertThat(attended.items().get(0).lastAttendedDate()).isNotNull();
+    assertThat(noShow.items()).extracting("id").containsExactly(p2);
     assertThat(searched.items()).extracting("id").containsExactly(p2);
     assertThat(sorted.items()).extracting("fullName").containsExactly("Person Two", "Person Three");
     assertThat(sorted.totalPages()).isEqualTo(2);
 
-    var counters = summary.execute(org, batchId, principal);
+    var counters = summary.execute(org, agreementId, principal);
     assertThat(counters.registered()).isEqualTo(3);
     assertThat(counters.attended()).isEqualTo(2);
-    assertThat(counters.absent()).isEqualTo(1);
+    assertThat(counters.noShow()).isEqualTo(1);
     assertThat(counters.unconfirmed()).isZero();
+    // a no-show has no session left, so it is also waiting to be scheduled again
+    assertThat(counters.unscheduled()).isEqualTo(1);
     assertThat(counters.reconciled()).isEqualTo(1);
     assertThat(counters.pendingReconciliation()).isEqualTo(1);
+  }
+
+  @Test
+  void aNoShowWithAnotherSessionStillExpectedIsUnconfirmedAndAnUnscheduledOneIsCounted() {
+    assign(session(D4), p1, "NO_SHOW");
+    assign(session(D8), p1, "ASSIGNED");
+    assign(session(D4), p2, "ASSIGNED");
+
+    var counters = summary.execute(org, agreementId, principal);
+
+    assertThat(counters.registered()).isEqualTo(3);
+    assertThat(counters.unconfirmed()).isEqualTo(3); // nobody has attended, p3 is not scheduled yet
+    assertThat(counters.noShow()).isZero();
+    assertThat(counters.attended()).isZero();
+    assertThat(counters.unscheduled()).isEqualTo(1); // p3 is in no session
+    var row =
+        list.execute(
+                org,
+                agreementId,
+                ExaminationDetailListQuery.builder().searchKey("ONE").build(),
+                principal)
+            .items()
+            .get(0);
+    assertThat(row.nextSessionDate()).isEqualTo(D8);
+    assertThat(row.attendanceStatus()).isEqualTo("UNCONFIRMED");
   }
 
   @Test
   void recordingOneParticipantByHandReconcilesItAndStaleFilesAndRetriesBehave() {
     byte[] oldFile = edited(exported(), sheet -> mark(sheet, p1, 0, "X"));
     var request =
-        new RecordExaminationDetailCommand(
-            Attendance.ATTENDED, LocalDate.of(2026, 10, 5), Set.of(batchServiceA, batchServiceB), 0);
+        new RecordExaminationDetailCommand(Set.of(agreementServiceA, agreementServiceB), 0);
 
-    var row = recorder.execute(org, batchId, p1, request, principal);
+    var row = recorder.execute(org, agreementId, p1, request, principal);
 
     assertThat(row.rowVersion()).isEqualTo(1);
-    assertThat(row.attendanceStatus()).isEqualTo("ATTENDED");
     assertThat(row.reconciliationStatus()).isEqualTo("RECONCILED");
-    assertThat(row.performedBatchServiceIds())
-        .containsExactlyInAnyOrder(batchServiceA, batchServiceB);
-    assertThat(state(p1)).isEqualTo("ATTENDED|2026-10-05|RECONCILED");
+    assertThat(row.performedAgreementServiceIds())
+        .containsExactlyInAnyOrder(agreementServiceA, agreementServiceB);
+    assertThat(state(p1)).isEqualTo("RECONCILED");
     assertThat(serviceRows(p1, true)).isEqualTo(2);
-    assertThat(summary.execute(org, batchId, principal).reconciled()).isEqualTo(1);
+    assertThat(summary.execute(org, agreementId, principal).reconciled()).isEqualTo(1);
     assertThat(
             count(
                 "SELECT count(*) FROM public.audit_events WHERE action='RECORD_EXAMINATION_DETAIL'"))
         .isEqualTo(1);
 
     // The same request again (a lost response) is answered from the stored state, writing nothing.
-    var retry = recorder.execute(org, batchId, p1, request, principal);
+    var retry = recorder.execute(org, agreementId, p1, request, principal);
     assertThat(retry.rowVersion()).isEqualTo(1);
     assertThat(version(p1)).isEqualTo(1);
     assertThat(
@@ -585,10 +651,9 @@ class ExaminationDetailIntegrationTest {
             () ->
                 recorder.execute(
                     org,
-                    batchId,
+                    agreementId,
                     p1,
-                    new RecordExaminationDetailCommand(
-                        Attendance.ATTENDED, LocalDate.of(2026, 10, 5), Set.of(batchServiceA), 0),
+                    new RecordExaminationDetailCommand(Set.of(agreementServiceA), 0),
                     principal))
         .isInstanceOf(ConcurrentUpdateException.class);
     assertThat(serviceRows(p1, true)).isEqualTo(2);
@@ -599,62 +664,38 @@ class ExaminationDetailIntegrationTest {
   }
 
   @Test
-  void recordingAbsentIsRefusedWhileAServiceIsPerformedAndOtherwiseCounts() {
-    recorder.execute(
-        org,
-        batchId,
-        p1,
-        new RecordExaminationDetailCommand(
-            Attendance.ATTENDED, LocalDate.of(2026, 10, 5), Set.of(batchServiceA), 0),
-        principal);
+  void recordingNothingForAFreshParticipantChangesNothing() {
+    var row =
+        recorder.execute(
+            org, agreementId, p2, new RecordExaminationDetailCommand(Set.of(), 0), principal);
 
-    assertThatThrownBy(
-            () ->
-                recorder.execute(
-                    org,
-                    batchId,
-                    p1,
-                    new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 1),
-                    principal))
-        .isInstanceOf(ConflictException.class);
-    assertThat(state(p1)).isEqualTo("ATTENDED|2026-10-05|RECONCILED");
-
-    recorder.execute(
-        org,
-        batchId,
-        p2,
-        new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 0),
-        principal);
-
-    assertThat(state(p2)).isEqualTo("ABSENT|-|PENDING");
+    assertThat(row.rowVersion()).isZero();
+    assertThat(state(p2)).isEqualTo("PENDING");
     assertThat(serviceRows(p2, true)).isZero();
-    var counters = summary.execute(org, batchId, principal);
-    assertThat(counters.absent()).isEqualTo(1);
-    assertThat(counters.attended()).isEqualTo(1);
   }
 
   @Test
-  void recordingACancelledParticipantOrOneOfAnotherBatchIsRefused() {
+  void recordingACancelledParticipantOrOneOfAnotherAgreementIsRefused() {
     jdbc.update(
-        "UPDATE public.health_examination_batch_participants SET roster_status='CANCELLED' WHERE id=?",
+        "UPDATE public.health_examination_participants SET roster_status='CANCELLED' WHERE id=?",
         p3);
 
     assertThatThrownBy(
             () ->
                 recorder.execute(
                     org,
-                    batchId,
+                    agreementId,
                     p3,
-                    new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 0),
+                    new RecordExaminationDetailCommand(Set.of(agreementServiceA), 0),
                     principal))
         .isInstanceOf(ConflictException.class);
     assertThatThrownBy(
             () ->
                 recorder.execute(
                     org,
-                    batchId,
+                    agreementId,
                     UUID.randomUUID(),
-                    new RecordExaminationDetailCommand(Attendance.ABSENT, null, Set.of(), 0),
+                    new RecordExaminationDetailCommand(Set.of(agreementServiceA), 0),
                     principal))
         .isInstanceOf(com.ngockhanh.clinic.shared.exception.ResourceNotFoundException.class);
   }
@@ -663,10 +704,10 @@ class ExaminationDetailIntegrationTest {
   void theTemplateIsTheExportUnderItsOwnNameAndImportsBackWithoutChanges() {
     importFile(edited(exported(), sheet -> mark(sheet, p1, 0, "X")), UUID.randomUUID());
 
-    var file = template.execute(org, batchId, principal);
+    var file = template.execute(org, agreementId, principal);
     var response = importFile(file.content(), UUID.randomUUID());
 
-    assertThat(file.fileName()).isEqualTo("mau-nhap-chi-tiet-kham-" + batchCode + ".xlsx");
+    assertThat(file.fileName()).isEqualTo("mau-nhap-chi-tiet-kham-" + agreementCode + ".xlsx");
     assertThat(response.totalRows()).isEqualTo(3);
     assertThat(response.updatedParticipants()).isZero();
     assertThat(response.unchangedParticipants()).isEqualTo(3);
@@ -689,20 +730,27 @@ class ExaminationDetailIntegrationTest {
               mark(sheet, p3, 0, "X");
             }),
         UUID.randomUUID());
+    UUID s4 = session(D4);
+    UUID s8 = session(D8);
+    assign(s4, p1, "ATTENDED");
+    assign(s4, p2, "ATTENDED");
+    assign(s8, p1, "ATTENDED");
     // The negotiated price changes later; performed rows keep their snapshot.
     jdbc.update(
-        "UPDATE public.health_examination_batch_services SET negotiated_price=120 WHERE id=?",
-        batchServiceA);
+        "UPDATE public.health_examination_agreement_services SET negotiated_price=120 WHERE id=?",
+        agreementServiceA);
     jdbc.update(
-        "UPDATE public.health_examination_batch_participants SET roster_status='CANCELLED' WHERE id=?",
+        "UPDATE public.health_examination_participants SET roster_status='CANCELLED' WHERE id=?",
         p3);
 
-    var result = report.execute(org, batchId, principal);
+    var result = report.execute(org, agreementId, null, null, principal);
 
     assertThat(result.provisional()).isTrue();
     assertThat(result.registeredCount()).isEqualTo(2);
     assertThat(result.attendedCount()).isEqualTo(2);
     assertThat(result.reconciledCount()).isEqualTo(2);
+    assertThat(result.sessionCount()).isEqualTo(2);
+    assertThat(result.visitCount()).isEqualTo(3); // p1 came twice
     assertThat(result.items()).hasSize(2);
     assertThat(result.items().get(0).serviceName()).isEqualTo("Khám nội");
     assertThat(result.items().get(0).examinedCount()).isEqualTo(2);
@@ -712,9 +760,9 @@ class ExaminationDetailIntegrationTest {
     assertThat(result.items().get(1).amount()).isEqualByComparingTo("250.50");
     assertThat(result.totalAmount()).isEqualByComparingTo("450.50");
 
-    var file = reportDocx.execute(org, batchId, principal);
+    var file = reportDocx.execute(org, agreementId, null, null, principal);
 
-    assertThat(file.fileName()).isEqualTo("bao-cao-thanh-toan-" + batchCode + ".docx");
+    assertThat(file.fileName()).isEqualTo("bao-cao-thanh-toan-" + agreementCode + ".docx");
     try (XWPFDocument doc = new XWPFDocument(new ByteArrayInputStream(file.content()))) {
       var text = new StringBuilder();
       doc.getParagraphs().forEach(p -> text.append(p.getText()).append('\n'));
@@ -733,5 +781,40 @@ class ExaminationDetailIntegrationTest {
     assertThat(
             count("SELECT count(*) FROM public.audit_events WHERE action='EXPORT_PAYMENT_REPORT'"))
         .isEqualTo(1);
+  }
+
+  @Test
+  void paymentReportLimitedToASessionDateRangeCountsOnlyThePeopleInThoseSessions() {
+    importFile(
+        edited(
+            exported(),
+            sheet -> {
+              mark(sheet, p1, 0, "X");
+              mark(sheet, p1, 1, "X");
+              mark(sheet, p2, 0, "X");
+            }),
+        UUID.randomUUID());
+    assign(session(D4), p1, "ATTENDED");
+    assign(session(D8), p2, "ASSIGNED");
+
+    var first = report.execute(org, agreementId, D4, D4, principal);
+    var second = report.execute(org, agreementId, D8, D8, principal);
+    var both = report.execute(org, agreementId, D4, D8, principal);
+    var none = report.execute(org, agreementId, LocalDate.of(2026, 11, 1), null, principal);
+
+    assertThat(first.registeredCount()).isEqualTo(1);
+    assertThat(first.attendedCount()).isEqualTo(1);
+    assertThat(first.rangeFrom()).isEqualTo(D4);
+    assertThat(first.rangeTo()).isEqualTo(D4);
+    assertThat(first.totalAmount()).isEqualByComparingTo("350.50");
+    assertThat(second.registeredCount()).isEqualTo(1);
+    assertThat(second.attendedCount()).isZero();
+    assertThat(second.totalAmount()).isEqualByComparingTo("100");
+    assertThat(both.registeredCount()).isEqualTo(2);
+    assertThat(both.totalAmount()).isEqualByComparingTo("450.50");
+    assertThat(none.registeredCount()).isZero();
+    assertThat(none.totalAmount()).isEqualByComparingTo("0");
+    assertThatThrownBy(() -> report.execute(org, agreementId, D8, D4, principal))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

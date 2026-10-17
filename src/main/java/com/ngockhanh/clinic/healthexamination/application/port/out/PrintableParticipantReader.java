@@ -6,31 +6,31 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Read port that chooses the Participants of an examination day for a bulk form print. */
+/** Read port that chooses the Participants of a session for a bulk form print. */
 public interface PrintableParticipantReader {
   /**
-   * Reads the active Participants of one examination day in print order. Participants who are
-   * marked absent or cancelled are never included; those who already attended are included only
-   * when asked for.
+   * Reads the active Participants of an agreement who are expected in one session, in print order.
+   * Participants who did not show or were cancelled are never included; those who already attended
+   * are included only when asked for.
    *
-   * @return the day, or empty when the batch does not belong to the organization, is deleted, or
-   *     the day is not a day of that batch
+   * @return the session, or empty when the agreement does not belong to the organization, is
+   *     deleted, or the session is not an open session the agreement may use
    */
-  Optional<PrintableDay> readDay(
+  Optional<PrintableSession> readSession(
       UUID organizationId,
-      UUID batchId,
-      UUID batchDayId,
+      UUID agreementId,
+      UUID sessionId,
       boolean includeAttended,
       ExaminationFormPrintOrder order);
 
   /**
-   * One examination day and the Participants to print on it.
+   * One session and the Participants to print in it.
    *
-   * @param examinationDate date of the day
+   * @param sessionDate date of the session
    * @param participantIds identifiers in print order, without duplicates
    */
-  record PrintableDay(LocalDate examinationDate, List<UUID> participantIds) {
-    public PrintableDay {
+  record PrintableSession(LocalDate sessionDate, List<UUID> participantIds) {
+    public PrintableSession {
       participantIds = List.copyOf(participantIds);
     }
   }

@@ -10,14 +10,25 @@ import org.junit.jupiter.api.Test;
 class CleanSlateMigrationContractTest {
   @Test
   void runtimeSqlReferencesOnlyTablesInTheFreshBaseline() throws Exception {
-    String sql =
-        Files.readString(Path.of("src/main/resources/db/migration/V001__create_schema.sql"));
+    // Every migration counts: later ones create, and rename, tables of the baseline.
+    String sql;
+    try (var migrations = Files.list(Path.of("src/main/resources/db/migration"))) {
+      var texts = new java.util.ArrayList<String>();
+      for (Path migration :
+          migrations.filter(path -> path.toString().endsWith(".sql")).sorted().toList())
+        texts.add(Files.readString(migration));
+      sql = String.join("\n", texts);
+    }
     var tables =
         Pattern.compile("(?m)^\\h*CREATE TABLE public\\.([a-z_]+)")
             .matcher(sql)
             .results()
             .map(match -> match.group(1))
-            .collect(java.util.stream.Collectors.toSet());
+            .collect(java.util.stream.Collectors.toCollection(java.util.HashSet::new));
+    Pattern.compile("RENAME TO ([a-z_]+);")
+        .matcher(sql)
+        .results()
+        .forEach(match -> tables.add(match.group(1)));
     var relation = Pattern.compile("(?i)\\b(?:FROM|JOIN|UPDATE|INTO)\\s+public\\.([a-z_]+)");
     for (Path directory :
         java.util.List.of(Path.of("src/main/resources/mapper"), Path.of("src/main/java"))) {

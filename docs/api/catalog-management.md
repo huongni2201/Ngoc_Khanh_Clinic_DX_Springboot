@@ -15,7 +15,7 @@ Lookup endpoint `GET /api/v1/catalog/services` for health examination batches re
 
 ## 1. Permission Matrix
 
-Under ADR-0015, every route requires a `STAFF` account and its own explicit permission. V007 grants these to `CLINIC_MANAGER`; `ADMINISTRATOR` receives no catalog grants. UC-110–UC-115 belong to `CLINIC_MANAGER`, including manager accounts created through the staff-member API:
+Under ADR-0015, every route requires a `STAFF` account and its own explicit permission. V002 grants these to `CLINIC_MANAGER`; `ADMINISTRATOR` receives no catalog grants. UC-110–UC-115 belong to `CLINIC_MANAGER`, including manager accounts created through the staff-member API:
 
 | Resource | Action | Method | Path | Required Permission |
 |---|---|---|---|---|
@@ -361,9 +361,9 @@ All collection `GET` endpoints support the following parameters:
 
 ## 5. Deployment and verification
 
-`V007__catalog_management.sql` follows the unchanged V001–V006 migrations. It adds catalog
-versions/timestamps, canonical-code unique indexes, parent-filter indexes and non-negative
-version constraints. Newly added timestamps are NOT NULL with CURRENT_TIMESTAMP defaults.
+The catalog management fields live in the V001 baseline: catalog versions/timestamps, canonical-code
+unique indexes, parent-filter indexes and non-negative version constraints. Timestamps are NOT NULL with
+CURRENT_TIMESTAMP defaults.
 
 Each of the 30 permissions declares its method/path in the same INSERT and is granted to
 CLINIC_MANAGER. The local access-control seed and afterMigrate callback grant TEST access.
@@ -375,6 +375,6 @@ with an incompatible migration history.
 filters, action/resource permissions, Origin validation, PostgreSQL mappings, audit/rollback
 and concurrent writes. It also provisions a CLINIC_MANAGER through the staff-member API
 and exercises all five catalogs. `CatalogManagementMigrationIntegrationTest` verifies the
-sequential V001–V007 history, seed prices, timestamp/version constraints, canonical-code
+sequential V001–V003 history, seed prices, timestamp/version constraints, canonical-code
 uniqueness, manager/admin grants, atomic DDL/permission rollback and local TEST grants.
 Use `mvnw.cmd verify` with Docker available; skipped tests do not establish these guarantees.

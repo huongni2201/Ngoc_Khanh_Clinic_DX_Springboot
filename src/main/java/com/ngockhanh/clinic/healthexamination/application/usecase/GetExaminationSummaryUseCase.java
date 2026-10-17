@@ -13,10 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Counts the active Participants of one health examination batch by attendance and reconciliation
- * state.
+ * Counts the active Participants of one health examination agreement by attendance and
+ * reconciliation state.
  *
- * <p>The caller must hold the service read permission, checked before the batch is looked up.
+ * <p>The caller must hold the service read permission, checked before the agreement is looked up.
  * Cancelled Participants are never counted. Nothing is written or audited.
  */
 @Slf4j
@@ -27,29 +27,29 @@ public class GetExaminationSummaryUseCase {
   private final ExaminationDetailReader reader;
 
   /**
-   * Returns the counters of the batch.
+   * Returns the counters of the agreement.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
    * @param principal authenticated staff account
    * @throws ApplicationException of type {@code ACCESS_DENIED} without the service read permission
    * @throws IllegalArgumentException when an identifier is null
-   * @throws ResourceNotFoundException when the batch is not found in the organization
+   * @throws ResourceNotFoundException when the agreement is not found in the organization
    */
   @Transactional(readOnly = true)
   public ExaminationSummaryResponse execute(
-      UUID organizationId, UUID batchId, UserPrincipal principal) {
+      UUID organizationId, UUID agreementId, UserPrincipal principal) {
     access.requireServiceSummaryRead(principal);
-    if (organizationId == null || batchId == null)
-      throw new IllegalArgumentException("Organization ID and batch ID are required");
+    if (organizationId == null || agreementId == null)
+      throw new IllegalArgumentException("Organization ID and agreement ID are required");
     var summary =
         reader
-            .summarize(organizationId, batchId)
-            .orElseThrow(() -> new ResourceNotFoundException("Health examination batch"));
+            .summarize(organizationId, agreementId)
+            .orElseThrow(() -> new ResourceNotFoundException("Health examination agreement"));
     log.info(
-        "Examination summary read: organizationId={}, batchId={}, registered={}",
+        "Examination summary read: organizationId={}, agreementId={}, registered={}",
         organizationId,
-        batchId,
+        agreementId,
         summary.registered());
     return ExaminationSummaryResponse.from(summary);
   }

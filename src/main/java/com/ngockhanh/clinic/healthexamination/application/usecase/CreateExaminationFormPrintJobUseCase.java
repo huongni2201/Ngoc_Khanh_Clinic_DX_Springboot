@@ -18,6 +18,7 @@ import com.ngockhanh.clinic.shared.exception.ConflictException;
 import com.ngockhanh.clinic.shared.exception.DependencyUnavailableException;
 import com.ngockhanh.clinic.shared.exception.ResourceNotFoundException;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,16 +27,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Queues a background job that prints the blank examination forms of many Participants of a batch
- * and merges them into PDF parts.
+ * Queues a background job that prints the blank examination forms of many Participants of an
+ * agreement and merges them into PDF parts.
  *
  * <p>The caller must hold {@code PARTICIPANT_EXAMINATION_FORM_BULK_PRINT}, checked before anything
- * is read. Only the batch is checked now; each Participant is checked when the job runs, so a
+ * is read. Only the agreement is checked now; each Participant is checked when the job runs, so a
  * Participant that is missing or cancelled is skipped with a reason instead of failing the job. The
- * job holds identifiers only. With scope {@code BATCH_DAY} the backend chooses the Participants of
- * one examination day when the job is created (active, not yet attended unless a reprint is asked
- * for, never absent) and the list does not change afterwards. The audit event {@code CREATE_EXAMINATION_FORM_PRINT_JOB} records the
- * identifiers and the number of Participants, never personal data.
+ * job holds identifiers only. With scope {@code SESSION} the backend chooses the Participants
+ * expected in one session when the job is created (active, not yet attended unless a reprint is
+ * asked for, never a no-show) and the list does not change afterwards; the forms show the date of
+ * that session. The audit event {@code CREATE_EXAMINATION_FORM_PRINT_JOB} records the identifiers
+ * and the number of Participants, never personal data.
  */
 @Slf4j
 @Service
@@ -43,78 +45,81 @@ import org.springframework.stereotype.Service;
 public class CreateExaminationFormPrintJobUseCase {
   private final ParticipantAccessPolicy access;
   private final ExaminationFormSourceLoader loader;
-  private final PrintableParticipantReader dayReader;
+  private final PrintableParticipantReader sessionReader;
   private final RenderJobs jobs;
   private final AuditWriter audit;
 
   /**
-   * Queues the job. The same account with the same idempotency key and request gets the job
-   * already queued.
+   * Queues the job. The same account with the same idempotency key and request gets the job already
+   * queued.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
    * @param command the Participants and the idempotency key
    * @param principal authenticated staff caller
    * @return the identifier of the queued job
    * @throws ApplicationException {@code ACCESS_DENIED} without the bulk print permission
    * @throws IllegalArgumentException when an identifier or the key is missing, the list is empty,
    *     too long or has duplicates, or the fields do not fit the scope
-   * @throws ResourceNotFoundException when the batch, the organization or the examination day is
-   *     not found
-   * @throws ConflictException when the batch is a draft or closed, nobody is left to print on the
-   *     day, the key was used for a different request, or the caller already has too many jobs
+   * @throws ResourceNotFoundException when the agreement, the organization or the session is not
+   *     found
+   * @throws ConflictException when the agreement is a draft, nobody is left to print in the
+   *     session, the key was used for a different request, or the caller already has too many jobs
    *     waiting or running
    * @throws DependencyUnavailableException when document storage is not configured
    */
   public ExaminationFormPrintJobResponse execute(
       UUID organizationId,
-      UUID batchId,
+      UUID agreementId,
       CreateExaminationFormPrintJobCommand command,
       UserPrincipal principal) {
     access.requireBulkPrint(principal);
-    if (organizationId == null || batchId == null || command == null || command.idempotencyKey() == null)
-      throw new IllegalArgumentException("Organization, batch and idempotency key are required");
-    String batchCode = loader.requirePrintableBatch(organizationId, batchId);
-    String fileName = ExportFileNames.of("phieu-kham-", batchCode, ".pdf");
+    if (organizationId == null
+        || agreementId == null
+        || command == null
+        || command.idempotencyKey() == null)
+      throw new IllegalArgumentException(
+          "Organization, agreement and idempotency key are required");
+    String agreementCode = loader.requirePrintableAgreement(organizationId, agreementId);
+    String fileName = ExportFileNames.of("phieu-kham-", agreementCode, ".pdf");
     List<UUID> participantIds = command.participantIds();
-    if (command.scope() == ExaminationFormPrintScope.BATCH_DAY) {
-      if (command.batchDayId() == null)
-        throw new IllegalArgumentException("The examination day is required to print by day");
+    if (command.scope() == ExaminationFormPrintScope.SESSION) {
+      if (command.sessionId() == null)
+        throw new IllegalArgumentException("The session is required to print by session");
       if (!command.participantIds().isEmpty())
-        throw new IllegalArgumentException("Participants cannot be listed when printing by day");
-      var day =
-          dayReader
-              .readDay(
+        throw new IllegalArgumentException(
+            "Participants cannot be listed when printing by session");
+      var session =
+          sessionReader
+              .readSession(
                   organizationId,
-                  batchId,
-                  command.batchDayId(),
+                  agreementId,
+                  command.sessionId(),
                   command.includeAttended(),
                   command.sort() == null ? ExaminationFormPrintOrder.DEPARTMENT : command.sort())
-              .orElseThrow(() -> new ResourceNotFoundException("Examination day"));
-      if (day.participantIds().isEmpty())
-        throw new ConflictException("No Participant is left to print on this examination day");
-      participantIds = day.participantIds();
+              .orElseThrow(() -> new ResourceNotFoundException("Session"));
+      if (session.participantIds().isEmpty())
+        throw new ConflictException("No Participant is left to print in this session");
+      participantIds = session.participantIds();
       fileName =
           ExportFileNames.of(
               "phieu-kham-",
-              batchCode + "-" + day.examinationDate().format(DateTimeFormatter.BASIC_ISO_DATE),
+              agreementCode + "-" + session.sessionDate().format(DateTimeFormatter.BASIC_ISO_DATE),
               ".pdf");
-    } else if (command.batchDayId() != null) {
-      throw new IllegalArgumentException("An examination day can only be given when printing by day");
     }
+    Map<String, String> context = new HashMap<>();
+    context.put(ExaminationFormValuesSource.ORGANIZATION_ID, organizationId.toString());
+    context.put(ExaminationFormValuesSource.AGREEMENT_ID, agreementId.toString());
+    if (command.sessionId() != null)
+      context.put(ExaminationFormValuesSource.SESSION_ID, command.sessionId().toString());
+    context.put(RenderJobs.FILE_NAME_KEY, fileName);
     var queued =
         jobs.enqueue(
             new RenderJobs.NewRenderJob(
                 PeriodicFormBlankContract.DOCUMENT_TYPE,
                 principal.userId(),
                 command.idempotencyKey(),
-                Map.of(
-                    ExaminationFormValuesSource.ORGANIZATION_ID,
-                    organizationId.toString(),
-                    ExaminationFormValuesSource.BATCH_ID,
-                    batchId.toString(),
-                    RenderJobs.FILE_NAME_KEY,
-                    fileName),
+                Map.copyOf(context),
                 participantIds));
     if (!queued.replayed()) {
       audit.record(
@@ -126,14 +131,15 @@ public class CreateExaminationFormPrintJobUseCase {
           Map.of(
               "organizationId",
               organizationId,
-              "batchId",
-              batchId,
+              "agreementId",
+              agreementId,
               "participantCount",
               participantIds.size()));
       log.info(
-          "Examination form print job queued: organizationId={}, batchId={}, scope={}, jobId={}, participants={}",
+          "Examination form print job queued: organizationId={}, agreementId={}, scope={}, jobId={},"
+              + " participants={}",
           organizationId,
-          batchId,
+          agreementId,
           command.scope(),
           queued.jobId(),
           participantIds.size());

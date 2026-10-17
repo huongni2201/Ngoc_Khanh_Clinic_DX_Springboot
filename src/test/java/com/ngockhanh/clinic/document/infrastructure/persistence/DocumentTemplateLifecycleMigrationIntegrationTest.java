@@ -84,14 +84,21 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
         "UPDATE public.template_versions SET note = 'edited', validation_report = '{}'::jsonb WHERE id = ?",
         draft);
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.template_versions SET file_id = ? WHERE id = ?", otherFile, draft))
+            () ->
+                jdbc.update(
+                    "UPDATE public.template_versions SET file_id = ? WHERE id = ?",
+                    otherFile,
+                    draft))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("immutable");
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.template_versions SET paper_size = 'A4' WHERE id = ?", draft))
+            () ->
+                jdbc.update(
+                    "UPDATE public.template_versions SET paper_size = 'A4' WHERE id = ?", draft))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("immutable");
-    assertThatThrownBy(() -> jdbc.update("DELETE FROM public.template_versions WHERE id = ?", draft))
+    assertThatThrownBy(
+            () -> jdbc.update("DELETE FROM public.template_versions WHERE id = ?", draft))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("cannot be deleted");
   }
@@ -106,11 +113,13 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("overlap");
 
-    jdbc.update("UPDATE public.template_versions SET retired_at = " + FUTURE + " WHERE id = ?", first);
+    jdbc.update(
+        "UPDATE public.template_versions SET retired_at = " + FUTURE + " WHERE id = ?", first);
     publish(second, FUTURE);
 
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.template_versions SET note = 'x' WHERE id = ?", second))
+            () ->
+                jdbc.update("UPDATE public.template_versions SET note = 'x' WHERE id = ?", second))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("can only be retired");
   }
@@ -120,18 +129,22 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
     UUID template = template(uniqueType(), true, true);
     UUID first = version(template, 1, file("LOCAL"), "PUBLISHED", PAST);
     UUID second = version(template, 2, file("LOCAL"), "DRAFT", null);
-    jdbc.update("UPDATE public.template_versions SET retired_at = " + FUTURE + " WHERE id = ?", first);
+    jdbc.update(
+        "UPDATE public.template_versions SET retired_at = " + FUTURE + " WHERE id = ?", first);
     publish(second, FUTURE);
 
     jdbc.update("UPDATE public.template_versions SET status = 'DISCARDED' WHERE id = ?", second);
     jdbc.update("UPDATE public.template_versions SET retired_at = NULL WHERE id = ?", first);
 
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.template_versions SET status = 'DISCARDED' WHERE id = ?", first))
+            () ->
+                jdbc.update(
+                    "UPDATE public.template_versions SET status = 'DISCARDED' WHERE id = ?", first))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("not yet effective");
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.template_versions SET note = 'z' WHERE id = ?", second))
+            () ->
+                jdbc.update("UPDATE public.template_versions SET note = 'z' WHERE id = ?", second))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("discarded");
   }
@@ -150,7 +163,9 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
             file("LOCAL"));
 
     assertThatThrownBy(
-            () -> jdbc.update("UPDATE public.template_versions SET retired_at = NULL WHERE id = ?", version))
+            () ->
+                jdbc.update(
+                    "UPDATE public.template_versions SET retired_at = NULL WHERE id = ?", version))
         .isInstanceOf(DataAccessException.class)
         .hasMessageContaining("already retired");
   }
@@ -161,7 +176,8 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
     UUID source = file("LOCAL");
     UUID preview = file("LOCAL");
     UUID version = version(template, 1, source, "DRAFT", null);
-    jdbc.update("UPDATE public.template_versions SET preview_file_id = ? WHERE id = ?", preview, version);
+    jdbc.update(
+        "UPDATE public.template_versions SET preview_file_id = ? WHERE id = ?", preview, version);
 
     assertThatThrownBy(() -> jdbc.update("DELETE FROM public.files WHERE id = ?", source))
         .isInstanceOf(DataAccessException.class)
@@ -179,7 +195,7 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
         .containsEntry("http_method", "GET")
         .containsEntry(
             "endpoint",
-            "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/examination-form");
+            "/api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}/examination-form");
     assertThat(
             jdbc.queryForList(
                 """
@@ -227,7 +243,8 @@ class DocumentTemplateLifecycleMigrationIntegrationTest {
   }
 
   /** Inserts a version; {@code activeFrom} is an SQL expression, or null for a draft. */
-  private static UUID version(UUID template, int number, UUID file, String status, String activeFrom) {
+  private static UUID version(
+      UUID template, int number, UUID file, String status, String activeFrom) {
     String published = activeFrom == null ? "NULL" : "now()";
     return jdbc.queryForObject(
         "INSERT INTO public.template_versions(template_id, version_no, file_id, paper_size, orientation, "

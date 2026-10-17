@@ -6,11 +6,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
-import java.util.UUID;
 import lombok.Builder;
 
 /**
- * Body for adding one Participant to a batch by hand. Only the structure is checked here; the
+ * Body for adding one Participant to an agreement by hand. Only the structure is checked here; the
  * roster rules live in the domain.
  */
 @Builder
@@ -28,8 +27,7 @@ public record CreateParticipantRequest(
     @Size(max = 500) String workplace,
     @NotBlank @Size(max = 500) String departmentName,
     @NotBlank @Size(max = 500) String positionName,
-    @Size(max = 2000) String note,
-    @NotNull UUID batchDayId) {
+    @Size(max = 2000) String note) {
 
   /** Maps the transport body to the application command. */
   public CreateParticipantCommand toCommand() {
@@ -47,7 +45,6 @@ public record CreateParticipantRequest(
         workplace,
         departmentName,
         positionName,
-        note,
-        batchDayId);
+        note);
   }
 }

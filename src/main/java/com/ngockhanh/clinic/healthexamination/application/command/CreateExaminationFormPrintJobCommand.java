@@ -5,21 +5,22 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Asks for the examination forms of many Participants of one batch to be printed in the
+ * Asks for the examination forms of many Participants of one agreement to be printed in the
  * background.
  *
- * @param scope {@code IDS} prints {@code participantIds}; {@code BATCH_DAY} prints the Participants
- *     of {@code batchDayId}
+ * @param scope {@code IDS} prints {@code participantIds}; {@code SESSION} prints the expected
+ *     Participants of {@code sessionId}
  * @param participantIds for {@code IDS}: the Participants, in print order
- * @param batchDayId for {@code BATCH_DAY}: the examination day
- * @param includeAttended for {@code BATCH_DAY}: also print Participants who already attended
- * @param sort for {@code BATCH_DAY}: print order
+ * @param sessionId for {@code SESSION}: the session; for {@code IDS}: optional, the session whose
+ *     date is printed on the forms
+ * @param includeAttended for {@code SESSION}: also print Participants who already attended
+ * @param sort for {@code SESSION}: print order
  * @param idempotencyKey client-chosen key that makes a retry return the same job
  */
 public record CreateExaminationFormPrintJobCommand(
     ExaminationFormPrintScope scope,
     List<UUID> participantIds,
-    UUID batchDayId,
+    UUID sessionId,
     boolean includeAttended,
     ExaminationFormPrintOrder sort,
     UUID idempotencyKey) {

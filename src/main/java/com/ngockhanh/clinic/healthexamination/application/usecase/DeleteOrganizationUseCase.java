@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Deactivates an organization ({@code ACTIVE} to {@code INACTIVE}) instead of removing its row.
  *
- * <p>The organization row, its health-examination batches and their history are preserved. The
+ * <p>The organization row, its health-examination agreements and their history are preserved. The
  * status change and its audit event are written in one transaction, so an audit failure rolls back
  * the deactivation.
  */

@@ -13,8 +13,8 @@ public record ExaminationDetailRowView(
     String identificationNumber,
     String departmentName,
     String positionName,
-    LocalDate examinationDate,
+    LocalDate nextSessionDate,
     String attendanceStatus,
-    LocalDate actualExaminationDate,
+    LocalDate lastAttendedDate,
     String reconciliationStatus,
     long rowVersion) {}

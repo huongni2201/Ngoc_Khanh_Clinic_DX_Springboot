@@ -48,7 +48,7 @@ public class MyBatisServiceReconciliationImportStore implements ServiceReconcili
 
   @Override
   public ServiceReconciliationReservation reserve(ImportRequestIdentity request) {
-    String scope = SCOPE_PREFIX + request.organizationId() + ":" + request.batchId();
+    String scope = SCOPE_PREFIX + request.organizationId() + ":" + request.agreementId();
     String actorKey = request.actorId().toString();
     String requestKey = request.requestKey().toString();
     UUID id = UuidV7Generator.generate();
@@ -89,7 +89,7 @@ public class MyBatisServiceReconciliationImportStore implements ServiceReconcili
             ImportJobRecord.builder()
                 .id(jobId)
                 .importType(IMPORT_TYPE)
-                .batchId(input.batchId())
+                .agreementId(input.agreementId())
                 .configuration(json.writeValueAsString(configuration))
                 .status("VALIDATED")
                 .createdBy(input.actorId())
@@ -146,18 +146,15 @@ public class MyBatisServiceReconciliationImportStore implements ServiceReconcili
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("participantId", row.participantId().toString());
     payload.put(
-        "performedBatchServiceIds",
-        row.performedBatchServiceIds().stream().map(UUID::toString).toList());
-    payload.put(
-        "actualExaminationDate",
-        row.actualExaminationDate() == null ? null : row.actualExaminationDate().toString());
+        "performedAgreementServiceIds",
+        row.performedAgreementServiceIds().stream().map(UUID::toString).toList());
     return payload;
   }
 
   private static StoredReceipt stored(ServiceReconciliationReceipt receipt) {
     return new StoredReceipt(
         receipt.importJobId(),
-        receipt.batchId(),
+        receipt.agreementId(),
         receipt.totalRows(),
         receipt.updatedParticipants(),
         receipt.unchangedParticipants(),
@@ -168,7 +165,7 @@ public class MyBatisServiceReconciliationImportStore implements ServiceReconcili
   private static ServiceReconciliationReceipt toReceipt(StoredReceipt stored) {
     return new ServiceReconciliationReceipt(
         stored.importJobId(),
-        stored.batchId(),
+        stored.agreementId(),
         stored.totalRows(),
         stored.updatedParticipants(),
         stored.unchangedParticipants(),
@@ -179,7 +176,7 @@ public class MyBatisServiceReconciliationImportStore implements ServiceReconcili
   /** JSONB shape of the receipt; the instant is kept as ISO text so replays are byte-identical. */
   record StoredReceipt(
       UUID importJobId,
-      UUID batchId,
+      UUID agreementId,
       int totalRows,
       int updatedParticipants,
       int unchangedParticipants,

@@ -113,9 +113,9 @@ class StarterTemplateSeedIntegrationTest {
         .containsEntry("render_mode", "MASTER_FORM")
         .containsEntry("paper_size", "A3")
         .containsEntry("orientation", "LANDSCAPE")
-        .containsEntry("pages_per_record", 2)
         .containsEntry("contract_version", 1)
         .containsEntry("storage_provider", "CLASSPATH");
+    assertThat(((Number) row.get("pages_per_record")).intValue()).isEqualTo(2);
     assertThat(row.get("created_by")).isNull();
     assertThat(row.get("published_by")).isNull();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM public.template_versions", Integer.class))

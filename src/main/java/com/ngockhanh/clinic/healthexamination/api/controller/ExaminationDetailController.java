@@ -41,15 +41,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * Examination detail endpoints of one health examination batch: the Participant × service matrix,
- * its counters, the Excel export, the import template, the Excel reconciliation import and the
- * manual entry for one Participant.
+ * Examination detail endpoints of one health examination agreement: the Participant × service
+ * matrix, its counters, the Excel export, the import template, the Excel reconciliation import and
+ * the manual entry for one Participant.
  */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(
-    "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/examination-details")
+    "/api/v1/organizations/{organizationId}/agreements/{agreementId}/examination-details")
 public class ExaminationDetailController {
   private final ListExaminationDetailsUseCase listUseCase;
   private final GetExaminationSummaryUseCase summaryUseCase;
@@ -59,10 +59,10 @@ public class ExaminationDetailController {
   private final RecordExaminationDetailUseCase recordUseCase;
 
   /**
-   * Lists the examination detail rows of a batch.
+   * Lists the examination detail rows of an agreement.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
    * @param request filters, sorting and pagination
    * @param principal authenticated staff principal
    * @return the requested page; the identification number is masked
@@ -70,13 +70,13 @@ public class ExaminationDetailController {
   @GetMapping
   public ResponseEntity<ApiResponse<PageResponse<ExaminationDetailRowResponse>>> list(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @Valid @ModelAttribute ExaminationDetailListRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "List examination details request: organizationId={}, batchId={}, page={}, size={}",
+        "List examination details request: organizationId={}, agreementId={}, page={}, size={}",
         organizationId,
-        batchId,
+        agreementId,
         request.getPage(),
         request.getSize());
     return ResponseEntity.ok()
@@ -84,7 +84,7 @@ public class ExaminationDetailController {
         .body(
             ApiResponse.success(
                 HttpStatus.OK.value(),
-                listUseCase.execute(organizationId, batchId, request.toQuery(), principal)));
+                listUseCase.execute(organizationId, agreementId, request.toQuery(), principal)));
   }
 
   /**
@@ -95,15 +95,18 @@ public class ExaminationDetailController {
   @GetMapping("/summary")
   public ResponseEntity<ApiResponse<ExaminationSummaryResponse>> summary(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Examination summary request: organizationId={}, batchId={}", organizationId, batchId);
+        "Examination summary request: organizationId={}, agreementId={}",
+        organizationId,
+        agreementId);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
         .body(
             ApiResponse.success(
-                HttpStatus.OK.value(), summaryUseCase.execute(organizationId, batchId, principal)));
+                HttpStatus.OK.value(),
+                summaryUseCase.execute(organizationId, agreementId, principal)));
   }
 
   /**
@@ -114,13 +117,14 @@ public class ExaminationDetailController {
   @GetMapping("/export")
   public ResponseEntity<byte[]> export(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Export examination details request: organizationId={}, batchId={}",
+        "Export examination details request: organizationId={}, agreementId={}",
         organizationId,
-        batchId);
-    ExaminationDetailExportResponse file = exportUseCase.execute(organizationId, batchId, principal);
+        agreementId);
+    ExaminationDetailExportResponse file =
+        exportUseCase.execute(organizationId, agreementId, principal);
     return ResponseEntity.ok()
         .contentType(MediaType.parseMediaType(ImportParticipantsRequest.XLSX_CONTENT_TYPE))
         .header(
@@ -139,14 +143,14 @@ public class ExaminationDetailController {
   @GetMapping("/import-template")
   public ResponseEntity<byte[]> importTemplate(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Examination detail import template request: organizationId={}, batchId={}",
+        "Examination detail import template request: organizationId={}, agreementId={}",
         organizationId,
-        batchId);
+        agreementId);
     ExaminationDetailExportResponse file =
-        templateUseCase.execute(organizationId, batchId, principal);
+        templateUseCase.execute(organizationId, agreementId, principal);
     return ResponseEntity.ok()
         .contentType(MediaType.parseMediaType(ImportParticipantsRequest.XLSX_CONTENT_TYPE))
         .header(
@@ -167,14 +171,14 @@ public class ExaminationDetailController {
   @PutMapping("/{participantId}")
   public ResponseEntity<ApiResponse<ExaminationDetailRowResponse>> record(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @PathVariable UUID participantId,
       @Valid @RequestBody RecordExaminationDetailRequest request,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Record examination detail request: organizationId={}, batchId={}, participantId={}",
+        "Record examination detail request: organizationId={}, agreementId={}, participantId={}",
         organizationId,
-        batchId,
+        agreementId,
         participantId);
     return ResponseEntity.ok()
         .cacheControl(CacheControl.noStore())
@@ -182,31 +186,31 @@ public class ExaminationDetailController {
             ApiResponse.success(
                 HttpStatus.OK.value(),
                 recordUseCase.execute(
-                    organizationId, batchId, participantId, request.toCommand(), principal)));
+                    organizationId, agreementId, participantId, request.toCommand(), principal)));
   }
 
   /**
    * Reconciles the performed services from an uploaded workbook, all or nothing.
    *
-   * @param file the {@code .xlsx} workbook exported from this batch
+   * @param file the {@code .xlsx} workbook exported from this agreement
    * @param idempotencyKey client-generated key; retry the same request with the same key
    * @return 201 with the safe import result; a replayed request returns the stored result
    */
   @PostMapping(path = "/imports", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
   public ResponseEntity<ApiResponse<ExaminationDetailImportResponse>> importDetails(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @RequestParam("file") MultipartFile file,
       @RequestHeader("Idempotency-Key") UUID idempotencyKey,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Import examination details request: organizationId={}, batchId={}",
+        "Import examination details request: organizationId={}, agreementId={}",
         organizationId,
-        batchId);
+        agreementId);
     ExaminationDetailImportResponse response =
         importUseCase.execute(
             organizationId,
-            batchId,
+            agreementId,
             new ImportExaminationDetailsRequest(file, idempotencyKey).toCommand(),
             principal);
     return ResponseEntity.status(HttpStatus.CREATED)

@@ -5,8 +5,8 @@ import com.ngockhanh.clinic.healthexamination.application.command.CreateParticip
 import com.ngockhanh.clinic.healthexamination.application.response.ParticipantDetailResponse;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantAccessPolicy;
 import com.ngockhanh.clinic.healthexamination.application.service.ParticipantChangeSupport;
-import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationBatchParticipant;
-import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationBatchParticipantRepository;
+import com.ngockhanh.clinic.healthexamination.domain.aggregate.HealthExaminationParticipant;
+import com.ngockhanh.clinic.healthexamination.domain.repository.HealthExaminationParticipantRepository;
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import com.ngockhanh.clinic.shared.exception.ApplicationException;
 import com.ngockhanh.clinic.shared.exception.ConflictException;
@@ -23,60 +23,55 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Adds one Participant to a batch by hand.
+ * Adds one Participant to an agreement by hand.
  *
- * <p>The caller must hold the Participant create permission. In one transaction the batch is
- * locked, the organization and batch state are checked, the examination day is resolved inside the
- * batch, an identification number already in the batch (cancelled Participants included) is
- * rejected, the Participant is inserted as active, unconfirmed and pending, and the audit event is
- * written. The participant code is generated from the batch code and never typed. There is no import job and no idempotency key: the unique identification number stops a
- * double submit, and a retry reports a clear conflict. No Patient, Encounter or ParticipantService
- * is created.
+ * <p>The caller must hold the Participant create permission. In one transaction the agreement is
+ * locked, the organization and agreement state are checked, an identification number already in the
+ * agreement (cancelled Participants included) is rejected, the Participant is inserted as active
+ * and pending, without a schedule, and the audit event is written. The participant code is
+ * generated from the agreement code and never typed. There is no import job and no idempotency key:
+ * the unique identification number stops a double submit, and a retry reports a clear conflict. No
+ * Patient, Encounter or ParticipantService is created.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CreateParticipantUseCase {
-  private static final String ACTION = "CREATE_BATCH_PARTICIPANT";
+  private static final String ACTION = "CREATE_PARTICIPANT";
 
   private final ParticipantAccessPolicy access;
   private final ParticipantChangeSupport support;
-  private final HealthExaminationBatchParticipantRepository participants;
+  private final HealthExaminationParticipantRepository participants;
   private final Clock clock;
 
   /**
    * Creates the Participant.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
-   * @param command roster fields and examination day
+   * @param agreementId agreement identifier
+   * @param command roster fields
    * @param principal authenticated staff account
    * @return the stored Participant in full
    * @throws ApplicationException {@code ACCESS_DENIED} without the create permission
    * @throws IllegalArgumentException when an argument is null or a field breaks a roster rule
-   * @throws ResourceNotFoundException when the organization or the batch is not found
-   * @throws ConflictException when the batch or organization does not accept changes, the day is
-   *     not a day of the batch, or the identification number already belongs to the batch
+   * @throws ResourceNotFoundException when the organization or the agreement is not found
+   * @throws ConflictException when the agreement or organization does not accept changes, or the
+   *     identification number already belongs to the agreement
    */
   @Transactional
   public ParticipantDetailResponse execute(
       UUID organizationId,
-      UUID batchId,
+      UUID agreementId,
       CreateParticipantCommand command,
       UserPrincipal principal) {
     access.requireCreate(principal);
-    if (organizationId == null
-        || batchId == null
-        || command == null
-        || command.batchDayId() == null)
-      throw new IllegalArgumentException(
-          "Organization ID, batch ID, command and examination day are required");
+    if (organizationId == null || agreementId == null || command == null)
+      throw new IllegalArgumentException("Organization ID, agreement ID and command are required");
 
-    var batch = support.lockBatchForChange(organizationId, batchId);
-    AggregateId dayId = support.requireDay(batch, command.batchDayId());
+    var agreement = support.lockAgreementForChange(organizationId, agreementId);
     var roster =
         ParticipantChangeSupport.roster(
-            support.nextParticipantCodes(batch, 1).get(0),
+            support.nextParticipantCodes(agreement, 1).get(0),
             command.fullName(),
             command.dateOfBirth(),
             command.sex(),
@@ -92,27 +87,32 @@ public class CreateParticipantUseCase {
             command.positionName(),
             command.note());
     support.requireDateOfBirthNotInFuture(command.dateOfBirth());
-    AggregateId batchAggregateId = AggregateId.of(batchId);
-    support.requireIdentityFree(batchAggregateId, roster.identificationNumber(), null);
+    AggregateId agreementAggregateId = AggregateId.of(agreementId);
+    support.requireIdentityFree(agreementAggregateId, roster.identificationNumber(), null);
 
     AggregateId participantId = AggregateId.of(UuidV7Generator.generate());
     Instant now = Instant.now(clock).truncatedTo(ChronoUnit.MILLIS);
     var participant =
-        HealthExaminationBatchParticipant.create(
-            participantId, batchAggregateId, dayId, roster, null, null, now);
+        HealthExaminationParticipant.create(
+            participantId,
+            AggregateId.of(organizationId),
+            agreementAggregateId,
+            roster,
+            null,
+            null,
+            now);
     participants.insert(participant);
     support.audit(principal.userId(), ACTION, organizationId, participant, null, 0L, List.of());
     log.info(
-        "Participant creation pending commit: organizationId={}, batchId={}, participantId={}",
+        "Participant creation pending commit: organizationId={}, agreementId={}, participantId={}",
         organizationId,
-        batchId,
+        agreementId,
         participantId.value());
 
     var stored =
         participants
-            .findInBatch(batchAggregateId, participantId)
+            .findInAgreement(agreementAggregateId, participantId)
             .orElseThrow(() -> new IllegalStateException("Participant was not stored"));
-    return ParticipantDetailResponse.from(
-        stored, ParticipantChangeSupport.examinationDate(batch, stored.getBatchDayId()));
+    return support.detail(organizationId, stored);
   }
 }

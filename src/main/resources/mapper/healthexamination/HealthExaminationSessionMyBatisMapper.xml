@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationSessionMyBatisMapper">
+    <sql id="columns">id,organization_id,agreement_id,session_date,activity,site_type,site_address,status,created_by,created_at,updated_at,row_version</sql>
+
+    <select id="findById"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.record.HealthExaminationSessionRecord">
+        SELECT <include refid="columns"/> FROM public.health_examination_sessions
+        WHERE id=#{id} AND organization_id=#{organizationId} <if test="lock">FOR UPDATE</if>
+    </select>
+    <insert id="insert">
+        INSERT INTO public.health_examination_sessions(id,organization_id,agreement_id,session_date,activity,site_type,site_address,status,created_by)
+        VALUES (#{id},#{organizationId},#{agreementId},#{sessionDate},#{activity},#{siteType},#{siteAddress},#{status},#{createdBy})
+    </insert>
+    <update id="updateDetails">
+        UPDATE public.health_examination_sessions
+        SET session_date=#{s.sessionDate},activity=#{s.activity},site_type=#{s.siteType},site_address=#{s.siteAddress},
+            updated_at=CURRENT_TIMESTAMP,row_version=row_version+1
+        WHERE id=#{s.id} AND organization_id=#{s.organizationId} AND row_version=#{expectedRowVersion} AND status='OPEN'
+    </update>
+    <update id="updateStatus">
+        UPDATE public.health_examination_sessions
+        SET status=#{status},updated_at=CURRENT_TIMESTAMP,row_version=row_version+1
+        WHERE id=#{id} AND organization_id=#{organizationId} AND row_version=#{expectedRowVersion} AND status=#{expectedStatus}
+    </update>
+    <select id="openSlotTaken" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM public.health_examination_sessions
+        WHERE organization_id=#{organizationId} AND session_date=#{sessionDate} AND site_type=#{siteType}
+        AND site_address=#{siteAddress} AND activity=#{activity} AND status='OPEN'
+        <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>)
+    </select>
+
+    <sql id="summaryColumns">
+        s.id,s.organization_id,s.agreement_id,s.session_date,s.activity,s.site_type,s.site_address,s.status,
+        COUNT(a.id) FILTER (WHERE a.status IN ('ASSIGNED','ATTENDED')) AS assigned_count,
+        COUNT(a.id) FILTER (WHERE a.status = 'ATTENDED') AS attended_count,
+        COUNT(a.id) FILTER (WHERE a.status = 'NO_SHOW') AS no_show_count,
+        s.created_at,s.updated_at,s.row_version
+    </sql>
+    <select id="findSummary"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.SessionSummaryView">
+        SELECT <include refid="summaryColumns"/>
+        FROM public.health_examination_sessions s
+        LEFT JOIN public.health_examination_session_assignments a ON a.session_id=s.id
+        WHERE s.id=#{id} AND s.organization_id=#{organizationId}
+        GROUP BY s.id
+    </select>
+    <sql id="filter">
+        s.organization_id=#{organizationId}
+        <if test="agreementId != null">AND (s.agreement_id=#{agreementId} OR s.agreement_id IS NULL)</if>
+        <if test="from != null">AND s.session_date &gt;= #{from}</if>
+        <if test="to != null">AND s.session_date &lt;= #{to}</if>
+        <if test="activity != null">AND s.activity=#{activity}</if>
+        <if test="status != null">AND s.status=#{status}</if>
+        <if test="pattern != null">AND LOWER(s.site_address) LIKE #{pattern} ESCAPE chr(92)</if>
+    </sql>
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM public.health_examination_sessions s WHERE <include refid="filter"/>
+    </select>
+    <select id="findPage"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.SessionSummaryView">
+        SELECT <include refid="summaryColumns"/>
+        FROM public.health_examination_sessions s
+        LEFT JOIN public.health_examination_session_assignments a ON a.session_id=s.id
+        WHERE <include refid="filter"/>
+        GROUP BY s.id
+        ORDER BY
+        <choose>
+            <when test="sortKey == 'sessionDate' and sortBy == 'DESC'">s.session_date DESC, s.id ASC</when>
+            <when test="sortKey == 'sessionDate'">s.session_date ASC, s.id ASC</when>
+            <when test="sortKey == 'activity' and sortBy == 'DESC'">s.activity DESC, s.id ASC</when>
+            <when test="sortKey == 'activity'">s.activity ASC, s.id ASC</when>
+            <when test="sortKey == 'status' and sortBy == 'DESC'">s.status DESC, s.id ASC</when>
+            <when test="sortKey == 'status'">s.status ASC, s.id ASC</when>
+            <when test="sortKey == 'createdAt' and sortBy == 'DESC'">s.created_at DESC, s.id ASC</when>
+            <when test="sortKey == 'createdAt'">s.created_at ASC, s.id ASC</when>
+            <when test="sortBy == 'DESC'">s.id DESC</when>
+            <otherwise>s.id ASC</otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

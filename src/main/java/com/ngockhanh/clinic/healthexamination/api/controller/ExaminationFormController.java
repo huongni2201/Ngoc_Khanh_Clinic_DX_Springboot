@@ -15,14 +15,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Prints the blank examination form of one Participant of a health examination batch. */
+/** Prints the blank examination form of one Participant of a health examination agreement. */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping(
-    "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}")
+    "/api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}")
 public class ExaminationFormController {
   private final RenderParticipantExaminationFormUseCase useCase;
 
@@ -30,24 +31,26 @@ public class ExaminationFormController {
    * Returns the form as a PDF the browser can show and print.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
-   * @param participantId Participant identifier inside the batch
+   * @param agreementId agreement identifier
+   * @param participantId Participant identifier inside the agreement
+   * @param sessionId optional session whose date the form shows
    * @param principal authenticated staff principal
    * @return 200 with the PDF inline and {@code no-store}, since it holds personal data
    */
   @GetMapping("/examination-form")
   public ResponseEntity<byte[]> examinationForm(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @PathVariable UUID participantId,
+      @RequestParam(required = false) UUID sessionId,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Examination form request: organizationId={}, batchId={}, participantId={}",
+        "Examination form request: organizationId={}, agreementId={}, participantId={}",
         organizationId,
-        batchId,
+        agreementId,
         participantId);
     ExaminationFormDocumentResponse file =
-        useCase.execute(organizationId, batchId, participantId, principal);
+        useCase.execute(organizationId, agreementId, participantId, sessionId, principal);
     return ResponseEntity.ok()
         .contentType(MediaType.APPLICATION_PDF)
         .header(

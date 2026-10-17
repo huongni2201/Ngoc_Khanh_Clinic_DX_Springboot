@@ -18,12 +18,15 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @NoArgsConstructor
 @SuperBuilder
-@AllowedSortKeys({"id", "fullName", "participantCode", "examinationDate", "createdAt"})
+@AllowedSortKeys({"id", "fullName", "participantCode", "nextSessionDate", "createdAt"})
 public class ParticipantListRequest extends BasePagination {
   @Size(max = 20, message = "IdentificationNumber must not exceed 20 characters")
   private String identificationNumber;
 
-  private UUID batchDayId;
+  private UUID sessionId;
+
+  @Size(max = 20)
+  private String unscheduledFor;
 
   @Size(max = 20)
   private String rosterStatus;
@@ -41,7 +44,8 @@ public class ParticipantListRequest extends BasePagination {
         .size(getSize())
         .searchKey(getSearchKey())
         .identificationNumber(identificationNumber)
-        .batchDayId(batchDayId)
+        .sessionId(sessionId)
+        .unscheduledFor(unscheduledFor)
         .rosterStatus(rosterStatus)
         .attendanceStatus(attendanceStatus)
         .reconciliationStatus(reconciliationStatus)

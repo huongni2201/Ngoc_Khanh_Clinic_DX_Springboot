@@ -28,14 +28,14 @@ class ListParticipantsUseCaseTest {
   private final ListParticipantsUseCase useCase =
       new ListParticipantsUseCase(new ParticipantAccessPolicy(), reader);
   private final UUID organizationId = UUID.randomUUID();
-  private final UUID batchId = UUID.randomUUID();
+  private final UUID agreementId = UUID.randomUUID();
 
   private ParticipantListCriteria readWith(ParticipantListQuery query) {
-    when(reader.readPage(eq(organizationId), eq(batchId), any()))
+    when(reader.readPage(eq(organizationId), eq(agreementId), any()))
         .thenReturn(Optional.of(new ParticipantPage(List.of(), 0)));
-    useCase.execute(organizationId, batchId, query, staff(READ));
+    useCase.execute(organizationId, agreementId, query, staff(READ));
     var criteria = ArgumentCaptor.forClass(ParticipantListCriteria.class);
-    verify(reader).readPage(eq(organizationId), eq(batchId), criteria.capture());
+    verify(reader).readPage(eq(organizationId), eq(agreementId), criteria.capture());
     return criteria.getValue();
   }
 
@@ -43,12 +43,12 @@ class ListParticipantsUseCaseTest {
   void deniesCallersWithoutTheReadPermissionBeforeTouchingTheReader() {
     var query = ParticipantListQuery.builder().build();
     for (var principal : List.of(staff(), staff(IMPORT), patient()))
-      assertThatThrownBy(() -> useCase.execute(organizationId, batchId, query, principal))
+      assertThatThrownBy(() -> useCase.execute(organizationId, agreementId, query, principal))
           .isInstanceOfSatisfying(
               ApplicationException.class,
               denied ->
                   assertThat(denied.type()).isEqualTo(ApplicationException.Type.ACCESS_DENIED));
-    assertThatThrownBy(() -> useCase.execute(organizationId, batchId, query, null))
+    assertThatThrownBy(() -> useCase.execute(organizationId, agreementId, query, null))
         .isInstanceOf(ApplicationException.class);
     verifyNoInteractions(reader);
   }
@@ -67,16 +67,17 @@ class ListParticipantsUseCaseTest {
 
   @Test
   void passesFiltersAndComputesTheOffsetFromPageAndSize() {
-    var day = UUID.randomUUID();
+    var session = UUID.randomUUID();
     var criteria =
         readWith(
             ParticipantListQuery.builder()
                 .page(3)
                 .size(25)
                 .identificationNumber("012345678901")
-                .batchDayId(day)
+                .sessionId(session)
+                .unscheduledFor("EXAMINATION")
                 .rosterStatus("CANCELLED")
-                .attendanceStatus("ATTENDED")
+                .attendanceStatus("NO_SHOW")
                 .reconciliationStatus("RECONCILED")
                 .sortKey("fullName")
                 .sortBy("desc")
@@ -85,9 +86,10 @@ class ListParticipantsUseCaseTest {
     assertThat(criteria.offset()).isEqualTo(50);
     assertThat(criteria.limit()).isEqualTo(25);
     assertThat(criteria.identificationNumber()).isEqualTo("012345678901");
-    assertThat(criteria.batchDayId()).isEqualTo(day);
+    assertThat(criteria.sessionId()).isEqualTo(session);
+    assertThat(criteria.unscheduledFor()).isEqualTo("EXAMINATION");
     assertThat(criteria.rosterStatus()).isEqualTo("CANCELLED");
-    assertThat(criteria.attendanceStatus()).isEqualTo("ATTENDED");
+    assertThat(criteria.attendanceStatus()).isEqualTo("NO_SHOW");
     assertThat(criteria.reconciliationStatus()).isEqualTo("RECONCILED");
     assertThat(criteria.sortKey()).isEqualTo("fullName");
     assertThat(criteria.sortBy()).isEqualTo("DESC");
@@ -114,32 +116,35 @@ class ListParticipantsUseCaseTest {
             ParticipantListQuery.builder().reconciliationStatus("DONE").build(),
             ParticipantListQuery.builder().identificationNumber("12 34").build(),
             ParticipantListQuery.builder().searchKey("x".repeat(201)).build()))
-      assertThatThrownBy(() -> useCase.execute(organizationId, batchId, query, staff(READ)))
+      assertThatThrownBy(() -> useCase.execute(organizationId, agreementId, query, staff(READ)))
           .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(reader);
   }
 
   @Test
-  void reportsABatchOutsideTheOrganizationOrDeletedAsNotFound() {
-    when(reader.readPage(eq(organizationId), eq(batchId), any())).thenReturn(Optional.empty());
+  void reportsAAgreementOutsideTheOrganizationOrDeletedAsNotFound() {
+    when(reader.readPage(eq(organizationId), eq(agreementId), any())).thenReturn(Optional.empty());
 
     assertThatThrownBy(
             () ->
                 useCase.execute(
-                    organizationId, batchId, ParticipantListQuery.builder().build(), staff(READ)))
+                    organizationId,
+                    agreementId,
+                    ParticipantListQuery.builder().build(),
+                    staff(READ)))
         .isInstanceOf(ResourceNotFoundException.class);
   }
 
   @Test
   void masksTheIdentificationNumberAndKeepsTheTotals() {
-    when(reader.readPage(eq(organizationId), eq(batchId), any()))
+    when(reader.readPage(eq(organizationId), eq(agreementId), any()))
         .thenReturn(
             Optional.of(new ParticipantPage(List.of(summary("012345678901"), summary("123")), 21)));
 
     var page =
         useCase.execute(
             organizationId,
-            batchId,
+            agreementId,
             ParticipantListQuery.builder().page(1).size(10).build(),
             staff(READ));
 
@@ -154,20 +159,23 @@ class ListParticipantsUseCaseTest {
 
   @Test
   void aPagePastTheEndKeepsTheTotalWithNoItemsAndAnEmptyResultHasZeroPages() {
-    when(reader.readPage(eq(organizationId), eq(batchId), any()))
+    when(reader.readPage(eq(organizationId), eq(agreementId), any()))
         .thenReturn(Optional.of(new ParticipantPage(List.of(), 5)));
     var past =
         useCase.execute(
-            organizationId, batchId, ParticipantListQuery.builder().page(9).build(), staff(READ));
+            organizationId,
+            agreementId,
+            ParticipantListQuery.builder().page(9).build(),
+            staff(READ));
     assertThat(past.items()).isEmpty();
     assertThat(past.totalElements()).isEqualTo(5);
     assertThat(past.totalPages()).isEqualTo(1);
 
-    when(reader.readPage(eq(organizationId), eq(batchId), any()))
+    when(reader.readPage(eq(organizationId), eq(agreementId), any()))
         .thenReturn(Optional.of(new ParticipantPage(List.of(), 0)));
     var empty =
         useCase.execute(
-            organizationId, batchId, ParticipantListQuery.builder().build(), staff(READ));
+            organizationId, agreementId, ParticipantListQuery.builder().build(), staff(READ));
     assertThat(empty.totalPages()).isZero();
   }
 }

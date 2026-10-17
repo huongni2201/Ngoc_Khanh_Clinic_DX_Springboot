@@ -5,38 +5,49 @@ import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetai
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationDetailRow;
 import com.ngockhanh.clinic.healthexamination.application.query.ExaminationSummary;
 import com.ngockhanh.clinic.healthexamination.application.query.PaymentAggregates;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Read port of the examination detail matrix, its counters and the payment summary of one batch.
- * It reads projections and never restores aggregates. Every method returns empty when the batch
- * does not belong to the organization or is deleted.
+ * Read port of the examination detail matrix, its counters and the payment summary of one
+ * agreement. It reads projections and never restores aggregates. Every method returns empty when
+ * the agreement does not belong to the organization or is deleted.
  */
 public interface ExaminationDetailReader {
-  /** Reads one page of Participant rows with the batch services each one performed. */
+  /** Reads one page of Participant rows with the agreement services each one performed. */
   Optional<ExaminationDetailPage> readPage(
-      UUID organizationId, UUID batchId, ExaminationDetailCriteria criteria);
-
-  /** Counts the active Participants of the batch by attendance and reconciliation state. */
-  Optional<ExaminationSummary> summarize(UUID organizationId, UUID batchId);
+      UUID organizationId, UUID agreementId, ExaminationDetailCriteria criteria);
 
   /**
-   * Reads every active Participant of the batch in export order (planned day, code with missing
-   * codes last, name, identifier) with the batch services each one performed.
+   * Counts the active Participants of the agreement by derived attendance, scheduling and
+   * reconciliation state.
    */
-  Optional<List<ExaminationDetailRow>> readAllActive(UUID organizationId, UUID batchId);
+  Optional<ExaminationSummary> summarize(UUID organizationId, UUID agreementId);
 
   /**
-   * Reads one Participant of the batch, whatever its roster status, with the batch services it
-   * performed. Empty when the batch is not in scope or the Participant is not in the batch.
+   * Reads every active Participant of the agreement in export order (next session date, code with
+   * missing codes last, name, identifier) with the agreement services each one performed.
    */
-  Optional<ExaminationDetailRow> readOne(UUID organizationId, UUID batchId, UUID participantId);
+  Optional<List<ExaminationDetailRow>> readAllActive(UUID organizationId, UUID agreementId);
 
   /**
-   * Counts active Participants and aggregates their performed services by batch service and price
-   * snapshot. Rows of cancelled Participants and rows that are not performed are excluded.
+   * Reads one Participant of the agreement, whatever its roster status, with the agreement services
+   * it performed. Empty when the agreement is not in scope or the Participant is not in the
+   * agreement.
    */
-  Optional<PaymentAggregates> readPaymentAggregates(UUID organizationId, UUID batchId);
+  Optional<ExaminationDetailRow> readOne(UUID organizationId, UUID agreementId, UUID participantId);
+
+  /**
+   * Counts the active Participants in scope and aggregates their performed services by agreement
+   * service and price snapshot. Rows of cancelled Participants and rows that are not performed are
+   * excluded. With a range, only Participants expected or attended in a session of that range are
+   * in scope.
+   *
+   * @param from first session date of the range, or null for no lower bound
+   * @param to last session date of the range, or null for no upper bound
+   */
+  Optional<PaymentAggregates> readPaymentAggregates(
+      UUID organizationId, UUID agreementId, LocalDate from, LocalDate to);
 }

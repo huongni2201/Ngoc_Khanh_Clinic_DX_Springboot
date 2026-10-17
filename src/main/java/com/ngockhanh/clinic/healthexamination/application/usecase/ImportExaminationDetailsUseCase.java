@@ -24,7 +24,7 @@ import org.springframework.stereotype.Service;
  * <p>The caller must hold the service reconcile permission. The workbook is parsed outside the
  * write transaction; the first problem, in a fixed order, rejects the whole file with the Excel row
  * number and field but never the rejected value. The commit then runs in {@link
- * ExaminationDetailImportCommitter}'s single transaction, which rechecks the batch, applies
+ * ExaminationDetailImportCommitter}'s single transaction, which rechecks the agreement, applies
  * idempotency, matches every row to a Participant by identifier and row version, applies the file
  * as the new reconciliation state of each Participant in it, and writes the import history and the
  * audit event, or nothing at all. Participants that are not in the file are never touched. Only
@@ -44,27 +44,27 @@ public class ImportExaminationDetailsUseCase {
    * Imports the workbook.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
+   * @param agreementId agreement identifier
    * @param command workbook bytes and idempotency key
    * @param principal authenticated staff account
    * @return the safe import result; a replay returns the originally stored result
    * @throws ApplicationException {@code ACCESS_DENIED} without the reconcile permission, or {@code
    *     INVALID_INPUT} when the file, a row or an actual date is not acceptable
    * @throws IllegalArgumentException when an argument is null or empty
-   * @throws ResourceNotFoundException when the organization or the batch is not found
-   * @throws ConflictException when the batch does not accept changes, a Participant is not in the
-   *     batch or is cancelled, a newly marked service is no longer offered, or the key was used for
-   *     another request
+   * @throws ResourceNotFoundException when the organization or the agreement is not found
+   * @throws ConflictException when the agreement does not accept changes, a Participant is not in
+   *     the agreement or is cancelled, a newly marked service is no longer offered, or the key was
+   *     used for another request
    * @throws ConcurrentUpdateException when a Participant changed after the file was exported
    */
   public ExaminationDetailImportResponse execute(
       UUID organizationId,
-      UUID batchId,
+      UUID agreementId,
       ImportExaminationDetailsCommand command,
       UserPrincipal principal) {
     access.requireServiceReconcile(principal);
-    if (organizationId == null || batchId == null || command == null)
-      throw new IllegalArgumentException("Organization ID, batch ID and command are required");
+    if (organizationId == null || agreementId == null || command == null)
+      throw new IllegalArgumentException("Organization ID, agreement ID and command are required");
     byte[] workbookBytes = command.workbook();
     if (workbookBytes == null || workbookBytes.length == 0 || command.idempotencyKey() == null)
       throw new IllegalArgumentException("Workbook and idempotency key are required");
@@ -74,11 +74,11 @@ public class ImportExaminationDetailsUseCase {
         committer.commit(
             new ExaminationDetailImportCommitter.Request(
                 organizationId,
-                batchId,
+                agreementId,
                 command.idempotencyKey(),
                 ExaminationDetailImportFingerprint.of(
                     organizationId,
-                    batchId,
+                    agreementId,
                     ExaminationDetailWorkbook.TEMPLATE_VERSION,
                     workbookBytes),
                 workbook.templateVersion(),
@@ -88,15 +88,15 @@ public class ImportExaminationDetailsUseCase {
     var receipt = outcome.receipt();
     if (outcome.replayed())
       log.info(
-          "Examination detail import replayed: organizationId={}, batchId={}, importJobId={}",
+          "Examination detail import replayed: organizationId={}, agreementId={}, importJobId={}",
           organizationId,
-          batchId,
+          agreementId,
           receipt.importJobId());
     else
       log.info(
-          "Examination detail import committed: organizationId={}, batchId={}, importJobId={}, rows={}, updated={}",
+          "Examination detail import committed: organizationId={}, agreementId={}, importJobId={}, rows={}, updated={}",
           organizationId,
-          batchId,
+          agreementId,
           receipt.importJobId(),
           receipt.totalRows(),
           receipt.updatedParticipants());

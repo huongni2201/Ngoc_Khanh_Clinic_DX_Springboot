@@ -1,35 +1,40 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.ExaminationDetailMyBatisMapper">
+    <!-- Attendance is derived from the session assignments; the fragments live in the Participant mapper. -->
     <sql id="rowColumns">
         p.id,p.participant_code,p.full_name,p.date_of_birth,p.sex,p.identification_number,p.department_name,p.position_name,
-        d.examination_date,p.attendance_status,p.actual_examination_date,p.service_reconciliation_status AS
-        reconciliation_status,p.row_version
+        asg.next_session_date,
+        (<include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.derivedAttendance"/>) AS attendance_status,
+        asg.last_attended_date,
+        p.service_reconciliation_status AS reconciliation_status,p.row_version
     </sql>
-    <select id="batchInScope" resultType="boolean">
-        SELECT EXISTS(SELECT 1 FROM public.health_examination_batches WHERE id=#{batchId} AND
+    <select id="agreementInScope" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM public.health_examination_agreements WHERE id=#{agreementId} AND
         organization_id=#{organizationId} AND deleted_at IS NULL)
     </select>
     <sql id="rowFilter">
-        p.batch_id=#{batchId}
+        p.agreement_id=#{agreementId}
         <if test="searchPattern != null">AND (LOWER(p.full_name) LIKE #{searchPattern} ESCAPE chr(92) OR
             LOWER(COALESCE(p.participant_code,'')) LIKE #{searchPattern} ESCAPE chr(92)
             OR LOWER(p.department_name) LIKE #{searchPattern} ESCAPE chr(92))
         </if>
         <if test="rosterStatus != null">AND p.roster_status=#{rosterStatus}</if>
-        <if test="attendanceStatus != null">AND p.attendance_status=#{attendanceStatus}</if>
+        <if test="attendanceStatus != null">AND (<include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.derivedAttendance"/>)=#{attendanceStatus}</if>
         <if test="reconciliationStatus != null">AND p.service_reconciliation_status=#{reconciliationStatus}</if>
     </sql>
     <select id="countRows" resultType="long">
-        SELECT COUNT(*) FROM public.health_examination_batch_participants p WHERE
+        SELECT COUNT(*) FROM public.health_examination_participants p
+        <include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.assignmentSummaryJoin"/>
+        WHERE
         <include refid="rowFilter"/>
     </select>
     <select id="findRows"
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDetailRowView">
         SELECT
         <include refid="rowColumns"/>
-        FROM public.health_examination_batch_participants p
-        JOIN public.health_examination_batch_days d ON d.batch_id=p.batch_id AND d.id=p.batch_day_id
+        FROM public.health_examination_participants p
+        <include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.assignmentSummaryJoin"/>
         WHERE
         <include refid="rowFilter"/>
         ORDER BY
@@ -40,8 +45,8 @@
                 DESC
             </when>
             <when test="sortKey == 'participantCode'">p.participant_code ASC NULLS LAST, p.id ASC</when>
-            <when test="sortKey == 'examinationDate' and sortBy == 'DESC'">d.examination_date DESC, p.id DESC</when>
-            <when test="sortKey == 'examinationDate'">d.examination_date ASC, p.id ASC</when>
+            <when test="sortKey == 'nextSessionDate' and sortBy == 'DESC'">asg.next_session_date DESC NULLS LAST, p.id DESC</when>
+            <when test="sortKey == 'nextSessionDate'">asg.next_session_date ASC NULLS LAST, p.id ASC</when>
             <when test="sortBy == 'DESC'">p.id DESC</when>
             <otherwise>p.id ASC</otherwise>
         </choose>
@@ -51,54 +56,93 @@
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDetailRowView">
         SELECT
         <include refid="rowColumns"/>
-        FROM public.health_examination_batch_participants p
-        JOIN public.health_examination_batch_days d ON d.batch_id=p.batch_id AND d.id=p.batch_day_id
-        WHERE p.batch_id=#{batchId} AND p.id=#{participantId}
+        FROM public.health_examination_participants p
+        <include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.assignmentSummaryJoin"/>
+        WHERE p.agreement_id=#{agreementId} AND p.id=#{participantId}
     </select>
     <select id="findPerformedServices"
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PerformedServiceView">
-        SELECT batch_participant_id, batch_service_id
+        SELECT participant_id, agreement_service_id
         FROM public.health_examination_participant_services
-        WHERE is_performed AND batch_participant_id IN
+        WHERE is_performed AND participant_id IN
         <foreach collection="participantIds" item="id" open="(" close=")" separator=",">#{id}</foreach>
-        ORDER BY batch_participant_id, batch_service_id
+        ORDER BY participant_id, agreement_service_id
     </select>
     <select id="findActiveRowsForExport"
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationDetailRowView">
         SELECT
         <include refid="rowColumns"/>
-        FROM public.health_examination_batch_participants p
-        JOIN public.health_examination_batch_days d ON d.batch_id=p.batch_id AND d.id=p.batch_day_id
-        WHERE p.batch_id=#{batchId} AND p.roster_status='ACTIVE'
-        ORDER BY d.examination_date ASC, p.participant_code ASC NULLS LAST, p.full_name ASC, p.id ASC
+        FROM public.health_examination_participants p
+        <include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.assignmentSummaryJoin"/>
+        WHERE p.agreement_id=#{agreementId} AND p.roster_status='ACTIVE'
+        ORDER BY asg.next_session_date ASC NULLS LAST, p.participant_code ASC NULLS LAST, p.full_name ASC, p.id ASC
     </select>
     <select id="findPerformedServicesOfActiveParticipants"
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PerformedServiceView">
-        SELECT ps.batch_participant_id, ps.batch_service_id
+        SELECT ps.participant_id, ps.agreement_service_id
         FROM public.health_examination_participant_services ps
-        JOIN public.health_examination_batch_participants p ON p.batch_id=ps.batch_id AND p.id=ps.batch_participant_id
-        WHERE ps.batch_id=#{batchId} AND ps.is_performed AND p.roster_status='ACTIVE'
-        ORDER BY ps.batch_participant_id, ps.batch_service_id
+        JOIN public.health_examination_participants p ON p.agreement_id=ps.agreement_id AND p.id=ps.participant_id
+        WHERE ps.agreement_id=#{agreementId} AND ps.is_performed AND p.roster_status='ACTIVE'
+        ORDER BY ps.participant_id, ps.agreement_service_id
     </select>
     <select id="countActiveParticipants"
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ExaminationCountView">
         SELECT COUNT(*) AS registered,
-        COUNT(*) FILTER (WHERE attendance_status='UNCONFIRMED') AS unconfirmed,
-        COUNT(*) FILTER (WHERE attendance_status='ATTENDED') AS attended,
-        COUNT(*) FILTER (WHERE attendance_status='ABSENT') AS absent,
-        COUNT(*) FILTER (WHERE service_reconciliation_status='RECONCILED') AS reconciled,
-        COUNT(*) FILTER (WHERE attendance_status='ATTENDED' AND service_reconciliation_status='PENDING') AS
+        COUNT(*) FILTER (WHERE (<include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.derivedAttendance"/>)='UNCONFIRMED') AS unconfirmed,
+        COUNT(*) FILTER (WHERE asg.attended_count > 0) AS attended,
+        COUNT(*) FILTER (WHERE (<include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.derivedAttendance"/>)='NO_SHOW') AS no_show,
+        COUNT(*) FILTER (WHERE asg.live_count = 0) AS unscheduled,
+        COUNT(*) FILTER (WHERE p.service_reconciliation_status='RECONCILED') AS reconciled,
+        COUNT(*) FILTER (WHERE asg.attended_count > 0 AND p.service_reconciliation_status='PENDING') AS
         pending_reconciliation
-        FROM public.health_examination_batch_participants
-        WHERE batch_id=#{batchId} AND roster_status='ACTIVE'
+        FROM public.health_examination_participants p
+        <include refid="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.mapper.HealthExaminationParticipantMyBatisMapper.assignmentSummaryJoin"/>
+        WHERE p.agreement_id=#{agreementId} AND p.roster_status='ACTIVE'
+    </select>
+
+    <!--
+      Payment scope: the active Participants of the agreement. With a date range, only those expected
+      or attended in a session whose date is in the range.
+    -->
+    <sql id="paymentScope">
+        p.agreement_id=#{agreementId} AND p.roster_status='ACTIVE'
+        <if test="from != null or to != null">AND EXISTS (SELECT 1 FROM public.health_examination_session_assignments ra
+            JOIN public.health_examination_sessions rs ON rs.id=ra.session_id
+            WHERE ra.participant_id=p.id AND ra.status IN ('ASSIGNED','ATTENDED')
+            <if test="from != null">AND rs.session_date &gt;= #{from}</if>
+            <if test="to != null">AND rs.session_date &lt;= #{to}</if>)
+        </if>
+    </sql>
+    <select id="countPaymentParticipants"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PaymentParticipantCountView">
+        SELECT COUNT(*) AS registered,
+        COUNT(*) FILTER (WHERE EXISTS (SELECT 1 FROM public.health_examination_session_assignments aa
+            JOIN public.health_examination_sessions ats ON ats.id=aa.session_id
+            WHERE aa.participant_id=p.id AND aa.status='ATTENDED'
+            <if test="from != null">AND ats.session_date &gt;= #{from}</if>
+            <if test="to != null">AND ats.session_date &lt;= #{to}</if>)) AS attended,
+        COUNT(*) FILTER (WHERE p.service_reconciliation_status='RECONCILED') AS reconciled
+        FROM public.health_examination_participants p
+        WHERE <include refid="paymentScope"/>
+    </select>
+    <select id="countPaymentSessions"
+            resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.PaymentSessionCountView">
+        SELECT COUNT(DISTINCT s.id) AS sessions,
+        COUNT(*) FILTER (WHERE a.status='ATTENDED') AS visits
+        FROM public.health_examination_session_assignments a
+        JOIN public.health_examination_sessions s ON s.id=a.session_id
+        JOIN public.health_examination_participants p ON p.id=a.participant_id
+        WHERE <include refid="paymentScope"/> AND a.status IN ('ASSIGNED','ATTENDED')
+        <if test="from != null">AND s.session_date &gt;= #{from}</if>
+        <if test="to != null">AND s.session_date &lt;= #{to}</if>
     </select>
     <select id="aggregatePerformedServices"
             resultType="com.ngockhanh.clinic.healthexamination.infrastructure.persistence.view.ServiceAmountView">
-        SELECT ps.batch_service_id, ps.unit_price_snapshot AS unit_price, COUNT(*) AS examined_count
+        SELECT ps.agreement_service_id, ps.unit_price_snapshot AS unit_price, COUNT(*) AS examined_count
         FROM public.health_examination_participant_services ps
-        JOIN public.health_examination_batch_participants p ON p.batch_id=ps.batch_id AND p.id=ps.batch_participant_id
-        WHERE ps.batch_id=#{batchId} AND ps.is_performed AND p.roster_status='ACTIVE'
-        GROUP BY ps.batch_service_id, ps.unit_price_snapshot
-        ORDER BY ps.batch_service_id, ps.unit_price_snapshot
+        JOIN public.health_examination_participants p ON p.agreement_id=ps.agreement_id AND p.id=ps.participant_id
+        WHERE ps.is_performed AND <include refid="paymentScope"/>
+        GROUP BY ps.agreement_service_id, ps.unit_price_snapshot
+        ORDER BY ps.agreement_service_id, ps.unit_price_snapshot
     </select>
 </mapper>

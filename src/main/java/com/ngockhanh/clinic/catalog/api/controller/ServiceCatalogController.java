@@ -24,7 +24,7 @@ public class ServiceCatalogController {
   private final ListServiceCatalogUseCase listUseCase;
 
   /**
-   * Lists the active services a health examination batch can select.
+   * Lists the active services a health examination agreement can select.
    *
    * @param request search and pagination parameters
    * @return the requested page of catalog services

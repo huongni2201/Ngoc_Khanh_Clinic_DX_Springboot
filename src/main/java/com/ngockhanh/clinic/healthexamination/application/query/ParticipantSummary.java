@@ -12,9 +12,7 @@ import lombok.Builder;
 @Builder
 public record ParticipantSummary(
     UUID id,
-    UUID batchId,
-    UUID batchDayId,
-    LocalDate examinationDate,
+    UUID agreementId,
     String participantCode,
     String fullName,
     LocalDate dateOfBirth,
@@ -25,6 +23,8 @@ public record ParticipantSummary(
     String rosterStatus,
     String attendanceStatus,
     String reconciliationStatus,
-    LocalDate actualExaminationDate,
+    long liveAssignmentCount,
+    LocalDate nextSessionDate,
+    LocalDate lastAttendedDate,
     Instant preparedAt,
     long rowVersion) {}

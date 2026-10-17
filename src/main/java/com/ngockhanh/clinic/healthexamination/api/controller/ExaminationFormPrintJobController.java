@@ -21,12 +21,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Prints the blank examination forms of many Participants of a batch in a background job. */
+/** Prints the blank examination forms of many Participants of an agreement in a background job. */
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(
-    "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants")
+@RequestMapping("/api/v1/organizations/{organizationId}/agreements/{agreementId}/participants")
 public class ExaminationFormPrintJobController {
   private final CreateExaminationFormPrintJobUseCase useCase;
 
@@ -34,26 +33,27 @@ public class ExaminationFormPrintJobController {
    * Queues the print job.
    *
    * @param organizationId owning organization
-   * @param batchId batch identifier
-   * @param request the Participants to print (listed, or all of an examination day)
-   * @param idempotencyKey client-chosen key; a retry with the same key and body returns the same job
+   * @param agreementId agreement identifier
+   * @param request the Participants to print (listed, or all of a session)
+   * @param idempotencyKey client-chosen key; a retry with the same key and body returns the same
+   *     job
    * @param principal authenticated staff principal
    * @return 202 with the job identifier and a {@code Location} header to poll
    */
   @PostMapping("/examination-form-print-jobs")
   public ResponseEntity<ApiResponse<ExaminationFormPrintJobResponse>> create(
       @PathVariable UUID organizationId,
-      @PathVariable UUID batchId,
+      @PathVariable UUID agreementId,
       @Valid @RequestBody CreateExaminationFormPrintJobRequest request,
       @RequestHeader("Idempotency-Key") UUID idempotencyKey,
       @AuthenticationPrincipal UserPrincipal principal) {
     log.info(
-        "Examination form print job request: organizationId={}, batchId={}, scope={}",
+        "Examination form print job request: organizationId={}, agreementId={}, scope={}",
         organizationId,
-        batchId,
+        agreementId,
         request.scope() == null ? "IDS" : request.scope());
     ExaminationFormPrintJobResponse response =
-        useCase.execute(organizationId, batchId, request.toCommand(idempotencyKey), principal);
+        useCase.execute(organizationId, agreementId, request.toCommand(idempotencyKey), principal);
     return ResponseEntity.accepted()
         .location(URI.create("/api/v1/document-render-jobs/" + response.jobId()))
         .cacheControl(CacheControl.noStore())

@@ -51,7 +51,7 @@ class ExaminationFormSecurityWebMvcTest {
   private static final String URL =
       "/api/v1/organizations/"
           + UUID.randomUUID()
-          + "/health-examination-batches/"
+          + "/agreements/"
           + UUID.randomUUID()
           + "/participants/"
           + UUID.randomUUID()
@@ -72,7 +72,7 @@ class ExaminationFormSecurityWebMvcTest {
                       .code(PRINT)
                       .httpMethod("GET")
                       .endpoint(
-                          "/api/v1/organizations/{organizationId}/health-examination-batches/{batchId}/participants/{participantId}/examination-form")
+                          "/api/v1/organizations/{organizationId}/agreements/{agreementId}/participants/{participantId}/examination-form")
                       .build()));
       return mapper;
     }
@@ -84,7 +84,7 @@ class ExaminationFormSecurityWebMvcTest {
 
   @BeforeEach
   void stubTheApplicationBoundary() {
-    when(render.execute(any(), any(), any(), any()))
+    when(render.execute(any(), any(), any(), any(), any()))
         .thenReturn(new ExaminationFormDocumentResponse(new byte[] {1}, "phieu-kham-X.pdf"));
   }
 

@@ -13,9 +13,7 @@ import lombok.Builder;
 @Builder
 public record ParticipantSummaryResponse(
     UUID id,
-    UUID batchId,
-    UUID batchDayId,
-    LocalDate examinationDate,
+    UUID agreementId,
     String participantCode,
     String fullName,
     LocalDate dateOfBirth,
@@ -26,7 +24,9 @@ public record ParticipantSummaryResponse(
     String rosterStatus,
     String attendanceStatus,
     String reconciliationStatus,
-    LocalDate actualExaminationDate,
+    long liveAssignmentCount,
+    LocalDate nextSessionDate,
+    LocalDate lastAttendedDate,
     Instant preparedAt,
     long rowVersion) {
   private static final int VISIBLE_TAIL = 4;
@@ -34,9 +34,7 @@ public record ParticipantSummaryResponse(
   public static ParticipantSummaryResponse from(ParticipantSummary row) {
     return ParticipantSummaryResponse.builder()
         .id(row.id())
-        .batchId(row.batchId())
-        .batchDayId(row.batchDayId())
-        .examinationDate(row.examinationDate())
+        .agreementId(row.agreementId())
         .participantCode(row.participantCode())
         .fullName(row.fullName())
         .dateOfBirth(row.dateOfBirth())
@@ -47,7 +45,9 @@ public record ParticipantSummaryResponse(
         .rosterStatus(row.rosterStatus())
         .attendanceStatus(row.attendanceStatus())
         .reconciliationStatus(row.reconciliationStatus())
-        .actualExaminationDate(row.actualExaminationDate())
+        .liveAssignmentCount(row.liveAssignmentCount())
+        .nextSessionDate(row.nextSessionDate())
+        .lastAttendedDate(row.lastAttendedDate())
         .preparedAt(row.preparedAt())
         .rowVersion(row.rowVersion())
         .build();

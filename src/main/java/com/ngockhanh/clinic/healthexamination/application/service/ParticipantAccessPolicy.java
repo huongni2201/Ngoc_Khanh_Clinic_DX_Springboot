@@ -22,7 +22,7 @@ public class ParticipantAccessPolicy {
   public static final String BULK_PRINT_PERMISSION = "PARTICIPANT_EXAMINATION_FORM_BULK_PRINT";
 
   /**
-   * Requires permission to read the Participant roster of a batch.
+   * Requires permission to read the Participant roster of an agreement.
    *
    * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
    */
@@ -31,7 +31,7 @@ public class ParticipantAccessPolicy {
   }
 
   /**
-   * Requires permission to read one Participant of a batch in full.
+   * Requires permission to read one Participant of an agreement in full.
    *
    * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
    */
@@ -40,7 +40,7 @@ public class ParticipantAccessPolicy {
   }
 
   /**
-   * Requires permission to download the Participant import template of a batch.
+   * Requires permission to download the Participant import template of an agreement.
    *
    * @throws ApplicationException of type {@code ACCESS_DENIED} otherwise
    */

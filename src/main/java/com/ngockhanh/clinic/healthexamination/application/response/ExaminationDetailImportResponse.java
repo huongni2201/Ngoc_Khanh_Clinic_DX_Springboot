@@ -16,7 +16,7 @@ import lombok.Builder;
 @Builder
 public record ExaminationDetailImportResponse(
     UUID importJobId,
-    UUID batchId,
+    UUID agreementId,
     int totalRows,
     int updatedParticipants,
     int unchangedParticipants,
@@ -25,7 +25,7 @@ public record ExaminationDetailImportResponse(
   public static ExaminationDetailImportResponse from(ServiceReconciliationReceipt receipt) {
     return ExaminationDetailImportResponse.builder()
         .importJobId(receipt.importJobId())
-        .batchId(receipt.batchId())
+        .agreementId(receipt.agreementId())
         .totalRows(receipt.totalRows())
         .updatedParticipants(receipt.updatedParticipants())
         .unchangedParticipants(receipt.unchangedParticipants())

@@ -5,7 +5,7 @@ Owner-approved contract of 2026-10-15. Owning module: `accesscontrol`
 (screens 1.3.1 Role List, 1.3.2 New Role, 1.3.3 Edit Role) and UC-009 Manage Role Permissions
 (screen 1.3.4 Role Permissions). Responses use
 [the common envelope and pagination](../../PROJECT_RULES.md#envelope-errors-and-pagination).
-Migration `V005` binds the routes to their permissions.
+The V002 seed binds the routes to their permissions.
 
 Permissions are predefined: each one protects exactly one endpoint
 ([ADR-0015](../adr/0015-endpoint-permission-rbac.md)) and is seeded by a migration. An Administrator
@@ -15,19 +15,19 @@ Permission and status changes reach an account at its next sign-in.
 
 ## Routes
 
-Every route requires a STAFF account with the listed permission. Sign in again after `V005`.
+Every route requires a STAFF account with the listed permission. Sign in again after a permission change.
 
 | Method/path | Success | Required STAFF permission |
 |---|---|---|
-| GET `/api/v1/admin/roles` | 200 page of [Role](#role) | `ROLE_MANAGE` (V002, bound by V005) |
-| POST `/api/v1/admin/roles` | 201 [Role](#role) | `ROLE_CREATE` (V005); also `ROLE_PERMISSION_ASSIGN` with `copyFromRoleId` |
-| PUT `/api/v1/admin/roles/{roleId}` | 200 [Role](#role) | `ROLE_UPDATE` (V005) |
-| GET `/api/v1/admin/permissions` | 200 list of [Permission](#permission) | `PERMISSION_VIEW` (V005) |
-| GET `/api/v1/admin/roles/{roleId}/permissions` | 200 [RolePermissions](#rolepermissions) | `ROLE_PERMISSION_VIEW` (V005) |
-| PUT `/api/v1/admin/roles/{roleId}/permissions` | 200 [RolePermissions](#rolepermissions) | `ROLE_PERMISSION_ASSIGN` (V002, bound by V005) |
+| GET `/api/v1/admin/roles` | 200 page of [Role](#role) | `ROLE_MANAGE` (V002) |
+| POST `/api/v1/admin/roles` | 201 [Role](#role) | `ROLE_CREATE` (V002); also `ROLE_PERMISSION_ASSIGN` with `copyFromRoleId` |
+| PUT `/api/v1/admin/roles/{roleId}` | 200 [Role](#role) | `ROLE_UPDATE` (V002) |
+| GET `/api/v1/admin/permissions` | 200 list of [Permission](#permission) | `PERMISSION_VIEW` (V002) |
+| GET `/api/v1/admin/roles/{roleId}/permissions` | 200 [RolePermissions](#rolepermissions) | `ROLE_PERMISSION_VIEW` (V002) |
+| PUT `/api/v1/admin/roles/{roleId}/permissions` | 200 [RolePermissions](#rolepermissions) | `ROLE_PERMISSION_ASSIGN` (V002) |
 
-`V005` grants the four new permissions to `ADMINISTRATOR`, which already holds `ROLE_MANAGE` and
-`ROLE_PERMISSION_ASSIGN` (V002). `GET /api/v1/roles` (assignable roles for staff creation,
+V002 grants the role administration permissions (`ROLE_MANAGE`, `ROLE_CREATE`, `ROLE_UPDATE`,
+`PERMISSION_VIEW`, `ROLE_PERMISSION_VIEW`, `ROLE_PERMISSION_ASSIGN`) to `ADMINISTRATOR`. `GET /api/v1/roles` (assignable roles for staff creation,
 [staff members](staff-members.md)) is unchanged.
 
 ## GET /api/v1/admin/roles

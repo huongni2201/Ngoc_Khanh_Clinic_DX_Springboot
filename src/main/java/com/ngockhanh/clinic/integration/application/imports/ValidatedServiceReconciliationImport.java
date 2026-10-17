@@ -9,9 +9,9 @@ import java.util.UUID;
  * @param templateVersion version of the Excel contract the rows were read with
  */
 public record ValidatedServiceReconciliationImport(
-    UUID batchId, UUID actorId, int templateVersion, List<StagedReconciliationRow> rows) {
+    UUID agreementId, UUID actorId, int templateVersion, List<StagedReconciliationRow> rows) {
   public ValidatedServiceReconciliationImport {
-    if (batchId == null || actorId == null || rows == null || rows.isEmpty())
+    if (agreementId == null || actorId == null || rows == null || rows.isEmpty())
       throw new IllegalArgumentException("Invalid validated service reconciliation import");
     rows = List.copyOf(rows);
   }

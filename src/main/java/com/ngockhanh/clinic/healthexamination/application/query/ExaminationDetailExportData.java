@@ -5,15 +5,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Everything the Excel writer needs to render the examination detail workbook of one batch.
+ * Everything the Excel writer needs to render the examination detail workbook of one agreement.
  *
  * @param services service columns in display order, inactive services included
- * @param rows every active Participant of the batch in export order; the identification number of
- *     each row is already masked, so the writer never sees a complete one
+ * @param rows every active Participant of the agreement in export order; the identification number
+ *     of each row is already masked, so the writer never sees a complete one
  */
 public record ExaminationDetailExportData(
-    UUID batchId,
-    String batchCode,
+    UUID agreementId,
+    String agreementCode,
     Instant exportedAt,
     List<ExaminationServiceColumn> services,
     List<ExaminationDetailRow> rows) {

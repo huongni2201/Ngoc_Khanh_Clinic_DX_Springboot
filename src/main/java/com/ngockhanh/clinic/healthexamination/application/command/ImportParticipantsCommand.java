@@ -7,12 +7,19 @@ import java.util.UUID;
  * copied on construction and on read.
  *
  * @param workbook raw XLSX bytes
- * @param rowVersion batch configuration version the caller expects
+ * @param rowVersion agreement configuration version the caller expects
  * @param idempotencyKey client-generated key that makes a retry safe
+ * @param sessionId optional session the imported Participants are scheduled into in the same commit
  */
-public record ImportParticipantsCommand(byte[] workbook, Long rowVersion, UUID idempotencyKey) {
+public record ImportParticipantsCommand(
+    byte[] workbook, Long rowVersion, UUID idempotencyKey, UUID sessionId) {
   public ImportParticipantsCommand {
     workbook = workbook == null ? null : workbook.clone();
+  }
+
+  /** An import that schedules nobody. */
+  public ImportParticipantsCommand(byte[] workbook, Long rowVersion, UUID idempotencyKey) {
+    this(workbook, rowVersion, idempotencyKey, null);
   }
 
   @Override

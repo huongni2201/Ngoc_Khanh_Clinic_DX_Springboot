@@ -7,16 +7,16 @@ import java.util.UUID;
  * A fully validated Participant import ready to be recorded.
  *
  * @param templateVersion version of the Excel contract the rows were read with
- * @param expectedBatchVersion batch configuration version the caller expected
+ * @param expectedAgreementVersion agreement configuration version the caller expected
  */
 public record ValidatedParticipantImport(
-    UUID batchId,
+    UUID agreementId,
     UUID actorId,
     int templateVersion,
-    long expectedBatchVersion,
+    long expectedAgreementVersion,
     List<StagedParticipantRow> rows) {
   public ValidatedParticipantImport {
-    if (batchId == null || actorId == null || rows == null || rows.isEmpty())
+    if (agreementId == null || actorId == null || rows == null || rows.isEmpty())
       throw new IllegalArgumentException("Invalid validated import");
     rows = List.copyOf(rows);
   }

@@ -17,7 +17,7 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @NoArgsConstructor
 @SuperBuilder
-@AllowedSortKeys({"id", "participantCode", "fullName", "examinationDate"})
+@AllowedSortKeys({"id", "participantCode", "fullName", "nextSessionDate"})
 public class ExaminationDetailListRequest extends BasePagination {
   @Size(max = 20)
   private String rosterStatus;

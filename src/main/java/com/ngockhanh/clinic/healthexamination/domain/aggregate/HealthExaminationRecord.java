@@ -5,13 +5,12 @@ import com.ngockhanh.clinic.healthexamination.domain.exception.DomainRuleViolati
 import com.ngockhanh.clinic.healthexamination.domain.valueobject.AggregateId;
 import java.time.Instant;
 import lombok.Getter;
-import lombok.experimental.Accessors;
 
 /** Stable visit identity. Administrative and clinical versions are separate history records. */
 @Getter
 public class HealthExaminationRecord {
   private final AggregateId id;
-  private final AggregateId batchParticipantId;
+  private final AggregateId participantId;
   private final AggregateId encounterId;
   private final String mrn;
   private HealthExaminationRecordStatus status;
@@ -49,7 +48,7 @@ public class HealthExaminationRecord {
         || (status == HealthExaminationRecordStatus.CANCELLED && cancelledAt == null))
       throw new IllegalArgumentException("Invalid health examination record");
     this.id = id;
-    this.batchParticipantId = participant;
+    this.participantId = participant;
     this.encounterId = encounter;
     this.mrn = mrn;
     this.status = status;

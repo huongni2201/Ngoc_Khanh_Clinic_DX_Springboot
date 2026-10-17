@@ -6,8 +6,7 @@ import java.time.LocalDate;
  * One data row read from the import workbook, typed but not yet checked against the domain.
  *
  * @param rowNumber real one-based row number in the worksheet (the first data row is 2)
- * <p>There is no participant code: the system generates it when the row is stored.
- *
+ *     <p>There is no participant code: the system generates it when the row is stored.
  * @param identificationNumber text exactly as typed, never trimmed or padded
  * @param identificationIssueDate optional date, null when blank
  * @param identificationIssuePlace optional text, null when blank
@@ -33,5 +32,4 @@ public record ParticipantImportRow(
     String workplace,
     String departmentName,
     String positionName,
-    String note,
-    LocalDate examinationDate) {}
+    String note) {}

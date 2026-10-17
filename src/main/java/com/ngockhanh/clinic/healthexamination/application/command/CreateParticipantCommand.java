@@ -1,14 +1,12 @@
 package com.ngockhanh.clinic.healthexamination.application.command;
 
 import java.time.LocalDate;
-import java.util.UUID;
 
 /**
- * Input of adding one Participant to a batch by hand. It carries no actor and no transport type.
+ * Input of adding one Participant to an agreement by hand. It carries no actor and no transport
+ * type.
  *
  * <p>There is no participant code: the system generates it.
- *
- * @param batchDayId examination day of the batch the Participant is scheduled on
  */
 public record CreateParticipantCommand(
     String fullName,
@@ -24,5 +22,4 @@ public record CreateParticipantCommand(
     String workplace,
     String departmentName,
     String positionName,
-    String note,
-    UUID batchDayId) {}
+    String note) {}
